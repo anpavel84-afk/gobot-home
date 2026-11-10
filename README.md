@@ -1,4 +1,7 @@
-# GoBot Home MVP
+# GoBot Home
+
+**[Единый паспорт проекта: что сделано, архитектура, проверки и ограничения](docs/CURRENT_STATUS.md).**
+[Целевая спецификация](docs/GOBOT_HOME_TARGET_SYSTEM.md) описывает требования; паспорт — фактическую реализацию.
 
 **Основной браузерный GoBot:** [приватный HTTPS через Tailscale](https://plan.tailffc57c.ts.net:18786).
 Текст/запись микрофона, общая память, выбор CLI и серверного голоса. Фактические проверки и ограничения:
@@ -11,7 +14,7 @@ Wi-Fi [mock-диагностика](http://192.168.3.15:18785) работает 
 
 На Windows запущены Brain, защищённый Host Agent Bridge, browser transport и XiaoZhi fixture-device.
 Основные STT и TTS — OpenAI; Whisper Small и Piper Denis только явный ручной резерв.
-Реальные Codex и Antigravity проверялись ранее; три разрешённые speech API пробы выполнены.
+Реальные пробы CLI и OpenAI speech описаны в паспорте с расходом и ограничениями.
 В распознавании имени «Гобот» были ошибки. Физической платы нет.
 Upstream voice server имеет воспроизводимый blocker Python/Torch; см. docs/DEPENDENCIES.md.
 
@@ -31,8 +34,7 @@ Health: http://127.0.0.1:18781/healthz . Ключи генерируются в 
 gemini-3.8-flash-medium. Argon и Codex — явно вручную. Gemini CLI/API исключены.
 Admission CLI проверяется offline; доступ требует согласия на квоту. Прошивки не было.
 
-Контекст ограничен, архив принадлежит GoBot. Проверки: 528 pytest, 240 synthetic
-router cases, 200-turn day. Это не подтверждает качество LLM или семейной биометрии.
+Контекст ограничен, архив принадлежит GoBot. Актуальные проверки, расходы и статус развёртывания приведены в едином паспорте. Mocks не подтверждают качество LLM или семейной биометрии.
 [Контекст](docs/CONTEXT_POLICY.md) · [Память](docs/MEMORY_ARCHITECTURE.md) ·
 [Оценка](docs/CONTEXT_EVALUATION.md) · [Speech Formatter](docs/SPEECH_FORMATTING.md).
 
@@ -48,8 +50,7 @@ AUTO показывает реальные фото/галерею, локаль
 Visual Response Composer выбирает сцену для каждого product-ответа, включая лицо,
 иконку, фото, процедурную схему или виджет. Не вызывает отдельную модель ради выбора
 визуала. [Multimodal Responses](docs/MULTIMODAL_RESPONSES.md).
-Проверены отдельный HTTPS image E2E и 528 бесплатных pytest; реальный Safari
-layout и новый платный TTS smoke этой фазы не проверялись.
+Проверки HTTPS/image/voice разделены по типам доказательств в паспорте; физический iPhone отдельно не подтверждён.
 
 Публичный исходный код: [anpavel84-afk/gobot-home](https://github.com/anpavel84-afk/gobot-home),
 ветка master. GitHub connector подключён; Actions выключены. Правила публикации:

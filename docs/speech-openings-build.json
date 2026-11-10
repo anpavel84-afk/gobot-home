@@ -1,0 +1,24 @@
+{
+  "date_local": "2026-11-10",
+  "voice": "marin",
+  "model": "gpt-realtime-2.1-mini",
+  "authorized_max_attempts": 100,
+  "actual_attempts": 100,
+  "statuses": {
+    "completed": 100
+  },
+  "tts_characters_reserved": 2886,
+  "ready_clips": 100,
+  "runtime_paid_synthesis": false,
+  "legacy_denis_filler": false,
+  "duration_seconds_range": [
+    1.65,
+    3.55
+  ],
+  "total_pcm_playback_seconds": 238.5,
+  "local_cache_bytes": 11485006,
+  "billing_usd": null,
+  "usage_tokens": "not reported by existing adapter",
+  "retries": 0,
+  "private_audio_published": false
+}

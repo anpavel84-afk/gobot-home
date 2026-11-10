@@ -3,9 +3,11 @@ from dataclasses import dataclass,asdict
 import re,time,json
 from pathlib import Path
 from .processes import AgentError
-from .quality import RiskAssessment
+from .quality import RiskAssessment,Assessment
 from .presentation import PresentationDecision
 from .timer_duration import is_timer_duration_reply
+from .conversation_control import closing_intent
+from .quick_intents import match_quick
 
 @dataclass(frozen=True)
 class RouterPolicy:
@@ -53,6 +55,12 @@ class SmartRouter:
         def explicit_selection(value):return value in {'codex','google','gemini','antigravity'}
         # Diagnostic selection is explicit, never a failure fallback.
         if mode=='mock':return result('FAST_CHAT','mock',None,'explicit_diagnostics','local_mock')
+        closing=closing_intent(req.text,context)
+        if closing:return result('TOOL','local',None,closing,'local','dialogue_end')
+        quick=match_quick(req.text)
+        if quick:
+            if quick.executor in {'clock','timer_status'}:assessment=Assessment(tool_execution=True,verification_required=True,method='server_clock' if quick.executor=='clock' else 'timer_state',basis='read_actual_server_state')
+            return result('TOOL','local',None,'quick_intent_'+quick.intent,'local',quick.executor)
         if context.get('topic',{}).get('outcome')=='ambiguous':return result('TOOL','local',None,'ambiguous_topic_reference','local','clarify_topic')
         files=bool(re.search(r'^(?:гобот[,! ]+)?(?:проверь|исправь|измени|удали|прочитай|отредактируй|проанализируй|подготовь).*?(?:файл|репозитор|локальн|мо[а-яё]*\s+проект|использовани[ея] файлов)',text))
         if files:return result('AGENT','local',None,'file_access_requires_separate_permission','local','file_permission',True)

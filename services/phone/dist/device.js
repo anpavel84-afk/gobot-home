@@ -23,7 +23,7 @@
       const hooks=window.GoBotHooks;
       hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
-      hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.state('thinking','Готовлю ответ…');};
+      hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.conversationEnded=false;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.state('thinking','Готовлю ответ…');};
       hooks.onListening=()=>{
         if(this.followupPending&&!this.held){
           this.state('listening','Жду продолжение разговора · '+this.profile.conversation.followup_seconds+' секунд');
@@ -58,7 +58,7 @@
       this.diagnostics={client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation};
       document.getElementById('device-diagnostics').textContent=JSON.stringify({client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation},null,2);
       if(this.profile.interaction_mode==='toggle')document.getElementById('device-hint').textContent='Нажми круг для начала записи, ещё раз — для завершения. Затем вопрос отправится автоматически.';
-      let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=audio.playing&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
+      let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=(audio.playing||audio.feedback_playing)&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
     }
     event(item){
       if(item.turn_id!==this.turn)return;const data=item.data||{};
@@ -68,6 +68,10 @@
         this.preservedVisual=false;this.manager.visual=null;this.renderer.clearImage();
       }
       if(item.type==='tool_status'&&data.model){this.diagnostics.executor={provider:data.provider,model:data.model,route:data.route};document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);}
+      if(item.type==='tool_status'&&data.status==='conversation_ended'){
+        this.conversationEnded=true;this.endConversation();this.captureAbort?.abort();this.streamDone=true;
+        this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.state('idle','Хорошо. Жду нового обращения.');
+      }
       if(item.type==='tts_status')this.status('Готовлю серверный голос…');
       if(item.type==='audio_start')this.status('Ответ готовится к воспроизведению');
       if(item.type==='audio_stop'&&data.reason==='finished')this.serverAudioEnded=true;
@@ -75,7 +79,7 @@
       if(item.type==='tts_error')this.state('error',window.GoBotClient.explain(data.code));
       if(['error','cancelled'].includes(item.type)){this.endConversation();}
       if(['error','cancelled'].includes(item.type))this.state('error','Ответ прерван. Нажми и задай вопрос снова.');
-      if(item.type==='final'){this.diagnostics.visual=data.trace?.find(entry=>entry.visual_decision)?.visual_decision||null;document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);this.manager.finish(item.turn_id);if(this.manager.state!=='error')this.status('Удерживай круг для следующего вопроса.');}
+      if(item.type==='final'){this.diagnostics.visual=data.trace?.find(entry=>entry.visual_decision)?.visual_decision||null;document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);this.manager.finish(item.turn_id);if(this.manager.state!=='error'&&!this.conversationEnded)this.status('Удерживай круг для следующего вопроса.');}
     }
     endConversation(){
       this.sessionEpoch++;this.sessionActive=false;this.serverAudioEnded=false;this.followupPending=false;

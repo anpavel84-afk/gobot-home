@@ -15,3 +15,5 @@ Current priority is M1 telemetry and measured latency. Feedback never counts as 
 Real profiling requires explicit remaining owner budget; historical latency evidence stays unchanged.
 Family/personal/guest scopes must not cross. Voice identity alone cannot grant personal-history access;
 uncertain voice/pending recognition downgrades to guest, except a short utterance in a PIN-confirmed session.
+
+After every meaningful implementation, update docs/CURRENT_STATUS.md as the single factual project passport. Link changed code and evidence, record limitations and deployment state, and distinguish planned/mock/provider/browser/iPhone/hardware validation. Keep GOBOT_HOME_TARGET_SYSTEM.md as the requirements authority; do not create another competing status document.

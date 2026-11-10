@@ -6,7 +6,7 @@ localStorage.setItem('gobot.conversation', conversation);
 let active = null, audio = null, gain = null, nextAt = 0, epoch = 0, recording = null, micPending = false;
 let lastSpeakerJob=null,transcriptPending=false;
 let outputAnalyser=null,transcriptionAbort=null;
-let requestTrace=null,feedbackBuffer=null,earconBuffer=null,feedbackGain=null;const feedbackSources=new Set();
+let requestTrace=null,earconBuffer=null,feedbackGain=null;const feedbackSources=new Set();
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
@@ -83,9 +83,9 @@ async function unlockAudio() {
 }
 async function prepareFeedback(){
   await unlockAudio();
-  feedbackGain?.disconnect();feedbackGain=audio.createGain();
+  if(feedbackGain)return;feedbackGain=audio.createGain();
   earconBuffer=audio.createBuffer(1,Math.round(audio.sampleRate*.08),audio.sampleRate);const tone=earconBuffer.getChannelData(0);for(let i=0;i<tone.length;i++)tone[i]=Math.sin(2*Math.PI*740*i/audio.sampleRate)*.3*Math.sin(Math.PI*i/tone.length);feedbackGain.gain.value=.22;feedbackGain.connect(gain);
-  try{const response=await fetch('/feedback-wait.wav');if(!response.ok)throw Error();feedbackBuffer=await audio.decodeAudioData(await response.arrayBuffer());}catch(_){feedbackBuffer=null;}
+
 }
 function stopFeedback(fade,trace){
   if(!feedbackSources.size)return;
@@ -94,11 +94,22 @@ function stopFeedback(fade,trace){
 }
 function playFeedback(role,trace){
   if(!audio||audio.state!=='running'||!feedbackGain||!$('speak').checked||Number($('volume').value)<=0)return;
-  const buffer=role==='earcon'?earconBuffer:feedbackBuffer;
+  const buffer=role==='earcon'?earconBuffer:opening?.buffer;
   if(!buffer)return;
   feedbackGain.gain.cancelScheduledValues(audio.currentTime);feedbackGain.gain.setValueAtTime(feedback?.config.volume??.22,audio.currentTime);
   const source=audio.createBufferSource();source.buffer=buffer;source.connect(feedbackGain);source.gobotAudioRole=role;feedbackSources.add(source);source.onended=()=>feedbackSources.delete(source);source.start();
   trace?.mark(role==='earcon'?'earcon_started':'filler_started');
+}
+async function offerOpening(opening,trace,runEpoch){
+  if(!opening||$('tts').value!=='openai'||opening.voice!==($('voice').value||'marin')||!$('speak').checked||!$('paid').checked)return;
+  if(!/^\/api\/speech\/openings\/[a-z]+\/opening-\d{3}\.wav$/.test(opening.url||''))return;
+  try{
+    const response=await fetch(opening.url);if(!response.ok)return;
+    const raw=await response.arrayBuffer();if(raw.byteLength>600000)return;
+    const buffer=await audio.decodeAudioData(raw);
+    if(runEpoch!==epoch||requestTrace!==trace||audio.state!=='running')return;
+    feedback?.offer({...opening,buffer},trace);
+  }catch(_){}
 }
 const feedback=window.GoBotTiming?new window.GoBotTiming.FeedbackController({play:playFeedback,stop:stopFeedback}):null;
 function inputClosed(info={}){
@@ -154,6 +165,7 @@ async function send(options={}) {
   $('orb').classList.add('busy'); $('result-badge').textContent = 'Получаем ответ';
   let canSpeak=$('speak').checked;
   if(canSpeak){try{await unlockAudio();}catch(_){canSpeak=false;$('voice-status').textContent='Не удалось включить воспроизведение. Этот ответ придёт текстом; API синтеза не вызывается.';}}
+  if(canSpeak){await prepareFeedback();if(window.GoBotHooks?.clientKind!=='device')feedback?.begin(requestTrace);}
   let answer = '', terminal = false;const dispatchAt=performance.now();let firstDeltaAt=null;currentTurn=uuid();const utterance=lastUtterance;lastUtterance=null;
   window.GoBotHooks?.onTurn?.({turn_id:currentTurn,conversation_id:conversation,continuation:options.continuation===true});
   const sendTurn=currentTurn;
@@ -176,6 +188,8 @@ async function send(options={}) {
         window.GoBotHooks?.onEvent?.(item);
         if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;turnTrace?.mark('first_text');answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
         else if (item.type === 'tool_status') {
+          if(data.status==='conversation_ended'){feedback?.cancel();$('voice-status').textContent='Разговор завершён.';}
+          if(data.status==='speech_opening_ready')void offerOpening(data.opening,turnTrace,runEpoch);
           if(data.status==='loading_visual')visuals?.loading();
           if(data.status==='preparing_visual_attachment')visuals?.loading();
           if(data.presentation_plan)$('route-statistics').textContent='Визуальный план: '+data.presentation_plan.visual_strategy+' · '+data.presentation_plan.visual_priority+' · '+data.presentation_plan.reason;
@@ -379,7 +393,7 @@ window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSock
 window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,unlockAudio,startRecording,endRecording,explain,
   cancelRecording(){recording?.cancel();recording=null;liveSocket?.close();transcriptPending=false;stop();},
   isRecording:()=>!!recording||micPending,
-  audioSnapshot(){let level=0;if(outputAnalyser){const data=new Uint8Array(outputAnalyser.fftSize);outputAnalyser.getByteTimeDomainData(data);level=Math.sqrt(data.reduce((sum,value)=>sum+((value-128)/128)**2,0)/data.length);}return {level,playing:sources.size>0&&(!audio.state||audio.state==='running'),state:audio?.state||'closed'};},
+  audioSnapshot(){let level=0;if(outputAnalyser){const data=new Uint8Array(outputAnalyser.fftSize);outputAnalyser.getByteTimeDomainData(data);level=Math.sqrt(data.reduce((sum,value)=>sum+((value-128)/128)**2,0)/data.length);}return {level,feedback_playing:feedbackSources.size>0,playing:sources.size>0&&(!audio.state||audio.state==='running'),state:audio?.state||'closed'};},
   getSettings:()=>({model:$('model').value,tts:$('tts').value,voice:$('voice').value||'marin',stt:$('stt').value,speak:$('speak').checked,paid:$('paid').checked,paid_stt:$('paid-stt').checked,quota:$('quota').checked,remember:$('remember').checked,volume:$('volume').value}),
   saveSettings(){localStorage.setItem('gobot.voice-settings',JSON.stringify(this.getSettings()));},
   restoreSettings(){try{const value=JSON.parse(localStorage.getItem('gobot.voice-settings')||'{}');for(const key of ['model','tts','stt','volume'])if(value[key]!=null)$(key).value=value[key];for(const key of ['speak','paid','quota','remember'])if(typeof value[key]==='boolean')$(key).checked=value[key];if(typeof value.paid_stt==='boolean')$('paid-stt').checked=value.paid_stt;if(value.voice&&$('voice').options.length)$('voice').value=value.voice;}catch(_){}}

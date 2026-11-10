@@ -315,7 +315,20 @@ def create_browser_app(settings=None):
         return JSONResponse(result.json(),status_code=result.status_code)
 
     @app.get('/feedback-wait.wav')
-    async def feedback_wait():return FileResponse(ROOT/'services/phone/dist/feedback-wait.wav',media_type='audio/wav')
+    async def feedback_wait():raise HTTPException(410,'legacy_denis_filler_retired')
+
+    @app.get('/api/speech/openings/{voice}/{ident}.wav')
+    async def speech_opening(voice:str,ident:str):
+        from .speech_openings import OpeningCache
+        clip=await asyncio.to_thread(OpeningCache().clip,voice,ident)
+        if clip is None:raise HTTPException(404,'opening_clip_unavailable')
+        return FileResponse(clip['path'],media_type='audio/wav',headers={'Cache-Control':'private, max-age=86400'})
+
+    @app.get('/api/speech/openings/status/{voice}')
+    async def speech_opening_status(voice:str):
+        from .speech_openings import OpeningCache,OPENAI_VOICES
+        if voice not in OPENAI_VOICES:raise HTTPException(404)
+        return await asyncio.to_thread(OpeningCache().status,voice)
 
     @app.get('/audio/voice-check.wav')
     async def voice_check():

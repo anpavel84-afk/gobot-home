@@ -64,5 +64,9 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   app.sessionActive=true;app.serverAudioEnded=true;app.checkFollowup({playing:false});await pendingFollowup.shift()();
   assert.equal(starts,previousStarts+1);assert(sandbox.window.GoBotHooks.captureOptions.vad);
   app.pause('Окончание теста');
+  app.turn='closing';app.manager.newTurn('closing');app.enabled=true;app.sessionActive=true;
+  app.event({type:'tool_status',turn_id:'closing',data:{status:'conversation_ended'}});
+  app.event({type:'audio_stop',turn_id:'closing',data:{reason:'finished'}});
+  app.checkFollowup({playing:false});assert(!app.sessionActive);assert(!app.followupPending);assert(app.conversationEnded);
   console.log('Device units: raster, scenes, capture, followup playback gate, stop and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

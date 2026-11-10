@@ -26,6 +26,9 @@ from .visual_prefetch import SpeculativePhoto,extract_entity,planned_entity
 from .character_images import CharacterImages,CHARACTER_TOPIC,characters
 from .response_composer import VisualResponseComposer
 from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
+from .conversation_control import closing_intent
+from .speech_openings import OpeningCache
+from .quick_intents import match_quick
 
 class Service:
     def __init__(self,settings):
@@ -33,6 +36,7 @@ class Service:
         self.composer=VisualResponseComposer(self.presentation_planner)
         self.active_voice_streams=0
         self.warm_photos={}
+        self.openings=OpeningCache()
         self.traces=Traces(Path(settings.db).parent)
         self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
     async def prepare(self,req):
@@ -101,7 +105,7 @@ class Service:
                 if not result.frame.images and message.get('presentation'):continue
                 if result.frame.images:message['presentation']=result.frame.model_dump()
         return archive
-    async def events(self,req,replay=None):
+    async def events(self,req,replay=None,*,opening_voice=None):
         if replay:
             try:
                 for entry in json.loads(replay.get('trace') or '[]'):
@@ -128,17 +132,22 @@ class Service:
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
                     request_for_route=req if req.mode is not None else req.model_copy(update={'mode':req.provider})
                     mark("admission_start")
-                    admission=await asyncio.to_thread(agent_status,req.usage_consent)
+                    admission={} if closing_intent(req.text,ctx) or match_quick(req.text) else await asyncio.to_thread(agent_status,req.usage_consent)
                     mark("admission_end")
                     decision=self.router.choose(request_for_route,ctx,admission)
                     mark("router_end",route=decision.category,model=decision.model,concurrency=len(self.running))
+                    opening=None
+                    if opening_voice and decision.provider in {'antigravity','codex'} and not decision.quality.get('verification_required') and decision.quality.get('consequence_risk',0)<2:
+                        opening=await asyncio.to_thread(self.openings.select,req.text,opening_voice,ctx,req.turn_id)
+                        if opening:ctx['speech_opening']={'id':opening['id'],'text':opening['text']}
                     ctx=self.context_manager.pack(req.text,ctx,'DETAILED' if req.context_detail=='detailed' else decision.category)
+                    if opening:yield event(req,'tool_status',status='speech_opening_ready',opening=opening)
                     if req.remember:await asyncio.to_thread(self.memory.archive.record_context,req,ctx,decision.provider)
                     mark("context_pack_end",context_tokens=ctx.get("_context_meta",{}).get("packet_tokens"))
                     route=decision.category;provider=('bridge:'+decision.provider) if decision.provider in {'codex','antigravity'} else decision.provider
                     second=decision.reason=='explicit_model_selection';trace=[decision.public()]
                     source_req=req.model_copy(update={'provider':decision.provider,'model_id':decision.model}) if decision.provider in {'codex','antigravity'} else req
-                    if ctx.get('topic',{}).get('outcome')=='ambiguous':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
+                    if ctx.get('topic',{}).get('outcome')=='ambiguous' and decision.tool!='dialogue_end':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
                     elif decision.provider=='local' and decision.tool=='visual':
                         yield event(req,'tool_status',status='loading_visual',route='TOOL',provider='local',reason=decision.reason,model=None)
                         initial_plan=self.composer.plan(req,route=decision,context=ctx)
@@ -156,9 +165,15 @@ class Service:
                             work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
                         tool_result=await asyncio.to_thread(self.tools.execute,decision.tool,req);widget=tool_result.widget
+                        if decision.tool=='dialogue_end':
+                            spoken_override=''
+                            yield event(req,'tool_status',status='conversation_ended',reason=decision.reason)
                         verification=self.verifier.check(Assessment(**decision.quality),tool_result.text,tool_result.evidence)
                         source=text_stream(tool_result.text if verification['accepted'] else 'Не удалось подтвердить ответ по доступным данным. Я не буду выдавать предположение за факт.')
                         if widget and widget.get('payload',{}).get('timer_id'):visual_frame=self.visual.timer(req,widget)
+                        elif decision.tool in {'clock','timer_status','quick_help'}:
+                            from .presentation import Presentation,VisualMetadata
+                            visual_frame=Presentation(id=frame_id(req.turn_id,'local_result'),type='info_card',title='Время' if decision.tool=='clock' else 'Таймеры' if decision.tool=='timer_status' else 'Команды GoBot',text=(tool_result.evidence or {}).get('display',tool_result.text),metadata=VisualMetadata(backend='local_tool',facts={k:str(v) for k,v in (tool_result.evidence or {}).items() if k in {'utc_offset','as_of','active_count'}}))
                         elif decision.tool=='verification' and self.visual.intent.detect(req.text):visual_frame=self.visual.fallback(req,'Нужна проверка','verification_unavailable',kind='status_card',text=tool_result.text).frame
                     elif decision.provider=='mock':source=MockAgentAdapter().stream(req.text,ctx)
                     else:source=bridge_stream(self.settings,source_req,ctx)

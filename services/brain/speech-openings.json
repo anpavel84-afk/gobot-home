@@ -1,0 +1,507 @@
+{
+  "version": 1,
+  "source": "curated_service_openings_not_factual_answers",
+  "maximum_per_turn": 1,
+  "entries": [
+    {
+      "id": "opening-001",
+      "category": "general",
+      "text": "Итак, начну с главного."
+    },
+    {
+      "id": "opening-002",
+      "category": "general",
+      "text": "Давай начнём с сути."
+    },
+    {
+      "id": "opening-003",
+      "category": "general",
+      "text": "Сначала — самое главное."
+    },
+    {
+      "id": "opening-004",
+      "category": "general",
+      "text": "Итак, перейду к ответу."
+    },
+    {
+      "id": "opening-005",
+      "category": "general",
+      "text": "Начну с короткого объяснения."
+    },
+    {
+      "id": "opening-006",
+      "category": "general",
+      "text": "Давай разберёмся спокойно."
+    },
+    {
+      "id": "opening-007",
+      "category": "general",
+      "text": "Расскажу простыми словами."
+    },
+    {
+      "id": "opening-008",
+      "category": "general",
+      "text": "Итак, коротко о сути."
+    },
+    {
+      "id": "opening-009",
+      "category": "general",
+      "text": "Давай посмотрим на сам вопрос."
+    },
+    {
+      "id": "opening-010",
+      "category": "general",
+      "text": "Начну с основного."
+    },
+    {
+      "id": "opening-011",
+      "category": "general",
+      "text": "Попробую объяснить без сложных слов."
+    },
+    {
+      "id": "opening-012",
+      "category": "general",
+      "text": "Перейду сразу к сути."
+    },
+    {
+      "id": "opening-013",
+      "category": "general",
+      "text": "Давай разберём главный момент."
+    },
+    {
+      "id": "opening-014",
+      "category": "general",
+      "text": "Начну с самого важного в этом вопросе."
+    },
+    {
+      "id": "opening-015",
+      "category": "general",
+      "text": "Вот с чего стоит начать."
+    },
+    {
+      "id": "opening-016",
+      "category": "general",
+      "text": "Итак, сначала об основном."
+    },
+    {
+      "id": "opening-017",
+      "category": "general",
+      "text": "Давай начнём с короткого ответа."
+    },
+    {
+      "id": "opening-018",
+      "category": "general",
+      "text": "Объясню это по порядку."
+    },
+    {
+      "id": "opening-019",
+      "category": "general",
+      "text": "Итак, разберём сам вопрос."
+    },
+    {
+      "id": "opening-020",
+      "category": "general",
+      "text": "Сначала обозначу главное."
+    },
+    {
+      "id": "opening-021",
+      "category": "explanation",
+      "text": "Давай разберём, как это устроено."
+    },
+    {
+      "id": "opening-022",
+      "category": "explanation",
+      "text": "Начну с простого объяснения."
+    },
+    {
+      "id": "opening-023",
+      "category": "explanation",
+      "text": "Итак, объясню саму идею."
+    },
+    {
+      "id": "opening-024",
+      "category": "explanation",
+      "text": "Сначала — общее представление."
+    },
+    {
+      "id": "opening-025",
+      "category": "explanation",
+      "text": "Давай начнём с понятного примера."
+    },
+    {
+      "id": "opening-026",
+      "category": "explanation",
+      "text": "Объясню это шаг за шагом."
+    },
+    {
+      "id": "opening-027",
+      "category": "explanation",
+      "text": "Итак, разберёмся в сути."
+    },
+    {
+      "id": "opening-028",
+      "category": "explanation",
+      "text": "Начнём с того, что это такое."
+    },
+    {
+      "id": "opening-029",
+      "category": "explanation",
+      "text": "Расскажу, что здесь происходит."
+    },
+    {
+      "id": "opening-030",
+      "category": "explanation",
+      "text": "Давай посмотрим, как это работает."
+    },
+    {
+      "id": "opening-031",
+      "category": "explanation",
+      "text": "Начну с общего принципа."
+    },
+    {
+      "id": "opening-032",
+      "category": "explanation",
+      "text": "Сначала объясню основную мысль."
+    },
+    {
+      "id": "opening-033",
+      "category": "explanation",
+      "text": "Разберу это без лишних терминов."
+    },
+    {
+      "id": "opening-034",
+      "category": "explanation",
+      "text": "Итак, начнём с объяснения."
+    },
+    {
+      "id": "opening-035",
+      "category": "explanation",
+      "text": "Давай пройдём от общего к деталям."
+    },
+    {
+      "id": "opening-036",
+      "category": "explanation",
+      "text": "Расскажу об этом по порядку."
+    },
+    {
+      "id": "opening-037",
+      "category": "explanation",
+      "text": "Сначала — короткое пояснение."
+    },
+    {
+      "id": "opening-038",
+      "category": "explanation",
+      "text": "Итак, посмотрим на общую картину."
+    },
+    {
+      "id": "opening-039",
+      "category": "explanation",
+      "text": "Разберём основную идею вместе."
+    },
+    {
+      "id": "opening-040",
+      "category": "explanation",
+      "text": "Начну с понятного описания."
+    },
+    {
+      "id": "opening-041",
+      "category": "howto",
+      "text": "Давай разберём порядок действий."
+    },
+    {
+      "id": "opening-042",
+      "category": "howto",
+      "text": "Начну с первого шага."
+    },
+    {
+      "id": "opening-043",
+      "category": "howto",
+      "text": "Итак, рассмотрим, как это сделать."
+    },
+    {
+      "id": "opening-044",
+      "category": "howto",
+      "text": "Давай пройдём по шагам."
+    },
+    {
+      "id": "opening-045",
+      "category": "howto",
+      "text": "Сначала — общий порядок."
+    },
+    {
+      "id": "opening-046",
+      "category": "howto",
+      "text": "Объясню последовательность действий."
+    },
+    {
+      "id": "opening-047",
+      "category": "howto",
+      "text": "Итак, начнём с подготовки."
+    },
+    {
+      "id": "opening-048",
+      "category": "howto",
+      "text": "Давай сначала определим основные шаги."
+    },
+    {
+      "id": "opening-049",
+      "category": "howto",
+      "text": "Расскажу, с чего начать."
+    },
+    {
+      "id": "opening-050",
+      "category": "howto",
+      "text": "Начну с того, что понадобится."
+    },
+    {
+      "id": "opening-051",
+      "category": "howto",
+      "text": "Давай рассмотрим сам способ."
+    },
+    {
+      "id": "opening-052",
+      "category": "howto",
+      "text": "Итак, разберём процесс по порядку."
+    },
+    {
+      "id": "opening-053",
+      "category": "howto",
+      "text": "Сначала объясню общий подход."
+    },
+    {
+      "id": "opening-054",
+      "category": "howto",
+      "text": "Давай начнём с практической стороны."
+    },
+    {
+      "id": "opening-055",
+      "category": "howto",
+      "text": "Расскажу, как подойти к этой задаче."
+    },
+    {
+      "id": "opening-056",
+      "category": "comparison",
+      "text": "Давай сравним их по существу."
+    },
+    {
+      "id": "opening-057",
+      "category": "comparison",
+      "text": "Начну с главного различия."
+    },
+    {
+      "id": "opening-058",
+      "category": "comparison",
+      "text": "Итак, посмотрим, чем они отличаются."
+    },
+    {
+      "id": "opening-059",
+      "category": "comparison",
+      "text": "Сначала — основные отличия."
+    },
+    {
+      "id": "opening-060",
+      "category": "comparison",
+      "text": "Давай рассмотрим оба варианта."
+    },
+    {
+      "id": "opening-061",
+      "category": "comparison",
+      "text": "Сравню их по порядку."
+    },
+    {
+      "id": "opening-062",
+      "category": "comparison",
+      "text": "Начнём с того, что у них общего."
+    },
+    {
+      "id": "opening-063",
+      "category": "comparison",
+      "text": "Итак, разберём сходства и различия."
+    },
+    {
+      "id": "opening-064",
+      "category": "comparison",
+      "text": "Давай выделим ключевые особенности."
+    },
+    {
+      "id": "opening-065",
+      "category": "comparison",
+      "text": "Сначала обозначу разницу между ними."
+    },
+    {
+      "id": "opening-066",
+      "category": "comparison",
+      "text": "Рассмотрю каждый вариант отдельно."
+    },
+    {
+      "id": "opening-067",
+      "category": "comparison",
+      "text": "Давай сравним основные свойства."
+    },
+    {
+      "id": "opening-068",
+      "category": "comparison",
+      "text": "Итак, перейдём к сравнению."
+    },
+    {
+      "id": "opening-069",
+      "category": "comparison",
+      "text": "Начну с общей картины сравнения."
+    },
+    {
+      "id": "opening-070",
+      "category": "comparison",
+      "text": "Давай посмотрим на различия подробнее."
+    },
+    {
+      "id": "opening-071",
+      "category": "continuation",
+      "text": "Продолжим эту тему."
+    },
+    {
+      "id": "opening-072",
+      "category": "continuation",
+      "text": "Давай разберём это подробнее."
+    },
+    {
+      "id": "opening-073",
+      "category": "continuation",
+      "text": "Итак, перейдём к следующему моменту."
+    },
+    {
+      "id": "opening-074",
+      "category": "continuation",
+      "text": "Продолжу объяснение."
+    },
+    {
+      "id": "opening-075",
+      "category": "continuation",
+      "text": "Давай углубимся в этот вопрос."
+    },
+    {
+      "id": "opening-076",
+      "category": "continuation",
+      "text": "Расскажу об этом чуть подробнее."
+    },
+    {
+      "id": "opening-077",
+      "category": "continuation",
+      "text": "Итак, продолжим наш разговор."
+    },
+    {
+      "id": "opening-078",
+      "category": "continuation",
+      "text": "Перейду к следующей детали."
+    },
+    {
+      "id": "opening-079",
+      "category": "continuation",
+      "text": "Давай посмотрим на это внимательнее."
+    },
+    {
+      "id": "opening-080",
+      "category": "continuation",
+      "text": "Продолжим с этого места."
+    },
+    {
+      "id": "opening-081",
+      "category": "continuation",
+      "text": "Добавлю пояснение по нашей теме."
+    },
+    {
+      "id": "opening-082",
+      "category": "continuation",
+      "text": "Итак, разберём ещё один момент."
+    },
+    {
+      "id": "opening-083",
+      "category": "continuation",
+      "text": "Давай вернёмся к сути вопроса."
+    },
+    {
+      "id": "opening-084",
+      "category": "continuation",
+      "text": "Продолжу с пояснения."
+    },
+    {
+      "id": "opening-085",
+      "category": "continuation",
+      "text": "Расскажу дальше по этой теме."
+    },
+    {
+      "id": "opening-086",
+      "category": "creative",
+      "text": "Давай начнём эту историю."
+    },
+    {
+      "id": "opening-087",
+      "category": "creative",
+      "text": "Итак, представим такую картину."
+    },
+    {
+      "id": "opening-088",
+      "category": "creative",
+      "text": "Начну с небольшой зарисовки."
+    },
+    {
+      "id": "opening-089",
+      "category": "creative",
+      "text": "Давай представим себе вот что."
+    },
+    {
+      "id": "opening-090",
+      "category": "creative",
+      "text": "Итак, начну рассказ."
+    },
+    {
+      "id": "opening-091",
+      "category": "creative",
+      "text": "Давай отправимся в эту историю."
+    },
+    {
+      "id": "opening-092",
+      "category": "creative",
+      "text": "Начну с первой сцены."
+    },
+    {
+      "id": "opening-093",
+      "category": "creative",
+      "text": "Представим начало этой истории."
+    },
+    {
+      "id": "opening-094",
+      "category": "creative",
+      "text": "Итак, вот начало рассказа."
+    },
+    {
+      "id": "opening-095",
+      "category": "creative",
+      "text": "Давай дадим волю воображению."
+    },
+    {
+      "id": "opening-096",
+      "category": "creative",
+      "text": "Начну с образа, вокруг которого всё строится."
+    },
+    {
+      "id": "opening-097",
+      "category": "creative",
+      "text": "Давай представим этот мир."
+    },
+    {
+      "id": "opening-098",
+      "category": "creative",
+      "text": "Итак, откроем нашу историю."
+    },
+    {
+      "id": "opening-099",
+      "category": "creative",
+      "text": "Начну с того, что можно вообразить."
+    },
+    {
+      "id": "opening-100",
+      "category": "creative",
+      "text": "Давай начнём с одной картины."
+    }
+  ]
+}

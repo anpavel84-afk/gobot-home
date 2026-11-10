@@ -7,6 +7,7 @@ from uuid import uuid4
 from .processes import AgentError
 from .speech_formatter import SpeechFormatter
 from .telemetry import scope,mark
+from .conversation_control import closing_intent
 
 async def voiced_events(service, speech, request, *, speak=True, tts_provider="openai",
                         tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False,tts_character_limit=None):
@@ -32,7 +33,8 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
     async def produce_text():
         nonlocal text_final
         sentences_closed=False
-        iterator = service.events(request, replay)
+        voice=tts_voice if speak and paid_tts_consent and tts_provider=='openai' and not replay else None
+        iterator = service.events(request,replay,opening_voice=voice) if voice else service.events(request,replay)
         try:
             async for item in iterator:
                 if item.type=='tool_status' and item.data.get('status')=='speech_input_complete':
@@ -113,7 +115,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
             # Handshake only: no response.create, no placeholder speech, no retries.
             # It is allowed solely for this owner's explicit per-request speech consent.
             prepare=None
-            if speak and paid_tts_consent and not replay and tts_provider=='openai' and tts_character_limit!=0:
+            if speak and paid_tts_consent and not replay and tts_provider=='openai' and tts_character_limit!=0 and not closing_intent(request.text):
                 prepare=asyncio.create_task(synthesizer.prepare(tts_provider,tts_voice,paid_consent=True))
             try:await consume_audio(synthesizer)
             finally:

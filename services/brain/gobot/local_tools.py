@@ -3,6 +3,7 @@ from uuid import uuid4
 from dataclasses import dataclass
 from .quality import calculate,arithmetic_expression
 from .timer_duration import timer_seconds,duration_text
+from .quick_intents import match_quick
 
 @dataclass
 class ToolResult:
@@ -16,6 +17,24 @@ class LocalTools:
         with memory.connect() as c:c.execute('''CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY,device_id TEXT,conversation_id TEXT,deadline REAL,status TEXT)''')
     def execute(self,tool,req):
         text=req.text.lower()
+        if tool=='dialogue_end':
+            if req.remember:
+                with self.memory.connect() as c:
+                    c.execute("UPDATE pending_actions SET status='cancelled' WHERE owner=? AND conversation_id=? AND status='pending' AND expires>?",(req.device_id,req.conversation_id,time.time()))
+            return ToolResult('Хорошо.',evidence={'method':'dialogue_control','verified':True,'canonical_answer':'Хорошо.'})
+        if tool=='clock':
+            from datetime import datetime
+            now=datetime.now().astimezone();kind=match_quick(req.text).intent
+            weekdays=['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье']
+            value=now.strftime('%H:%M') if kind=='clock_time' else weekdays[now.weekday()] if kind=='clock_weekday' else now.strftime('%d.%m.%Y')
+            answer=('По времени домашнего сервера сейчас ' if kind=='clock_time' else 'Сегодня ')+value+'.'
+            return ToolResult(answer,evidence={'method':'server_clock','verified':True,'canonical_answer':answer,'display':value,'utc_offset':now.strftime('%z'),'as_of':now.isoformat()})
+        if tool=='timer_status':
+            with self.memory.connect() as c:rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline",(req.device_id,time.time())).fetchall()
+            answer=('До ближайшего таймера осталось '+duration_text(max(1,int(rows[0]['deadline']-time.time())))+'.') if rows else 'У тебя нет активных таймеров.'
+            return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'active_count':len(rows)})
+        if tool=='quick_clarify':return ToolResult('Нужно запустить секундомер или поставить таймер? Для таймера назови длительность.')
+        if tool=='quick_help':return ToolResult('Могу назвать время и дату, поставить таймер, проверить оставшееся время или посчитать выражение. Личная история доступна после подтверждения профиля.')
         if tool=='calculator':
             try:
                 value=calculate(arithmetic_expression(req.text));return ToolResult('Получается '+value+'.',evidence={'method':'calculator','verified':True,'canonical_answer':value})
@@ -41,7 +60,7 @@ class LocalTools:
                 row=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.owner=? AND a.namespace='production' AND a.status='completed' AND m.role='user' AND m.turn_id!=? ORDER BY m.id DESC LIMIT 1",(req.device_id,req.turn_id)).fetchone()
                 return ToolResult('В сохранённой истории последний вопрос был: '+row[0],evidence={'method':'memory_source','verified':True,'canonical_answer':row[0]}) if row else ToolResult('В твоей сохранённой истории пока нет предыдущих вопросов.',evidence={'abstained':True})
         if tool=='timer':
-            if re.search(r'отмени|останови|выключи',text):
+            if re.search(r'отмени|останови|выключи|убери',text):
                 with self.memory.connect() as c:c.execute("UPDATE timers SET status='cancelled' WHERE device_id=? AND status='running'",(req.device_id,))
                 return ToolResult('Твои активные таймеры остановлены.')
             seconds=timer_seconds(text)

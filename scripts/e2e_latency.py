@@ -13,7 +13,7 @@ async def main():
     start=time.perf_counter();events=[{'name':'input_closed','ms':0}]
     def mark(name):events.append({'name':name,'ms':round((time.perf_counter()-start)*1000,3)})
     async with httpx.AsyncClient(trust_env=False,timeout=30) as client:
-        for asset in ['/device','/turn-trace.js','/feedback-wait.wav']:
+        for asset in ['/device','/turn-trace.js']:
             r=await client.get(BASE+asset);r.raise_for_status()
             if asset.endswith('.wav'):
                 with wave.open(io.BytesIO(r.content)) as w:assert w.getframerate()==22050 and 0<w.getnframes()/22050<1.5

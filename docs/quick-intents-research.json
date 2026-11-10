@@ -1,0 +1,33 @@
+{
+  "date_local": "2026-11-10",
+  "provenance": "GoBot-authored catalog and synthetic examples, no imported competitor utterance corpus",
+  "sources": [
+    {
+      "project": "Home Assistant / OHF Voice",
+      "url": "https://github.com/OHF-Voice/intents",
+      "learned": "Separate sentence templates, parameters, handlers, responses and tests",
+      "upstream_license": "CC-BY-4.0 for intents corpus; corpus not copied"
+    },
+    {
+      "project": "Alexa",
+      "url": "https://developer.amazon.com/en-US/docs/alexa/custom-skills/standard-built-in-intents.html",
+      "learned": "Distinguish No, Stop, Cancel and session termination; confirmation is context dependent"
+    },
+    {
+      "project": "Siri Shortcuts",
+      "url": "https://support.apple.com/en-gb/HT209055",
+      "learned": "Explicitly registered actions and composed workflows"
+    }
+  ],
+  "catalog_scenarios": 30,
+  "implemented_catalog_rows": 13,
+  "new_active_pattern_rows": 8,
+  "synthetic_cases": 228,
+  "passed_synthetic_cases": 228,
+  "not_measured": [
+    "real-user language coverage",
+    "home-noise STT accuracy",
+    "physical iPhone latency"
+  ],
+  "unsupported_integrations_remain_disabled": true
+}

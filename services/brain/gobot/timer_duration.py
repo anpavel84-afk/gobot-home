@@ -18,6 +18,8 @@ def timer_seconds(text):
     prefix=text[:matches[0].start()]
     if re.search(r'\bминус\b',prefix):return 0
     if re.search(r'\d|\b(?:'+'|'.join(WORDS)+r')\b',prefix):return None
+    from .speech_formatter import morphology
+    if any(any(p.tag.POS=='NUMR' for p in morphology().parse(word)) for word in re.findall(r'[а-яё]+',prefix)):return None
     total=Decimal(0);previous_unit=86401
     for index,match in enumerate(matches):
         if len(match[1])>12:return None
@@ -27,7 +29,8 @@ def timer_seconds(text):
         if unit>=previous_unit:return None
         if value<0:return 0
         previous_unit=unit;total+=value*unit
-    if re.search(r'\d',text[matches[-1].end():]):return None
+    # A second command/alternative is not a timer label. Never silently drop it.
+    if text[matches[-1].end():].strip(' ,.!?') not in {'','пожалуйста'}:return None
     return int(total) if total==total.to_integral_value() else None
 
 def is_timer_duration_reply(text):

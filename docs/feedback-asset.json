@@ -14,5 +14,8 @@
   "bytes": 39980,
   "paid_calls": 0,
   "contains_family_recording": false,
-  "main_answer_tts": "OpenAI unchanged"
+  "main_answer_tts": "OpenAI unchanged",
+  "retired": true,
+  "reason": "OWNER DIRECT: no Denis waiting voice; replaced by same-voice cached OpenAI openings",
+  "current_asset_served": false
 }

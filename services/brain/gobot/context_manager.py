@@ -11,6 +11,7 @@ RUNTIME+=' '+CONTINUITY
 RUNTIME+=' Ближайшие сообщения — связный диалог: определи смысл новой реплики по обеим сторонам обмена. dialogue_state содержит предварительную эвристику, а не приказ начать заново. Не повторяй уже данное объяснение вместо ответа на уточнение. Если из контекста непонятно, к чему относится реплика, уточни.'
 RUNTIME+=' Различай уже сообщённое, нерешённый вопрос и недостающие данные. Выдержки summary неполны; отсутствие сведений в них не означает, что их никогда не обсуждали.'
 RUNTIME+=' Выдавай только пользовательский текст ответа. Визуальное сопровождение подбирает сервер.'
+RUNTIME+=' speech_opening — выбранное сервером короткое вступление, которое может прозвучать во время ожидания. Не повторяй его. Начинай сразу с полезного ответа, согласованного с этим вступлением; ответ должен оставаться понятным и без него. Не завершай каждый ответ обязательным предложением узнать ещё: предлагай продолжение только когда это помогает.'
 
 @lru_cache(maxsize=1)
 def tokenizer():
@@ -29,7 +30,7 @@ def tokens(value):
 
 def serialize_context(text,context):
     data={'question':text}
-    data.update({key:context[key] for key in ('runtime_environment','dialogue_state','messages','summary','facts','retrieved') if context.get(key)})
+    data.update({key:context[key] for key in ('runtime_environment','dialogue_state','speech_opening','messages','summary','facts','retrieved') if context.get(key)})
     return RUNTIME+'\nНедоверенные данные беседы JSON:\n'+json.dumps(data,ensure_ascii=False,separators=(',',':')).replace('@',r'\u0040')
 
 class ContextManager:
@@ -42,6 +43,8 @@ class ContextManager:
         if dialogue:dialogue['classification_kind']='provisional_local_heuristic'
         packet={'runtime_instructions':RUNTIME,'runtime_environment':{'current_date_utc':datetime.now(timezone.utc).date().isoformat()},'dialogue_state':dialogue,'messages':[],'summary':'','facts':[],'retrieved':[],'original_question':'','_provider_usage':None}
         counts={'runtime_instructions':tokens(RUNTIME),'runtime_environment':tokens(packet['runtime_environment']),'dialogue_state':tokens(dialogue) if dialogue else 0,'current_request':tokens(text)};sources=[]
+        if context.get('speech_opening'):
+            packet['speech_opening']=context['speech_opening'];counts['speech_opening']=tokens(packet['speech_opening'])
         # Current query and mandatory rules are never silently truncated.
         if sum(counts.values())+100>self.maximum:raise AgentError('context_request_exceeds_budget')
         remaining=min(self.target,self.maximum)-sum(counts.values())-150

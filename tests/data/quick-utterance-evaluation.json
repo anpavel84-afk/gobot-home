@@ -1,0 +1,978 @@
+{
+  "provenance": "synthetic_gobot_authored_not_real_user_data",
+  "purpose": "exact routing and validated slots, not STT quality or arbitrary Russian comprehension",
+  "cases": [
+    {
+      "text": "Сколько сейчас времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Сколько сейчас времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Сколько сейчас времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Сколько сейчас времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Сколько сейчас времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Который час?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Который час?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Который час?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Который час?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Который час?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Сколько времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Сколько времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Сколько времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Сколько времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Сколько времени?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Какое сейчас время?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Какое сейчас время?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Какое сейчас время?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какое сейчас время?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какое сейчас время?",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Подскажи время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Подскажи время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Подскажи время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Подскажи время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Назови текущее время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, Назови текущее время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Пожалуйста, Назови текущее время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Назови текущее время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Назови текущее время",
+      "expected_intent": "clock_time"
+    },
+    {
+      "text": "Какая сегодня дата?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, Какая сегодня дата?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Пожалуйста, Какая сегодня дата?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какая сегодня дата?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какая сегодня дата?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Какое сегодня число?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, Какое сегодня число?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Пожалуйста, Какое сегодня число?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какое сегодня число?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какое сегодня число?",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Назови сегодняшнюю дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, Назови сегодняшнюю дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Пожалуйста, Назови сегодняшнюю дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Назови сегодняшнюю дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Назови сегодняшнюю дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Скажи текущую дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, Скажи текущую дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Пожалуйста, Скажи текущую дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Скажи текущую дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Скажи текущую дату",
+      "expected_intent": "clock_date"
+    },
+    {
+      "text": "Какой сегодня день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "ГоБот, Какой сегодня день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Пожалуйста, Какой сегодня день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какой сегодня день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какой сегодня день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Какой день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "ГоБот, Какой день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Пожалуйста, Какой день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какой день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какой день недели?",
+      "expected_intent": "clock_weekday"
+    },
+    {
+      "text": "Поставь таймер на пять минут",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Поставь таймер на пять минут",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Поставь таймер на пять минут",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Поставь таймер на пять минут",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Поставь таймер на пять минут",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Засеки три минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Засеки три минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Засеки три минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Засеки три минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Засеки три минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Отсчитай две минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Отсчитай две минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Отсчитай две минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Отсчитай две минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Отсчитай две минуты",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Таймер на полчаса",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Таймер на полчаса",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Таймер на полчаса",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Таймер на полчаса",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Таймер на полчаса",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Поставь таймер",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, Поставь таймер",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Пожалуйста, Поставь таймер",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Поставь таймер",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Поставь таймер",
+      "expected_intent": "timer_start"
+    },
+    {
+      "text": "Отмени таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, Отмени таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Пожалуйста, Отмени таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Отмени таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Отмени таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Останови таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, Останови таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Пожалуйста, Останови таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Останови таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Останови таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Выключи все таймеры",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, Выключи все таймеры",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Пожалуйста, Выключи все таймеры",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Выключи все таймеры",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Выключи все таймеры",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Убери таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, Убери таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Пожалуйста, Убери таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Убери таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Убери таймер",
+      "expected_intent": "timer_cancel"
+    },
+    {
+      "text": "Сколько осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, Сколько осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Пожалуйста, Сколько осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Сколько осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Сколько осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Сколько времени осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, Сколько времени осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Пожалуйста, Сколько времени осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Сколько времени осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Сколько времени осталось на таймере?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Когда закончится таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, Когда закончится таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Пожалуйста, Когда закончится таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Когда закончится таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Когда закончится таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Покажи мои таймеры",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, Покажи мои таймеры",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Пожалуйста, Покажи мои таймеры",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Покажи мои таймеры",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Покажи мои таймеры",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Есть активный таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, Есть активный таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Пожалуйста, Есть активный таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Есть активный таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Есть активный таймер?",
+      "expected_intent": "timer_remaining"
+    },
+    {
+      "text": "Что ты умеешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, Что ты умеешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Пожалуйста, Что ты умеешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Что ты умеешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Что ты умеешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Какие команды понимаешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, Какие команды понимаешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Пожалуйста, Какие команды понимаешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Какие команды понимаешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Какие команды понимаешь?",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Помощь по командам",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, Помощь по командам",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Пожалуйста, Помощь по командам",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Помощь по командам",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Помощь по командам",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Справка",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, Справка",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Пожалуйста, Справка",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Справка",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Справка",
+      "expected_intent": "quick_help"
+    },
+    {
+      "text": "Засеки время",
+      "expected_intent": "timer_or_stopwatch"
+    },
+    {
+      "text": "ГоБот, Засеки время",
+      "expected_intent": "timer_or_stopwatch"
+    },
+    {
+      "text": "Пожалуйста, Засеки время",
+      "expected_intent": "timer_or_stopwatch"
+    },
+    {
+      "text": "ГоБот, пожалуйста, Засеки время",
+      "expected_intent": "timer_or_stopwatch"
+    },
+    {
+      "text": "Подскажи, пожалуйста, Засеки время",
+      "expected_intent": "timer_or_stopwatch"
+    },
+    {
+      "text": "Поставь таймер на 1 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 1
+    },
+    {
+      "text": "Поставь таймер на 1 минут",
+      "expected_intent": "timer_start",
+      "seconds": 60
+    },
+    {
+      "text": "Поставь таймер на 1 часов",
+      "expected_intent": "timer_start",
+      "seconds": 3600
+    },
+    {
+      "text": "Поставь таймер на 2 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 2
+    },
+    {
+      "text": "Поставь таймер на 2 минут",
+      "expected_intent": "timer_start",
+      "seconds": 120
+    },
+    {
+      "text": "Поставь таймер на 2 часов",
+      "expected_intent": "timer_start",
+      "seconds": 7200
+    },
+    {
+      "text": "Поставь таймер на 5 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 5
+    },
+    {
+      "text": "Поставь таймер на 5 минут",
+      "expected_intent": "timer_start",
+      "seconds": 300
+    },
+    {
+      "text": "Поставь таймер на 5 часов",
+      "expected_intent": "timer_start",
+      "seconds": 18000
+    },
+    {
+      "text": "Поставь таймер на 10 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 10
+    },
+    {
+      "text": "Поставь таймер на 10 минут",
+      "expected_intent": "timer_start",
+      "seconds": 600
+    },
+    {
+      "text": "Поставь таймер на 10 часов",
+      "expected_intent": "timer_start",
+      "seconds": 36000
+    },
+    {
+      "text": "Поставь таймер на 30 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 30
+    },
+    {
+      "text": "Поставь таймер на 30 минут",
+      "expected_intent": "timer_start",
+      "seconds": 1800
+    },
+    {
+      "text": "Поставь таймер на 30 часов",
+      "expected_intent": "timer_start",
+      "seconds": 108000
+    },
+    {
+      "text": "Запусти таймер на 1 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 1
+    },
+    {
+      "text": "Запусти таймер на 1 минут",
+      "expected_intent": "timer_start",
+      "seconds": 60
+    },
+    {
+      "text": "Запусти таймер на 1 часов",
+      "expected_intent": "timer_start",
+      "seconds": 3600
+    },
+    {
+      "text": "Запусти таймер на 2 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 2
+    },
+    {
+      "text": "Запусти таймер на 2 минут",
+      "expected_intent": "timer_start",
+      "seconds": 120
+    },
+    {
+      "text": "Запусти таймер на 2 часов",
+      "expected_intent": "timer_start",
+      "seconds": 7200
+    },
+    {
+      "text": "Запусти таймер на 5 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 5
+    },
+    {
+      "text": "Запусти таймер на 5 минут",
+      "expected_intent": "timer_start",
+      "seconds": 300
+    },
+    {
+      "text": "Запусти таймер на 5 часов",
+      "expected_intent": "timer_start",
+      "seconds": 18000
+    },
+    {
+      "text": "Запусти таймер на 10 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 10
+    },
+    {
+      "text": "Запусти таймер на 10 минут",
+      "expected_intent": "timer_start",
+      "seconds": 600
+    },
+    {
+      "text": "Запусти таймер на 10 часов",
+      "expected_intent": "timer_start",
+      "seconds": 36000
+    },
+    {
+      "text": "Запусти таймер на 30 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 30
+    },
+    {
+      "text": "Запусти таймер на 30 минут",
+      "expected_intent": "timer_start",
+      "seconds": 1800
+    },
+    {
+      "text": "Запусти таймер на 30 часов",
+      "expected_intent": "timer_start",
+      "seconds": 108000
+    },
+    {
+      "text": "Засеки 1 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 1
+    },
+    {
+      "text": "Засеки 1 минут",
+      "expected_intent": "timer_start",
+      "seconds": 60
+    },
+    {
+      "text": "Засеки 1 часов",
+      "expected_intent": "timer_start",
+      "seconds": 3600
+    },
+    {
+      "text": "Засеки 2 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 2
+    },
+    {
+      "text": "Засеки 2 минут",
+      "expected_intent": "timer_start",
+      "seconds": 120
+    },
+    {
+      "text": "Засеки 2 часов",
+      "expected_intent": "timer_start",
+      "seconds": 7200
+    },
+    {
+      "text": "Засеки 5 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 5
+    },
+    {
+      "text": "Засеки 5 минут",
+      "expected_intent": "timer_start",
+      "seconds": 300
+    },
+    {
+      "text": "Засеки 5 часов",
+      "expected_intent": "timer_start",
+      "seconds": 18000
+    },
+    {
+      "text": "Засеки 10 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 10
+    },
+    {
+      "text": "Засеки 10 минут",
+      "expected_intent": "timer_start",
+      "seconds": 600
+    },
+    {
+      "text": "Засеки 10 часов",
+      "expected_intent": "timer_start",
+      "seconds": 36000
+    },
+    {
+      "text": "Засеки 30 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 30
+    },
+    {
+      "text": "Засеки 30 минут",
+      "expected_intent": "timer_start",
+      "seconds": 1800
+    },
+    {
+      "text": "Засеки 30 часов",
+      "expected_intent": "timer_start",
+      "seconds": 108000
+    },
+    {
+      "text": "Отсчитай 1 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 1
+    },
+    {
+      "text": "Отсчитай 1 минут",
+      "expected_intent": "timer_start",
+      "seconds": 60
+    },
+    {
+      "text": "Отсчитай 1 часов",
+      "expected_intent": "timer_start",
+      "seconds": 3600
+    },
+    {
+      "text": "Отсчитай 2 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 2
+    },
+    {
+      "text": "Отсчитай 2 минут",
+      "expected_intent": "timer_start",
+      "seconds": 120
+    },
+    {
+      "text": "Отсчитай 2 часов",
+      "expected_intent": "timer_start",
+      "seconds": 7200
+    },
+    {
+      "text": "Отсчитай 5 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 5
+    },
+    {
+      "text": "Отсчитай 5 минут",
+      "expected_intent": "timer_start",
+      "seconds": 300
+    },
+    {
+      "text": "Отсчитай 5 часов",
+      "expected_intent": "timer_start",
+      "seconds": 18000
+    },
+    {
+      "text": "Отсчитай 10 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 10
+    },
+    {
+      "text": "Отсчитай 10 минут",
+      "expected_intent": "timer_start",
+      "seconds": 600
+    },
+    {
+      "text": "Отсчитай 10 часов",
+      "expected_intent": "timer_start",
+      "seconds": 36000
+    },
+    {
+      "text": "Отсчитай 30 секунд",
+      "expected_intent": "timer_start",
+      "seconds": 30
+    },
+    {
+      "text": "Отсчитай 30 минут",
+      "expected_intent": "timer_start",
+      "seconds": 1800
+    },
+    {
+      "text": "Отсчитай 30 часов",
+      "expected_intent": "timer_start",
+      "seconds": 108000
+    },
+    {
+      "text": "Не ставь таймер на пять минут",
+      "expected_intent": null
+    },
+    {
+      "text": "Не отменяй таймер",
+      "expected_intent": null
+    },
+    {
+      "text": "Расскажи, как поставить таймер",
+      "expected_intent": null
+    },
+    {
+      "text": "Сколько сейчас времени в Токио?",
+      "expected_intent": null
+    },
+    {
+      "text": "Нет, спасибо, а сколько сейчас времени?",
+      "expected_intent": null
+    },
+    {
+      "text": "Поставь таймер на пять или десять минут",
+      "expected_intent": null
+    },
+    {
+      "text": "Таймер или будильник?",
+      "expected_intent": null
+    },
+    {
+      "text": "Что значит «засеки три минуты»?",
+      "expected_intent": null
+    }
+  ]
+}

@@ -1,0 +1,434 @@
+{
+  "version": 1,
+  "language": "ru",
+  "note": "Original GoBot examples, not copied training data or real-user statistics. Empty patterns refer to existing router or planned integrations.",
+  "sources": [
+    "https://github.com/OHF-Voice/intents",
+    "https://developer.amazon.com/en-US/docs/alexa/custom-skills/standard-built-in-intents.html",
+    "https://support.apple.com/en-gb/HT209055"
+  ],
+  "entries": [
+    {
+      "intent": "clock_time",
+      "executor": "clock",
+      "status": "implemented",
+      "patterns": [
+        "(?:сколько|который) (?:сейчас )?(?:времени|час)",
+        "какое (?:сейчас )?время",
+        "(?:скажи|подскажи|назови)(?: мне)? (?:текущее )?время"
+      ],
+      "examples": [
+        "Сколько сейчас времени?",
+        "Который час?",
+        "Сколько времени?",
+        "Какое сейчас время?",
+        "Подскажи время",
+        "Назови текущее время"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 0
+    },
+    {
+      "intent": "clock_date",
+      "executor": "clock",
+      "status": "implemented",
+      "patterns": [
+        "какая (?:сегодня|сейчас) дата",
+        "(?:скажи|назови) (?:сегодняшнюю|текущую) дату",
+        "какое сегодня число"
+      ],
+      "examples": [
+        "Какая сегодня дата?",
+        "Какое сегодня число?",
+        "Назови сегодняшнюю дату",
+        "Скажи текущую дату"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 0
+    },
+    {
+      "intent": "clock_weekday",
+      "executor": "clock",
+      "status": "implemented",
+      "patterns": [
+        "какой (?:сегодня )?день недели"
+      ],
+      "examples": [
+        "Какой сегодня день недели?",
+        "Какой день недели?"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 0
+    },
+    {
+      "intent": "timer_start",
+      "executor": "timer",
+      "status": "implemented",
+      "patterns": [
+        "(?:поставь|установи|запусти|включи)(?: мне)? таймер(?: на)?(?: (?P<duration>.+))?",
+        "таймер(?: на)?(?: (?P<duration>.+))?",
+        "(?:засеки|отсчитай)(?: мне)? (?P<duration>.+)"
+      ],
+      "examples": [
+        "Поставь таймер на пять минут",
+        "Запусти таймер на 30 секунд",
+        "Засеки три минуты",
+        "Отсчитай две минуты",
+        "Таймер на полчаса",
+        "Поставь таймер"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "timer_duration_parser",
+      "priority": 0
+    },
+    {
+      "intent": "timer_cancel",
+      "executor": "timer",
+      "status": "implemented",
+      "patterns": [
+        "(?:отмени|останови|выключи|убери)(?: все| мои| мой)? таймер(?:ы)?"
+      ],
+      "examples": [
+        "Отмени таймер",
+        "Останови таймер",
+        "Выключи все таймеры",
+        "Убери таймер"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "timer_duration_parser",
+      "priority": 0
+    },
+    {
+      "intent": "timer_remaining",
+      "executor": "timer_status",
+      "status": "implemented",
+      "patterns": [
+        "сколько (?:времени )?осталось(?: времени)? (?:на таймере|до конца таймера)",
+        "когда (?:закончится|сработает) таймер",
+        "(?:покажи|назови) (?:мои )?таймеры",
+        "есть (?:ли )?(?:активный|работающий) таймер"
+      ],
+      "examples": [
+        "Сколько осталось на таймере?",
+        "Сколько времени осталось на таймере?",
+        "Когда закончится таймер?",
+        "Покажи мои таймеры",
+        "Есть активный таймер?"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 0
+    },
+    {
+      "intent": "quick_help",
+      "executor": "quick_help",
+      "status": "implemented",
+      "patterns": [
+        "что ты умеешь",
+        "какие команды (?:ты )?(?:понимаешь|знаешь)",
+        "(?:помощь|справка)(?: по командам)?"
+      ],
+      "examples": [
+        "Что ты умеешь?",
+        "Какие команды понимаешь?",
+        "Помощь по командам",
+        "Справка"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 0
+    },
+    {
+      "intent": "timer_or_stopwatch",
+      "executor": "quick_clarify",
+      "status": "implemented",
+      "patterns": [
+        "засеки время"
+      ],
+      "examples": [
+        "Засеки время"
+      ],
+      "source": "gobot_authored",
+      "slot_validation": "exact_utterance",
+      "priority": 10
+    },
+    {
+      "intent": "conversation_end",
+      "executor": "dialogue_end",
+      "status": "implemented",
+      "patterns": [],
+      "examples": [
+        "Нет, спасибо",
+        "Спасибо, всё",
+        "На этом всё"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "calculation",
+      "executor": "calculator",
+      "status": "implemented",
+      "patterns": [],
+      "examples": [
+        "Сколько будет 127 × 43?",
+        "Посчитай 18 + 24"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "memory_read",
+      "executor": "memory",
+      "status": "implemented",
+      "patterns": [],
+      "examples": [
+        "Что мы обсуждали вчера?",
+        "Какие мои предпочтения?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "weather_now",
+      "executor": "visual",
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Какая сейчас погода?",
+        "На улице тепло?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "music_now",
+      "executor": "visual",
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Что сейчас играет?",
+        "Как называется эта песня?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "device_status",
+      "executor": "visual",
+      "status": "implemented",
+      "patterns": [],
+      "examples": [
+        "Покажи статус системы",
+        "Как работает GoBot?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "stop_audio",
+      "executor": "control",
+      "status": "implemented",
+      "patterns": [],
+      "examples": [
+        "Стоп",
+        "Остановись",
+        "Хватит"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "confirm_action",
+      "executor": "control",
+      "status": "requires_pending_action",
+      "patterns": [],
+      "examples": [
+        "Да",
+        "Подтверждаю"
+      ],
+      "source": "gobot_authored",
+      "matcher": "existing_router",
+      "priority": 0
+    },
+    {
+      "intent": "reminder_create",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Напомни вечером полить цветы"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "alarm_create",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Разбуди меня в семь утра"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "stopwatch_start",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Запусти секундомер"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "shopping_add",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Добавь молоко в покупки"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "shopping_read",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Что купить в магазине?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "music_pause",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Поставь музыку на паузу"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "volume_set",
+      "executor": null,
+      "status": "planned",
+      "patterns": [],
+      "examples": [
+        "Сделай потише",
+        "Громкость 30 процентов"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "light_set",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Включи свет на кухне"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "thermostat_set",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Сделай в комнате 23 градуса"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "door_unlock",
+      "executor": null,
+      "status": "requires_permissions",
+      "patterns": [],
+      "examples": [
+        "Открой входную дверь"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "calendar_read",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Что у меня завтра по плану?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "house_temperature",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Какая температура в теплице?"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "scene_activate",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Включи вечерний режим"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    },
+    {
+      "intent": "media_next",
+      "executor": null,
+      "status": "needs_integration",
+      "patterns": [],
+      "examples": [
+        "Следующий трек"
+      ],
+      "source": "gobot_authored",
+      "matcher": "not_active",
+      "priority": 0
+    }
+  ]
+}
