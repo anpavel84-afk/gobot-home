@@ -1,0 +1,25 @@
+{
+  "transport": "private Tailscale HTTPS, TLS verified",
+  "stt": {
+    "text": "Привет, я Гобот, твой домашний помощник.",
+    "language": "ru",
+    "provider": "faster-whisper-small",
+    "stt_ms": 1379.8693000026105,
+    "audio_seconds": 3.018625,
+    "speaker_job_id": "95bf2d68-13b4-475a-b28c-ae2f447e4d93",
+    "speaker": {
+      "state": "unknown",
+      "reason": "calibration_required",
+      "personal_authorized": false
+    }
+  },
+  "llm": "explicit mock",
+  "tts": "real local Piper Denis, explicitly selected offline reserve",
+  "ordered_audio_chunks": 23,
+  "first_audio_including_stt_ms": 8031.290999999328,
+  "total_ms": 8269.050400002016,
+  "sqlite_persisted": true,
+  "paid_requests": 0,
+  "iphone_microphone_verified": false,
+  "iphone_playback_verified": false
+}

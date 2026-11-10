@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 .venv/
+.venv-speaker/
 __pycache__/
 .pytest_cache/
 *.pyc
@@ -10,3 +11,4 @@ __pycache__/
 /run/
 /vendor/
 *.egg-info/
+node_modules/

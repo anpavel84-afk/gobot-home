@@ -1,0 +1,10 @@
+{
+  "version": "1.5.3",
+  "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.5.3-6604829099950080/windows-x64/cli_windows_x64.exe",
+  "sha512": "b282c10ca3266078806d7bcae66db8ec0c6e2953ee6e62de1da6499182d24c02fffa8a74c620817bd35b15cf5f5a18287fb1ab30bcb9c7a67592c248696ed909",
+  "source_manifest": "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/manifests/windows_amd64.json",
+  "sha256": "47b1bec8c4a6d4afa1587177530e329cee4f5c6e76573a12ac9ab47b846e50e6",
+  "relative_binary": "run\\tools\\antigravity\\1.5.3\\agy.exe",
+  "global_setup_executed": false,
+  "path_modified": false
+}

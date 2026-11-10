@@ -1,5 +1,17 @@
 # Архитектура
 
+Обновление 10 ноября: Browser → private HTTPS → общий Brain/Quality Router/SQLite →
+loopback Bridge → fresh Antigravity/Codex. AUTO Flash Low, reasoning Flash Medium,
+ручные Argon/Codex, Gemini CLI/API выключены. OpenAI STT/TTS основные.
+См. CONTEXT_POLICY.md, MEMORY_ARCHITECTURE.md, SPEECH_FORMATTING.md.
+Ниже сохраняется историческая схема исходного fixture-контура.
+
+Дополнение браузерного продукта: [BROWSER_VOICE.md](BROWSER_VOICE.md). Приватный HTTPS transport
+на Tailscale :18786 передаёт запросы в этот же Brain/SQLite. Browser audio и будущий XiaoZhi audio
+имеют разные transport adapters. Общий SentenceBuffer и bounded text/audio pipeline работают в Brain.
+Модельные режимы auto/codex/gemini/mock не меняют владельца истории. OpenAI — основной TTS,
+Denis — только явный offline резерв. Диаграмма ниже показывает исходный fixture-контур.
+
 ```mermaid
 flowchart LR
     T[Текстовый клиент] -->|Bearer SSE| B[FastAPI Brain 18781]

@@ -1,9 +1,18 @@
 # Запуск Windows native
 
-Для владельца с iPhone добавлен отдельный временный mock gateway: см. PHONE.md.
-Запуск: .venv/Scripts/python.exe -X utf8 scripts/phone.py start --host 192.168.3.15 --prefix 24 --minutes 120
+Текущее состояние: CURRENT_STATUS.md. После изменения CLI-кода необходимы бесплатные
+scripts/audit_agents.py и scripts/audit_agy.py, иначе admission закрывается.
+Контекст/голос: CONTEXT_POLICY.md, SPEECH_FORMATTING.md. Перед ручной миграцией
+создавайте online SQLite backup (Connection.backup), не копируйте один .sqlite при WAL.
+scripts/probe_approved_speech.py имеет durable attempt markers: три разрешённые пробы
+уже израсходованы; не удалять маркеры ради повторных API-вызовов без нового разрешения.
+
+Основной браузерный клиент: см. [BROWSER_VOICE.md](BROWSER_VOICE.md), HTTPS через Tailscale :18786,
+запуск .venv/Scripts/python.exe scripts/web.py start, остановка scripts/web.py stop.
+Для диагностики с iPhone остаётся отдельный mock gateway: см. PHONE.md.
+Запуск: .venv/Scripts/python.exe -X utf8 scripts/phone.py start --host 192.168.3.15 --prefix 24 --minutes 0
 Остановка: .venv/Scripts/python.exe -X utf8 scripts/phone.py stop
-Gateway не запускается вместе с основным стеком и автоматически завершается по истечении срока.
+Gateway не запускается вместе с основным стеком и при minutes=0 работает до явной остановки.
 
 Каталог C:\Users\PLAN\gobot\GoBotHome. PowerShell, venv activation/изменение ExecutionPolicy не нужны.
 

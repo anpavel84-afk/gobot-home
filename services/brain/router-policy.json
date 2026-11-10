@@ -1,0 +1,15 @@
+{
+  "prefer_fast_for_simple": true,
+  "heavy_agents_in_auto": false,
+  "auto_escalation_to_heavy": false,
+  "router_extra_llm_call": "only_when_needed",
+  "allow_explicit_heavy_selection": true,
+  "fallback_to_expensive": "require_approval",
+  "fast_cli_model": "gemini-3.8-flash-low",
+  "reasoning_cli_model": "gemini-3.8-flash-medium",
+  "manual_google_model": "gemini-4-argon-medium",
+  "semantic_enabled": false,
+  "selective_verification": true,
+  "unknown_capability_prefer_safe_route": true,
+  "prefer_deterministic_tools": true
+}

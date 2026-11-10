@@ -1,6 +1,7 @@
 import asyncio,json
 import httpx
 from .security import canonical,signed_request,verify_event
+from .processes import AgentError
 
 class MockAgentAdapter:
     async def stream(self,text,context):
@@ -15,7 +16,8 @@ async def fast_stream(settings,req,context):
         return
     if not settings.allow_paid:raise PermissionError('Paid integration is disabled')
     if not settings.api_model:raise ValueError('Missing API model')
-    messages=[{'role':'system','content':'Отвечай по-русски кратко. Инструменты недоступны. Разрешённый summary: '+context['summary']+'\nФакты: '+json.dumps(context['facts'],ensure_ascii=False)}]+[{'role':m['role'],'content':m['content']} for m in context['messages']]
+    from .context_manager import RUNTIME
+    messages=[{'role':'system','content':RUNTIME+'\nРазрешённый summary: '+context['summary']+'\nФакты: '+json.dumps(context['facts'],ensure_ascii=False)}]+[{'role':m['role'],'content':m['content']} for m in context['messages']]+[{'role':'user','content':req.text}]
     async with httpx.AsyncClient(timeout=httpx.Timeout(15,connect=3),trust_env=False) as client:
         async with client.stream('POST',settings.api_base.rstrip('/')+'/chat/completions',headers={'Authorization':'Bearer '+settings.api_key},json={'model':settings.api_model,'messages':messages,'stream':True,'max_tokens':700}) as response:
             response.raise_for_status()
@@ -28,16 +30,19 @@ async def fast_stream(settings,req,context):
                 if isinstance(delta,str):yield delta
 
 async def bridge_stream(settings,req,context):
-    body=canonical({'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id})
+    body=canonical({'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id,'usage_consent':req.usage_consent,'model_id':req.model_id})
     headers=signed_request(settings.bridge_secret,body);seq=0
     async with httpx.AsyncClient(timeout=httpx.Timeout(settings.timeout,connect=2),trust_env=False) as client:
         async with client.stream('POST',settings.bridge_url+'/v1/stream',content=body,headers={**headers,'Content-Type':'application/json'}) as response:
+            if response.status_code==403:raise AgentError('agent_policy_or_consent_required')
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if not line:continue
                 item=verify_event(settings.bridge_secret,headers['X-GoBot-Nonce'],seq,json.loads(line));seq+=1
                 if item['type']=='text_delta':yield item['text']
-                elif item['type']=='error':raise RuntimeError('Agent unavailable')
+                elif item['type']=='usage':context['_provider_usage']=item['usage']
+                elif item['type']=='session':context['_provider_session_id']=item['session_id']
+                elif item['type']=='error':raise AgentError(item.get('code','agent_unavailable'))
                 elif item['type']=='final':return
 
 class SentenceBuffer:
@@ -46,7 +51,13 @@ class SentenceBuffer:
         import re
         self.buffer+=delta;out=[]
         while True:
-            match=re.search(r'[.!?…](?:["»])?(?:\s|$)',self.buffer)
+            match=None;depth=0
+            for candidate in re.finditer(r'[.!?…](?:["»])?(?:\s|$)',self.buffer):
+                prefix=self.buffer[:candidate.start()]
+                depth=prefix.count('(')-prefix.count(')')
+                if depth>0 or prefix.count('```')%2:continue
+                if re.search(r'\b(?:г|руб|им|т|д|ул|рис|стр)$',prefix,re.I) and not final:continue
+                match=candidate;break
             if not match:break
             end=match.end();out.append(self.buffer[:end].strip());self.buffer=self.buffer[end:]
         if final and self.buffer.strip():out.append(self.buffer.strip());self.buffer=''

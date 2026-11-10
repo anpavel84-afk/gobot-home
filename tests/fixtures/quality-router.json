@@ -1,0 +1,3885 @@
+{
+  "description": "240 synthetic policy cases; repeated phrasings are intentional; not real-user/model correctness results",
+  "cases": [
+    {
+      "id": "common_fact-001",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Как звали главного героя фильма «Титаник»?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": "Джек Доусон",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "dialogue-002",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Привет",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-003",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А почему?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-004",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Кто был вторым помощником капитана малоизвестного судна?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-005",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какая погода сейчас?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-006",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Какое лекарство дать ребёнку?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-007",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы решили по поводу моей теплицы?",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-008",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Сравни три технические архитектуры",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-009",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Исправь ошибку в моём проекте",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-010",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 127 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5461",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-011",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 1 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-012",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Как звали главного героя фильма «Титаник»?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-013",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему небо голубое?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-014",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Как дела?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-015",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Объясни подробнее",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-016",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Назови точную дату открытия редкой рукописи",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-017",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Кто сейчас руководит этой компанией?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-018",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как рассчитать дозировку лекарства?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-019",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы обсуждали за неделю?",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-020",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Докажи математическое утверждение",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-021",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проверь код моего проекта",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-022",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 128 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5504",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-023",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 2 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-024",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Как звали главного героя фильма «Титаник»?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-025",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Сколько ног у паука?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-026",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Спасибо за помощь",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-027",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А что дальше?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-028",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Мне нужны источники для редкого исторического факта",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-029",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какой курс доллара?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-030",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Стоит инвестировать все сбережения?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-031",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что я вчера спрашивал?",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-032",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Объясни дифференциальное уравнение",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-033",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проанализируй локальный репозиторий",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-034",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 129 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5547",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-035",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 3 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-036",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Почему небо голубое?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-037",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое радуга?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-038",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Расскажи сказку",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-039",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Продолжи объяснение",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-040",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Уточни биографию малоизвестного моряка",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-041",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Расскажи последние новости",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-042",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Что делать при утечке газа?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-043",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Верни мой прошлый разговор",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-044",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Подготовь подробный технический анализ",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-045",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Измени файлы моего проекта",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-046",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 130 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5590",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-047",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 4 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-048",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Почему небо голубое?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-049",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему тает лёд?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-050",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Придумай историю про кота",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-051",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Приведи пример",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-052",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Дай ссылку на оригинал исторической записи",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-053",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какие актуальные цены на продукты?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-054",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как заменить электропроводку?",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-055",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Какие мои предпочтения?",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-056",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Рассмотри оптимизацию распределённой системы",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-057",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Удали файл в репозитории",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-058",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 131 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5633",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-059",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 5 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-060",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Сколько ног у паука?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-061",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Кто написал «Евгения Онегина»?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-062",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Объясни ребёнку дружбу",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-063",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А если наоборот?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-064",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Кто был вторым помощником капитана малоизвестного судна? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-065",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какая погода сейчас? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-066",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Какое лекарство дать ребёнку? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-067",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы решили по поводу моей теплицы? Объясни для семьи.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-068",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Сравни три технические архитектуры Объясни для семьи.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-069",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Исправь ошибку в моём проекте Объясни для семьи.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-070",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 132 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5676",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-071",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 6 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-072",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Сколько ног у паука?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-073",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое электричество?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-074",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Пожелай доброго утра",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-075",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Расскажи проще",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-076",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Назови точную дату открытия редкой рукописи Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-077",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Кто сейчас руководит этой компанией? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-078",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как рассчитать дозировку лекарства? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-079",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы обсуждали за неделю? Объясни для семьи.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-080",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Докажи математическое утверждение Объясни для семьи.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-081",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проверь код моего проекта Объясни для семьи.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-082",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 133 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5719",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-083",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 7 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-084",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Что такое радуга?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-085",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Как растёт дерево?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-086",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Расскажи о временах года",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-087",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А детям это понятно?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-088",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Мне нужны источники для редкого исторического факта Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-089",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какой курс доллара? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-090",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Стоит инвестировать все сбережения? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-091",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что я вчера спрашивал? Объясни для семьи.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-092",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Объясни дифференциальное уравнение Объясни для семьи.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-093",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проанализируй локальный репозиторий Объясни для семьи.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-094",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 134 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5762",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-095",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 8 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-096",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Что такое радуга?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-097",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему кошки мурлычут?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-098",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Посоветуй занятие без экрана",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-099",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Можно подробнее про этот пример?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-100",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Уточни биографию малоизвестного моряка Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-101",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Расскажи последние новости Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-102",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Что делать при утечке газа? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-103",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Верни мой прошлый разговор Объясни для семьи.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-104",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Подготовь подробный технический анализ Объясни для семьи.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-105",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Измени файлы моего проекта Объясни для семьи.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-106",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 135 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5805",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-107",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 9 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-108",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Почему тает лёд?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-109",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое материк?",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-110",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Давай поговорим о космосе",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-111",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А какие есть варианты?",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-112",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Дай ссылку на оригинал исторической записи Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-113",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какие актуальные цены на продукты? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-114",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как заменить электропроводку? Объясни для семьи.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-115",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Какие мои предпочтения? Объясни для семьи.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-116",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Рассмотри оптимизацию распределённой системы Объясни для семьи.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-117",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Удали файл в репозитории Объясни для семьи.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-118",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 136 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5848",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-119",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 10 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-120",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Почему тает лёд?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-121",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Как звали главного героя фильма «Титаник»? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": "Джек Доусон",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "dialogue-122",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Привет Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-123",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А почему? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-124",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Кто был вторым помощником капитана малоизвестного судна? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-125",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какая погода сейчас? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-126",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Какое лекарство дать ребёнку? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-127",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы решили по поводу моей теплицы? Ответь кратко.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-128",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Сравни три технические архитектуры Ответь кратко.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-129",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Исправь ошибку в моём проекте Ответь кратко.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-130",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 137 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5891",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-131",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 11 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-132",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Кто написал «Евгения Онегина»?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-133",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему небо голубое? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-134",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Как дела? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-135",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Объясни подробнее Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-136",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Назови точную дату открытия редкой рукописи Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-137",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Кто сейчас руководит этой компанией? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-138",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как рассчитать дозировку лекарства? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-139",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы обсуждали за неделю? Ответь кратко.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-140",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Докажи математическое утверждение Ответь кратко.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-141",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проверь код моего проекта Ответь кратко.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-142",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 138 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5934",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-143",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 12 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-144",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Кто написал «Евгения Онегина»?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-145",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Сколько ног у паука? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-146",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Спасибо за помощь Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-147",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А что дальше? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-148",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Мне нужны источники для редкого исторического факта Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-149",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какой курс доллара? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-150",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Стоит инвестировать все сбережения? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-151",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что я вчера спрашивал? Ответь кратко.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-152",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Объясни дифференциальное уравнение Ответь кратко.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-153",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проанализируй локальный репозиторий Ответь кратко.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-154",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 139 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "5977",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-155",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 13 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-156",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Что такое электричество?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-157",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое радуга? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-158",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Расскажи сказку Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-159",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Продолжи объяснение Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-160",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Уточни биографию малоизвестного моряка Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-161",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Расскажи последние новости Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-162",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Что делать при утечке газа? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-163",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Верни мой прошлый разговор Ответь кратко.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-164",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Подготовь подробный технический анализ Ответь кратко.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-165",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Измени файлы моего проекта Ответь кратко.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-166",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 140 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6020",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-167",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 14 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-168",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Что такое электричество?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-169",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему тает лёд? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-170",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Придумай историю про кота Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-171",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Приведи пример Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-172",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Дай ссылку на оригинал исторической записи Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-173",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какие актуальные цены на продукты? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-174",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как заменить электропроводку? Ответь кратко.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-175",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Какие мои предпочтения? Ответь кратко.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-176",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Рассмотри оптимизацию распределённой системы Ответь кратко.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-177",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Удали файл в репозитории Ответь кратко.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-178",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 141 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6063",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-179",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 15 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-180",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Как растёт дерево?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-181",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Кто написал «Евгения Онегина»? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-182",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Объясни ребёнку дружбу Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-183",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А если наоборот? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-184",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Кто был вторым помощником капитана малоизвестного судна? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-185",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какая погода сейчас? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-186",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Какое лекарство дать ребёнку? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-187",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы решили по поводу моей теплицы? Укажи ограничения.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-188",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Сравни три технические архитектуры Укажи ограничения.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-189",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Исправь ошибку в моём проекте Укажи ограничения.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-190",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 142 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6106",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-191",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 16 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-192",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Как растёт дерево?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-193",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое электричество? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-194",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Пожелай доброго утра Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-195",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Расскажи проще Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-196",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Назови точную дату открытия редкой рукописи Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-197",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Кто сейчас руководит этой компанией? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-198",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как рассчитать дозировку лекарства? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-199",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что мы обсуждали за неделю? Укажи ограничения.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-200",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Докажи математическое утверждение Укажи ограничения.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-201",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проверь код моего проекта Укажи ограничения.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-202",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 143 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6149",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-203",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 17 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-204",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Почему кошки мурлычут?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-205",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Как растёт дерево? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-206",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Расскажи о временах года Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-207",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А детям это понятно? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-208",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Мне нужны источники для редкого исторического факта Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-209",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какой курс доллара? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-210",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Стоит инвестировать все сбережения? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-211",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Что я вчера спрашивал? Укажи ограничения.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-212",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Объясни дифференциальное уравнение Укажи ограничения.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-213",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Проанализируй локальный репозиторий Укажи ограничения.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-214",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 144 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6192",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-215",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 18 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-216",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Почему кошки мурлычут?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-217",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Почему кошки мурлычут? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-218",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Посоветуй занятие без экрана Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-219",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "Можно подробнее про этот пример? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-220",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Уточни биографию малоизвестного моряка Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-221",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Расскажи последние новости Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-222",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Что делать при утечке газа? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-223",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Верни мой прошлый разговор Укажи ограничения.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-224",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Подготовь подробный технический анализ Укажи ограничения.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-225",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Измени файлы моего проекта Укажи ограничения.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-226",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 145 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6235",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-227",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 19 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-228",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Codex, как он думает об этом Тема: Что такое материк?",
+      "context": {},
+      "expected": "codex",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "common_fact-229",
+      "synthetic": true,
+      "category": "common_fact",
+      "text": "Что такое материк? Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "dialogue-230",
+      "synthetic": true,
+      "category": "dialogue",
+      "text": "Давай поговорим о космосе Объясни простыми словами.",
+      "context": {},
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "follow_up-231",
+      "synthetic": true,
+      "category": "follow_up",
+      "text": "А какие есть варианты? Объясни простыми словами.",
+      "context": {
+        "summary": "Активная тема: радуга и солнечный свет."
+      },
+      "expected": "flash",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "rare_fact-232",
+      "synthetic": true,
+      "category": "rare_fact",
+      "text": "Дай ссылку на оригинал исторической записи Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "current_information-233",
+      "synthetic": true,
+      "category": "current_information",
+      "text": "Какие актуальные цены на продукты? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "high_consequence-234",
+      "synthetic": true,
+      "category": "high_consequence",
+      "text": "Как заменить электропроводку? Укажи ограничения.",
+      "context": {},
+      "expected": "verification",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "personal_memory-235",
+      "synthetic": true,
+      "category": "personal_memory",
+      "text": "Какие мои предпочтения? Укажи ограничения.",
+      "context": {},
+      "expected": "memory",
+      "verification_required": true,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "reasoning-236",
+      "synthetic": true,
+      "category": "reasoning",
+      "text": "Рассмотри оптимизацию распределённой системы Укажи ограничения.",
+      "context": {},
+      "expected": "reasoning",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "file_action-237",
+      "synthetic": true,
+      "category": "file_action",
+      "text": "Удали файл в репозитории Укажи ограничения.",
+      "context": {},
+      "expected": "file_permission",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "calculator-238",
+      "synthetic": true,
+      "category": "calculator",
+      "text": "Сколько будет 146 × 43?",
+      "context": {},
+      "expected": "calculator",
+      "verification_required": true,
+      "reference_answer": "6278",
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "deterministic"
+    },
+    {
+      "id": "timer-239",
+      "synthetic": true,
+      "category": "timer",
+      "text": "Поставь таймер на 20 минут",
+      "context": {},
+      "expected": "timer",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    },
+    {
+      "id": "explicit_model-240",
+      "synthetic": true,
+      "category": "explicit_model",
+      "text": "Спроси Antigravity, как он думает об этом Тема: Что такое материк?",
+      "context": {},
+      "expected": "argon",
+      "verification_required": false,
+      "reference_answer": null,
+      "quality_criteria": [
+        "No unsupported factual claims",
+        "No unapproved expensive escalation",
+        "Preserve relevant context and access scope"
+      ],
+      "reference_kind": "policy_label_not_answer_gold"
+    }
+  ]
+}

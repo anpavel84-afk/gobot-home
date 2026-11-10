@@ -3,6 +3,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, ConfigDict
 
 ID = r"^[A-Za-z0-9_.:-]{1,100}$"
+ExecutorModel=Literal['gemini-3.8-flash-low','gemini-3.8-flash-medium','gemini-4-argon-medium','gpt-6.1-sol']
 def uid(): return str(uuid4())
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -12,7 +13,25 @@ class ChatRequest(BaseModel):
     turn_id: str = Field(default_factory=uid, pattern=ID)
     correlation_id: str = Field(default_factory=uid, pattern=ID)
     route: Literal["auto", "fast", "agent"] = "auto"
-    provider: Literal["auto", "mock", "codex", "cursor", "gemini", "openai"] = "auto"
+    provider: Literal["auto", "mock", "codex", "cursor", "gemini", "openai", "antigravity", "google"] = "auto"
+    mode: Literal["auto", "fast", "reasoning", "codex", "gemini", "google", "antigravity", "mock"] | None = None
+    usage_consent: bool = False
+    model_id: ExecutorModel | None = None
+    paid_chat_consent:bool=False
+    expensive_fallback_approved:bool=False
+    request_id:str|None=Field(default=None,pattern=ID)
+    utterance_id:str|None=Field(default=None,pattern=ID)
+    event_id:str|None=Field(default=None,pattern=ID)
+    remember:bool=True
+    new_topic:bool=False
+    context_detail:Literal['standard','detailed']='standard'
+
+class VoiceRequest(ChatRequest):
+    speaker_job_id: str | None = Field(default=None, pattern=r'^[a-f0-9-]{36}$')
+    speak: bool = True
+    tts_provider: Literal["openai", "denis"] = "openai"
+    tts_voice: str = Field(default="marin", max_length=30)
+    paid_tts_consent: bool = False
 
 class Event(BaseModel):
     type: Literal["text_delta","sentence_ready","tool_status","widget_command","final","error","cancelled"]

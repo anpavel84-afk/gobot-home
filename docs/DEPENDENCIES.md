@@ -1,5 +1,19 @@
 # Зависимости
 
+Актуализация 10 ноября: project-local Antigravity 1.5.3 (antigravity.lock.json),
+Codex 0.159.2. Gemini CLI ниже — архив попытки, не активный провайдер; Gemini API
+не используется. num2words 0.5.14, pymorphy3 2.0.6, tiktoken 0.14.0 — Speech/Context.
+SpeechBrain 1.1.2 и парные Torch/Torchaudio 2.11.0 в .venv-speaker.
+OpenAI speech probes уже выполнены: openai-speech-probes.json.
+
+Актуализация browser voice: официальный npm @google/gemini-cli **0.67.0**, package-lock.json
+в services/agent-bridge/gemini-cli; установлен --ignore-scripts, без global/npm auth изменений.
+Codex native **0.159.2** из существующей установки, schema tag rust-v0.159.2. Runtime binary/policy SHA
+проверяются по локальному run/agent-isolation.json. Remote HEAD ниже не подменяет runtime release.
+faster-whisper 1.2.1 / CTranslate2 4.8.5 / Piper 1.8.0; requirements-audio.txt и audio-models.lock.json.
+Sherpa-onnx 2.0.1 сохранён, но его TTS frontend на этом Windows не дал samples; рабочий Denis — Piper.
+Основной OpenAI TTS: gpt-realtime-2.1-mini по текущей официальной документации; paid probe ещё не выполнен.
+
 | Репозиторий | Commit SHA | Проверка |
 |---|---|---|
 | xinnan-tech/xiaozhi-esp32-server | `4b1a54a41c28112bc06b1ab605d2ba723f678ad3` | source checkout + inspection |

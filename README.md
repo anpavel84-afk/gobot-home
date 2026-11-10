@@ -1,25 +1,37 @@
 # GoBot Home MVP
 
-**Проверка с iPhone:** [открыть временную Wi-Fi страницу](http://192.168.3.15:18785).
-Три фиксированных mock-сценария и состояние служб; доступ истекает через два часа после запуска.
-Инструкция и ограничения: [PHONE.md](docs/PHONE.md).
+**Основной браузерный GoBot:** [приватный HTTPS через Tailscale](https://plan.tailffc57c.ts.net:18786).
+Текст/запись микрофона, общая память, выбор CLI и серверного голоса. Фактические проверки и ограничения:
+[BROWSER_VOICE.md](docs/BROWSER_VOICE.md). Реальные платные/CLI пробы требуют отдельного согласия.
+Wi-Fi [mock-диагностика](http://192.168.3.15:18785) работает до остановки владельцем; [PHONE.md](docs/PHONE.md).
 
-На Windows запущен **mock-контур**: русский текстовый streaming, SQLite, защищённый Host Agent Bridge
-и XiaoZhi fixture-device. Реальное распознавание/синтез речи и физическая плата ещё не проверены.
+На Windows запущены Brain, защищённый Host Agent Bridge, browser transport и XiaoZhi fixture-device.
+Основные STT и TTS — OpenAI; Whisper Small и Piper Denis только явный ручной резерв.
+Реальные Codex и Antigravity проверялись ранее; три разрешённые speech API пробы выполнены.
+В распознавании имени «Гобот» были ошибки. Физической платы нет.
 Upstream voice server имеет воспроизводимый blocker Python/Torch; см. docs/DEPENDENCIES.md.
 
 ```powershell
 cd C:\Users\PLAN\gobot\GoBotHome
 .venv\Scripts\python.exe -X utf8 scripts/manage.py start
+.venv\Scripts\python.exe -X utf8 scripts/web.py start
 .venv\Scripts\python.exe -X utf8 scripts/chat.py Привет GoBot
 .venv\Scripts\python.exe -X utf8 scripts/e2e.py
 .venv\Scripts\python.exe -X utf8 -m pytest -q
 .venv\Scripts\python.exe -X utf8 scripts/manage.py stop
+.venv\Scripts\python.exe -X utf8 scripts/web.py stop
 ```
 
 Health: http://127.0.0.1:18781/healthz . Ключи генерируются в игнорируемом run/keys.json, не печатаются.
-Автозапуска при входе в Windows нет. Модельные вызовы и прошивка не выполнялись. Live CLI admission закрыт.
+Автозапуска Windows нет. AUTO/FAST: Antigravity gemini-3.8-flash-low; REASONING:
+gemini-3.8-flash-medium. Argon и Codex — явно вручную. Gemini CLI/API исключены.
+Admission CLI проверяется offline; доступ требует согласия на квоту. Прошивки не было.
+
+Контекст ограничен, архив принадлежит GoBot. Новые проверки: 357 pytest, 240 synthetic
+router cases, 200-turn day. Это не подтверждает качество LLM или семейной биометрии.
+[Контекст](docs/CONTEXT_POLICY.md) · [Память](docs/MEMORY_ARCHITECTURE.md) ·
+[Оценка](docs/CONTEXT_EVALUATION.md) · [Speech Formatter](docs/SPEECH_FORMATTING.md).
 
 [Runbook](docs/RUNBOOK.md) · [Архитектура](docs/ARCHITECTURE.md) · [Среда](docs/ENV_REPORT.md) ·
 [Безопасность](docs/SECURITY.md) · [Протокол](docs/PROTOCOL.md) · [Измерения](docs/BENCHMARKS.md) ·
-[Железо](docs/HARDWARE_CHECKLIST.md) · [Фактический статус](docs/STATUS.md)
+[Железо](docs/HARDWARE_CHECKLIST.md) · [Фактический статус](docs/CURRENT_STATUS.md)

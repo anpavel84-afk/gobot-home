@@ -1,0 +1,41 @@
+{
+  "authorization": "Owner approved one file STT, one live STT, one short TTS; no retries",
+  "results": {
+    "file_stt": {
+      "status": "completed",
+      "recorded": 1794284797.9410532,
+      "text": "Привет, я Габот, твой домашний помощник.",
+      "provider": "openai",
+      "model": "gpt-transcribe",
+      "final": true,
+      "stt_ms": 1417.1537999973225,
+      "first_interim_ms": null,
+      "automatic_fallback": false
+    },
+    "live_stt": {
+      "status": "completed",
+      "recorded": 1794284805.4154093,
+      "text": "Привет, я работ твой домашний помощник.",
+      "item_id": "item_EiXjJ8xZT4pBAm7ZJpy7S",
+      "stable": true,
+      "first_interim_ms": 1919.8622000003525,
+      "final_ms": 5306.74629999703,
+      "speech_end_to_final_ms": 782.7106000004278,
+      "provider": "openai",
+      "model": "gpt-live-transcribe",
+      "partial_events": 12
+    },
+    "tts": {
+      "status": "completed",
+      "recorded": 1794284809.439202,
+      "model": "gpt-realtime-2.1-mini",
+      "voice": "marin",
+      "first_audio_ms": 1715.6749999994645,
+      "total_ms": 4020.997499999794,
+      "audio_seconds": 3.35,
+      "pcm_chunks": 9
+    }
+  },
+  "actual_api_cost": "not returned by transport; consult OpenAI usage dashboard",
+  "iphone_playback_verified": false
+}

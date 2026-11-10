@@ -1,6 +1,7 @@
 import os, json
 from pathlib import Path
-from dataclasses import dataclass
+from dataclasses import dataclass,field
+from .routing import RouterPolicy
 from urllib.parse import urlparse
 
 @dataclass
@@ -9,7 +10,7 @@ class Settings:
     api_token: str = ""
     bridge_secret: str = ""
     bridge_url: str = "http://127.0.0.1:18782"
-    timeout: float = 20
+    timeout: float = 90
     fast_provider: str = "mock"
     api_base: str = "https://api.openai.com/v1"
     api_model: str = ""
@@ -18,6 +19,9 @@ class Settings:
     asr: str = "mock"
     tts: str = "mock"
     vad: str = "mock"
+    router:RouterPolicy=field(default_factory=RouterPolicy)
+    gemini_api_key:str=''
+    allow_gemini_api:bool=False
     def validate(self):
         if self.fast_provider not in {"mock","openai"}: raise ValueError("Unsupported fast provider")
         if self.asr not in {"mock","openai","faster_whisper","sherpa_onnx"}: raise ValueError("Unsupported ASR")
@@ -39,4 +43,5 @@ def load():
             name,value=line.split('=',1)
             if name.strip() in allowed:os.environ.setdefault(name.strip(),value.strip())
     keys=json.loads(Path("run/keys.json").read_text(encoding='utf-8'))
-    return Settings(db=os.getenv("GOBOT_DB","data/gobot.sqlite"),api_token=keys["api_token"],bridge_secret=keys["bridge_secret"],bridge_url=os.getenv("GOBOT_BRIDGE_URL","http://127.0.0.1:18782"),fast_provider=os.getenv("GOBOT_FAST_PROVIDER","mock"),api_base=os.getenv("GOBOT_API_BASE","https://api.openai.com/v1"),api_model=os.getenv("GOBOT_API_MODEL",""),api_key=os.getenv("GOBOT_API_KEY",""),allow_paid=os.getenv("GOBOT_ALLOW_PAID")=="1",asr=os.getenv("GOBOT_ASR","mock"),tts=os.getenv("GOBOT_TTS","mock"),vad=os.getenv("GOBOT_VAD","mock")).validate()
+    policy=RouterPolicy(**json.loads(Path('services/brain/router-policy.json').read_text()))
+    return Settings(db=os.getenv("GOBOT_DB","data/gobot.sqlite"),api_token=keys["api_token"],bridge_secret=keys["bridge_secret"],bridge_url=os.getenv("GOBOT_BRIDGE_URL","http://127.0.0.1:18782"),fast_provider=os.getenv("GOBOT_FAST_PROVIDER","mock"),api_base=os.getenv("GOBOT_API_BASE","https://api.openai.com/v1"),api_model=os.getenv("GOBOT_API_MODEL",""),api_key=os.getenv("GOBOT_API_KEY",""),allow_paid=os.getenv("GOBOT_ALLOW_PAID")=="1",asr=os.getenv("GOBOT_ASR","mock"),tts=os.getenv("GOBOT_TTS","mock"),vad=os.getenv("GOBOT_VAD","mock"),router=policy,gemini_api_key="",allow_gemini_api=False).validate()

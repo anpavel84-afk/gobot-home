@@ -1,0 +1,11 @@
+{
+  "codex": {
+    "provider": "codex",
+    "real": true,
+    "deltas": 6,
+    "first_delta_ms": 4314.2512000013085,
+    "total_ms": 4736.092400000416,
+    "text": "Привет, рад помочь!",
+    "sqlite_persisted": true
+  }
+}

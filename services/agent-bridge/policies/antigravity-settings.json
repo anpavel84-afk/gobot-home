@@ -1,0 +1,22 @@
+{
+  "modelProvider": "",
+  "agentMode": "plan",
+  "toolPermission": "strict",
+  "allowNonWorkspaceAccess": false,
+  "permissions": {
+    "allow": [],
+    "ask": [],
+    "deny": ["read_file(*)", "write_file(*)", "command(*)", "read_url(*)", "execute_url(*)", "mcp(*)"]
+  },
+  "enableTerminalSandbox": true,
+  "useG1Credits": false,
+  "disableSlashCommands": true,
+  "historySize": 0,
+  "notifications": false,
+  "showTips": false,
+  "showFeedbackSurvey": false,
+  "altScreenMode": "never",
+  "statusLine": false,
+  "title": false,
+  "customModelsConfig": {}
+}

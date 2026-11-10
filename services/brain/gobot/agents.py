@@ -4,6 +4,7 @@ Parsers and JSON-RPC lifecycle are usable with fixture transports without spendi
 import asyncio,json,os,signal
 from pathlib import Path
 from .security import redact
+from .processes import AgentError,failure_code
 
 class NDJSON:
     def __init__(self):self.buffer=b''
@@ -40,14 +41,15 @@ class CursorAdapter:
         return []
 
 class GeminiCLIAdapter:
-    def __init__(self):self.text='';self.completed=False
+    def __init__(self):self.text='';self.completed=False;self.error_code=None
     @staticmethod
     def argv(executable,prompt):return [executable,'-p',prompt,'--output-format','stream-json']
     def parse(self,obj):
         if self.completed:return []
+        if obj.get('type')=='error':self.error_code=failure_code(obj);return []
         if obj.get('type')=='result':
             self.completed=True
-            if obj.get('status') not in {'success',None}:raise RuntimeError('Gemini failed')
+            if obj.get('status') not in {'success',None}:raise AgentError(self.error_code or failure_code(obj))
             return []
         if obj.get('type')!='message' or obj.get('role')!='assistant':return []
         content=obj.get('content','')
@@ -68,9 +70,9 @@ class CodexEventAdapter:
             if item.get('type')=='agent_message':
                 key=item.get('id','default');full=item.get('text','');old=self.items.get(key,'')
                 delta=full[len(old):] if full.startswith(old) else '';self.items[key]=full
-        elif kind=='turn.failed' or method=='error':raise RuntimeError('Codex failed')
+        elif kind=='turn.failed' or method=='error':raise AgentError(failure_code(obj))
         elif kind=='turn.completed' or method=='turn/completed':
-            if method and obj.get('params',{}).get('turn',{}).get('status') not in {'completed',None}:raise RuntimeError('Codex turn incomplete')
+            if method and obj.get('params',{}).get('turn',{}).get('status') not in {'completed',None}:raise AgentError(failure_code(obj))
             self.completed=True
         if delta:self.text+=delta;return [redact(delta)]
         return []
@@ -80,12 +82,12 @@ class CodexAppServerAdapter:
     rpc object provides request(method,params), notify(method,params), events(), reply().
     All approval requests are declined. Runtime transport admission remains disabled.
     """
-    def __init__(self,rpc,workspace):self.rpc=rpc;self.workspace=str(Path(workspace).resolve());self.thread_id=None;self.turn_id=None
+    def __init__(self,rpc,workspace):self.rpc=rpc;self.workspace=str(Path(workspace).resolve());self.thread_id=None;self.turn_id=None;self.usage=None
     async def initialize(self):
         result=await self.rpc.request('initialize',{'clientInfo':{'name':'gobot_home','title':'GoBot Home','version':'0.1.0'},'capabilities':{'experimentalApi':False}})
         await self.rpc.notify('initialized',{});return result
     async def thread(self,resume=None):
-        params={'cwd':self.workspace,'approvalPolicy':'untrusted','sandbox':'read-only'}
+        params={'cwd':self.workspace,'approvalPolicy':'on-request','sandbox':'read-only'}
         if resume:params['threadId']=resume
         else:params['ephemeral']=True
         result=await self.rpc.request('thread/resume' if resume else 'thread/start',params)
@@ -93,10 +95,14 @@ class CodexAppServerAdapter:
     async def interrupt(self):
         if self.thread_id and self.turn_id:await self.rpc.request('turn/interrupt',{'threadId':self.thread_id,'turnId':self.turn_id})
     async def stream(self,text):
-        result=await self.rpc.request('turn/start',{'threadId':self.thread_id,'input':[{'type':'text','text':text,'text_elements':[]}],'approvalPolicy':'untrusted','sandboxPolicy':{'type':'readOnly'}})
+        result=await self.rpc.request('turn/start',{'threadId':self.thread_id,'input':[{'type':'text','text':text,'text_elements':[]}],'approvalPolicy':'on-request','sandboxPolicy':{'type':'readOnly'}})
         self.turn_id=result['turn']['id'];parser=CodexEventAdapter()
         try:
             async for obj in self.rpc.events():
+                if obj.get('method')=='thread/tokenUsage/updated':
+                    raw=obj.get('params',{}).get('tokenUsage',{}).get('last',{})
+                    self.usage={k:v for k,v in raw.items() if k in {'inputTokens','outputTokens','totalTokens','cachedInputTokens','reasoningOutputTokens'} and isinstance(v,int) and v>=0}
+                    continue
                 if 'id' in obj and 'method' in obj:
                     method=obj['method']
                     if method in {'item/commandExecution/requestApproval','item/fileChange/requestApproval'}:await self.rpc.reply(obj['id'],{'decision':'decline'})
@@ -109,7 +115,7 @@ class CodexAppServerAdapter:
             if not parser.completed:await self.interrupt()
 
 def codex_exec_argv(executable,prompt,workspace):
-    return [executable,'-a','untrusted','exec','--json','--sandbox','read-only','--ephemeral','--ignore-user-config','--cd',str(workspace),'--',prompt]
+    return [executable,'-a','on-request','exec','--json','--sandbox','read-only','--ephemeral','--ignore-user-config','--cd',str(workspace),'--',prompt]
 
 class ProcessRunner:
     """No public executable selection. Tests use a dedicated fixture executable.
@@ -175,7 +181,7 @@ class AppServerTransport:
                     obj=json.loads(line)
                     if 'id' in obj and 'method' not in obj and obj['id'] in self.pending:
                         future=self.pending.pop(obj['id'])
-                        if 'error' in obj:future.set_exception(RuntimeError('App Server request rejected'))
+                        if 'error' in obj:future.set_exception(AgentError(failure_code(obj['error'])))
                         else:future.set_result(obj.get('result',{}))
                     else:await self.queue.put(obj)
             finally:

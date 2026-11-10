@@ -56,7 +56,7 @@ def start(args):
         for _ in range(50):
             try:
                 if client.get(url + "/api/status").status_code == 200:
-                    print("Phone mock demo ready:", url, "| lifetime:", args.minutes, "minutes")
+                    print("Phone mock demo ready:", url, "| lifetime:", str(args.minutes)+" minutes" if args.minutes else "until owner stops it")
                     return
             except httpx.HTTPError:
                 pass
@@ -69,7 +69,7 @@ async def serve(args):
     import uvicorn
     from gobot.phone import create_phone_app
     from gobot.config import load
-    expires = time.time() + args.minutes * 60
+    expires = time.time() + args.minutes * 60 if args.minutes else None
     app = create_phone_app(load().api_token, args.host, str(ipaddress.ip_network(
         args.host + "/" + str(args.prefix), strict=False)), args.port, expires)
     server = uvicorn.Server(uvicorn.Config(app, host=args.host, port=args.port, access_log=False,
@@ -80,12 +80,13 @@ async def serve(args):
     async def expiry():
         await asyncio.sleep(args.minutes * 60)
         server.should_exit = True
-    timer = asyncio.create_task(expiry())
+    timer = asyncio.create_task(expiry()) if args.minutes else None
     try:
         await server.serve()
     finally:
-        timer.cancel()
-        await asyncio.gather(timer, return_exceptions=True)
+        if timer:
+            timer.cancel()
+            await asyncio.gather(timer, return_exceptions=True)
         if MANIFEST.exists() and json.loads(MANIFEST.read_text())["pid"] == os.getpid():
             MANIFEST.unlink()
 
@@ -96,10 +97,10 @@ def main():
     parser.add_argument("--host", default="192.168.3.15")
     parser.add_argument("--prefix", type=int, default=24)
     parser.add_argument("--port", type=int, default=18785)
-    parser.add_argument("--minutes", type=int, default=120)
+    parser.add_argument("--minutes", type=int, default=0, help="0: until explicitly stopped")
     args = parser.parse_args()
-    if not 1 <= args.minutes <= 120 or not 16 <= args.prefix <= 30:
-        parser.error("Lifetime 1..120 minutes; prefix 16..30")
+    if not 0 <= args.minutes <= 120 or not 16 <= args.prefix <= 30:
+        parser.error("Lifetime 0 (unlimited) or 1..120 minutes; prefix 16..30")
     if args.command == "start":
         start(args)
     elif args.command == "serve":

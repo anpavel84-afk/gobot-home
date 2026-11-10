@@ -1,0 +1,30 @@
+{
+  "synthetic": true,
+  "cases": 240,
+  "unique_queries": 240,
+  "routing_labels_passed": 240,
+  "failures": [],
+  "distribution": {
+    "flash": 60,
+    "verification": 60,
+    "memory": 20,
+    "reasoning": 20,
+    "file_permission": 20,
+    "calculator": 20,
+    "timer": 20,
+    "codex": 10,
+    "argon": 10
+  },
+  "router_ms": {
+    "p50": 0.010149999070563354,
+    "p95": 0.014500001270789653
+  },
+  "classifier_model_calls": 0,
+  "total_model_calls": 0,
+  "api_cost": 0,
+  "cli_quota_used": 0,
+  "actual_model_correctness": null,
+  "unsupported_claim_rate": null,
+  "comparative_quality": "not measured; no paid inference permitted for evaluation",
+  "lite_approved_categories": []
+}

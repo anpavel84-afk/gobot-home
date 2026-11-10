@@ -1,0 +1,45 @@
+{
+  "synthetic": true,
+  "turns": 200,
+  "real_model_calls": 0,
+  "api_cost": 0,
+  "cli_quota_used": 0,
+  "packet_tokens": {
+    "start": 301,
+    "middle": 1841,
+    "end": 1840,
+    "maximum": 2029,
+    "p50": 1841.0,
+    "p95": 2014
+  },
+  "context_build_ms": {
+    "p50": 4.976050000550458,
+    "p95": 5.632999997033039
+  },
+  "explicit_returns": {
+    "passed": 10,
+    "total": 10
+  },
+  "cross_owner_leaks": 0,
+  "retrieval_probe": {
+    "lexical_hits": 10,
+    "lexical_queries": 10,
+    "synonym_hits": 0,
+    "synonym_queries": 10,
+    "not_a_representative_recall_benchmark": true
+  },
+  "summary_source_checks": {
+    "valid_attributed_excerpts": 400,
+    "total": 400,
+    "semantic_adequacy": "not measured"
+  },
+  "token_count_kind": "cl100k tokenizer estimate; not actual CLI input usage",
+  "provider_history": "fresh ephemeral thread/process; no live CLI used in evaluation",
+  "limitations": [
+    "Generated data, not family conversations",
+    "FTS prefix lexical search; no measured semantic recall",
+    "Extractive summaries do not infer accepted decisions",
+    "No actual model correctness comparison",
+    "No physical playback or network timing in this benchmark"
+  ]
+}

@@ -1,14 +1,20 @@
 # Безопасность
 
-Дополнение по просьбе владельца проверить GoBot с iPhone: отдельный временный gateway на конкретном
+Обновление 10 ноября: private HTTPS Tailscale ограничен peer/Host/Origin, personal
+scope — PIN; Bridge loopback/HMAC. AUTO Flash, без тяжёлого fallback. Gemini CLI/API
+выключены. Архивный доступ фильтруется SQL по owner; память не даёт полномочий на
+инструменты. См. CONTEXT_POLICY.md / MEMORY_ARCHITECTURE.md для удаления/backup.
+Платные memory workers выключены. Биометрия и API-ключ — Windows DPAPI.
+
+Дополнение по просьбе владельца проверить GoBot с iPhone: отдельный gateway на конкретном
 Wi-Fi IPv4:18785 допускает только несекретные health-статусы и три фиксированных mock-сценария.
 Он доступен без логина другим клиентам разрешённого Wi-Fi subnet; ключи, история, терминал и CLI
-не публикуются. Срок <=120 минут, Host/Origin/subnet/rate/concurrency ограничения. Brain/Bridge
+не публикуются. Срок теперь без TTL до остановки владельцем, Host/Origin/subnet/rate/concurrency ограничения. Brain/Bridge
 по-прежнему loopback. Router/firewall не изменены. Это исключение из прежнего loopback-only режима;
 подробности в PHONE.md.
 
-Только новый GoBotHome и его git. Реальные модели/CLI tasks/LAN/прошивка/домашнее управление выключены.
-Host listeners только 127.0.0.1. Health/ready минимальны, /api/v1/* требует новый локальный 384-bit Bearer.
+Только GoBotHome и его git. Прошивка и домашнее управление выключены.
+Основные services слушают 127.0.0.1. Health/ready минимальны, /api/v1/* требует локальный 384-bit Bearer.
 CORS/Swagger не включены. Сервис однопользовательский; device_id — контекст владельца, не multi-tenant auth.
 
 Bridge: HMAC-SHA256 над фиксированным методом/путём, timestamp, nonce и телом. Окно ±15 s,
@@ -20,13 +26,26 @@ HTTPX trust_env=False исключает случайный системный H
 run/keys.json — только новые ключи GoBot, ACL run ограничен владельцем. .env*, SQLite, data/run/vendor
 исключены из git. Auth homes CLI не копировались/не монтировались. Status CLI сохранён без аккаунтов и ключей.
 
-Bridge допускает только mock/auto; запрос provider=codex/cursor/gemini получает 403.
-Причина: OS containment, запрет shell/чужих файлов и настроенных MCP на этом Windows ещё не доказаны.
-Cursor print сам допускает write/shell. Для live нужны проверенная изоляция, deny tools, ограниченный
-workspace, Windows Job Object kill-on-close или эквивалент и разрешение владельца на расход лимитов.
+Bridge допускает Codex/Gemini только с usage_consent и matching binary/policy evidence.
+Codex offline compiled tool list пуст; shell/apply_patch/MCP/web/skills/hooks отключены,
+approval requests всегда decline. Gemini core tools пуст, wildcard admin deny и MCP/extensions/hooks off;
+@file preprocessing нейтрализовано в JSON context. Cursor live выключен.
+Native subprocess argv, sanitized env и Windows Job Object kill-on-close завершают потомков при отмене.
+Job Object отвечает за lifecycle, это не файловый sandbox. Ограничение ввода модели обеспечивается
+отсутствием tools и deny policy; сам доверенный официальный CLI должен читать собственный OAuth cache.
+Произвольные исполняемые файлы/CLI config из HTTP не принимаются; upstream CVE/компрометация trusted CLI
+не изолируются отдельной Windows-учётной записью. Evidence инвалидируется при смене code/policy/binary.
 ProcessRunner: create_subprocess_exec, argv, отдельный ограниченный/redacted stderr, timeout и cleanup.
 Доступен только для fixtures; .cmd/.bat/.ps1 отклоняются. Tests проверяют потомка до первого stdout,
 не универсальную изоляцию произвольного CLI. Codex approvals всегда decline, неизвестные tools отклоняются.
+
+Приватный browser transport привязан к 100.90.228.125:18786, допускает только два конкретных tailnet peer IP,
+точные Host/Origin и same-origin POST. proxy_headers=False, CORS нет, CSP same-origin, no-store.
+Он передаёт только валидированные chat/audio/history операции в Brain, не в CLI и не в произвольный URL.
+OpenAI key form bounded 4096 bytes, generic errors не отражают вход, Windows DPAPI current-user encrypt,
+run/ под owner ACL и в gitignore. GET только bool. CLI env не получает этот ключ. TTS WS server-to-server;
+ключ не передаётся браузеру. Платный синтез требует отдельного per-request consent, без fallback.
+TLS не публикует приложение в интернет; Tailscale Serve/Funnel, ACL, firewall и router не менялись.
 
 Upstream patch: строгий allowlist AND token(client_id,device_id,ts), пустой allowlist закрывает всё.
 Whitelist token bypass и future timestamp исправлены, header dump удалён. Отдельный patch + regression tests.

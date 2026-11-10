@@ -1,0 +1,31 @@
+{
+  "engine": "SpeechBrain 1.1.2 ECAPA-TDNN / Torch 2.11.0 CPU, 2 threads",
+  "fixture": "public pinned model example1.wav; not family audio",
+  "quality": {
+    "state": "usable",
+    "seconds": 3.2608125,
+    "rms_dbfs": -33.78291770880328,
+    "estimated_speech_seconds": 2.48,
+    "quality_policy": "experimental-energy-and-clipping-v2"
+  },
+  "cold_embedding_ipc_ms": 5961.688800001866,
+  "warm_embedding_ipc_ms": {
+    "n": 12,
+    "p50": 73.87280000148166,
+    "p95": 74.68890000018291
+  },
+  "simulated_stt_while_embedding_ms": {
+    "n": 12,
+    "p50": 31.877700001132325,
+    "p95": 32.088399999338435
+  },
+  "simulated_stt_baseline_ms": {
+    "n": 12,
+    "p50": 36.38970000065456,
+    "p95": 37.32369999852381
+  },
+  "real_identification_accuracy_measured": false,
+  "real_family_identification_p50_p95": null,
+  "paid_api_requests": 0,
+  "interpretation": "Embedding/IPC latency is measured; overlap uses a 30ms mock STT, not real end-to-end voice."
+}

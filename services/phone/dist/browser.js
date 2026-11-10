@@ -1,0 +1,271 @@
+'use strict';
+const $ = id => document.getElementById(id);
+const uuid = () => crypto.randomUUID();
+let conversation = localStorage.getItem('gobot.conversation') || uuid();
+localStorage.setItem('gobot.conversation', conversation);
+let active = null, audio = null, gain = null, nextAt = 0, epoch = 0, recording = null, micPending = false;
+let lastSpeakerJob=null,transcriptPending=false;
+const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
+let currentTurn=null,currentTopic=null;
+const errors = {
+  no_real_executor_available: 'Реальный исполнитель недоступен. Проверь квоту, авторизацию и состояние ниже. Mock можно выбрать отдельно.',
+  openai_stt_consent_required: 'Для OpenAI STT нужно разрешить отправку аудио и платный API-запрос. Локальный Whisper выбирается отдельно.',
+  openai_stt_unavailable: 'OpenAI STT недоступен. Проверь API-баланс и доступ к модели. Whisper автоматически не включался.',
+  openai_stt_key_missing: 'Ключ OpenAI не задан.',
+  openai_stt_auth_failed: 'OpenAI отклонил API-ключ. Обнови его в настройках ключа.',
+  openai_stt_access_denied: 'OpenAI отказал в доступе к распознаванию для этого API-проекта.',
+  openai_stt_model_unavailable: 'Модель распознавания недоступна этому API-проекту.',
+  openai_stt_rate_or_balance_limited: 'OpenAI сообщил о лимите запросов или API-баланса. Whisper автоматически не включался.',
+  quota_consent_required: 'Нужно разрешить расход квоты CLI для запроса.',
+  agent_policy_or_consent_required: 'Запуск CLI заблокирован политикой или отсутствием согласия на расход квоты.',
+  agent_model_unavailable: 'Выбранная в CLI модель недоступна этой авторизации. Нужна настройка модели адаптера.',
+  agent_arguments_rejected: 'Установленный CLI отклонил параметры запуска. Нужна проверка совместимости.',
+  agent_quota_exceeded: 'CLI сообщил об исчерпании квоты или ограничении частоты.',
+  agent_access_denied: 'Провайдер отказал в доступе выбранному CLI.',
+  agent_auth_required: 'CLI требует обновить официальную авторизацию.',
+  agent_policy_denied: 'Вызов остановлен политикой безопасности CLI.',
+  agent_network_failed: 'CLI не смог связаться с сервером провайдера.',
+  gemini_google_project_required: 'Google требует Cloud Project для этого аккаунта. Автоматически создавать платный проект GoBot не будет.',
+  gemini_account_ineligible: 'Google отклонил доступ аккаунта к Gemini CLI (IneligibleTierError). Вход выполнен; доступ к сервису пока не предоставлен. Выбери Codex.',
+  oauth_login_required: 'Требуется официальная авторизация CLI на компьютере.',
+  isolation_not_verified: 'Изоляция CLI требует повторной проверки после изменения программы.',
+  openai_tts_consent_required: 'Текст получен. Для OpenAI голоса разреши платный API синтез.',
+  openai_tts_key_missing: 'Ключ OpenAI ещё не сохранён.',
+  openai_tts_unavailable: 'OpenAI голос недоступен. Проверь API-баланс и доступ к модели. Другой голос не включался.',
+  openai_tts_configuration_rejected: 'OpenAI отклонил настройки голоса. Нужна проверка совместимости API.',
+  openai_tts_incomplete: 'OpenAI не завершил озвучивание. Другой голос не включался.',
+  timeout: 'Превышено время ответа.', brain_unavailable: 'Основной сервер недоступен.',
+};
+function explain(code) { return errors[code] || 'Запрос не завершён: ' + code; }
+function renderDisplay(text){
+  const root=$('answer');root.replaceChildren();let code=false,block=null;
+  for(const line of text.split('\n')){
+    if(line.startsWith('```')){code=!code;block=null;continue;}
+    if(code){if(!block){block=document.createElement('pre');root.append(block);}block.textContent+=(block.textContent?'\n':'')+line;continue;}
+    const row=document.createElement('p');
+    const plain=line.replace(/^#{1,6}\s+/,'').replace(/^\s*[-*+]\s+/,'• ');
+    // Build DOM nodes, never interpret model output as HTML.
+    const pattern=/(\*\*([^*]+)\*\*|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;let cursor=0;
+    for(const match of plain.matchAll(pattern)){
+      const span=document.createElement('span');span.textContent=plain.slice(cursor,match.index);row.append(span);
+      const node=document.createElement(match[2]?'strong':match[3]?'code':'a');node.textContent=match[2]||match[3]||match[4];
+      if(match[5]){node.href=match[5];node.rel='noopener noreferrer';node.target='_blank';}
+      row.append(node);cursor=match.index+match[0].length;
+    }
+    const tail=document.createElement('span');tail.textContent=plain.slice(cursor);row.append(tail);root.append(row);
+  }
+}
+async function unlockAudio() {
+  if (!audio) { audio = new (window.AudioContext || window.webkitAudioContext)(); gain = audio.createGain(); gain.connect(audio.destination); }
+  gain.gain.value = Number($('volume').value);
+  await audio.resume();
+}
+function clearAudio() {
+  epoch++; for (const source of sources) { try { source.stop(); } catch (_) {} } sources.clear(); seen.clear(); audioSequences.clear();playedSegments.clear(); nextAt = 0;
+}
+async function play(data, runEpoch) {
+  const key = data.audio_id + ':' + data.seq;
+  if (runEpoch !== epoch || seen.has(key)) return;
+  const expected=audioSequences.get(data.audio_id)||0;
+  if(data.seq!==expected)throw new Error('audio_sequence_gap');
+  audioSequences.set(data.audio_id,expected+1);
+  if (data.format !== 'pcm_s16le' || ![22050, 24000].includes(data.sample_rate)) throw new Error('unsupported_pcm');
+  while (nextAt > audio.currentTime + 4) {
+    await new Promise(resolve => setTimeout(resolve, 40));
+    if (runEpoch !== epoch) return;
+  }
+  seen.add(key);
+  const raw = atob(data.pcm), bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  if (bytes.length % 2) throw new Error('pcm_alignment');
+  const pcm = new DataView(bytes.buffer), buffer = audio.createBuffer(1, bytes.length / 2, data.sample_rate), channel = buffer.getChannelData(0);
+  for (let i = 0; i < channel.length; i++) channel[i] = pcm.getInt16(i * 2, true) / 32768;
+  const source = audio.createBufferSource(); source.buffer = buffer; source.connect(gain);
+  nextAt = Math.max(nextAt, audio.currentTime + .04); sources.add(source);
+  const turn=currentTurn;
+  source.onended = () => {sources.delete(source);if(runEpoch===epoch&&data.segment_id){const milliseconds=(playedSegments.get(data.segment_id)||0)+buffer.duration*1000;playedSegments.set(data.segment_id,milliseconds);fetch('/api/audio/playback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turn_id:turn,segment_id:data.segment_id,milliseconds})}).catch(()=>{});}}; source.start(nextAt); nextAt += buffer.duration;
+}
+function stop() {
+  if (active) active.abort(); active = null; clearAudio();
+  $('send').disabled = false; $('orb').classList.remove('busy'); $('result-badge').textContent = 'Остановлено';
+}
+async function send() {
+  if(transcriptPending)return;
+  const text = $('question').value.trim(); if (!text) return;
+  stop(); const runEpoch = epoch;
+  const controller = new AbortController(); active = controller;
+  $('send').disabled = true; $('answer').textContent = ''; $('voice-status').textContent = '';
+  $('orb').classList.add('busy'); $('result-badge').textContent = 'Получаем ответ';
+  let canSpeak=$('speak').checked;
+  if(canSpeak){try{await unlockAudio();}catch(_){canSpeak=false;$('voice-status').textContent='Не удалось включить воспроизведение. Этот ответ придёт текстом; API синтеза не вызывается.';}}
+  let answer = '', terminal = false;const dispatchAt=performance.now();let firstDeltaAt=null;currentTurn=uuid();const utterance=lastUtterance;lastUtterance=null;
+  try {
+    const response = await fetch('/api/chat/stream', {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
+      body: JSON.stringify({text, mode: $('model').value, conversation_id: conversation, turn_id: currentTurn, request_id:currentTurn,utterance_id:utterance,remember:$('remember').checked,context_detail:$('detailed-context').checked?'detailed':'standard', correlation_id: uuid(),
+        usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob})});
+    if (!response.ok) throw new Error('http_' + response.status);
+    const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
+    while (true) {
+      const part = await reader.read(); pending += decoder.decode(part.value || new Uint8Array(), {stream: !part.done});
+      if (pending.length > 2000000) throw new Error('event_limit');
+      let end;
+      while ((end = pending.indexOf('\n\n')) >= 0) {
+        const frame = pending.slice(0, end); pending = pending.slice(end + 2);
+        const line = frame.split('\n').find(value => value.startsWith('data: ')); if (!line) continue;
+        const item = JSON.parse(line.slice(6)), data = item.data || {};
+        if (runEpoch !== epoch) return;
+        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;answer += data.text;renderDisplay(answer); }
+        else if (item.type === 'tool_status') {
+          if(data.topic){currentTopic=data.topic.topic_id;$('topic-label').textContent='Тема: '+(data.topic.label||'новая')+' · '+data.topic.outcome;}
+          if(data.context)$('context-statistics').textContent=JSON.stringify(data.context,null,2);
+          $('robot-label').textContent = data.provider || 'GoBot отвечает';
+          if(data.model||data.provider==='local')$('route-meta').textContent='Отвечает: '+(data.provider==='bridge:antigravity'?'Antigravity':data.provider==='bridge:codex'?'Codex':'GoBot локально')+' · '+(data.model||'детерминированный инструмент')+' · '+(data.route||'');
+          if(data.status==='guest_context'){conversation=data.conversation_id;localStorage.setItem('gobot.conversation',conversation);$('speaker-status').textContent='Личность не подтверждена: используем гостевой контекст, личная история закрыта.';}
+        }
+        else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
+        else if (item.type === 'audio_chunk') await play(data, runEpoch);
+        else if (item.type === 'tts_error') $('voice-status').textContent = explain(data.code);
+        else if (item.type === 'widget_command') { $('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер'; }
+        else if (item.type === 'final') {
+          terminal = true; $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
+          const usage=data.usage?Object.entries(data.usage).map(([key,value])=>key+': '+value).join(', '):'Исполнитель не сообщил счётчики токенов';
+          $('route-statistics').textContent='Модель: '+(data.model||'локально / диагностика')+' · первый ответ: '+Math.round(firstDeltaAt||0)+' мс · маршрутизация: '+(data.router_ms==null?'—':data.router_ms.toFixed(2)+' мс')+' · '+(data.billing_kind==='cli_subscription'?'Квота CLI-подписки, без пересчёта в доллары':data.billing_kind==='api_tokens'?'Оплачиваемые API-токены':'Локальная обработка')+' · '+usage;
+          if(data.quality)$('route-statistics').textContent+=' · Проверка: '+data.quality.method+' · обязательна: '+(data.quality.verification_required?'да':'нет')+' · сложность / фактическая неопределённость / последствия: '+data.quality.complexity+' / '+data.quality.factual_uncertainty+' / '+data.quality.consequence_risk+' (внутренние уровни, не вероятности)';
+        }
+        else if (['error', 'cancelled'].includes(item.type)) { terminal = true; clearAudio(); $('result-badge').textContent = 'Не завершено'; $('voice-status').textContent = explain(data.code || 'cancelled'); }
+      }
+      if (part.done) break;
+    }
+    if (!terminal) throw new Error('stream_disconnected');
+  } catch (error) {
+    if (error.name !== 'AbortError') { clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
+  } finally {
+    if (active === controller) { active = null; $('send').disabled = false; $('orb').classList.remove('busy'); await loadHistory();await refreshMemory(); }
+  }
+}
+let liveSocket=null,recordStoppedAt=null,lastUtterance=null;
+async function showSpeaker(job,initial){
+  let state=initial||{state:'unknown'};
+  for(let i=0;i<30;i++){
+    $('speaker-status').textContent=state.state==='recognized' ? 'Говорящий: '+state.name+' · для личной истории нужен PIN профиля' :
+      state.state==='ambiguous' ? 'Говорящий: похожие голоса, уточни профиль' : state.state==='insufficient_audio' ? 'Слишком мало качественной речи для определения голоса' : 'Неизвестный голос · гостевой контекст';
+    if(!job||state.reason!=='identity_pending')return;
+    await new Promise(resolve=>setTimeout(resolve,300));
+    try{state=await(await fetch('/api/speaker/'+job)).json();}catch(_){return;}
+  }
+}
+async function startRecording() {
+  if (recording || micPending) return; micPending = true;
+  $('record').textContent='Запрашиваем микрофон…';$('mic-status').textContent='Запрашиваем доступ к микрофону…';
+  try {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Микрофон требует доверенного HTTPS. Открой адрес Tailscale.');
+    // File dictation must not wait for playback AudioContext/autoplay permission on iOS.
+    // Request the microphone within the original user gesture.
+    if($('stt-mode').value==='live')await unlockAudio();
+    stop();
+    lastSpeakerJob=null;lastUtterance=uuid();$('question').value='';
+    const provider=$('stt').value,consent=$('paid-stt').checked,live=$('stt-mode').value==='live';
+    if(provider==='openai'&&!consent){$('paid-stt').scrollIntoView?.({block:'center',behavior:'smooth'});$('paid-stt').focus();throw new Error(explain('openai_stt_consent_required'));}
+    if(live&&provider!=='openai')throw new Error('Потоковый режим доступен у OpenAI. Для Whisper/Mock выбери готовую фразу.');
+    transcriptPending=true;$('send').disabled=true;
+    if(live){
+      const socket=new WebSocket('wss://'+location.host+'/api/audio/live');liveSocket=socket;let partial='';
+      await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=()=>reject(new Error('WSS недоступен'));});
+      const ready=new Promise((resolve,reject)=>{
+        socket.onmessage=e=>{const item=JSON.parse(e.data),data=item.data||{};
+          if(item.type==='stt_ready')resolve();
+          if(item.type==='stt_partial'){partial+=data.text;$('question').value=partial;$('mic-status').textContent='Распознаю речь · промежуточный текст';}
+          if(item.type==='stt_final'){transcriptPending=false;$('send').disabled=false;lastSpeakerJob=data.speaker_job_id;$('question').value=data.text;$('mic-status').textContent='Финальный текст готов. Проверь и отправь. До первого текста: '+Math.round(data.first_interim_ms||0)+' мс · после окончания речи: '+Math.round(data.speech_end_to_final_ms)+' мс';showSpeaker(data.speaker_job_id,data.speaker);socket.close();}
+          if(item.type==='error'){transcriptPending=false;$('send').disabled=false;$('question').value='';const error=new Error(explain(data.code));reject(error);$('mic-status').textContent=error.message;recording?.cancel();recording=null;socket.close();}
+        };
+        socket.onclose=()=>{if(recording){recording.cancel();recording=null;} $('record').textContent='Начать запись';if(transcriptPending){transcriptPending=false;$('send').disabled=false;$('question').value='';$('mic-status').textContent='Распознавание прервано до финального текста.';}};
+      });
+      socket.send(JSON.stringify({provider:'openai',paid_consent:consent}));
+      await Promise.race([ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('OpenAI STT не подтвердил готовность')),10000))]);
+      recording=await GoBotCapture.start({context:audio,onChunk:chunk=>{
+        if(socket.bufferedAmount>512000){recording?.cancel();socket.close();$('mic-status').textContent='Аудиосеть перегружена. Запись остановлена.';return;}
+        if(socket.readyState===WebSocket.OPEN)socket.send(chunk);
+      },onStop:()=>{recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь · ждём финальный текст';if(socket.readyState===WebSocket.OPEN)socket.send('end');}});
+    }else{
+      recording=await GoBotCapture.start({context:audio,onStop:async blob=>{
+        recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь…';
+        try{const query=new URLSearchParams({provider,paid_consent:String(consent)});
+          const response=await fetch('/api/audio/transcribe?'+query,{method:'POST',headers:{'Content-Type':blob.type},body:blob});
+          const result=await response.json();if(!response.ok)throw new Error(explain(result.detail||'stt_unavailable'));
+          lastSpeakerJob=result.speaker_job_id;$('question').value=result.text;$('mic-status').textContent='Распознано. Исправь текст и отправь. '+result.provider+' · '+Math.round(result.stt_ms)+' мс';showSpeaker(result.speaker_job_id,result.speaker);
+        }catch(error){$('mic-status').textContent=error.message;$('question').value='';}
+        finally{transcriptPending=false;$('send').disabled=false;}
+      },onError:error=>{$('mic-status').textContent=error.message;recording=null;transcriptPending=false;$('send').disabled=false;}});
+    }
+    $('record').textContent = '■ Закончить диктовку';$('record').setAttribute('aria-pressed','true');$('record').classList.add('recording'); $('mic-status').textContent = 'Слушаю. Нажми ещё раз, когда закончишь.';
+  } catch (error) {
+    transcriptPending=false;$('send').disabled=false;
+    const message=error.name==='NotAllowedError'?'Доступ к микрофону не разрешён. В Safari открой настройки этого сайта и разреши микрофон. Если ссылка открыта внутри другого приложения, открой её в Safari.':error.name==='NotFoundError'?'Браузер не обнаружил микрофон.':error.name==='NotReadableError'?'Микрофон занят другим приложением. Закрой запись в нём и попробуй снова.':error.message;
+    $('mic-status').textContent=message;$('record').textContent='🎙 Начать диктовку';$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording');
+    if(liveSocket){liveSocket.close();liveSocket=null;}
+  }
+  finally { micPending = false; }
+}
+function endRecording() { recording?.stop();$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording'); }
+let held = false;
+$('hold').onpointerdown = async event => { event.preventDefault(); held = true;try{$('hold').setPointerCapture?.(event.pointerId);}catch(_){} await startRecording(); if (!held) endRecording(); };
+$('hold').onpointerup = $('hold').onpointercancel = event => { event.preventDefault(); held = false; endRecording(); };
+$('hold').oncontextmenu = event => event.preventDefault();
+$('record').onclick = () => recording ? endRecording() : startRecording();
+$('send').onclick = send; $('stop').onclick = stop;
+$('volume').oninput = () => { if (gain) gain.gain.value = Number($('volume').value); };
+$('speak').onchange = () => { if (!$('speak').checked) stop(); };
+$('tts').onchange = () => { $('voice').disabled = $('tts').value !== 'openai'; };
+async function loadHistory() {
+  try { const response = await fetch('/api/history/' + encodeURIComponent(conversation)); const data = await response.json(); $('history').replaceChildren();
+    for (const message of data.messages || []) { const p = document.createElement('p'); p.textContent = (message.role === 'user' ? 'Ты: ' : 'GoBot (' + message.provider + '): ') + message.content; $('history').append(p); }
+  } catch (_) { /* Status remains available separately. */ }
+}
+async function refresh() {
+  try {
+    const response = await fetch('/api/status', {cache: 'no-store'}); if (!response.ok) throw new Error(); const data = await response.json();
+    $('services').replaceChildren(); for (const service of data.services) { const row = document.createElement('div'); row.className = 'service'; row.textContent = service.name + ': ' + (service.ok ? 'на связи' : 'недоступен'); $('services').append(row); }
+    const backend = data.backend || {}, voice = backend.voice?.tts;
+    if (voice && !$('voice').options.length) for (const name of voice.voices) { const option = document.createElement('option'); option.value = option.textContent = name; $('voice').append(option); }
+    $('provider-status').replaceChildren();
+    for(const [name,state] of Object.entries(backend.agents||{})){
+      if(name==='gemini')continue;
+      const row=document.createElement('p');
+      const label=name==='antigravity'?'Google Antigravity':name==='codex'?'Codex':name;
+      let detail=state.reason ? explain(state.reason) : 'готов к запросу';
+      if(state.reason==='quota_consent_required')detail=$('quota').checked?'Готов к твоему запросу':'Для запроса отметь согласие на расход квоты выше';
+      if(state.reason==='isolation_not_verified')detail='Проверка безопасного запуска ещё не завершена';
+      row.textContent=label+': '+(state.oauth_cached?'✓ Вход выполнен. ':'Вход не выполнен. ')+detail;
+      $('provider-status').append(row);
+    }
+    const key=document.createElement('p');key.textContent='OpenAI ключ: '+(data.openai_key_configured?'сохранён':'не задан');$('provider-status').append(key);
+  } catch (_) { $('services').textContent = 'Сервер недоступен.'; }
+}
+$('refresh').onclick = refresh;
+$('quota').checked=localStorage.getItem('gobot.cli-quota-consent')==='true';
+$('quota').onchange=()=>{localStorage.setItem('gobot.cli-quota-consent',String($('quota').checked));refresh();};
+$('new-conversation').onclick = () => { stop(); conversation = uuid();currentTopic=null;lastUtterance=null; localStorage.setItem('gobot.conversation', conversation); loadHistory();refreshMemory(); };
+$('question').oninput=()=>{lastUtterance=null;};
+$('remember').onchange=()=>{$('new-conversation').onclick();$('context-statistics').textContent=$('remember').checked?'Архив включён.':'Не запоминать: только оперативная память, до часа.';};
+async function refreshMemory(){
+  try{const response=await fetch('/api/memory?'+new URLSearchParams({conversation_id:conversation}));if(!response.ok)return;const data=await response.json();
+    currentTopic=data.topic?.id||null;$('topic-label').textContent=data.topic?'Тема: '+data.topic.label:'Новая тема';$('topic-name').value=data.topic?.label||'';
+    $('saved-facts').replaceChildren();
+    for(const fact of data.facts||[]){const row=document.createElement('p'),label=document.createElement('span');label.textContent=fact.content+' · '+fact.scope;row.append(label);
+      const edit=document.createElement('button');edit.type='button';edit.textContent='Исправить';edit.onclick=async()=>{const content=window.prompt('Исправленный факт',fact.content);if(content?.trim())await changeMemory('revise_fact',String(fact.id),content);};row.append(edit);
+      const remove=document.createElement('button');remove.type='button';remove.textContent='Удалить';remove.onclick=()=>changeMemory('delete_fact',String(fact.id));row.append(remove);$('saved-facts').append(row);}
+    $('memory-sources').replaceChildren();
+    if(data.context){const metadata=JSON.parse(data.context.metadata);$('context-statistics').textContent=JSON.stringify({...metadata,provider_session:data.context.session_id,provider_mode:data.context.mode,provider_usage:data.context.usage||'недоступно',auxiliary_model_tokens:data.auxiliary_model_tokens},null,2);
+      for(const id of metadata.source_message_ids||[]){if(!Number.isInteger(id)||id<=0)continue;const link=document.createElement('a');link.href='/api/memory/source/'+id;link.textContent='Исходное сообщение '+id+' ';link.target='_blank';link.rel='noopener';$('memory-sources').append(link);}}
+  }catch(_){}
+}
+async function changeMemory(action,id,content=''){
+  const response=await fetch('/api/memory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id,content})});
+  if(!response.ok){$('topic-label').textContent='Изменение памяти не выполнено: проверь владельца и PIN профиля.';return;}
+  if(action==='forget_conversation'){$('new-conversation').onclick();}else await refreshMemory();
+}
+$('memory-refresh').onclick=refreshMemory;
+$('rename-topic').onclick=()=>{if(currentTopic&&$('topic-name').value.trim())changeMemory('rename_topic',currentTopic,$('topic-name').value.trim());};
+$('forget-conversation').onclick=()=>{if(window.confirm('Удалить сообщения и производные данные этого разговора из рабочей базы GoBot?'))changeMemory('forget_conversation',conversation);};
+window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSocket?.close(); });
+refresh(); loadHistory();refreshMemory();

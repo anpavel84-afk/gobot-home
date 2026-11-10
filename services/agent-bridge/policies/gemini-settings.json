@@ -1,0 +1,23 @@
+{
+  "security": {
+    "auth": {"selectedType": "oauth-personal", "enforcedType": "oauth-personal"},
+    "disableYoloMode": true,
+    "disableAlwaysAllow": true,
+    "enablePermanentToolApproval": false,
+    "autoAddToPolicyByDefault": false,
+    "environmentVariableRedaction": {"enabled": true}
+  },
+  "tools": {"core": [], "allowed": [], "useRipgrep": false},
+  "mcp": {"allowed": [], "excluded": ["*"]},
+  "mcpServers": {},
+  "admin": {"mcp": {"enabled": false}, "extensions": {"enabled": false}, "skills": {"enabled": false}},
+  "hooksConfig": {"enabled": false},
+  "hooks": {},
+  "extensions": {"enabled": false},
+  "skills": {"enabled": false},
+  "context": {"fileName": [], "includeDirectories": [], "discoveryMaxDirs": 0},
+  "advanced": {"ignoreLocalEnv": true},
+  "telemetry": {"enabled": false, "logPrompts": false},
+  "privacy": {"usageStatisticsEnabled": false},
+  "general": {"enableAutoUpdate": false}
+}

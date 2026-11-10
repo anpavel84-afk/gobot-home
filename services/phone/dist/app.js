@@ -63,7 +63,7 @@ async function refresh() {
       row.append(label, result); $('services').append(row);
     });
     $('tests-status').textContent = (data.unit_tests_passed || '—') + ' автоматических тестов пройдено на компьютере · режим mock';
-    $('expiry').textContent = 'Временный доступ закроется примерно через ' + Math.ceil(data.remaining_seconds / 60) + ' мин.';
+    $('expiry').textContent = data.remaining_seconds === null ? 'Доступ работает до команды владельца об остановке.' : 'Доступ закроется примерно через ' + Math.ceil(data.remaining_seconds / 60) + ' мин.';
   } catch (error) {
     $('services').textContent = 'Компьютер не отвечает или время доступа истекло.';
   } finally { $('refresh').disabled = false; }

@@ -1,5 +1,11 @@
 # Обследование среды
 
+Обновление 10 ноября: private Tailscale HTTPS 100.90.228.125:18786, точный allowlist
+iPhone. Официальный project-local agy 1.5.3 и существующий Codex 0.159.2 авторизованы.
+SpeechBrain 1.1.2 / Torch и Torchaudio 2.11.0 работают в .venv-speaker.
+Global PATH/Python, firewall/router не менялись. Основные STT/TTS теперь OpenAI.
+Ниже — снимок исходного preflight, не текущие значения свободного диска.
+
 Windows native, Microsoft Windows 11 Home 10.0.26300, AMD64. CPU Ryzen 7 7840HS, 8 ядер/16 потоков;
 RAM 13.68 GiB. Radeon 780M, CIM AdapterRAM 2 GiB — отчёт драйвера, не подтверждение выделенной VRAM.
 Свободно на C: 81.09 GiB при первом preflight. GPU inference не проверялся.
@@ -17,9 +23,16 @@ Wi-Fi 192.168.3.15; также видны Tailscale и виртуальные и
 | Codex | 0.159.2, app-server --help и локальная JSON Schema проверены |
 | Cursor | cursor-agent.cmd 2026.10.01-14929f9, ask/sandbox enabled доступны |
 | agent.exe | Grok 1.0.30, исключён из Cursor route |
-| Gemini | CLI не обнаружен |
+| Gemini | Официальный @google/gemini-cli 0.67.0 установлен project-local, OAuth ещё не выполнен |
 
 Codex status: authenticated; Cursor: unconfirmed.
+Актуализация 2026-11-09: account/read Codex подтвердил ChatGPT auth без model call;
+offline tool audit пуст для Codex/Gemini. Gemini CLI stream-json проверен по help и исходникам пакета.
+GEMINI_API_KEY/GOOGLE_API_KEY отсутствуют в Process/User/Machine; child environment всё равно их исключает.
+Tailscale IP хоста 100.90.228.125, iPhone 100.120.201.115. HTTPS :18786 привязан только к Tailscale IP;
+обычная TLS validation проходит. HTTP mock :18785 работает без TTL по просьбе владельца.
+Whisper Small CPU int8 и Piper 1.8.0 Denis установлены только в .venv; модели data/models сохранены.
+OpenAI ключ сохранён через HTTPS в DPAPI, выводится только bool наличия. API ещё не вызывался.
 Каталоги .codex/.cursor видимы, .gemini отсутствует. Наличие каталога не доказывает авторизацию.
 Сессии не копировались; status-команды не запускали модель. Cursor .ps1 через Windows PowerShell
 упёрся в ExecutionPolicy, для диагностических --help/status использован существующий .cmd. Политика не менялась.

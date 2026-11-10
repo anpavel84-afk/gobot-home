@@ -59,3 +59,11 @@ origin/redirect guards. Полосовое декодирование пока �
 Host image API: POST http://127.0.0.1:18784/api/v1/images с локальным Bearer и Content-Type: image/jpeg,
 raw baseline JPEG body. Возвращает capability URL на 30 s; GET проверен network E2E с точным MIME/Length.
 Это не даёт ESP32 доступа к loopback и не выполняет MCP на физической плате.
+# Browser audio transport v1
+
+Частный HTTPS /api/chat/stream проксирует /api/v1/chat/voice/stream Brain. SSE включает обычные typed events
+Brain и дополнительные audio_start/audio_chunk/audio_stop/tts_error. Все несут correlation_id/device_id/
+conversation_id/turn_id. audio_chunk.data: audio_id, монотонный seq с нуля, format=pcm_s16le, sample_rate
+(24000 OpenAI либо 22050 Denis), pcm base64. Это отдельный браузерный transport, не XiaoZhi binary frames.
+Повтор turn_id воспроизводит финальный текст без повторного TTS/расхода. POST /api/audio/transcribe
+принимает bounded browser recording с настоящим MIME, возвращает редактируемый текст STT.

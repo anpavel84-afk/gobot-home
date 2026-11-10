@@ -1,5 +1,9 @@
 # Измерения mock-контура
 
+Актуальные результаты 10 ноября: context-evaluation.json, router-evaluation.json,
+openai-speech-probes.json, browser-free-e2e.json и CONTEXT_EVALUATION.md.
+Таблицы ниже — исторические mock-измерения, не характеристики реальных моделей.
+
 Network E2E Windows host: 20 последовательных запросов, loopback SSE, SQLite WAL, mock deltas
 с искусственным asyncio sleep. Это fixture throughput, не скорость реальной LLM/речи. Raw: e2e-results.json.
 
@@ -25,3 +29,12 @@ llm_first_token_ms/total_ms. При hardware test привязать стади�
 46 unit tests passed на момент документации; один Starlette TestClient/httpx deprecation warning.
 reliability-results.json: host restart, SQLite survival, SSE disconnect passed.
 Docker restart, GPU inference и реальные API/CLI не проверялись.
+# Дополнение browser voice 2026-11-09
+
+Один бесплатный HTTPS probe, синтетическая WAV длительностью 3.019 s (не микрофон): Whisper Small CPU int8
+распознал русский текст за 1139 ms без включения model load в STT timer. Полный запрос STT -> mock LLM ->
+реальный явно выбранный резерв Piper Denis дал первый PCM chunk через 4115 ms от начала HTTP STT запроса;
+полный server stream завершился за 4332 ms, 22 чанка по порядку. Browser playback latency не измерялась.
+Это n=1, p50/p95 для реального голоса не оцениваются. Результат docs/browser-free-e2e.json.
+OpenAI TTS, live CLI first token, микрофон iPhone, first physical Opus playback остаются неизмеренными
+до соответствующих разрешённых проб. Меньше 800 ms не заявляется. Исходные mock-метрики ниже отдельны.

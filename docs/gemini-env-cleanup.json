@@ -1,0 +1,44 @@
+[
+  {
+    "Name": "GEMINI_API_KEY",
+    "Scope": "Process",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  },
+  {
+    "Name": "GOOGLE_API_KEY",
+    "Scope": "Process",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  },
+  {
+    "Name": "GEMINI_API_KEY",
+    "Scope": "User",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  },
+  {
+    "Name": "GOOGLE_API_KEY",
+    "Scope": "User",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  },
+  {
+    "Name": "GEMINI_API_KEY",
+    "Scope": "Machine",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  },
+  {
+    "Name": "GOOGLE_API_KEY",
+    "Scope": "Machine",
+    "WasPresent": false,
+    "Removed": false,
+    "Error": null
+  }
+]

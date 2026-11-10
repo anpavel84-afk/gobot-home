@@ -1,0 +1,63 @@
+{
+  "https_status": 200,
+  "calculator_answer": "Получается 5461.",
+  "provider": "local",
+  "no_model_calls": true,
+  "no_api_calls": true,
+  "replay_prevented_second_execution": true,
+  "sqlite_message_delta": 0,
+  "context": {
+    "version": 1,
+    "section_tokens": {
+      "runtime_instructions": 273,
+      "current_request": 10,
+      "messages": 0,
+      "summary": 0,
+      "facts": 0,
+      "retrieved": 0
+    },
+    "packet_tokens": 300,
+    "target": 3600,
+    "maximum": 6000,
+    "count_kind": "tokenizer_estimate_cl100k_base",
+    "source_message_ids": [],
+    "omitted": [],
+    "provider_overhead_tokens": null,
+    "provider_usage": "unavailable_until_reported",
+    "topic_reason": null,
+    "topic_outcome": null
+  },
+  "memory_controls_present": true,
+  "services": [
+    {
+      "name": "Brain",
+      "ok": true
+    },
+    {
+      "name": "Bridge",
+      "ok": true
+    },
+    {
+      "name": "Голосовой стенд",
+      "ok": true
+    },
+    {
+      "name": "Изображения",
+      "ok": true
+    }
+  ],
+  "agents": {
+    "codex": {
+      "installed": true,
+      "oauth_cached": true,
+      "isolation_verified": true,
+      "reason": "quota_consent_required"
+    },
+    "antigravity": {
+      "installed": true,
+      "oauth_cached": true,
+      "isolation_verified": true,
+      "reason": "quota_consent_required"
+    }
+  }
+}

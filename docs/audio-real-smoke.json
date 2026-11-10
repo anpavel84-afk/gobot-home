@@ -1,0 +1,12 @@
+{
+  "source": "local offline TTS fixture; not microphone",
+  "tts_provider": "denis-explicit-offline-test",
+  "stt": {
+    "text": "Привет, я Гобот, твой домашний помощник.",
+    "language": "ru",
+    "provider": "faster-whisper-small",
+    "stt_ms": 1302.5995999996667,
+    "audio_seconds": 3.018625
+  },
+  "openai_api_called": false
+}

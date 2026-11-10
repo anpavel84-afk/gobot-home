@@ -1,0 +1,5 @@
+# GoBot has no model-accessible filesystem, shell, network or MCP tools.
+[[rule]]
+toolName = "*"
+decision = "deny"
+priority = 999

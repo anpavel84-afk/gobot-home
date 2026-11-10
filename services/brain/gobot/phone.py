@@ -28,7 +28,6 @@ def create_phone_app(api_token, host, network, port=18785, expires_at=None,
     if address.version != 4 or not address.is_private or address.is_loopback or address not in subnet:
         raise ValueError("A specific private Wi-Fi IPv4 is required")
     origin = "http://" + host + ":" + str(port)
-    expires_at = expires_at or time.time() + 7200
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     active = asyncio.Semaphore(2)
     recent = {}
@@ -47,7 +46,7 @@ def create_phone_app(api_token, host, network, port=18785, expires_at=None,
             return JSONResponse({"error": "Host denied"}, status_code=403)
         if request.headers.get("origin") not in {None, origin} or request.headers.get("sec-fetch-site") == "cross-site":
             return JSONResponse({"error": "Origin denied"}, status_code=403)
-        if time.time() >= expires_at:
+        if expires_at is not None and time.time() >= expires_at:
             return JSONResponse({"error": "Phone demo expired"}, status_code=410)
         if request.method != "GET":
             return JSONResponse({"error": "Read-only demo interface"}, status_code=405)
@@ -77,7 +76,7 @@ def create_phone_app(api_token, host, network, port=18785, expires_at=None,
         test_file = ROOT / "docs/tests-output.txt"
         match = re.search(r"(\d+) passed", test_file.read_text(encoding="utf-8")) if test_file.exists() else None
         return {"mode": "mock-only", "services": checks, "unit_tests_passed": int(match[1]) if match else None,
-                "remaining_seconds": max(0, int(expires_at - time.time())),
+                "remaining_seconds": max(0, int(expires_at - time.time())) if expires_at is not None else None,
                 "real_speech_ready": False, "real_agents_enabled": False}
 
     @app.get("/api/demo/{scenario}")
@@ -87,7 +86,7 @@ def create_phone_app(api_token, host, network, port=18785, expires_at=None,
             raise HTTPException(404, "Only fixed mock demonstrations are available")
         peer = request.client.host
         now = time.monotonic()
-        if now - recent.get(peer, -1000) < cooldown or request_count >= 120:
+        if now - recent.get(peer, -1000) < cooldown:
             raise HTTPException(429, "Demo rate limit")
         try:
             await asyncio.wait_for(active.acquire(), .1)
