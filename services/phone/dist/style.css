@@ -14,3 +14,5 @@ body.browser-product{--bg:#0c141a;--surface:#15232c;--surface2:#192c36;--ink:#ee
 #history .visual-card p{border-top:none;padding-top:0}
 
 .device-mode-link{display:flex;flex-direction:column;gap:6px;border:1px solid var(--mint);border-radius:16px;padding:18px;color:var(--mint);text-decoration:none;font-size:20px}.device-mode-link span{font-size:12px;color:var(--muted)}#skin-preview{display:block;width:240px;height:240px;max-width:100%;margin:18px auto;border-radius:50%;background:#0c141a}#device-appearance input[type=color]{display:block;width:100%;height:42px}#device-appearance button{margin:6px 4px 6px 0}
+
+.device-policy-settings{border:1px solid var(--line);border-radius:14px;padding:16px;margin:18px 0;display:grid;gap:14px}.device-policy-settings legend{padding:0 8px;color:var(--ink)}.device-policy-settings>label{display:grid;gap:8px;margin:0}.device-policy-settings>label.check{display:flex}.device-policy-settings select{width:100%}.device-policy-settings p{margin:0}

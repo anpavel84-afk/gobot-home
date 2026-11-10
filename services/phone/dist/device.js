@@ -24,7 +24,13 @@
       hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
       hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.state('thinking','Готовлю ответ…');};
-      hooks.onListening=()=>this.state('listening','Слушаю. Отпусти круг, когда закончишь.');
+      hooks.onListening=()=>{
+        if(this.followupPending&&!this.held){
+          this.state('listening','Жду продолжение разговора · '+this.profile.conversation.followup_seconds+' секунд');
+          this.conversationState='FOLLOWUP_LISTENING';
+          document.getElementById('device-mic').textContent='● Микрофон включён · локальное ожидание речи';
+        }else this.state('listening','Слушаю. Отпусти круг, когда закончишь.');
+      };
       hooks.onCapturePending=()=>this.status('Включаю микрофон…');
       hooks.onInputClosed=()=>this.state('thinking','Вопрос записан. Обрабатываю…');
       hooks.onRecognizing=()=>this.state('recognizing','Распознаю речь…');
