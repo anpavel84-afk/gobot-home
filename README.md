@@ -1,5 +1,9 @@
 # GoBot Home MVP
 
+**Проверка с iPhone:** [открыть временную Wi-Fi страницу](http://192.168.3.15:18785).
+Три фиксированных mock-сценария и состояние служб; доступ истекает через два часа после запуска.
+Инструкция и ограничения: [PHONE.md](docs/PHONE.md).
+
 На Windows запущен **mock-контур**: русский текстовый streaming, SQLite, защищённый Host Agent Bridge
 и XiaoZhi fixture-device. Реальное распознавание/синтез речи и физическая плата ещё не проверены.
 Upstream voice server имеет воспроизводимый blocker Python/Torch; см. docs/DEPENDENCIES.md.

@@ -1,0 +1,56 @@
+{
+  "phone_url": "http://192.168.3.15:18785",
+  "browser_qa": "unavailable: no enabled CUA browser",
+  "physical_iphone": "awaiting owner check",
+  "checks": [
+    {
+      "scenario": "hello",
+      "passed": true,
+      "provider": "mock",
+      "events": 11
+    },
+    {
+      "scenario": "timer",
+      "passed": true,
+      "provider": "mock",
+      "events": 13
+    },
+    {
+      "scenario": "bridge",
+      "passed": true,
+      "provider": "bridge:mock",
+      "events": 11
+    }
+  ],
+  "status": {
+    "mode": "mock-only",
+    "services": [
+      {
+        "name": "Brain",
+        "ok": true
+      },
+      {
+        "name": "Bridge · mock",
+        "ok": true
+      },
+      {
+        "name": "Голосовой mock-стенд",
+        "ok": true
+      },
+      {
+        "name": "Изображения",
+        "ok": true
+      }
+    ],
+    "unit_tests_passed": 55,
+    "remaining_seconds": 7046,
+    "real_speech_ready": false,
+    "real_agents_enabled": false
+  },
+  "manifest": {
+    "pid": 3120,
+    "created": 1794274938.2877936,
+    "url": "http://192.168.3.15:18785",
+    "expires_at": 1794282138.7115636
+  }
+}

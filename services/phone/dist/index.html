@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>GoBot Home — проверка с телефона</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header><a class="brand" href="/">go<span>bot</span><small>HOME LAB</small></a><span class="badge">Бесплатный mock</span></header>
+  <section class="intro"><p class="eyebrow">ДОМАШНЯЯ СЕТЬ · IPHONE</p><h1>GoBot уже<br>на связи<span>.</span></h1>
+    <p class="lead">Проверь сервер с телефона.<br>Компьютер открывать не нужно.</p>
+  </section>
+  <section class="robot-card" aria-label="Тестовый экран робота">
+    <div class="orb" id="orb"><div class="face"><i></i><i></i><b></b></div></div>
+    <p class="robot-label" id="robot-label">Готов к проверке</p>
+    <div id="timer" class="timer" hidden>05:00 <span>mock-таймер</span></div>
+  </section>
+  <section class="tests" aria-labelledby="test-heading"><h2 id="test-heading">Попробуй по порядку</h2>
+    <button class="test primary" data-scenario="hello"><span class="number">01</span><span><strong>Привет, GoBot</strong><small>Ответ по частям от Brain</small></span><span class="arrow">↗</span></button>
+    <button class="test" data-scenario="timer"><span class="number">02</span><span><strong>Таймер на 5 минут</strong><small>Русский ответ + команда экрану</small></span><span class="arrow">↗</span></button>
+    <button class="test" data-scenario="bridge"><span class="number">03</span><span><strong>Проверить Bridge</strong><small>Безопасный mock-маршрут агента</small></span><span class="arrow">↗</span></button>
+  </section>
+  <section class="reply" aria-live="polite"><div class="section-top"><h2>Ответ GoBot</h2><span id="result-badge">Ожидает</span></div>
+    <p id="answer">Нажми первую кнопку — здесь появится настоящий поток mock-ответа с домашнего компьютера.</p>
+    <div class="actions"><button id="stop" disabled>Остановить</button><button id="speak" disabled>Озвучить на iPhone</button></div>
+    <p class="hint">Озвучка использует голос устройства. Серверные STT/TTS ещё не проверены.</p>
+  </section>
+  <section class="health"><div class="section-top"><h2>Состояние системы</h2><button id="refresh" class="text-button">Обновить</button></div>
+    <div id="services">Проверяем соединение…</div><p class="hint" id="tests-status"></p>
+  </section>
+  <details><summary>Что именно проверяется</summary><p>Кнопки запускают три заранее заданных бесплатных mock-сценария. Страница не даёт доступа к терминалу, CLI-аккаунтам, ключам или истории разговоров.</p><p>Это проверка программного контура. Плата, распознавание живой речи и серверный синтез голоса ещё не проверены.</p><p id="expiry"></p><ol id="events"></ol></details>
+  <footer>GoBot Home · только домашний Wi-Fi<br>Временная тестовая страница</footer>
+</main>
+</body></html>

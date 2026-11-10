@@ -1,5 +1,10 @@
 # Запуск Windows native
 
+Для владельца с iPhone добавлен отдельный временный mock gateway: см. PHONE.md.
+Запуск: .venv/Scripts/python.exe -X utf8 scripts/phone.py start --host 192.168.3.15 --prefix 24 --minutes 120
+Остановка: .venv/Scripts/python.exe -X utf8 scripts/phone.py stop
+Gateway не запускается вместе с основным стеком и автоматически завершается по истечении срока.
+
 Каталог C:\Users\PLAN\gobot\GoBotHome. PowerShell, venv activation/изменение ExecutionPolicy не нужны.
 
 ```powershell
