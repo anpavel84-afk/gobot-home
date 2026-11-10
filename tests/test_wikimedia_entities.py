@@ -24,6 +24,32 @@ class Client:
         image=io.BytesIO();Image.new('RGB',(300,220),'brown').save(image,'JPEG');return image.getvalue(),'image/jpeg'
 
 
+def test_svg_article_uses_only_commons_raster_thumbnail():
+    payload=metadata()
+    info=payload['query']['pages']['1']['imageinfo'][0]
+    info['mime']='image/svg+xml'
+    info['url']='https://upload.wikimedia.org/wikipedia/commons/a/ab/Endocrine.svg'
+    thumbnail='https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Endocrine.svg/960px-Endocrine.svg.png'
+    info['thumburl']=thumbnail
+    assert CommonsImages.candidates(json.dumps(payload).encode(),3)[0].url==thumbnail
+    for invalid in [info['url'],'https://example.com/drawing.png','https://thumb.wikimedia.org/private/drawing.png']:
+        info['thumburl']=invalid
+        assert not CommonsImages.candidates(json.dumps(payload).encode(),3)
+    del info['thumburl']
+    assert not CommonsImages.candidates(json.dumps(payload).encode(),3)
+
+
+def test_transparent_diagram_retains_dark_labels_on_light_background():
+    from gobot.visual_images import normalize
+    raw=io.BytesIO();image=Image.new('RGBA',(300,240),(0,0,0,0))
+    from PIL import ImageDraw
+    ImageDraw.Draw(image).rectangle((80,80,130,130),fill=(0,0,0,255))
+    image.save(raw,'PNG')
+    result=Image.open(io.BytesIO(normalize(raw.getvalue())['preview']['bytes']))
+    assert min(result.getpixel((20,20)))>240
+    assert max(result.getpixel((100,100)))<20
+
+
 def test_ru_article_to_licensed_latin_caption_and_overview():
     client=Client({'bad':{'ns':0,'index':1,'title':'Мухомор вонючий','pageimage':'Amanita.jpg'},
                    'right':{'ns':0,'index':2,'title':'Белый гриб','pageimage':'Boletus_edulis.jpg'}})

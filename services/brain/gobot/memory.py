@@ -125,7 +125,7 @@ class Memory:
             if raw:
                 try:
                     for entry in json.loads(raw):
-                        if entry.get('visual_plan_rejected'):message['recover_illustration']=True
+                        if entry.get('visual_plan_rejected') or entry.get('optional_visual_error'):message['recover_illustration']=True
                         if 'presentation' in entry:
                             frame=Presentation.model_validate(entry['presentation'])
                             if frame.images or frame.metadata.diagram_labels:

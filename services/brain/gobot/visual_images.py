@@ -27,8 +27,8 @@ IMAGE_HOSTS={'upload.wikimedia.org','thumb.wikimedia.org'}
 API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
-NORMALIZATION_VERSION=2
-FETCH_POLICY_VERSION=6
+NORMALIZATION_VERSION=3
+FETCH_POLICY_VERSION=7
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -184,8 +184,15 @@ class CommonsImages:
             license=plain(meta.get('LicenseShortName',{}).get('value',''),80)
             license_url=meta.get('LicenseUrl',{}).get('value','').replace('http://creativecommons.org','https://creativecommons.org')
             if license not in LICENSES or not license_url.startswith('https://creativecommons.org/'):continue
-            if info.get('mime') not in {'image/jpeg','image/png','image/webp'}:continue
             url=info.get('thumburl') or info.get('url','')
+            if info.get('mime')=='image/svg+xml':
+                # Commons renders SVG on its own servers. Fetch only that raster
+                # thumbnail, subject to the same DNS, MIME, byte and decode checks.
+                thumb=urlsplit(info.get('thumburl',''))
+                if (thumb.scheme!='https' or thumb.hostname not in IMAGE_HOSTS
+                        or not thumb.path.startswith('/wikipedia/commons/thumb/')
+                        or not thumb.path.lower().endswith(('.png','.jpg','.webp'))):continue
+            elif info.get('mime') not in {'image/jpeg','image/png','image/webp'}:continue
             # imageinfo now appends analytics to thumb.wikimedia.org URLs. Strip
             # only these observed tracking fields; arbitrary queries stay denied.
             parsed=urlsplit(url);tracking=parse_qsl(parsed.query,keep_blank_values=True)
@@ -236,7 +243,7 @@ def normalize(data):
                 if image.format not in {'JPEG','PNG','WEBP'} or image.width*image.height>MAX_PIXELS or getattr(image,'is_animated',False):raise ImageUnavailable('image_decode_policy_denied')
                 image.load();image=ImageOps.exif_transpose(image)
                 if image.mode in {'RGBA','LA'} or 'transparency' in image.info:
-                    rgba=image.convert('RGBA');base=Image.new('RGBA',rgba.size,(12,20,26,255));image=Image.alpha_composite(base,rgba).convert('RGB')
+                    rgba=image.convert('RGBA');base=Image.new('RGBA',rgba.size,(255,255,255,255));image=Image.alpha_composite(base,rgba).convert('RGB')
                 else:image=image.convert('RGB')
                 variants={}
                 for name,size in [('browser',960),('preview',480),('device',240)]:

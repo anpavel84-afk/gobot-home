@@ -76,7 +76,7 @@ class Service:
         questions={m['turn_id']:m['content'] for m in archive['messages'] if m['role']=='user'}
         for message in archive['messages']:
             recover=message.pop('recover_illustration',False)
-            if not recover or message.get('presentation'):continue
+            if not recover or message.get('presentation',{}).get('images'):continue
             question=questions.get(message['turn_id'])
             if not question:continue
             entity=await asyncio.to_thread(extract_entity,question)
@@ -84,6 +84,7 @@ class Service:
                 req=ChatRequest(text=question,turn_id=message['turn_id'])
                 plan=entity.plan()
                 result=await self.visual.attachment(req,plan,cache_only=True)
+                if not result.frame.images and message.get('presentation'):continue
                 frame=result.frame if result.frame.images else await asyncio.to_thread(answer_map,req,message['content'])
                 message['presentation']=frame.model_dump()
         return archive
@@ -184,6 +185,9 @@ class Service:
                             if delta is None:continue
                             if delta.frame.metadata.state=='unavailable' and self.composer.allows_local_map(req,decision,ctx,presentation_plan):
                                 trace.append({'optional_visual_error':delta.frame.metadata.reason})
+                                frame=await asyncio.to_thread(answer_map,req,text.strip())
+                                yield event(req,'visual_response',presentation=frame.model_dump(),attachment=True)
+                                trace.append({'presentation':frame.model_dump()})
                                 continue
                             if prefetch and prefetch.selected:presentation_plan=prefetch.selected.plan()
                             yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
