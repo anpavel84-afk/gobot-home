@@ -204,7 +204,7 @@ def agent_status(usage_consent=False):
     statuses['antigravity']=antigravity_status(usage_consent)
     return statuses
 
-async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None):
+async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None,antigravity_transport='stream_json'):
     mark("bridge_admission_start")
     state = await asyncio.to_thread(agent_status,usage_consent)
     state = state.get(provider)
@@ -213,8 +213,13 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         raise AgentError(state["reason"] if state else "unknown_provider")
     if provider=='codex':adapter=CodexLiveAdapter()
     elif provider=='antigravity':
-        from .antigravity import AntigravityAdapter
-        adapter=AntigravityAdapter()
+        if antigravity_transport=='acp_experimental':
+            from .antigravity_acp import AntigravityACPAdapter
+            adapter=AntigravityACPAdapter()
+        elif antigravity_transport=='stream_json':
+            from .antigravity import AntigravityAdapter
+            adapter=AntigravityAdapter()
+        else:raise AgentError('unsupported_antigravity_transport')
     else:raise AgentError('gemini_cli_retired' if provider=='gemini' else 'unknown_provider')
     async with asyncio.timeout(90):
         async for delta in adapter.stream(text, context,model_id=model_id):

@@ -23,6 +23,7 @@ class Settings:
     gemini_api_key:str=''
     allow_gemini_api:bool=False
     def validate(self):
+        if self.router.antigravity_transport not in {'stream_json','acp_experimental'}:raise ValueError('Unsupported Antigravity transport')
         if self.fast_provider not in {"mock","openai"}: raise ValueError("Unsupported fast provider")
         if self.asr not in {"mock","openai","faster_whisper","sherpa_onnx"}: raise ValueError("Unsupported ASR")
         if self.tts not in {"mock","openai","piper"}: raise ValueError("Unsupported TTS")

@@ -11,5 +11,6 @@
   "semantic_enabled": false,
   "selective_verification": true,
   "unknown_capability_prefer_safe_route": true,
-  "prefer_deterministic_tools": true
+  "prefer_deterministic_tools": true,
+  "antigravity_transport": "stream_json"
 }

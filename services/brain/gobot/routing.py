@@ -24,6 +24,7 @@ class RouterPolicy:
     selective_verification:bool=True
     unknown_capability_prefer_safe_route:bool=True
     prefer_deterministic_tools:bool=True
+    antigravity_transport:str='stream_json'
 
 @dataclass
 class Decision:

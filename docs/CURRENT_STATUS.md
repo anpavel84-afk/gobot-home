@@ -258,3 +258,56 @@ Codex потребовал штатной повторной офлайн-про
 profile epoch), а не к заново пересортированным живым таймерам. Без списка
 нужен вопрос-уточнение. Истечение таймера не сдвигает смысл старого номера.
 Это изменение до следующего deployment считается кодом, а не запущенной версией.
+
+
+## 12. Контролируемый ACP-кандидат
+
+Реализован отдельный экспериментальный путь в существующем Host Bridge:
+[antigravity_acp.py](../services/brain/gobot/antigravity_acp.py),
+[штатная metadata-проба](../scripts/audit_agy_acp.py),
+[проверки транспорта](../tests/test_acp_candidate.py).
+Настройка [router-policy.json](../services/brain/router-policy.json):
+`antigravity_transport=stream_json` — рабочий прежний путь;
+`acp_experimental` — кандидат с отдельным обязательным допуском. По умолчанию
+он выключен. Недоказанный ACP не переключается скрыто на второй транспорт.
+
+Кандидат переиспользует bounded JSON-RPC GoBot и Windows kill-on-close job.
+Параллельность 1, ожидание очереди 100 мс, init/session RPC до 10 с,
+первый вывод до 35 с, вся операция до 90 с, idle runtime до 60 с,
+до 16 свежих sessions на runtime. session/load/resume не используется.
+Каждая сессия имеет отдельный ID, MCP servers=[], client FS/terminal=false;
+permission requests отклоняются, tool activity завершает операцию.
+При отмене отправляется session/cancel, затем runtime уничтожается;
+после нормального завершения используется объявленный session/close.
+Отсутствующий usage остаётся unavailable. Авторизационные файлы не читаются.
+
+Нативно подтверждены только initialize и две session/new/close через
+установленный Antigravity 1.5.3, с поддерживаемыми sandbox/process-per-session
+флагами. Числа и SHA: [antigravity-acp-candidate.json](antigravity-acp-candidate.json).
+Эти времена относятся к metadata, а не ответу модели. session/prompt не отправлялся.
+
+**Блокер допуска:** session/new не предоставляет проверяемого отчёта об
+эффективных deny-правилах worker. Отказ клиентской стороны не доказывает запрет
+внутренних файловых/командных/web/MCP tools агента. Нативная adversarial-проверка
+этой гарантии не проведена. Поэтому native_session_deny_verified=false,
+а кандидат блокируется до любого prompt даже при включённом переключателе.
+Сравнение скорости без устранения этого блокера не имеет смысла; безопасности
+ради ускорения не уступаем. Прежний stream-json путь сохранён.
+
+Основание: [официальный agy ACP](https://antigravity.google/docs/cli/acp),
+[ACP sessions](https://agentclientprotocol.com/protocol/v1/session-setup),
+[ACP prompt lifecycle](https://agentclientprotocol.com/protocol/v1/prompt-turn).
+
+Полная регрессия текущего пакета: **965 passed за 21,03 с**. Из них 8 ACP
+fixtures проверяют реальный stdio RPC с локальным агентом: свежие сессии,
+повторное использование процесса, отказ permissions/FS/tools, EOF/битый JSON,
+очередь и отмену. Это не проверка инструментария нативного агента на реальной LLM.
+Новых платных API/модельных запросов — 0. Старые разрешения не использовались.
+Следующий внешний приёмочный сценарий: реальный iPhone PTT → ожидание с готовым
+вступлением → ответ → followup → «нет, спасибо» → микрофон остаётся закрыт.
+Он пока **не выполнен**. Useful TTFA нового кода не измерен.
+
+Откат транспорта: сохранить/вернуть stream_json в конфигурации, проверив
+отсутствие активной беседы перед перезапуском. Откат кода — отдельный проверенный
+revert-коммит с регрессией, без reset/force push; миграций этого этапа нет.
+Копия SQLite находится локально под ignored data/backups и не публикуется.

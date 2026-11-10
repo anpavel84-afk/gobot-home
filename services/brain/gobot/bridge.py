@@ -26,7 +26,10 @@ def create_app(settings=None):
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(agent_status) # No CLI/model request; warm local verified hashes.
-        yield
+        try:yield
+        finally:
+            from .antigravity_acp import shutdown
+            await shutdown()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);verifier=Verifier(settings.bridge_secret);semaphore=asyncio.Semaphore(2)
     @app.get('/healthz')
     async def health():return {'status':'ok','service':'host-agent-bridge','admission':'isolation-and-request-consent'}
@@ -49,7 +52,7 @@ def create_app(settings=None):
             try:
                 async with asyncio.timeout(settings.timeout):
                     usage={}
-                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage)
+                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage,antigravity_transport=settings.router.antigravity_transport)
                     async for delta in source:
                         yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{'type':'text_delta','text':delta}),ensure_ascii=False)+'\n';seq+=1
                     yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{"type":"telemetry","trace":trace.snapshot()}))+"\n";seq+=1
