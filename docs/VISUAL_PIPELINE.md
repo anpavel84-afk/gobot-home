@@ -126,7 +126,8 @@ pytest: фикстуры/MockTransport/синтетические JPEG в отд
 
 Browser tools не предоставили ни одного браузера. Реальный Safari layout/playback
 этим автоматическим прогоном не подтверждён. Общий поиск может честно вернуть ошибку:
-в отдельной пробе подсолнуха метаданные найдены, пригодные изображения не загрузились.
+в первоначальной пробе подсолнуха загрузка не прошла из-за Accept/HTTP 406;
+после исправления ниже фотография реально загружена.
 Три подготовленных photographic сценария работают; это не доказательство качества
 произвольного image search. Платные OpenAI TTS пробы в этой фазе не выполнялись.
 
@@ -135,3 +136,29 @@ Browser tools не предоставили ни одного браузера. 
 [About/licensing](https://openverse.org/about/),
 [MediaWiki imageinfo](https://www.mediawiki.org/wiki/API:Imageinfo),
 [Wikimedia User-Agent policy](https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy).
+
+## Исправление HTTP 406 в общем поиске
+
+Запрос владельца «Покажи как выглядит кратер» находил Flickr фотографии через
+Openverse, но все три thumbnail URL вернули HTTP 406 с image-only Accept. Исправлен
+заголовок thumbnail запросов на */*; metadata остаётся application/json. Ответ
+по-прежнему обязан иметь JPEG/PNG/WebP MIME и пройти прежние size/decode/SSRF проверки.
+Разрешения источников, redirects и список форматов не расширялись. Особенность
+thumbnail action сверена с официальным исходником:
+[Openverse ImageViewSet](https://github.com/WordPress/openverse/blob/main/api/api/views/image_views.py).
+
+FETCH_POLICY_VERSION отделена от версии JPEG нормализации: новый fetch policy
+меняет query cache key, поэтому прежний отрицательный результат не удерживает
+ошибку после обновления. Существующие изображения и разговоры не удаляются.
+Добавлены тесты content negotiation, отказа HTML/JSON/SVG и смены negative cache key.
+
+Реальные general-search результаты (без нового curated entry): кратер вулкана,
+Flickr 39824826@N08/7125541261; подсолнух, Flickr 15203873@N08/6101744035. Оба фото
+загружены на cache miss и просмотрены локально; затем прошли browser/preview/device
+GET через private HTTPS. Поиск остаётся metadata-based, не универсальной визуальной
+верификацией и не гарантией доступности всех снимков. Точный вид кратера в ответе
+задаётся подписью источника: вулканический, не утверждение об ударном происхождении.
+
+Полный pytest: 431 passed. HTTPS image E2E расширен до 12 сценариев + повторный
+cache hit. Платных API/CLI/STT/TTS вызовов: 0. Safari rendering по-прежнему не
+подтверждён автоматикой; снимок владельца помог найти серверную ошибку.

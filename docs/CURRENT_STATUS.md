@@ -29,7 +29,7 @@ abstention, ContextPacket с cap, темы/эпизоды, scoped FTS5, идем
 факты с исправлением/удалением, удаление разговора, режим «не запоминать», диагностика
 packet/source IDs/provider usage. Это не отправляет ключи в браузер или CLI.
 
-Бесплатные проверки: 426 pytest, Node harness, 240 уникальных synthetic router cases,
+Бесплатные проверки: 431 pytest, Node harness, 240 уникальных synthetic router cases,
 200-turn synthetic day. Поиск по синонимам не работает; semantic encoder не подключён.
 Общего проверяющего web/home инструмента нет: требующие его ответы отклоняются.
 Openverse — источник изображений, а не проверка фактических утверждений.
@@ -56,10 +56,10 @@ Raspberry Pi. Credits/лицензии видны; точный сорт/рев�
 TTL/LRU кэш 128 объектов/128 MiB; device JPEG 240×240 ≤64 KiB. Таймер использует
 SQLite deadline и остаётся при следующем вопросе. Погода/музыка — unavailable cards.
 Локальная схема и карточка результата работают без LLM. Новых портов нет.
-Текущий private HTTPS image E2E: 10 сценариев + повторный cache hit, без постоянных
-сообщений теста и без CLI/STT/TTS. 426 pytest и Node DOM regressions прошли.
+Текущий private HTTPS image E2E: 12 сценариев + повторный cache hit, без постоянных
+сообщений теста и без CLI/STT/TTS. 431 pytest и Node DOM regressions прошли.
 Safari UI пока не осмотрен: инструменты не предоставили доступный браузер.
-Общий image search best-effort, качество не измерено; в пробе подсолнуха — fallback.
+Общий image search best-effort, качество не измерено; первоначальная ошибка загрузки подсолнуха исправлена (HTTP Accept/406).
 Физического ESP32 renderer/LAN media delivery пока нет. См. VISUAL_PIPELINE.md.
 
 Исправлен разбор длительности таймера: единый parser для команды и pending-уточнения
@@ -68,4 +68,9 @@ Safari UI пока не осмотрен: инструменты не предо
 сохранён. Исправлены окончания ответа: 1 минуту / 2 минуты / 5 минут.
 Фраза владельца «Таймер на 5 мин» проверена через действующий private HTTPS:
 локальный timer_widget на 300000 мс; тестовый таймер затем остановлен. Ни STT/TTS,
-ни CLI не вызывались. Регрессия: 426 pytest. Отчёт timer-abbreviation-check.json.
+ни CLI не вызывались. Регрессия: 431 pytest. Отчёт timer-abbreviation-check.json.
+
+Исправлен HTTP Accept при Openverse thumbnail fetch: общий поиск кратера и
+подсолнуха теперь реально получает фотографии. Негативный cache предыдущей политики
+не используется. Тесты MIME/SSRF сохранены, регрессия 431 passed. Отдельный HTTPS
+image E2E: 12 сценариев + repeat cache hit; никаких платных вызовов.

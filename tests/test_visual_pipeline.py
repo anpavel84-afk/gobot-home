@@ -252,6 +252,42 @@ def test_openverse_fixed_thumbnail_and_license_filters_no_credentials():
         assert 'Authorization' not in seen[0].headers
     asyncio.run(run())
 
+def test_openverse_thumbnail_content_negotiation():
+    seen=[]
+    def handler(request):
+        seen.append(request)
+        if request.headers['Accept']!='*/*':return httpx.Response(406,json={'detail':'Could not satisfy the request Accept header.'})
+        return httpx.Response(200,content=jpeg(),headers={'Content-Type':'image/jpeg'})
+    async def run():
+        client=SafeImageHTTP('fixture',transport=httpx.MockTransport(handler),resolver=no_dns)
+        data,mime=await client.get('https://api.openverse.org/v1/images/11111111-1111-1111-1111-111111111111/thumb/')
+        assert data.startswith(b'\xff\xd8') and mime=='image/jpeg'
+        assert 'Authorization' not in seen[0].headers
+        assert seen[0].headers['Accept-Encoding']=='identity'
+    asyncio.run(run())
+
+@pytest.mark.parametrize('mime',['text/html','application/json','image/svg+xml'])
+def test_thumbnail_negotiation_still_rejects_non_image_response(mime):
+    async def run():
+        client=SafeImageHTTP('fixture',transport=httpx.MockTransport(lambda _:httpx.Response(200,content=b'not permitted',headers={'Content-Type':mime})),resolver=no_dns)
+        with pytest.raises(ImageUnavailable,match='image_mime_denied'):
+            await client.get('https://api.openverse.org/v1/images/11111111-1111-1111-1111-111111111111/thumb/')
+    asyncio.run(run())
+
+def test_fetch_policy_revision_invalidates_negative_query_cache(tmp_path,monkeypatch):
+    from gobot import visual
+    async def run():
+        calls=[];request=ChatRequest(text='Покажи как выглядит кратер',mode='auto',remember=False)
+        broken=visuals(tmp_path,calls,missing=True)
+        assert (await broken.handle(request)).frame.metadata.state=='unavailable'
+        fixed=visuals(tmp_path,calls)
+        assert (await fixed.handle(request)).frame.metadata.cache_hit and len(calls)==1
+        monkeypatch.setattr(visual,'FETCH_POLICY_VERSION',visual.FETCH_POLICY_VERSION+1)
+        result=await fixed.handle(request)
+        assert result.frame.images and not result.frame.metadata.cache_hit and len(calls)==2
+        assert (await fixed.handle(request)).frame.metadata.cache_hit and len(calls)==2
+    asyncio.run(run())
+
 def test_rate_budget_backoff_and_curated_image_hash(tmp_path):
     clock=[1000.0];cache=ImageCache(tmp_path/'rate-cache',clock=lambda:clock[0])
     for _ in range(8):assert cache.reserve_request('api.openverse.org')

@@ -41,9 +41,9 @@ OpenAI TTS, live CLI first token, микрофон iPhone, first physical Opus p
 
 ## Визуальный слой — 10 ноября 2026
 
-394 pytest, Node visual DOM/microphone units; 240 synthetic router cases,
+431 pytest, Node visual DOM/microphone units; 240 synthetic router cases,
 200-turn synthetic context day. Реальные бесплатные public-image HTTPS проверки
-в visual-e2e.json: 10 сценариев + повторный cache hit. Это HTTP/контрактная
+в visual-e2e.json: 12 сценариев + повторный cache hit. Это HTTP/контрактная
 проверка, не подтверждение рендера/аудио на физическом iPhone.
 
 60 warm-cache обращений VisualService без сети/моделей: p50 4.67 мс,
@@ -52,13 +52,13 @@ p95 8.85 мс. Учитывается локальный cache lookup + DTO; н�
 240×240 baseline, browser 600×449 без увеличения оригинала. Схема — 5425 байт device.
 
 Private HTTPS полный visual response на прогретых фото в последнем прогоне:
-- oxheart: 235.5 мс.
-- labrador: 190.8 мс.
-- raspberry-pi: 185.8 мс.
-- repeat_oxheart: 191.7 мс.
+- oxheart: 841.6 мс.
+- labrador: 191.7 мс.
+- raspberry-pi: 185.6 мс.
+- repeat_oxheart: 189.8 мс.
 
 Это единичные наблюдения, не p95 сети и не cold-source benchmark. Первый запрос
 после рестарта также включает инициализацию процесса. Новых платных вызовов,
 CLI-квоты или speech API в этих проверках: 0. Openverse anonymous source не требует
 ключа; сетевые обращения ограничены локальным бюджетом. Общий image retrieval
-не проходил representative quality eval; неудача подсолнуха отражена в VISUAL_PIPELINE.md.
+не проходил representative quality eval; исходная ошибка HTTP 406 исправлена, кратер/подсолнух загружены; см. VISUAL_PIPELINE.md.

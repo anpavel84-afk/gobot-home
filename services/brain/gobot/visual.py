@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PIL import Image,ImageDraw,ImageFont
 from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,frame_id
-from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION
+from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION,FETCH_POLICY_VERSION
 
 REASONS={
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
@@ -23,6 +23,9 @@ REASONS={
  'diagram_source_required':'Уточни элементы схемы или предоставь исходный план. Я не буду придумывать устройство вашей теплицы.',
  'image_request_budget_exceeded':'Достигнут лимит обращений к источнику изображений. Повторные загрузки временно отложены; готовые изображения в кэше доступны.',
  'reviewed_image_changed':'Изображение источника изменилось после проверки. Старый визуальный референс не подставляется без повторной проверки.',
+ 'image_source_unavailable':'Источник изображений сейчас не смог отдать результат. Попробуй повторить запрос позже.',
+ 'image_lookup_timeout':'Источник изображений не ответил вовремя. Попробуй повторить запрос позже.',
+ 'image_network_unavailable':'Не удалось связаться с источником изображений. Проверь соединение и повтори запрос позже.',
 }
 
 @dataclass
@@ -51,7 +54,7 @@ class VisualService:
         if re.search(r'https?://|file:|localhost',intent.query,re.I):return self.fallback(req,'Источник изображения','direct_image_url_not_supported',text='Прямые ссылки не загружаются этим инструментом. Опиши объект: поиск работает только через разрешённый источник изображений.')
         if intent.catalog_id is None and re.search(r'raspberry\s*pi\s*[1-9]|рас[пб]ерри\s*пи\s*[1-9]',intent.query,re.I):return self.fallback(req,'Нужен референс конкретной платы','board_revision_not_reviewed',text='Для указанной модели платы ещё нет проверенного изображения в каталоге. Фотографию другой ревизии вместо неё я не подставляю.')
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
-        config=self.config_loader();catalog=self.catalog.get(intent.catalog_id);key=hashlib.sha256(json.dumps([intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION],ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+        config=self.config_loader();catalog=self.catalog.get(intent.catalog_id);key=hashlib.sha256(json.dumps([intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION,FETCH_POLICY_VERSION],ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         # Bound coordination state; active tasks remain protected by the global slots.
         if key not in self.locks:
             if len(self.locks)>=128:self.locks={k:v for k,v in self.locks.items() if v.locked()}

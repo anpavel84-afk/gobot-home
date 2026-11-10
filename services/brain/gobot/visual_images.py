@@ -27,6 +27,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=2
+FETCH_POLICY_VERSION=2
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -82,7 +83,11 @@ class SafeImageHTTP:
         if self.budget and not await asyncio.to_thread(self.budget,u.hostname):raise ImageUnavailable('image_request_budget_exceeded')
         await self.resolver(u.hostname)
         try:
-            async with httpx.AsyncClient(trust_env=False,transport=self.transport,follow_redirects=False,timeout=httpx.Timeout(10,connect=3),headers={'User-Agent':self.user_agent,'Accept-Encoding':'identity','Accept':'application/json' if api else 'image/jpeg,image/png,image/webp'}) as client:
+            # The thumbnail action passes DRF content negotiation before returning
+            # binary media. An image-only Accept can produce 406 on cache misses.
+            # Accept negotiation never replaces the strict response MIME checks below.
+            accept='application/json' if api else '*/*' if u.hostname=='api.openverse.org' else 'image/jpeg,image/png,image/webp'
+            async with httpx.AsyncClient(trust_env=False,transport=self.transport,follow_redirects=False,timeout=httpx.Timeout(10,connect=3),headers={'User-Agent':self.user_agent,'Accept-Encoding':'identity','Accept':accept}) as client:
                 async with client.stream('GET',url,params=params) as response:
                     if response.status_code==403:raise ImageUnavailable('image_source_access_denied')
                     if response.status_code==429:

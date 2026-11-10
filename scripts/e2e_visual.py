@@ -14,6 +14,7 @@ async def main():
     if not args.network:raise SystemExit('Pass --network to permit real image-source requests; no paid models are used')
     cases=[('oxheart','Покажи, как выглядят помидоры Бычье сердце','image_gallery'),('labrador','Покажи, как выглядит лабрадор','image_card'),('raspberry-pi','Покажи картинку Raspberry Pi','image_card'),('timer','Поставь таймер на 3 минуты','timer_widget'),('weather','Какая сейчас погода?','weather_card'),('music','Что сейчас играет?','music_card'),('diagram','Покажи схему голосового конвейера GoBot','rich_answer'),('info','Покажи карточку результата 127 × 43','info_card'),('private','Покажи фото моей теплицы','info_card')]
     cases.append(('status','Покажи статус системы','status_card'))
+    cases.extend([('crater','Покажи как выглядит кратер','image_card'),('sunflower','Покажи как выглядит подсолнух','image_card')])
     results=[];namespace='ephemeral-check-visual-'+str(uuid4())+'-'
     with sqlite3.connect(ROOT/'data/gobot.sqlite') as c:before=c.execute('SELECT count(*) FROM messages WHERE conversation_id LIKE ?',(namespace+'%',)).fetchone()[0]
     async with httpx.AsyncClient(trust_env=False,timeout=35) as client:

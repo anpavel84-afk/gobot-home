@@ -27,7 +27,7 @@ Health: http://127.0.0.1:18781/healthz . Ключи генерируются в 
 gemini-3.8-flash-medium. Argon и Codex — явно вручную. Gemini CLI/API исключены.
 Admission CLI проверяется offline; доступ требует согласия на квоту. Прошивки не было.
 
-Контекст ограничен, архив принадлежит GoBot. Новые проверки: 426 pytest, 240 synthetic
+Контекст ограничен, архив принадлежит GoBot. Новые проверки: 431 pytest, 240 synthetic
 router cases, 200-turn day. Это не подтверждает качество LLM или семейной биометрии.
 [Контекст](docs/CONTEXT_POLICY.md) · [Память](docs/MEMORY_ARCHITECTURE.md) ·
 [Оценка](docs/CONTEXT_EVALUATION.md) · [Speech Formatter](docs/SPEECH_FORMATTING.md).

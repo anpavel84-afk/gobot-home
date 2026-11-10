@@ -9,8 +9,8 @@
       "type": "image_gallery",
       "state": "ready",
       "images": 2,
-      "cache_hit": true,
-      "ms": 235.52879999988363,
+      "cache_hit": false,
+      "ms": 841.610600000422,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -68,8 +68,8 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
-      "cache_hit": true,
-      "ms": 190.7565000001341,
+      "cache_hit": false,
+      "ms": 191.74259999999776,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -103,8 +103,8 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
-      "cache_hit": true,
-      "ms": 185.75920000148471,
+      "cache_hit": false,
+      "ms": 185.64080000214744,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -139,7 +139,7 @@
       "state": "ready",
       "images": 0,
       "cache_hit": false,
-      "ms": 192.15729999996256,
+      "ms": 189.46029999642633,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -149,7 +149,7 @@
       "state": "unavailable",
       "images": 0,
       "cache_hit": false,
-      "ms": 184.37429999903543,
+      "ms": 179.95809999410994,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -159,7 +159,7 @@
       "state": "unavailable",
       "images": 0,
       "cache_hit": false,
-      "ms": 197.18529999954626,
+      "ms": 184.4111000027624,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -169,7 +169,7 @@
       "state": "ready",
       "images": 1,
       "cache_hit": false,
-      "ms": 187.68360000103712,
+      "ms": 214.6273000034853,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -204,7 +204,7 @@
       "state": "ready",
       "images": 0,
       "cache_hit": false,
-      "ms": 178.6768000019947,
+      "ms": 179.5983000047272,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -214,7 +214,7 @@
       "state": "unavailable",
       "images": 0,
       "cache_hit": false,
-      "ms": 178.7261000026774,
+      "ms": 183.32549999468029,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -224,14 +224,84 @@
       "state": "ready",
       "images": 0,
       "cache_hit": false,
-      "ms": 183.3550000010291,
+      "ms": 180.59850000281585,
       "short_speech_fragments": 1,
       "variants": []
     },
     {
+      "case": "crater",
+      "type": "image_card",
+      "state": "ready",
+      "images": 1,
+      "cache_hit": true,
+      "ms": 188.99010000313865,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 36452
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 26945
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 8898
+        }
+      ]
+    },
+    {
+      "case": "sunflower",
+      "type": "image_card",
+      "state": "ready",
+      "images": 1,
+      "cache_hit": true,
+      "ms": 186.93189999612514,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 81491
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 59165
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 18863
+        }
+      ]
+    },
+    {
       "case": "repeat_oxheart",
       "cache_hit": true,
-      "ms": 191.74969999949099
+      "ms": 189.8418999990099
     }
   ],
   "persistent_message_delta": 0,
