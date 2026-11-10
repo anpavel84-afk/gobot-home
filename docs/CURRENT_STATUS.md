@@ -5,7 +5,7 @@ startup priming metadata admission. 528 pytest; реальный useful TTFA и 
 не измерены. Новые платные пробы запрошены отдельно. См. LATENCY_V02.md и
 REQUIREMENTS_MATRIX.md. M2/M3 остаются в очереди; серверный child lock пока отсутствует.
 
-## Последнее обновление: Visual-first и режим устройства
+## Предыдущий этап: Visual-first и режим устройства
 
 Доступен https://plan.tailffc57c.ts.net:18786/device . Панель содержит кнопку
 «Режим устройства» и сохранение Classic/Soft/Minimal/цветов/заставки/визуальных

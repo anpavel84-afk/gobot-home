@@ -39,3 +39,11 @@ passed; private HTTPS device/image checks made no paid model requests and saved
 no test dialogue. Public visibility, master default and disabled Actions were
 confirmed again before push. iPhone rendering/wake-word quality remain unverified;
 source publication does not imply hardware or acoustic acceptance.
+
+M1/v0.2 checkpoint: docs-only update 96e0f3d preserved the existing code tree.
+242 tracked files were reviewed/scanned, including one explicitly allowed synthetic
+feedback WAV. Its hash and provenance are in feedback-asset.json; it is not a
+family recording. Full-history scans remained at zero findings. Code/runtime
+checkpoint 17224e1 passed 528 tests and the private HTTPS mock trace smoke.
+The subsequent trace report is documentation only and does not require a restart.
+Paid profiling and physical iPhone latency remain unverified pending owner budget.

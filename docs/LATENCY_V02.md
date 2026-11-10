@@ -88,6 +88,12 @@ private HTTPS /device, обновить страницу и включить GoB
 M2 child lock/profile ACL и M3 PageImages/prefetch/relevance остаются открытыми.
 Этот проход не выдаётся за выполнение AC-27…34 или всей спецификации v0.2.
 
+Финальная бесплатная HTTPS проверка выполнена на runtime-коде 17224e1 после
+перезапуска только GoBot в отсутствие активных turns/audio. В trace закреплён этот
+code HEAD; обе CLI isolation evidence действительны. STT/TTS primary — OpenAI.
+Резервные копии main/profile SQLite выполнены через backup API с integrity_check.
+Материалы последующей фиксации отчёта меняют только документацию, не runtime.
+
 Идемпотентность: смена диагностического trace_id не меняет смысл request и не
 создаёт повторного вызова. Nullable profile_epoch не ломает прежний payload digest;
 содержательно другой запрос с тем же идентификатором по-прежнему отклоняется.
