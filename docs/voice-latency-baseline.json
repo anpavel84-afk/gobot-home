@@ -1,0 +1,49 @@
+{
+  "kind": "existing owner traffic, before connection reuse; not a new paid test",
+  "samples": [
+    {
+      "llm_first_token": 6946.593400003621,
+      "total_text": 7529.885299998568,
+      "first_audio_server": 9041.5162000063,
+      "tts_first_chunk": 1777.3102999999537
+    },
+    {
+      "llm_first_token": 8545.91100000107,
+      "total_text": 28764.67650000268,
+      "first_audio_server": 10175.740999999107,
+      "tts_first_chunk": 1621.2678000010783
+    },
+    {
+      "llm_first_token": 3184.0717000013683,
+      "total_text": 3209.681800006365,
+      "first_audio_server": 5039.546700005303,
+      "tts_first_chunk": 1833.218300002045
+    },
+    {
+      "llm_first_token": 20.935100001224782,
+      "total_text": 40.64259999722708,
+      "first_audio_server": 1560.4746000026353,
+      "tts_first_chunk": 1528.599999997823
+    },
+    {
+      "llm_first_token": 6991.756200004602,
+      "total_text": 7005.072500003735,
+      "first_audio_server": 9240.26220000087,
+      "tts_first_chunk": 2238.549099994998
+    },
+    {
+      "first_audio_server": 3199.863900001219,
+      "tts_first_chunk": 2547.3076999987825,
+      "llm_first_token": 576.4507999992929,
+      "total_text": 711.1679000008735
+    },
+    {
+      "llm_first_token": 6768.334699998377,
+      "total_text": 21312.453700000333,
+      "first_audio_server": 9233.342199997423,
+      "tts_first_chunk": 1689.1254000001936
+    }
+  ],
+  "after_change_live_latency": "not measured",
+  "new_paid_calls": 0
+}

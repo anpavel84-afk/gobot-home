@@ -1,0 +1,41 @@
+// Geometry/state/controller fixtures. This is not a real Safari/microphone test.
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const nodes=new Map(),listeners=new Map(),images=[],texts=[];
+const ctx=new Proxy({measureText:text=>({width:String(text).length*6}),fillText:(text,x,y,max)=>texts.push({text,x,y,max})},{get:(o,k)=>k in o?o[k]:(()=>{})});
+class Element{
+  constructor(tag){this.tag=tag;this.children=[];this.value='';this.checked=false;this.disabled=false;this.options=[];this.classList={add(){},remove(){}};}
+  set id(value){this._id=value;nodes.set(value,this);}get id(){return this._id;}
+  append(...children){this.children.push(...children);if(this.tag==='select')this.options.push(...children);}
+  addEventListener(){}setAttribute(){}replaceChildren(...children){this.children=children;}getContext(){return ctx;}setPointerCapture(){}toDataURL(){return 'data:image/png;base64,fixture';}
+}
+const el=id=>{if(!nodes.has(id)){const node=new Element('div');node.id=id;}return nodes.get(id);};
+const sandbox={window:{addEventListener:(k,f)=>listeners.set(k,f)},document:{body:new Element('body'),createElement:tag=>new Element(tag),getElementById:el,addEventListener(){}},
+  Image:class{constructor(){images.push(this);}},Date,Math,Set,Map,JSON,Promise,Error,AbortController,performance,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},requestAnimationFrame(){},
+  navigator:{locks:{request:async(name,options,fn)=>fn({name})},mediaDevices:{getUserMedia:async()=>({getTracks:()=>[{stop(){}}]})}},
+  fetch:async url=>({ok:true,json:async()=>url==='/api/device/profile'?{profile:sandbox.profile,capabilities:{},activation:{configured:false}}:{timers:[]}})};
+vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/device-renderer.js','utf8'),sandbox);
+const api=sandbox.window.GoBotDeviceRenderer;const profile=JSON.parse(JSON.stringify(api.defaults));profile.client_id='browser-device-test';profile.interaction_mode='hold';sandbox.profile=profile;
+let now=1000;const manager=new api.SceneManager(profile,()=>now),canvas=new Element('canvas'),renderer=new api.DeviceRenderer(canvas,profile);
+manager.newTurn('a');assert(!manager.frame({id:'old'},'old'));assert(manager.frame({id:'photo',type:'image_card',images:[]},'a'));
+manager.compose({scene_type:'avatar',preserve_visual:true},'a');assert(manager.visual.id==='photo');manager.finish('a');manager.tick(true);assert(manager.returnAt===null);
+manager.tick(false);now+=13000;manager.tick(false);assert.equal(manager.visual,null);
+for(const state of ['idle','listening','recognizing','thinking','speaking','error','muted','offline']){manager.state=state;renderer.draw(manager,.12,1000);}
+for(const skin of ['classic','soft','minimal']){profile.skin.skin_id=skin;renderer.setProfile(profile);renderer.draw(manager,0,1000);}
+for(const template of ['lunar_crater','earth_moon','solar_eclipse','volcano','milky_way','tomato_plant','tomato_comparison','dog_comparison','gobot_pipeline']){manager.visual={id:template,title:'Иллюстрация',metadata:{template,synthetic:true},images:[]};manager.state='thinking';renderer.draw(manager,.1,1500);}
+assert.equal(canvas.width,240);assert.equal(canvas.height,240);
+for(const text of texts){assert(text.y>=35&&text.y<=215);assert(text.max<=175);}
+manager.newTurn('first');renderer.load({id:'stale',images:[{device_variant:'/api/visual/assets/'+'a'.repeat(64)+'/device.jpg'}]},'first',id=>manager.turn===id);manager.newTurn('second');images[0].onload();assert.equal(renderer.image,null);
+const imageCount=images.length;renderer.load({id:'unsafe',images:[{device_variant:'http://127.0.0.1/private'}]},'second',()=>true);assert.equal(images.length,imageCount);
+// Execute the actual device interaction adapter with a shared-client fixture.
+let starts=0,stops=0,sends=0,recording=false;
+sandbox.window.GoBotClient={unlockAudio:async()=>{},getSettings:()=>({stt:'mock',speak:false}),stop(){stops++;},startRecording:async()=>{starts++;recording=true;sandbox.window.GoBotHooks.onListening();},endRecording(){recording=false;},cancelRecording(){recording=false;},isRecording:()=>recording,audioSnapshot:()=>({level:0,playing:false}),send:async()=>{sends++;},explain:code=>code};
+vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox);
+(async()=>{
+  const app=new sandbox.window.GoBotDeviceApp();await app.init();await app.enable();assert(app.enabled);
+  await app.press();assert.equal(starts,1);await app.press();assert.equal(starts,1);app.release();assert(!recording);
+  await sandbox.window.GoBotHooks.onTranscript({text:'Таймер на пять минут',utterance_id:'utterance-1'});await sandbox.window.GoBotHooks.onTranscript({text:'Таймер на пять минут',utterance_id:'utterance-1'});assert.equal(sends,1);
+  app.turn='new';app.manager.newTurn('new');app.event({type:'visual_response',turn_id:'old',data:{presentation:{id:'late'}}});assert.equal(app.manager.visual,null);
+  app.pause('Пауза');assert(!app.enabled);assert.equal(app.manager.state,'muted');assert(!app.releaseLock);
+  await sandbox.window.GoBotHooks.onTranscript({text:'Не отправлять после выключения',utterance_id:'late'});assert.equal(sends,1);
+  console.log('Device units: 240 raster, 3 skins, 8 states, compact diagrams, stale frames, hold, dedupe and pause passed');
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -77,3 +77,32 @@ async def cancellable(source,flag):
         if pending:await asyncio.gather(pending,return_exceptions=True)
         stop.cancel();await asyncio.gather(stop,return_exceptions=True)
         await iterator.aclose()
+
+async def merge_presentation(source,visual,flag):
+    """One text lookahead, one visual task; neither can starve the other."""
+    iterator=source.__aiter__();pending=None;stop=asyncio.create_task(flag.wait());text_done=False
+    try:
+        while not text_done or visual is not None:
+            if not text_done and pending is None:pending=asyncio.create_task(anext(iterator))
+            waiting={stop}
+            if pending is not None:waiting.add(pending)
+            if visual is not None:waiting.add(visual)
+            done,_=await asyncio.wait(waiting,return_when=asyncio.FIRST_COMPLETED)
+            if stop in done:raise asyncio.CancelledError()
+            if visual is not None and visual in done:
+                try:result=visual.result()
+                except Exception:visual=None;yield 'visual_failed',None
+                else:visual=None;yield 'visual',result
+            if pending is not None and pending in done:
+                try:value=pending.result()
+                except StopAsyncIteration:
+                    text_done=True;pending=None
+                    # Flush an unpunctuated answer to speech before waiting for optional art.
+                    yield 'text_done',None
+                else:
+                    pending=None;yield 'text',value
+    finally:
+        for task in (pending,visual,stop):
+            if task is not None:task.cancel()
+        await asyncio.gather(*(task for task in (pending,visual,stop) if task is not None),return_exceptions=True)
+        await iterator.aclose()

@@ -1,6 +1,7 @@
 from typing import Literal
 from uuid import uuid4
 from pydantic import BaseModel, Field, ConfigDict
+from .device_contract import ScreenPreferences
 
 ID = r"^[A-Za-z0-9_.:-]{1,100}$"
 ExecutorModel=Literal['gemini-3.8-flash-low','gemini-3.8-flash-medium','gemini-4-argon-medium','gpt-6.1-sol']
@@ -25,6 +26,9 @@ class ChatRequest(BaseModel):
     remember:bool=True
     new_topic:bool=False
     context_detail:Literal['standard','detailed']='standard'
+    client_kind:Literal['panel','device']='panel'
+    client_id:str|None=Field(default=None,pattern=ID)
+    screen_preferences:ScreenPreferences|None=None
 
 class VoiceRequest(ChatRequest):
     speaker_job_id: str | None = Field(default=None, pattern=r'^[a-f0-9-]{36}$')
@@ -34,7 +38,7 @@ class VoiceRequest(ChatRequest):
     paid_tts_consent: bool = False
 
 class Event(BaseModel):
-    type: Literal["text_delta","sentence_ready","tool_status","widget_command","visual_response","final","error","cancelled"]
+    type: Literal["text_delta","sentence_ready","tool_status","widget_command","visual_response","screen_scene","final","error","cancelled"]
     correlation_id: str
     device_id: str
     conversation_id: str

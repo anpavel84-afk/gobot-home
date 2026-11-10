@@ -1,0 +1,36 @@
+{
+  "transport": "private HTTPS verified",
+  "cases": [
+    {
+      "query": "Что такое кратер Луны?",
+      "mode": "mock",
+      "text_kind": "diagnostic mock, not a real model answer",
+      "visual_strategy": "generate",
+      "visual_backend": "local_procedural",
+      "synthetic": true,
+      "device_bytes": 4324
+    },
+    {
+      "query": "Какое расстояние до Луны?",
+      "mode": "mock",
+      "text_kind": "diagnostic mock, not a real model answer",
+      "visual_strategy": "generate",
+      "visual_backend": "local_procedural",
+      "synthetic": true,
+      "device_bytes": 4054
+    },
+    {
+      "query": "Чем отличается бычье сердце от обычных помидоров?",
+      "mode": "mock",
+      "text_kind": "diagnostic mock, not a real model answer",
+      "visual_strategy": "generate",
+      "visual_backend": "local_procedural",
+      "synthetic": true,
+      "device_bytes": 5655
+    }
+  ],
+  "model_calls": 0,
+  "paid_calls": 0,
+  "stt_tts_calls": 0,
+  "iphone_verified": false
+}

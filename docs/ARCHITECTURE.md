@@ -6,6 +6,15 @@ loopback Bridge → fresh Antigravity/Codex. AUTO Flash Low, reasoning Flash Med
 См. CONTEXT_POLICY.md, MEMORY_ARCHITECTURE.md, SPEECH_FORMATTING.md.
 Ниже сохраняется историческая схема исходного fixture-контура.
 
+Текущий экранный слой: Brain → VisualResponseComposer → scene + optional image
+task параллельно text stream. Общий SentenceBuffer → SpeechFormatter → SpeechTurn
+использует одну Realtime WS-сессию на ответ и отдельный conversation:none response
+на фразу. Optional image task не задерживает закрытие TTS. Browser panel и /device
+используют один browser.js/GoBotCapture/SSE/audio queue; DeviceRenderer — отдельная
+canvas-сцена 240×240 с turn guards, а не обрезанная панель. Device profiles и приватные
+заставки хранятся отдельно от архива разговоров. Русский wake detector ещё не подключён.
+См. DEVICE_MODE.md, MULTIMODAL_RESPONSES.md и device-profile/device-scene schemas.
+
 Дополнение браузерного продукта: [BROWSER_VOICE.md](BROWSER_VOICE.md). Приватный HTTPS transport
 на Tailscale :18786 передаёт запросы в этот же Brain/SQLite. Browser audio и будущий XiaoZhi audio
 имеют разные transport adapters. Общий SentenceBuffer и bounded text/audio pipeline работают в Brain.

@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 import httpx
 from PIL import Image,ImageOps
 from .presentation import VisualImage,VisualSource
+from .image_query import ImageQueryPlanner
 
 ROOT=Path(__file__).resolve().parents[3]
 CONTACT=ROOT/'run/visual-source.json'
@@ -27,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=2
-FETCH_POLICY_VERSION=2
+FETCH_POLICY_VERSION=3
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -149,10 +150,15 @@ class CommonsImages:
         return candidates
 
 class OpenverseImages:
-    def __init__(self,client):self.client=client
+    def __init__(self,client,planner=None):self.client=client;self.planner=planner or ImageQueryPlanner()
     async def search(self,query,limit=3):
-        aliases={'кот':'cat','кота':'cat','кошка':'cat','кошку':'cat','собака':'dog','собаку':'dog','орхидея':'orchid','орхидею':'orchid','подсолнух':'sunflower','подсолнухи':'sunflower','роза':'rose','розу':'rose','яблоко':'apple','тигр':'tiger','тигра':'tiger','слон':'elephant','слона':'elephant','жираф':'giraffe','жирафа':'giraffe','береза':'birch tree','берёза':'birch tree','чёрный лабрадор':'black labrador retriever','чёрного лабрадора':'black labrador retriever'}
-        query=aliases.get(query.casefold().strip(),query)
+        plan=await asyncio.to_thread(self.planner.plan,query)
+        for term in dict.fromkeys(plan.terms):
+            candidates=await self._search(term,limit)
+            if candidates:return candidates
+        if plan.ambiguous:raise ImageUnavailable('image_query_ambiguous')
+        return []
+    async def _search(self,query,limit=3):
         clean=re.sub(r'[^\w\sА-Яа-яЁё-]',' ',query)[:180].strip()
         if not clean:return []
         data,_=await self.client.get('https://api.openverse.org/v1/images/',api=True,params={'q':clean,'page_size':min(limit+2,6),'source':'flickr','license_type':'commercial,modification','mature':'false'})

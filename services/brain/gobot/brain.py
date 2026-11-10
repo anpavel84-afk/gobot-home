@@ -4,7 +4,7 @@ from fastapi import FastAPI,Request,HTTPException,Depends,WebSocket,WebSocketDis
 from fastapi.responses import StreamingResponse
 from .models import ChatRequest,VoiceRequest,event
 from .memory import Memory,Conflict
-from .providers import fast_stream,bridge_stream,SentenceBuffer,MockAgentAdapter,cancellable
+from .providers import fast_stream,bridge_stream,SentenceBuffer,MockAgentAdapter,cancellable,merge_presentation
 from .processes import AgentError
 from .live_agents import agent_status
 from .audio import Speech
@@ -19,9 +19,14 @@ from .local_tools import LocalTools,text_stream
 from .visual import VisualService
 from .visual_images import ImageCache
 from pathlib import Path
+from .presentation_planner import MultimodalResponsePlanner
+from .response_composer import VisualResponseComposer
 
 class Service:
     def __init__(self,settings):
+        self.presentation_planner=MultimodalResponsePlanner()
+        self.composer=VisualResponseComposer(self.presentation_planner)
+        self.active_voice_streams=0
         self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
     async def prepare(self,req):
         try:return await asyncio.to_thread(self.memory.start,req)
@@ -38,7 +43,7 @@ class Service:
                         yield event(req,'visual_response',presentation=frame.model_dump(),replayed=True)
             except (ValueError,TypeError):pass
             yield event(req,'final' if replay['status']=='completed' else replay['status'] if replay['status'] in {'cancelled','error'} else 'error',text=replay['result'],provider=replay['provider'],replayed=True);return
-        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None
+        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None
         try:
             try:await asyncio.wait_for(self.limit.acquire(),0.1);acquired=True
             except TimeoutError:
@@ -57,9 +62,14 @@ class Service:
                     if ctx.get('topic',{}).get('outcome')=='ambiguous':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
                     elif decision.provider=='local' and decision.tool=='visual':
                         yield event(req,'tool_status',status='loading_visual',route='TOOL',provider='local',reason=decision.reason,model=None)
-                        work=asyncio.create_task(self.visual.handle(req,active_turns=len(self.running)));stop=asyncio.create_task(cancel.wait())
+                        initial_plan=self.composer.plan(req,route=decision,context=ctx)
+                        visual_work=self.visual.attachment(req,initial_plan,timeout=18) if initial_plan.visual_strategy=='generate' else self.visual.handle(req,active_turns=len(self.running))
+                        work=asyncio.create_task(visual_work);stop=asyncio.create_task(cancel.wait())
                         try:
-                            done,_=await asyncio.wait({work,stop},return_when=asyncio.FIRST_COMPLETED)
+                            done,_=await asyncio.wait({work,stop},timeout=.35,return_when=asyncio.FIRST_COMPLETED)
+                            if not done:
+                                yield event(req,'sentence_ready',text='Подбираю визуальный материал.',representation='progress')
+                                done,_=await asyncio.wait({work,stop},return_when=asyncio.FIRST_COMPLETED)
                             if stop in done:raise asyncio.CancelledError()
                             result=work.result();visual_frame=result.frame;spoken_override=result.speech_text;source=text_stream(result.display_text)
                             verification={'accepted':True,'method':'image_source_metadata' if visual_frame.images else 'explicit_availability_state','fact_confirmed':False}
@@ -84,12 +94,28 @@ class Service:
                     if req.remember:await asyncio.to_thread(self.memory.archive.record_context,req,ctx,provider)
                     source=bridge_stream(self.settings,req,ctx) if route=='agent' else fast_stream(self.settings,req,ctx)
                 yield event(req,'tool_status',status='running',route=route,provider=provider,second_opinion=second,model=decision.model if decision else None,reason=decision.reason if decision else trace[0]['reason'],billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification,topic=ctx.get('topic'),context=ctx.get('_context_meta'))
+                presentation_plan=self.composer.plan(req,route=decision,context=ctx)
+                if decision:yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan).model_dump(exclude={'display_text','speech_text'}),phase='planning')
+                if decision:trace.append({'presentation_plan':presentation_plan.model_dump()})
+                if decision and not visual_frame and presentation_plan.visual_needed and presentation_plan.origin=='implicit':
+                    visual_task=asyncio.create_task(self.visual.attachment(req,presentation_plan,timeout=self.presentation_planner.policy.helpful_timeout_seconds))
+                    yield event(req,'tool_status',status='preparing_visual_attachment',presentation_plan=presentation_plan.model_dump())
                 if visual_frame:
                     yield event(req,'visual_response',presentation=visual_frame.model_dump())
                     trace.append({'presentation':visual_frame.model_dump()})
                 try:
-                    iterator=cancellable(source,cancel)
-                    async for delta in iterator:
+                    iterator=merge_presentation(cancellable(source,cancel),visual_task,cancel)
+                    async for kind,delta in iterator:
+                        if kind=='visual_failed':
+                            trace.append({'optional_visual_error':'attachment_unavailable'});continue
+                        if kind=='visual':
+                            yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
+                            trace.append({'presentation':delta.frame.model_dump()});continue
+                        if kind=='text_done':
+                            if not must_gate and spoken_override is None:
+                                for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
+                                yield event(req,'tool_status',status='speech_input_complete')
+                            continue
                         if first is None:first=(time.perf_counter()-started)*1000
                         text+=delta
                         if len(text)>32000:raise ValueError('Output limit')
@@ -130,10 +156,13 @@ class Service:
                 elif (decision is None or decision.provider=='mock') and 'таймер' in req.text.lower():
                     yield event(req,'widget_command',command={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':300000}},mock=True)
                 if decision:trace.append({'usage':ctx.get('_provider_usage'),'billing_kind':decision.billing_kind,'model':decision.model})
+                if decision:
+                    scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan,answer=text.strip(),has_visual=any('presentation' in item for item in trace))
+                    yield event(req,'screen_scene',scene=scene.model_dump(exclude={'display_text','speech_text'}),phase='answer_complete');trace.append({'screen_scene':scene.model_dump(exclude={'display_text','speech_text'})})
                 state='completed'
                 await asyncio.to_thread(self.memory.finish,req,state,text.strip(),provider,trace)
                 if req.remember:await asyncio.to_thread(self.memory.archive.record_usage,req,ctx.get('_provider_usage'),ctx.get('_provider_session_id'))
-                yield event(req,'final',text=text.strip(),provider=provider,trace=trace,llm_first_token_ms=first,total_ms=(time.perf_counter()-started)*1000,mock=provider.startswith('mock') or provider=='bridge:mock',model=decision.model if decision else None,usage=ctx.get('_provider_usage'),billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification)
+                yield event(req,'final',text=text.strip(),provider=provider,trace=trace,presentation_plan=presentation_plan.model_dump(),llm_first_token_ms=first,total_ms=(time.perf_counter()-started)*1000,mock=provider.startswith('mock') or provider=='bridge:mock',model=decision.model if decision else None,usage=ctx.get('_provider_usage'),billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification)
         except TimeoutError:
             state='error';yield event(req,'error',code='timeout')
         except asyncio.CancelledError:
@@ -148,6 +177,8 @@ class Service:
             state='error';yield event(req,'error',code='provider_failed')
         finally:
             if iterator is not None:await iterator.aclose()
+            if visual_task is not None:
+                visual_task.cancel();await asyncio.gather(visual_task,return_exceptions=True)
             self.running.pop(req.turn_id,None)
             if acquired:self.limit.release()
             # synchronous short final transaction survives task cancellation
@@ -177,7 +208,7 @@ def create_app(settings=None):
     async def ready():
         await asyncio.to_thread(service.memory.status,'readiness');return {'ready':True,'mode':'mock' if settings.fast_provider=='mock' else 'configured','voice_hardware_ready':False}
     @app.get('/api/v1/status',dependencies=[Depends(auth)])
-    async def status():return {'active_turns':len(service.running),'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'visual':service.visual.available(),'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
+    async def status():return {'active_turns':len(service.running),'active_voice_streams':service.active_voice_streams,'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'visual':{**service.visual.available(),'presentation_policy':service.presentation_planner.policy.model_dump()},'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
     @app.get('/api/v1/visual/assets/{asset}/{variant}.jpg',dependencies=[Depends(auth)])
     async def visual_asset(asset:str,variant:str):
         from fastapi import Response
@@ -192,6 +223,11 @@ def create_app(settings=None):
             with service.memory.connect() as c:return c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=?",(ident,owner)).rowcount
         if not await asyncio.to_thread(update):raise HTTPException(404,'timer_not_found_or_not_owned')
         return {'cancelled':True,'timer_id':ident}
+    @app.get('/api/v1/timers',dependencies=[Depends(auth)])
+    async def active_timers(device_id:str):
+        if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,100}',device_id):raise HTTPException(422)
+        with service.memory.connect() as c:rows=c.execute("SELECT id,deadline,status FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline LIMIT 16",(device_id,time.time())).fetchall()
+        return {'timers':[dict(row) for row in rows]}
     @app.get('/api/v1/history/{conversation_id}',dependencies=[Depends(auth)])
     async def history(conversation_id:str,device_id:str):
         return await asyncio.to_thread(service.memory.history,conversation_id,device_id)

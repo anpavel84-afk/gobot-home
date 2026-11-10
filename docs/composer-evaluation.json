@@ -1,0 +1,300 @@
+{
+  "synthetic": true,
+  "cases": [
+    {
+      "query": "Привет, ГоБот!",
+      "synthetic_answer": "Привет!",
+      "expected_strategy": "show_avatar",
+      "actual_strategy": "show_avatar",
+      "scene_type": "avatar",
+      "compact_bytes": 243,
+      "match": true
+    },
+    {
+      "query": "Как дела?",
+      "synthetic_answer": "Всё хорошо.",
+      "expected_strategy": "show_avatar",
+      "actual_strategy": "show_avatar",
+      "scene_type": "avatar",
+      "compact_bytes": 243,
+      "match": true
+    },
+    {
+      "query": "Спасибо",
+      "synthetic_answer": "Пожалуйста.",
+      "expected_strategy": "show_avatar",
+      "actual_strategy": "show_avatar",
+      "scene_type": "avatar",
+      "compact_bytes": 243,
+      "match": true
+    },
+    {
+      "query": "Доброе утро",
+      "synthetic_answer": "Доброе утро!",
+      "expected_strategy": "show_avatar",
+      "actual_strategy": "show_avatar",
+      "scene_type": "avatar",
+      "compact_bytes": 243,
+      "match": true
+    },
+    {
+      "query": "Расскажи анекдот",
+      "synthetic_answer": "Короткая шутка.",
+      "expected_strategy": "show_avatar",
+      "actual_strategy": "show_avatar",
+      "scene_type": "avatar",
+      "compact_bytes": 243,
+      "match": true
+    },
+    {
+      "query": "Какие сегодня праздники?",
+      "synthetic_answer": "Нет проверенных данных.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "info_card",
+      "compact_bytes": 306,
+      "match": true
+    },
+    {
+      "query": "Какой сегодня праздник в Бразилии?",
+      "synthetic_answer": "Нет проверенных данных.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "info_card",
+      "compact_bytes": 306,
+      "match": true
+    },
+    {
+      "query": "Как приготовить греческий салат?",
+      "synthetic_answer": "Нарежьте овощи и добавьте фету.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 251,
+      "match": true
+    },
+    {
+      "query": "Сколько лет живут курицы?",
+      "synthetic_answer": "Продолжительность зависит от породы.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 252,
+      "match": true
+    },
+    {
+      "query": "Сколько лет живут собаки?",
+      "synthetic_answer": "Это зависит от породы.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 252,
+      "match": true
+    },
+    {
+      "query": "Что такое орхидея?",
+      "synthetic_answer": "Орхидея — растение.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 254,
+      "match": true
+    },
+    {
+      "query": "Как устроен томатный куст?",
+      "synthetic_answer": "У куста есть корни и стебель.",
+      "expected_strategy": "render_diagram",
+      "actual_strategy": "render_diagram",
+      "scene_type": "diagram",
+      "compact_bytes": 254,
+      "match": true
+    },
+    {
+      "query": "Где находится Бразилия?",
+      "synthetic_answer": "Это страна Южной Америки.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 276,
+      "match": true
+    },
+    {
+      "query": "Назови столицу Франции",
+      "synthetic_answer": "Столица — Париж.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 276,
+      "match": true
+    },
+    {
+      "query": "Расскажи об истории Рима",
+      "synthetic_answer": "Это рассказ о древней истории.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 272,
+      "match": true
+    },
+    {
+      "query": "Что такое кратер Луны?",
+      "synthetic_answer": "Это углубление.",
+      "expected_strategy": "render_diagram",
+      "actual_strategy": "render_diagram",
+      "scene_type": "diagram",
+      "compact_bytes": 254,
+      "match": true
+    },
+    {
+      "query": "Какое расстояние до Луны?",
+      "synthetic_answer": "Оно меняется.",
+      "expected_strategy": "render_diagram",
+      "actual_strategy": "render_diagram",
+      "scene_type": "diagram",
+      "compact_bytes": 252,
+      "match": true
+    },
+    {
+      "query": "Что такое солнечное затмение?",
+      "synthetic_answer": "Луна между Солнцем и Землёй.",
+      "expected_strategy": "render_diagram",
+      "actual_strategy": "render_diagram",
+      "scene_type": "diagram",
+      "compact_bytes": 255,
+      "match": true
+    },
+    {
+      "query": "Что такое вулкан?",
+      "synthetic_answer": "Магма выходит на поверхность.",
+      "expected_strategy": "render_diagram",
+      "actual_strategy": "render_diagram",
+      "scene_type": "diagram",
+      "compact_bytes": 249,
+      "match": true
+    },
+    {
+      "query": "Что такое Млечный Путь?",
+      "synthetic_answer": "Это наша галактика.",
+      "expected_strategy": "generate_illustration",
+      "actual_strategy": "generate_illustration",
+      "scene_type": "diagram",
+      "compact_bytes": 258,
+      "match": true
+    },
+    {
+      "query": "Поставь таймер на пять минут",
+      "synthetic_answer": "Таймер запущен.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "widget",
+      "compact_bytes": 245,
+      "match": true
+    },
+    {
+      "query": "Какая сейчас погода?",
+      "synthetic_answer": "Источник не подключён.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "widget",
+      "compact_bytes": 247,
+      "match": true
+    },
+    {
+      "query": "Что сейчас играет?",
+      "synthetic_answer": "Источник не подключён.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "widget",
+      "compact_bytes": 245,
+      "match": true
+    },
+    {
+      "query": "Сколько будет 127 × 43?",
+      "synthetic_answer": "Получается 5461.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "info_card",
+      "compact_bytes": 274,
+      "match": true
+    },
+    {
+      "query": "Что мы вчера обсуждали?",
+      "synthetic_answer": "Для истории нужен PIN.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "info_card",
+      "compact_bytes": 289,
+      "match": true
+    },
+    {
+      "query": "Сравни технические архитектуры",
+      "synthetic_answer": "Это техническое объяснение.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 278,
+      "match": true
+    },
+    {
+      "query": "Объясни программирование",
+      "synthetic_answer": "Программы выполняют инструкции.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 278,
+      "match": true
+    },
+    {
+      "query": "Расскажи интересное",
+      "synthetic_answer": "Пингвины живут в разных местах.",
+      "expected_strategy": "show_emoji_or_icon",
+      "actual_strategy": "show_emoji_or_icon",
+      "scene_type": "icon",
+      "compact_bytes": 275,
+      "match": true
+    },
+    {
+      "query": "Чем отличается бычье сердце от обычных помидоров?",
+      "synthetic_answer": "Сравним форму.",
+      "expected_strategy": "generate_illustration",
+      "actual_strategy": "generate_illustration",
+      "scene_type": "diagram",
+      "compact_bytes": 266,
+      "match": true
+    },
+    {
+      "query": "Покажи Raspberry Pi",
+      "synthetic_answer": "Подготовил фото.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 252,
+      "match": true
+    },
+    {
+      "query": "Как выглядит пончик?",
+      "synthetic_answer": "Подготовил фото.",
+      "expected_strategy": "retrieve_photo",
+      "actual_strategy": "retrieve_photo",
+      "scene_type": "image",
+      "compact_bytes": 252,
+      "match": true
+    },
+    {
+      "query": "Покажи статус системы",
+      "synthetic_answer": "Brain работает.",
+      "expected_strategy": "render_widget",
+      "actual_strategy": "render_widget",
+      "scene_type": "widget",
+      "compact_bytes": 246,
+      "match": true
+    }
+  ],
+  "measured_component": "deterministic composer only, warm process, no image/LLM/network",
+  "runs": 3200,
+  "p50_ms": 0.0148,
+  "p95_ms": 0.0198,
+  "paid_calls": 0,
+  "real_model_or_retrieval_quality_confirmed": false,
+  "iphone_render_verified": false
+}

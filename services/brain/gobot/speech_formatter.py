@@ -36,7 +36,7 @@ def normalize_name(value):
     return re.sub(r'[^а-яё]','',value.translate(table)).replace('ё','е')
 
 class SpeechFormatter:
-    version=2
+    version=3
     def __init__(self,dictionary=None):
         self.in_code=False
         path=Path(__file__).parents[1]/'pronunciations.json'
@@ -68,6 +68,33 @@ class SpeechFormatter:
             prefix=text[max(0,match.start()-20):match.start()].lower();case='dative' if re.search(r'\bк\s*$',prefix) else 'genitive'
             return words(day,case,ordinal=True)+' '+MONTHS[month-1]+' '+words(year,'genitive',ordinal=True)+' года'
         text=re.sub(r'\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b',date,text)
+        # Calendar dates use ordinal days, before the general cardinal-number pass.
+        months='|'.join(MONTHS)
+        def calendar_case(prefix,suffix=None):
+            if suffix:return {'го':'genitive','му':'dative','е':'nominative','ым':'instrumental','ом':'prepositional'}[suffix]
+            if re.search(r'\bк\s*$',prefix):return 'dative'
+            if re.search(r'\b(?:перед|между)\s*$',prefix):return 'instrumental'
+            if re.search(r'\b(?:о|об)\s*$',prefix):return 'prepositional'
+            if re.search(r'\b(?:на|по)\s*$|\b(?:сегодня|завтра|вчера)(?:\s+(?:будет|было|уже))?\s*$',prefix):return 'nominative'
+            return 'genitive'
+        def calendar_day(value,case):return words(int(value),case,'neuter' if case=='nominative' else 'masculine',ordinal=True)
+        def date_range(match):
+            start,one,link,two,month=match.groups()
+            if not (1<=int(one)<=31 and 1<=int(two)<=31):return match[0]
+            first='instrumental' if start.lower()=='между' else 'genitive'
+            second='nominative' if link.lower()=='по' else first
+            return start+' '+calendar_day(one,first)+' '+link+' '+calendar_day(two,second)+' '+month
+        text=re.sub(r'\b(с|между)\s+(\d{1,2})\s+(по|до|и)\s+(\d{1,2})\s+('+months+r')\b',date_range,text,flags=re.I)
+        def named_date(match):
+            day,suffix,month,year_value=match.groups()
+            import datetime
+            try:datetime.date(int(year_value or 2000),MONTHS.index(month.lower())+1,int(day))
+            except ValueError:return match[0]
+            case=calendar_case(text[max(0,match.start()-45):match.start()].lower(),suffix.lower() if suffix else None)
+            result=calendar_day(day,case)+' '+month
+            if year_value:result+=' '+words(int(year_value),'genitive',ordinal=True)+' года'
+            return result
+        text=re.sub(r'\b(\d{1,2})(?:-?(го|му|е|ым|ом))?\s+('+months+r')(?:\s+(\d{4})(?:\s+года)?)?\b',named_date,text,flags=re.I)
         def year(match):
             prep,value,noun=match.groups();case={'в':'prepositional','до':'genitive','после':'genitive','от':'genitive','с':'genitive','к':'dative'}.get(prep.lower(),'genitive')
             return prep+' '+words(int(value),case,ordinal=True)+' '+noun

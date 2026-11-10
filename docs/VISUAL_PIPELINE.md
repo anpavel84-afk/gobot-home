@@ -162,3 +162,23 @@ GET через private HTTPS. Поиск остаётся metadata-based, не �
 Полный pytest: 431 passed. HTTPS image E2E расширен до 12 сценариев + повторный
 cache hit. Платных API/CLI/STT/TTS вызовов: 0. Safari rendering по-прежнему не
 подтверждён автоматикой; снимок владельца помог найти серверную ошибку.
+
+## Visual-first и Device Mode
+
+Каждый product ответ теперь получает сцену через VisualResponseComposer; отсутствие
+фото осознанно оставляет avatar/icon/card, а не текстовый-only режим. Фото/схемы
+выбираются существующим planner и actual answer/route. Optional visual task не
+блокирует voice stream, speech_input_complete закрывает TTS отдельно. См.
+[MULTIMODAL_RESPONSES.md](MULTIMODAL_RESPONSES.md) и [DEVICE_MODE.md](DEVICE_MODE.md).
+
+Поиск дополнен опциональным FreeDict/WikDict lexicon, морфологией и ограниченным
+однозначным переводом. 33717 headwords — помощник, не whitelist поддержки. Двусмысленные
+запросы остаются русскими/требуют уточнения. Проверенный пример: пончик → doughnut,
+реальная thumbnail загружена. Проверка telescope вернула спектральный график вместо
+предметного фото: общая релевантность поиска не подтверждена, полноценного image
+semantic verifier нет. Нельзя объявлять произвольный image query точным.
+
+Позитивный cache сохраняется при изменении fetch policy; старые отрицательные
+результаты не блокируют исправленный путь. Итоговый HTTPS прогон: 14 сценариев +
+повторный hit; реальные источники и процедурные synthetic diagrams различены в отчёте.
+Нейросетевая генерация не подключена, платных вызовов для визуалов нет.

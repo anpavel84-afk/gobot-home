@@ -41,3 +41,29 @@ openai-speech-probes.json: file STT 1417 мс; live первый partial 1920 м
 [STT](https://developers.openai.com/api/docs/guides/transcription),
 [Realtime transcription](https://developers.openai.com/api/docs/guides/realtime-transcription),
 [TTS](https://developers.openai.com/api/docs/guides/text-to-speech).
+
+
+## Даты и задержка — уточнение 10 ноября
+
+SpeechFormatter v3 преобразует именованные календарные даты до общего числового
+правила: «при этом 10 ноября» → «при этом десятого ноября», «будет уже 15 ноября»
+→ «будет уже пятнадцатого ноября». «Сегодня 10 ноября» → «сегодня десятое ноября»;
+к/до/на/перед и диапазоны имеют отдельные правила. Исходный display_text не меняется.
+Это покрытые детерминированные случаи, не универсальный синтаксический анализ русского.
+
+Новый SpeechTurn: один WebSocket в пределах ответа, отдельные response.create с
+conversation=none для фраз, tools=[], tool_choice=none. Между людьми/запросами
+сессия не переносится. С явным paid_tts_consent handshake начинается параллельно
+ответу; до готовой фразы response.create не отправляется. Cancel закрывает текущий
+response/socket. Нет автоматических платных retries или локального fallback.
+
+На старом трафике владельца tts_first_chunk ~1.5–2.5 с; CLI first token часто
+~6–8 с. Raw без текста/личных ID: voice-latency-baseline.json. Новая реальная задержка
+после оптимизации ещё не измерена; fixture tests подтверждают переиспользование,
+состояния и отсутствие ожидания картинки, не производительность OpenAI/iPhone.
+Новые метрики first_sentence_ready и speech_metrics в final; это серверные времена,
+не доказательство фактической слышимости. active_voice_streams учитывает озвучку
+после окончания текста, чтобы безопасное обновление её не прервало.
+
+Официальный протокол: https://developers.openai.com/api/docs/guides/realtime-conversations
+(вне основного conversation); клиентский API-ключ по-прежнему только на сервере.

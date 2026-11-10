@@ -15,6 +15,7 @@ async def main():
     cases=[('oxheart','Покажи, как выглядят помидоры Бычье сердце','image_gallery'),('labrador','Покажи, как выглядит лабрадор','image_card'),('raspberry-pi','Покажи картинку Raspberry Pi','image_card'),('timer','Поставь таймер на 3 минуты','timer_widget'),('weather','Какая сейчас погода?','weather_card'),('music','Что сейчас играет?','music_card'),('diagram','Покажи схему голосового конвейера GoBot','rich_answer'),('info','Покажи карточку результата 127 × 43','info_card'),('private','Покажи фото моей теплицы','info_card')]
     cases.append(('status','Покажи статус системы','status_card'))
     cases.extend([('crater','Покажи как выглядит кратер','image_card'),('sunflower','Покажи как выглядит подсолнух','image_card')])
+    cases.extend([('doughnut','Как выглядит пончик?','image_card'),('solar-diagram','Покажи схему солнечного затмения','rich_answer')])
     results=[];namespace='ephemeral-check-visual-'+str(uuid4())+'-'
     with sqlite3.connect(ROOT/'data/gobot.sqlite') as c:before=c.execute('SELECT count(*) FROM messages WHERE conversation_id LIKE ?',(namespace+'%',)).fetchone()[0]
     async with httpx.AsyncClient(trust_env=False,timeout=35) as client:
@@ -38,13 +39,13 @@ async def main():
             if name=='timer':
                 response=await client.post(BASE+'/api/visual/timer/cancel',headers={'Origin':BASE},json={'timer_id':frame['metadata']['timer_id']});response.raise_for_status()
             assert not any(e['type']=='audio_chunk' for e in events)
-            results.append({'case':name,'type':frame['type'],'state':frame['metadata']['state'],'images':len(frame['images']),'cache_hit':frame['metadata']['cache_hit'],'ms':elapsed,'short_speech_fragments':sum(e['type']=='sentence_ready' for e in events),'variants':variants})
+            results.append({'case':name,'type':frame['type'],'state':frame['metadata']['state'],'images':len(frame['images']),'synthetic':frame['metadata'].get('synthetic',False),'source':frame['source']['label'],'cache_hit':frame['metadata']['cache_hit'],'ms':elapsed,'short_speech_fragments':sum(e['type']=='sentence_ready' for e in events),'variants':variants})
         frame,elapsed,_=await request(cases[0][1]);assert frame['metadata']['cache_hit']
         results.append({'case':'repeat_oxheart','cache_hit':True,'ms':elapsed})
         page=await client.get(BASE+'/');assert 'visual-response' in page.text and 'visual.js' in page.text and 'active-timers' in page.text
         script=await client.get(BASE+'/visual.js');assert script.status_code==200
     with sqlite3.connect(ROOT/'data/gobot.sqlite') as c:after=c.execute('SELECT count(*) FROM messages WHERE conversation_id LIKE ?',(namespace+'%',)).fetchone()[0]
     assert before==after
-    report={'transport':'private Tailscale HTTPS, certificate verified','real_public_images':True,'synthetic_images':False,'source':'Openverse public thumbnail API, curated Flickr images','cases':results,'persistent_message_delta':after-before,'paid_model_calls':0,'cli_calls':0,'stt_tts_calls':0,'iphone_render_verified':False,'desktop_visual_inspection':'No browser exposed to computer-use tools; DOM units only'}
+    report={'transport':'private Tailscale HTTPS, certificate verified','real_public_images':True,'synthetic_images':True,'neural_image_generation':False,'source':'Openverse/Flickr photos and local procedural diagrams','cases':results,'persistent_message_delta':after-before,'paid_model_calls':0,'cli_calls':0,'stt_tts_calls':0,'iphone_render_verified':False,'desktop_visual_inspection':'No browser exposed to computer-use tools; DOM units only'}
     (ROOT/'docs/visual-e2e.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');print(json.dumps(report,ensure_ascii=False,indent=2))
 if __name__=='__main__':asyncio.run(main())

@@ -1,0 +1,7 @@
+{
+  "always_visual_for_explicit_show_requests": true,
+  "auto_visual_for_helpful_topics": true,
+  "auto_visual_for_trivial_smalltalk": false,
+  "helpful_timeout_seconds": 8,
+  "paid_image_generation_enabled": false
+}

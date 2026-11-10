@@ -6,6 +6,21 @@ scope — PIN; Bridge loopback/HMAC. AUTO Flash, без тяжёлого fallbac
 инструменты. См. CONTEXT_POLICY.md / MEMORY_ARCHITECTURE.md для удаления/backup.
 Платные memory workers выключены. Биометрия и API-ключ — Windows DPAPI.
 
+Device mode не даёт новых полномочий: сохраняет consent gates и PIN scopes,
+server-assigned client ID/profile preferences. Запись использует общий transport.
+Origin write checks действуют на профили/заставки; загрузки только static JPEG/PNG/
+WebP ≤2 MB и 4 MP, нормализуются без EXIF, не принимают HTML/SVG/JS. Профиль и assets
+ограничены subject+peer, вне Git; сырые загрузки не сохраняются. Один Web Lock
+ограничивает Device audio ownership на origin; visibility/pagehide/offline освобождают
+микрофон и блокировки. В PTT ожидании и при не настроенном wake нет фоновой записи
+или внешнего STT/LLM. Это не доказательство защиты будущего активного wake detector.
+
+Публичный GitHub репозиторий — только исходники и очищенные отчёты. Перед push
+проверяются текущие файлы и история Gitleaks, без переписывания истории. Actions
+отключены. Ключи, auth homes, SQLite, голосовые записи, сертификаты, модели и private
+assets остаются игнорируемыми. См. GITHUB_PUBLICATION.md; scanner не гарантирует
+обнаружение всех возможных конфиденциальных данных.
+
 Дополнение по просьбе владельца проверить GoBot с iPhone: отдельный gateway на конкретном
 Wi-Fi IPv4:18785 допускает только несекретные health-статусы и три фиксированных mock-сценария.
 Он доступен без логина другим клиентам разрешённого Wi-Fi subnet; ключи, история, терминал и CLI

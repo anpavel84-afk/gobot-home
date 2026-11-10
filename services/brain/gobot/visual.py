@@ -9,15 +9,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PIL import Image,ImageDraw,ImageFont
-from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,frame_id
+from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,VisualIntent,frame_id
 from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION,FETCH_POLICY_VERSION
+from .image_query import DICTIONARY,VERSION as QUERY_VERSION
 
 REASONS={
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
  'image_source_contact_required':'Источник фотографий требует публичный контакт оператора. Его можно указать в настройках визуальных ответов.',
  'image_source_access_denied':'Источник отклонил загрузку изображения. Другой снимок не подставлялся.',
  'image_source_rate_limited':'Источник временно ограничил запросы. Повторные загрузки отложены.',
- 'image_not_found':'Подходящее изображение с подтверждённым источником и лицензией не найдено.',
+ 'image_not_found':'В доступном каталоге не нашлось подходящего изображения по этому названию. Можно уточнить объект или его внешний вид.',
  'private_image_not_available':'Личное изображение не загружено. Семейные фотографии и планы не ищутся в интернете.',
  'image_query_required':'Уточни, какой объект нужно показать.',
  'diagram_source_required':'Уточни элементы схемы или предоставь исходный план. Я не буду придумывать устройство вашей теплицы.',
@@ -26,6 +27,7 @@ REASONS={
  'image_source_unavailable':'Источник изображений сейчас не смог отдать результат. Попробуй повторить запрос позже.',
  'image_lookup_timeout':'Источник изображений не ответил вовремя. Попробуй повторить запрос позже.',
  'image_network_unavailable':'Не удалось связаться с источником изображений. Проверь соединение и повтори запрос позже.',
+ 'image_query_ambiguous':'У этого названия несколько значений. Уточни, какой предмет или внешний вид нужно показать, чтобы я не подставил другой объект.',
 }
 
 @dataclass
@@ -42,7 +44,7 @@ class VisualService:
         self.slots=asyncio.Semaphore(2);self.locks={}
 
     def available(self):
-        return {'image_source':self.config_loader().get('provider','disabled'),'configured':bool(self.config_loader()),'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
+        return {'image_source':self.config_loader().get('provider','disabled'),'configured':bool(self.config_loader()),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
 
     def fallback(self,req,title,code,kind='info_card',text=None):
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
@@ -54,13 +56,20 @@ class VisualService:
         if re.search(r'https?://|file:|localhost',intent.query,re.I):return self.fallback(req,'Источник изображения','direct_image_url_not_supported',text='Прямые ссылки не загружаются этим инструментом. Опиши объект: поиск работает только через разрешённый источник изображений.')
         if intent.catalog_id is None and re.search(r'raspberry\s*pi\s*[1-9]|рас[пб]ерри\s*пи\s*[1-9]',intent.query,re.I):return self.fallback(req,'Нужен референс конкретной платы','board_revision_not_reviewed',text='Для указанной модели платы ещё нет проверенного изображения в каталоге. Фотографию другой ревизии вместо неё я не подставляю.')
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
-        config=self.config_loader();catalog=self.catalog.get(intent.catalog_id);key=hashlib.sha256(json.dumps([intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION,FETCH_POLICY_VERSION],ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+        config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
+        base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
+        def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
+        positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
         if key not in self.locks:
             if len(self.locks)>=128:self.locks={k:v for k,v in self.locks.items() if v.locked()}
             self.locks.setdefault(key,asyncio.Lock())
         async with self.locks[key]:
-            cached=await asyncio.to_thread(self.cache.query,key);hit=cached is not None;sent=False
+            cached=await asyncio.to_thread(self.cache.query,positive_key)
+            if not cached or not cached[0]:
+                legacy=await asyncio.to_thread(self.cache.query,legacy_key)
+                cached=legacy if legacy and legacy[0] else await asyncio.to_thread(self.cache.query,key)
+            hit=cached is not None;sent=False
             if cached:records,reason=cached
             else:
                 records=[];reason=None
@@ -70,8 +79,8 @@ class VisualService:
                     try:
                         async with self.slots,asyncio.timeout(18):
                             curated=(catalog.get('openverse_images') if config.get('provider')=='openverse' else catalog.get('images')) if catalog else None
-                            candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
                             sent=not bool(curated)
+                            candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
                             for candidate in candidates[:3]:
                                 try:
                                     record=await asyncio.to_thread(self.cache.source,candidate.url)
@@ -88,7 +97,8 @@ class VisualService:
                     except TimeoutError:reason='image_lookup_timeout'
                     except asyncio.CancelledError:raise
                     except Exception:reason='image_lookup_unavailable'
-                await asyncio.to_thread(self.cache.save_query,key,records,reason)
+                await asyncio.to_thread(self.cache.save_query,key if not records else positive_key,records,reason)
+            if records and hit:await asyncio.to_thread(self.cache.save_query,positive_key,records,reason)
         if not records:
             result=self.fallback(req,catalog['title'] if catalog else 'Изображение: '+intent.query[:120],reason or 'image_not_found')
             result.frame.metadata.cache_hit=hit;result.frame.metadata.query_sent_to_source=sent;result.frame.cache_key=key
@@ -100,8 +110,8 @@ class VisualService:
         images=[self.cache.public(record) for record in records]
         title=catalog['title'] if catalog else intent.query[:160]
         text=catalog['text'] if catalog else 'Найдены изображения по запросу. Подписи и ссылки ведут к первоисточникам; совпадение конкретной разновидности по одной фотографии не гарантируется.'
-        speech=catalog['speech'] if catalog else 'Нашёл изображения по твоему запросу. Они показаны на экране.'
-        frame=Presentation(id=frame_id(req.turn_id,'images'),type='image_gallery' if len(images)>1 else 'image_card',title=title,text=text,images=images,actions=[VisualAction(type='open_image',label='Открыть крупнее',asset_id=images[0].asset_id)],metadata=VisualMetadata(cache_hit=hit,query_sent_to_source=sent,approximate_match=catalog.get('approximate_match',False) if catalog else True,selection_basis='curated_visual_review' if catalog else 'source_metadata_search_unverified',reason=reason),source=VisualSource(label=images[0].source.label),expires_at=min(r['expires_at'] for r in records),cache_key=key)
+        speech=catalog['speech'] if catalog else 'Нашёл изображения по твоему запросу. Ссылки на источники сохранены.'
+        frame=Presentation(id=frame_id(req.turn_id,'images'),type='image_gallery' if len(images)>1 else 'image_card',title=title,text=text,images=images,actions=[VisualAction(type='open_image',label='Открыть крупнее',asset_id=images[0].asset_id)],metadata=VisualMetadata(visual_strategy='retrieve',backend=config.get('provider'),cache_hit=hit,query_sent_to_source=sent,approximate_match=catalog.get('approximate_match',False) if catalog else True,selection_basis='curated_visual_review' if catalog else 'source_metadata_search_unverified',reason=reason),source=VisualSource(label=images[0].source.label),expires_at=min(r['expires_at'] for r in records),cache_key=key)
         return VisualResult(frame,text,speech)
 
     async def handle(self,req,*,active_turns=0):
@@ -126,6 +136,28 @@ class VisualService:
             return self.fallback(req,'Карточка результата','result_not_specified',text='Уточни, какой результат нужно показать в карточке.')
         return self.fallback(req,'Схема' if intent.kind=='diagram' else 'Карточка ответа','diagram_source_required')
 
+    async def attachment(self,req,plan,*,timeout=8):
+        """Optional accompaniment never replaces the model answer or adds TTS captions."""
+        try:
+            async with asyncio.timeout(timeout):
+                if plan.visual_strategy=='generate':
+                    from .illustrations import draw_illustration
+                    record,title=await asyncio.to_thread(draw_illustration,self.cache,plan.template)
+                    frame=Presentation(id=frame_id(req.turn_id,'attachment'),type='rich_answer',title=title,
+                        text='Условная иллюстрация к ответу, не фотография и не чертёж в масштабе.',images=[self.cache.public(record)],
+                        metadata=VisualMetadata(visual_priority=plan.visual_priority,visual_strategy='generate',synthetic=True,backend='local_procedural',template=plan.template),
+                        expires_at=record['expires_at'],cache_key=record['asset_id'])
+                    return VisualResult(frame,frame.text,'Подготовил поясняющую иллюстрацию.')
+                if req.mode=='mock':return self.fallback(req,'Визуальное сопровождение','diagnostic_no_external_images',text='В диагностическом Mock-режиме внешний поиск не запускается.')
+                result=await self.images(req,VisualIntent('image',query=plan.visual_query))
+                result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve';result.frame.metadata.backend='openverse' if self.config_loader().get('provider')=='openverse' else 'wikimedia'
+                return result
+        except asyncio.CancelledError:raise
+        except Exception:
+            result=self.fallback(req,'Визуальное сопровождение','optional_visual_unavailable',text='Визуальное сопровождение сейчас недоступно. Текстовый и голосовой ответ продолжаются.')
+            result.frame.metadata.visual_priority=plan.visual_priority
+            return result
+
     def timer(self,req,widget):
         payload=widget['payload']
         return Presentation(id=frame_id(req.turn_id,'timer'),type='timer_widget',title='Таймер',text='Отсчёт по серверному дедлайну',metadata=VisualMetadata(deadline=payload['deadline'],duration_ms=payload['duration_ms'],timer_id=payload['timer_id']),actions=[VisualAction(type='timer_cancel',label='Остановить таймер',timer_id=payload['timer_id'])],expires_at=payload['deadline']+86400)
@@ -144,8 +176,8 @@ class VisualService:
         image.save(data,'JPEG',quality=90)
         candidate=ImageCandidate('local:gobot-pipeline-v1','Схема текущего серверного контура',None,'GoBot Home','Локальная схема',None,'GoBot · локальная схема')
         record=self.cache.source(candidate.url) or self.cache.put(candidate,data.getvalue())
-        frame=Presentation(id=frame_id(req.turn_id,'diagram'),type='rich_answer',title='Как устроен GoBot Home',text='Клиенты используют общий Brain, память и маршрутизатор. ESP32 transport ещё предстоит проверить на устройстве.',images=[self.cache.public(record)],cache_key=record['asset_id'])
-        return VisualResult(frame,frame.text,'Показываю схему общего серверного контура Гобота.')
+        frame=Presentation(id=frame_id(req.turn_id,'diagram'),type='rich_answer',title='Как устроен GoBot Home',text='Клиенты используют общий Brain, память и маршрутизатор. ESP32 transport ещё предстоит проверить на устройстве.',images=[self.cache.public(record)],metadata=VisualMetadata(synthetic=True,template='gobot_pipeline',backend='local_renderer'),cache_key=record['asset_id'])
+        return VisualResult(frame,frame.text,'Подготовил схему общего серверного контура Гобота.')
 
     def replay(self,data):
         frame=Presentation.model_validate(data)

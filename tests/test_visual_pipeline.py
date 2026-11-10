@@ -288,6 +288,17 @@ def test_fetch_policy_revision_invalidates_negative_query_cache(tmp_path,monkeyp
         assert (await fixed.handle(request)).frame.metadata.cache_hit and len(calls)==2
     asyncio.run(run())
 
+def test_positive_query_survives_fetch_policy_update_without_network(tmp_path,monkeypatch):
+    from gobot import visual
+    async def run():
+        calls=[];request=ChatRequest(text='Покажи как выглядит кратер',mode='auto',remember=False)
+        service=visuals(tmp_path,calls)
+        assert (await service.handle(request)).frame.images and len(calls)==1
+        monkeypatch.setattr(visual,'FETCH_POLICY_VERSION',visual.FETCH_POLICY_VERSION+1)
+        result=await visuals(tmp_path,calls,missing=True).handle(request)
+        assert result.frame.images and result.frame.metadata.cache_hit and len(calls)==1
+    asyncio.run(run())
+
 def test_rate_budget_backoff_and_curated_image_hash(tmp_path):
     clock=[1000.0];cache=ImageCache(tmp_path/'rate-cache',clock=lambda:clock[0])
     for _ in range(8):assert cache.reserve_request('api.openverse.org')

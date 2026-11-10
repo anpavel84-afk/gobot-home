@@ -62,3 +62,25 @@ Private HTTPS полный visual response на прогретых фото в �
 CLI-квоты или speech API в этих проверках: 0. Openverse anonymous source не требует
 ключа; сетевые обращения ограничены локальным бюджетом. Общий image retrieval
 не проходил representative quality eval; исходная ошибка HTTP 406 исправлена, кратер/подсолнух загружены; см. VISUAL_PIPELINE.md.
+
+## Device / Composer / SpeechTurn — текущая проверка
+
+519 pytest и пять Node harness прошли. Это бесплатные программные fixtures.
+32 синтетических пары query+answer проверяют visual-first сцены. 3200 повторов
+детерминированного composer в прогретом процессе: p50 0.0148 мс, p95 0.0198 мс.
+Измерен только выбор/сборка сцены: без LLM, image search/download и браузера.
+Raw: composer-evaluation.json. Это не оценка factual/retrieval качества моделей.
+
+Private HTTPS device-e2e.json: 8 статических ресурсов, стабильный client ID,
+отказ чужого Origin, avatar/diagram mock replies и настоящий локальный timer с
+чтением состояния и отменой. 0 постоянных тестовых сообщений, 0 CLI/STT/TTS.
+visual-e2e.json: 14 сценариев + cache repeat; реальные фото, включая пончик/кратер/
+подсолнух, и локальные процедурные схемы; погода/музыка честно unavailable.
+Проверены JPEG 240×240 baseline ≤64 KiB. Это HTTP проверки, не Safari рендер.
+
+Ранее наблюдавшиеся разрешённые owner запросы: TTS first-chunk около 1.5–2.5 с,
+CLI first text часто 6–8 с; voice-latency-baseline.json. Новый SpeechTurn переиспользует
+один WS внутри ответа, начинает handshake параллельно генерации и закрывается до
+завершения optional image task. Программные тесты порядка/отмены проходят; влияние
+на реальные p50/p95 и iPhone audible latency ещё не измерялось. Новые платные пробы: 0.
+Wake-word FRR/FAR/activation latency/CPU не измерены: рабочего русского detector нет.

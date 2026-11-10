@@ -211,6 +211,35 @@
       ],
       "default": null,
       "title": "Deadline"
+    },
+    "synthetic": {
+      "default": false,
+      "title": "Synthetic",
+      "type": "boolean"
+    },
+    "visual_strategy": {
+      "default": "render_local",
+      "enum": [
+        "retrieve",
+        "generate",
+        "render_local",
+        "mixed"
+      ],
+      "title": "Visual Strategy",
+      "type": "string"
+    },
+    "template": {
+      "anyOf": [
+        {
+          "maxLength": 50,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Template"
     }
   },
   "required": [

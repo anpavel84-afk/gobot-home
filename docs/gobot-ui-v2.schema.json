@@ -204,6 +204,71 @@
           "title": "Selection Basis",
           "type": "string"
         },
+        "visual_priority": {
+          "default": "required",
+          "enum": [
+            "required",
+            "helpful",
+            "optional"
+          ],
+          "title": "Visual Priority",
+          "type": "string"
+        },
+        "visual_strategy": {
+          "default": "render_local",
+          "enum": [
+            "retrieve",
+            "generate",
+            "render_local",
+            "mixed"
+          ],
+          "title": "Visual Strategy",
+          "type": "string"
+        },
+        "synthetic": {
+          "default": false,
+          "title": "Synthetic",
+          "type": "boolean"
+        },
+        "backend": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Backend"
+        },
+        "icon": {
+          "anyOf": [
+            {
+              "maxLength": 12,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Icon"
+        },
+        "template": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template"
+        },
         "deadline": {
           "anyOf": [
             {

@@ -8,7 +8,7 @@ import time
 import wave
 import json
 import base64
-from contextlib import suppress
+from contextlib import suppress,asynccontextmanager,AsyncExitStack
 
 import httpx
 
@@ -30,6 +30,8 @@ class Speech:
         self.tts_lock = threading.Lock()
         self.asr_slots = asyncio.Semaphore(1)
         self.tts_slots = asyncio.Semaphore(1)
+
+    def turn(self):return SpeechTurn(self)
 
     def status(self):
         return {
@@ -118,7 +120,7 @@ class Speech:
                 raise AgentError("offline_tts_failed")
             return b"".join(parts), rate
 
-    async def synthesize(self, text, provider="openai", voice="marin", *, paid_consent=False):
+    async def synthesize(self, text, provider="openai", voice="marin", *, paid_consent=False,_turn=None):
         if not text.strip():
             return
         if len(text) > 1500:
@@ -143,22 +145,13 @@ class Speech:
         # Server-owned connection: the browser never receives the API credential.
         try:
             async with asyncio.timeout(45):
-                async with connector("wss://api.openai.com/v1/realtime?model=" + TTS_MODEL,
+                connection=_turn.connection(voice,paid_consent) if _turn is not None else connector("wss://api.openai.com/v1/realtime?model=" + TTS_MODEL,
                                      additional_headers={"Authorization": "Bearer " + key,
                                                          "OpenAI-Safety-Identifier": "gobot-home-owner"},
                                      proxy=None, open_timeout=5, close_timeout=2,
-                                     max_size=1048576, max_queue=4) as ws:
-                    await ws.send(json.dumps({"type": "session.update", "session": {
-                        "type": "realtime", "output_modalities": ["audio"], "tools": [],
-                        "tool_choice": "none", "audio": {"output": {
-                            "format": {"type": "audio/pcm", "rate": 24000}, "voice": voice}}}}))
-                    # Wait for validation before starting billable generation.
-                    while True:
-                        item = json.loads(await ws.recv())
-                        if item.get("type") == "error":
-                            raise AgentError("openai_tts_configuration_rejected")
-                        if item.get("type") == "session.updated":
-                            break
+                                     max_size=1048576, max_queue=4)
+                async with connection as ws:
+                    if _turn is None:await configure_voice(ws,voice)
                     await ws.send(json.dumps({"type": "response.create", "response": {
                         "conversation": "none", "output_modalities": ["audio"], "tools": [],
                         "tool_choice": "none", "max_output_tokens": 4096,
@@ -202,3 +195,50 @@ class Speech:
         except Exception:
             # Never expose provider errors, handshake headers or credentials.
             raise AgentError("openai_tts_unavailable") from None
+
+async def configure_voice(ws,voice):
+    await ws.send(json.dumps({'type':'session.update','session':{'type':'realtime','output_modalities':['audio'],
+        'tools':[],'tool_choice':'none','audio':{'output':{'format':{'type':'audio/pcm','rate':24000},'voice':voice}}}}))
+    while True:
+        item=json.loads(await ws.recv())
+        if item.get('type')=='error':raise AgentError('openai_tts_configuration_rejected')
+        if item.get('type')=='session.updated':return
+
+class SpeechTurn:
+    """One response, one user, one voice. No history and no cross-turn pooling."""
+    def __init__(self,speech):self.speech=speech;self.stack=AsyncExitStack();self.ready=None;self.voice=None;self.ws=None;self.busy=False
+    async def __aenter__(self):await self.stack.__aenter__();return self
+    async def __aexit__(self,*args):
+        if self.ready is not None:
+            self.ready.cancel();await asyncio.gather(self.ready,return_exceptions=True)
+        await self.stack.__aexit__(*args)
+    async def prepare(self,provider,voice,*,paid_consent=False):
+        if provider!='openai':return
+        if not paid_consent:raise AgentError('openai_tts_consent_required')
+        if voice not in OPENAI_VOICES:raise AgentError('unsupported_tts_voice')
+        if self.voice is not None and self.voice!=voice:raise AgentError('tts_voice_changed_in_turn')
+        if self.ready is None:
+            self.voice=voice;self.ready=asyncio.create_task(self._prepare())
+        await self.ready
+    async def _prepare(self):
+        key=self.speech.api_key if self.speech.api_key is not None else await asyncio.to_thread(load_openai_key)
+        if not key:raise AgentError('openai_tts_key_missing')
+        from websockets.asyncio.client import connect
+        connector=self.speech.connector or connect
+        async with asyncio.timeout(10):
+            self.ws=await self.stack.enter_async_context(connector('wss://api.openai.com/v1/realtime?model='+TTS_MODEL,
+                additional_headers={'Authorization':'Bearer '+key,'OpenAI-Safety-Identifier':'gobot-home-owner'},
+                proxy=None,open_timeout=5,close_timeout=2,max_size=1048576,max_queue=4))
+            await configure_voice(self.ws,self.voice)
+    @asynccontextmanager
+    async def connection(self,voice,consent):
+        await self.prepare('openai',voice,paid_consent=consent)
+        if self.busy:raise AgentError('tts_concurrent_turn_response')
+        self.busy=True
+        try:yield self.ws
+        finally:self.busy=False
+    async def synthesize(self,text,provider='openai',voice='marin',*,paid_consent=False):
+        iterator=self.speech.synthesize(text,provider,voice,paid_consent=paid_consent,_turn=self)
+        try:
+            async for chunk in iterator:yield chunk
+        finally:await iterator.aclose()

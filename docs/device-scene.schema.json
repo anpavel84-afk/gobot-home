@@ -1,0 +1,90 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "namespace": {
+      "const": "gobot.ui",
+      "default": "gobot.ui",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "version": {
+      "const": 2,
+      "default": 2,
+      "title": "Version",
+      "type": "integer"
+    },
+    "command": {
+      "const": "scene.show",
+      "default": "scene.show",
+      "title": "Command",
+      "type": "string"
+    },
+    "turn_id": {
+      "maxLength": 100,
+      "title": "Turn Id",
+      "type": "string"
+    },
+    "scene_type": {
+      "enum": [
+        "avatar",
+        "icon",
+        "image",
+        "diagram",
+        "widget",
+        "info_card"
+      ],
+      "title": "Scene Type",
+      "type": "string"
+    },
+    "strategy": {
+      "enum": [
+        "retrieve_photo",
+        "generate_illustration",
+        "render_diagram",
+        "render_widget",
+        "show_emoji_or_icon",
+        "show_avatar"
+      ],
+      "title": "Strategy",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 80,
+      "title": "Title",
+      "type": "string"
+    },
+    "icon": {
+      "anyOf": [
+        {
+          "maxLength": 12,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Icon"
+    },
+    "duration_seconds": {
+      "maximum": 120,
+      "minimum": 0,
+      "title": "Duration Seconds",
+      "type": "integer"
+    },
+    "preserve_visual": {
+      "default": false,
+      "title": "Preserve Visual",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "turn_id",
+    "scene_type",
+    "strategy",
+    "title",
+    "duration_seconds"
+  ],
+  "title": "DeviceSceneCommand",
+  "type": "object"
+}

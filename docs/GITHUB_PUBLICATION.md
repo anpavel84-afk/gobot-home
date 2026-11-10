@@ -30,3 +30,12 @@ Normal workflow: local changes → relevant pytest/Node checks → review staged
 and secret scan → commit → git push. Credentials remain in the existing gh login;
 the repository-local credential helper contains a command, not a token. Global
 Git configuration, SSH files and existing CLI account stores are not changed.
+
+Device/composer publication check: all 227 index files scanned with Gitleaks
+8.30.1, 0 findings. Independent path/magic checks found 0 private artifacts.
+The only binary files are the project's two procedural PWA PNG icons; no family
+photographs or voice recordings are tracked. 519 pytest and five Node fixtures
+passed; private HTTPS device/image checks made no paid model requests and saved
+no test dialogue. Public visibility, master default and disabled Actions were
+confirmed again before push. iPhone rendering/wake-word quality remain unverified;
+source publication does not imply hardware or acoustic acceptance.

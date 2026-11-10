@@ -1,5 +1,39 @@
 # Фактический статус — 10 ноября 2026
 
+## Последнее обновление: Visual-first и режим устройства
+
+Доступен https://plan.tailffc57c.ts.net:18786/device . Панель содержит кнопку
+«Режим устройства» и сохранение Classic/Soft/Minimal/цветов/заставки/визуальных
+предпочтений. Отдельный круглый raster 240×240, удержание → общий capture/STT →
+автоматический send. События turn-bound, реальные playback RMS управляют лицом,
+поздние картинки/дубли не переключают новый ответ. Политики расходов/PIN сохранены.
+OpenAI STT/TTS основные, никаких Gemini CLI/API или новых AI providers.
+
+VisualResponseComposer выбирает сцену каждого product reply (включая avatar).
+Фото, восемь локальных обучающих иллюстраций, карточки и живой серверный таймер.
+Optional visual parallel to speech, no extra LLM. Пончик, кратер, подсолнух реально
+получены через Openverse; общий поиск всё ещё best-effort. Погода/музыка/актуальные
+праздники не имеют проверенного источника и честно недоступны.
+
+Исправлены порядковые падежи дат в Speech Formatter: «десятого ноября»,
+«пятнадцатого ноября», отдельно «сегодня десятое ноября». Display остаётся исходным.
+Один TTS WS на ответ, фразы conversation:none, handshake параллелен тексту;
+влияние новой оптимизации на реальную задержку ещё не измерено.
+
+519 pytest, пять Node harness, 32 synthetic composer cases; локальный composer
+p50 0.0148 / p95 0.0198 мс, без сети/моделей. HTTPS device transport и 14 visual
+сценариев + repeat прошли. В новых проверках 0 платных вызовов и 0 сохранённых
+тестовых сообщений. Реальный новый voice/device E2E на iPhone не проверен.
+Русский wake word НЕ настроен: подходящей проверенной модели нет; только bounded
+local adapter/guards и fixtures, нет внешнего API в PTT ожидании. ESP32 не подключён.
+
+GitHub connector подтверждён; публичный https://github.com/anpavel84-afk/gobot-home,
+master, Actions отключены. Перед каждой публикацией — проверка staged/history.
+DEVICE_MODE.md, MULTIMODAL_RESPONSES.md, device-e2e.json, composer-evaluation.json,
+GITHUB_PUBLICATION.md описывают реализацию и границы проверки.
+
+## Сведения предыдущих этапов (исторические результаты)
+
 Основной продукт: https://plan.tailffc57c.ts.net:18786 . Включить Tailscale и открыть
 в Safari; HTTP :18785 — отдельный старый mock-стенд. Доверенный TLS, точный allowlist
 компьютера и iPhone. Brain/Bridge/fixture voice/images отвечают на healthcheck.

@@ -1,0 +1,78 @@
+{
+  "transport": "private Tailscale HTTPS, certificate verified",
+  "checks": [
+    {
+      "asset": "/device",
+      "status": 200,
+      "bytes": 1982
+    },
+    {
+      "asset": "/device.js",
+      "status": 200,
+      "bytes": 13295
+    },
+    {
+      "asset": "/device-renderer.js",
+      "status": 200,
+      "bytes": 10580
+    },
+    {
+      "asset": "/device-settings.js",
+      "status": 200,
+      "bytes": 4363
+    },
+    {
+      "asset": "/device.css",
+      "status": 200,
+      "bytes": 1906
+    },
+    {
+      "asset": "/manifest.webmanifest",
+      "status": 200,
+      "bytes": 299
+    },
+    {
+      "asset": "/device-icon-192.png",
+      "status": 200,
+      "bytes": 914
+    },
+    {
+      "asset": "/device-icon-512.png",
+      "status": 200,
+      "bytes": 2644
+    },
+    {
+      "case": "Привет, ГоБот!",
+      "diagnostic_mode": "mock",
+      "provider": "mock",
+      "scene": "avatar",
+      "frames": 0,
+      "ms": 312.26
+    },
+    {
+      "case": "Что такое солнечное затмение?",
+      "diagnostic_mode": "mock",
+      "provider": "mock",
+      "scene": "diagram",
+      "frames": 1,
+      "ms": 283.4
+    },
+    {
+      "case": "Поставь таймер на 5 минут",
+      "diagnostic_mode": "auto",
+      "provider": "local",
+      "scene": "widget",
+      "frames": 1,
+      "ms": 734.03
+    }
+  ],
+  "profile_id_survives_fetch": true,
+  "cross_origin_write_rejected": true,
+  "test_timer_cancelled": true,
+  "persistent_test_messages": 0,
+  "paid_api_calls": 0,
+  "cli_calls": 0,
+  "microphone_calls": 0,
+  "iphone_or_browser_render_verified": false,
+  "wake_word_configured": false
+}

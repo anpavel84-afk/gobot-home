@@ -21,7 +21,9 @@ class MockUIRenderer:
         if envelope.get('type')!='custom':raise ValueError('Not a UI envelope')
         if envelope.get('payload',{}).get('version')==2:
             from .presentation import ESP32Presentation
-            command=ESP32Presentation.model_validate(envelope['payload'])
+            from .device_contract import DeviceSceneCommand
+            model=DeviceSceneCommand if envelope['payload'].get('command')=='scene.show' else ESP32Presentation
+            command=model.model_validate(envelope['payload'])
         else:command=UICommand.model_validate(envelope['payload'])
         if len(self.queue)>=16:raise ValueError('UI queue full')
         self.queue.append(command)

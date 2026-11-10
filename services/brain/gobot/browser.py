@@ -12,6 +12,8 @@ from .models import VoiceRequest
 from pydantic import ValidationError
 from contextlib import asynccontextmanager
 from .antigravity_login import AntigravityLogin
+from .device_store import DeviceStore
+from .activation import WakeWordActivationService
 
 from .secrets_store import openai_key_present, save_openai_key
 
@@ -25,7 +27,7 @@ def create_browser_app(settings=None):
     if settings is None:
         from .config import load
         settings=load()
-    login=AntigravityLogin()
+    login=AntigravityLogin();devices=DeviceStore(Path(settings.db).resolve().parent/'browser-devices')
     @asynccontextmanager
     async def lifespan(app):
         yield
@@ -34,6 +36,7 @@ def create_browser_app(settings=None):
     slots=asyncio.Semaphore(2)
     auth={'Authorization':'Bearer '+settings.api_token}
     def device(request):return 'browser-'+request.client.host.replace('.','-')
+    def device_scope(request,owner):return owner+'@'+request.client.host
     async def subject(request):
         value=request.cookies.get('gobot_profile','')
         try:
@@ -69,6 +72,9 @@ def create_browser_app(settings=None):
                     body['device_id']=device(request)
                     body['conversation_id']=str(uuid5(NAMESPACE_URL,str(body.get('conversation_id',''))+':guest:'+device(request)))
                     downgraded=True
+            profile=await asyncio.to_thread(devices.profile,device_scope(request,body['device_id']))
+            body['screen_preferences']=profile.screen.model_dump()
+            if body.get('client_kind')=='device':body['client_id']=profile.client_id
             body.setdefault('mode','auto')
             req=VoiceRequest.model_validate(body)
         except (ValueError,TypeError,AttributeError):raise HTTPException(422,'invalid_chat_request')
@@ -292,7 +298,7 @@ def create_browser_app(settings=None):
         response = await call_next(request)
         response.headers.update({"Cache-Control": "no-store", "Referrer-Policy": "no-referrer",
                                  "X-Content-Type-Options": "nosniff", "X-Frame-Options": "DENY",
-                                 "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' wss://plan.tailffc57c.ts.net:18786; media-src 'self' blob:; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+                                 "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self' wss://plan.tailffc57c.ts.net:18786; media-src 'self' blob:; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
                                  "Permissions-Policy": "microphone=(self), camera=(), geolocation=()"})
         return response
 
@@ -371,10 +377,57 @@ def create_browser_app(settings=None):
     async def index():
         return FileResponse(ROOT / "services/phone/dist/browser.html", media_type="text/html")
 
+    @app.get('/device')
+    async def device_page():return FileResponse(ROOT/'services/phone/dist/device.html',media_type='text/html')
+
+    @app.get('/api/device/profile')
+    async def device_profile(request:Request):
+        profile=await asyncio.to_thread(devices.profile,device_scope(request,await subject(request)))
+        return {'profile':profile.model_dump(),'capabilities':profile.capabilities(),'activation':WakeWordActivationService().status()}
+
+    @app.post('/api/device/profile')
+    async def device_profile_save(request:Request):
+        body=bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body)>16000:raise HTTPException(413)
+        try:profile=await asyncio.to_thread(devices.update,device_scope(request,await subject(request)),json.loads(body))
+        except (ValueError,TypeError):raise HTTPException(422,'invalid_device_profile')
+        return {'profile':profile.model_dump(),'capabilities':profile.capabilities()}
+
+    @app.post('/api/device/screensaver')
+    async def screensaver_upload(request:Request):
+        body=bytearray()
+        async for chunk in request.stream():
+            body.extend(chunk)
+            if len(body)>2*1024*1024:raise HTTPException(413)
+        try:await asyncio.to_thread(devices.upload,device_scope(request,await subject(request)),bytes(body),request.headers.get('content-type','').split(';')[0])
+        except Exception:raise HTTPException(422,'invalid_screensaver')
+        return {'saved':True,'raw_upload_saved':False}
+
+    @app.get('/api/device/screensaver')
+    async def screensaver_get(request:Request):
+        from fastapi.responses import Response
+        try:data=await asyncio.to_thread(devices.image,device_scope(request,await subject(request)))
+        except (OSError,KeyError,ValueError):raise HTTPException(404)
+        return Response(data,media_type='image/jpeg')
+
+    @app.delete('/api/device/screensaver')
+    async def screensaver_delete(request:Request):
+        await asyncio.to_thread(devices.remove_image,device_scope(request,await subject(request)));return {'deleted':True}
+
+    @app.get('/api/device/timers')
+    async def device_timers(request:Request):
+        async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
+            result=await client.get('http://127.0.0.1:18781/api/v1/timers',headers=auth,params={'device_id':await subject(request)})
+            return JSONResponse(result.json(),status_code=result.status_code)
+
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
+        assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
+        assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'
         if asset not in assets:
             raise HTTPException(404)
         return FileResponse(ROOT / "services/phone/dist" / asset, media_type=assets[asset])

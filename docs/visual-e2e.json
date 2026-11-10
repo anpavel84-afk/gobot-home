@@ -1,16 +1,19 @@
 {
   "transport": "private Tailscale HTTPS, certificate verified",
   "real_public_images": true,
-  "synthetic_images": false,
-  "source": "Openverse public thumbnail API, curated Flickr images",
+  "synthetic_images": true,
+  "neural_image_generation": false,
+  "source": "Openverse/Flickr photos and local procedural diagrams",
   "cases": [
     {
       "case": "oxheart",
       "type": "image_gallery",
       "state": "ready",
       "images": 2,
-      "cache_hit": false,
-      "ms": 841.610600000422,
+      "synthetic": false,
+      "source": "Openverse · Flickr",
+      "cache_hit": true,
+      "ms": 251.86850000318373,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -68,8 +71,10 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
-      "cache_hit": false,
-      "ms": 191.74259999999776,
+      "synthetic": false,
+      "source": "Openverse · Flickr",
+      "cache_hit": true,
+      "ms": 198.54119999945397,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -103,8 +108,10 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
-      "cache_hit": false,
-      "ms": 185.64080000214744,
+      "synthetic": false,
+      "source": "Openverse · Flickr",
+      "cache_hit": true,
+      "ms": 197.34690000041155,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -138,8 +145,10 @@
       "type": "timer_widget",
       "state": "ready",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 189.46029999642633,
+      "ms": 235.56829999870388,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -148,8 +157,10 @@
       "type": "weather_card",
       "state": "unavailable",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 179.95809999410994,
+      "ms": 218.2572000019718,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -158,8 +169,10 @@
       "type": "music_card",
       "state": "unavailable",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 184.4111000027624,
+      "ms": 194.75580000289483,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -168,8 +181,10 @@
       "type": "rich_answer",
       "state": "ready",
       "images": 1,
+      "synthetic": true,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 214.6273000034853,
+      "ms": 205.54730000003474,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -203,8 +218,10 @@
       "type": "info_card",
       "state": "ready",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 179.5983000047272,
+      "ms": 192.29020000057062,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -213,8 +230,10 @@
       "type": "info_card",
       "state": "unavailable",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 183.32549999468029,
+      "ms": 188.0964000010863,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -223,8 +242,10 @@
       "type": "status_card",
       "state": "ready",
       "images": 0,
+      "synthetic": false,
+      "source": "GoBot · локально",
       "cache_hit": false,
-      "ms": 180.59850000281585,
+      "ms": 193.59540000004927,
       "short_speech_fragments": 1,
       "variants": []
     },
@@ -233,8 +254,10 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
+      "synthetic": false,
+      "source": "Openverse · flickr",
       "cache_hit": true,
-      "ms": 188.99010000313865,
+      "ms": 196.61059999634745,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -268,8 +291,10 @@
       "type": "image_card",
       "state": "ready",
       "images": 1,
+      "synthetic": false,
+      "source": "Openverse · flickr",
       "cache_hit": true,
-      "ms": 186.93189999612514,
+      "ms": 199.36369999777526,
       "short_speech_fragments": 1,
       "variants": [
         {
@@ -299,9 +324,83 @@
       ]
     },
     {
+      "case": "doughnut",
+      "type": "image_card",
+      "state": "ready",
+      "images": 1,
+      "synthetic": false,
+      "source": "Openverse · flickr",
+      "cache_hit": true,
+      "ms": 238.72519999713404,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 32059
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 25065
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 9582
+        }
+      ]
+    },
+    {
+      "case": "solar-diagram",
+      "type": "rich_answer",
+      "state": "ready",
+      "images": 1,
+      "synthetic": true,
+      "source": "GoBot · локально",
+      "cache_hit": false,
+      "ms": 233.4703000014997,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            960,
+            560
+          ],
+          "bytes": 31855
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            280
+          ],
+          "bytes": 12048
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 4612
+        }
+      ]
+    },
+    {
       "case": "repeat_oxheart",
       "cache_hit": true,
-      "ms": 189.8418999990099
+      "ms": 204.9403999990318
     }
   ],
   "persistent_message_delta": 0,

@@ -21,7 +21,7 @@
       this.loadingNow=false;this.root.hidden=false;
       if(!this.frames.size)this.root.replaceChildren();
       const card=node('article',undefined,'visual-card visual-'+frame.type);card.dataset.visualId=frame.id;
-      const header=node('div',undefined,'visual-heading');header.append(node('span',icons[frame.type],'visual-icon'),node('h3',frame.title||'Визуальный ответ'));card.append(header);
+      const header=node('div',undefined,'visual-heading');header.append(node('span',frame.metadata?.icon||icons[frame.type],'visual-icon'),node('h3',frame.title||'Визуальный ответ'));card.append(header);
       if(frame.subtitle)card.append(node('p',frame.subtitle,'visual-subtitle'));
       const body=node('p',frame.text||'','visual-body');card.append(body);
       const images=Array.isArray(frame.images)?frame.images.slice(0,4):[];const gallery=node('div',undefined,'visual-gallery');let count=0;
@@ -40,6 +40,7 @@
       if(count)card.append(gallery);
       else if(['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
+      if(state.synthetic)card.append(node('small','Условная иллюстрация · создана локально · не фотография','visual-state'));
       if(state.selection_basis==='source_metadata_search_unverified')card.append(node('small','Результаты поиска по метаданным; точное соответствие объекту не подтверждено.','visual-state'));
       if(frame.type==='timer_widget'&&Number.isFinite(state.deadline)){
         this.currentTimer=state.timer_id||null;const timer=node('output',undefined,'visual-countdown');timer.setAttribute('role','timer');timer.setAttribute('aria-live','off');card.append(timer);

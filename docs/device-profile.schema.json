@@ -1,0 +1,217 @@
+{
+  "$defs": {
+    "DeviceDisplay": {
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "const": "circle",
+          "default": "circle",
+          "title": "Shape",
+          "type": "string"
+        },
+        "width": {
+          "default": 240,
+          "maximum": 480,
+          "minimum": 128,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 240,
+          "maximum": 480,
+          "minimum": 128,
+          "title": "Height",
+          "type": "integer"
+        },
+        "safe_inset": {
+          "default": 35,
+          "maximum": 80,
+          "minimum": 16,
+          "title": "Safe Inset",
+          "type": "integer"
+        }
+      },
+      "title": "DeviceDisplay",
+      "type": "object"
+    },
+    "DeviceSkin": {
+      "additionalProperties": false,
+      "properties": {
+        "skin_id": {
+          "default": "classic",
+          "enum": [
+            "classic",
+            "soft",
+            "minimal"
+          ],
+          "title": "Skin Id",
+          "type": "string"
+        },
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "face_color": {
+          "default": "#a3e5cd",
+          "pattern": "^#[a-fA-F0-9]{6}$",
+          "title": "Face Color",
+          "type": "string"
+        },
+        "background": {
+          "default": "#0c141a",
+          "pattern": "^#[a-fA-F0-9]{6}$",
+          "title": "Background",
+          "type": "string"
+        },
+        "eyes": {
+          "default": "default",
+          "enum": [
+            "default",
+            "round",
+            "oval",
+            "line"
+          ],
+          "title": "Eyes",
+          "type": "string"
+        },
+        "mouth": {
+          "default": "default",
+          "enum": [
+            "default",
+            "smile",
+            "neutral",
+            "small"
+          ],
+          "title": "Mouth",
+          "type": "string"
+        },
+        "animation_intensity": {
+          "default": 0.6,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Animation Intensity",
+          "type": "number"
+        },
+        "reduced_motion": {
+          "default": false,
+          "title": "Reduced Motion",
+          "type": "boolean"
+        },
+        "idle_screen": {
+          "default": "face",
+          "enum": [
+            "face",
+            "clock",
+            "image"
+          ],
+          "title": "Idle Screen",
+          "type": "string"
+        }
+      },
+      "title": "DeviceSkin",
+      "type": "object"
+    },
+    "ScreenPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "automatic_illustrations": {
+          "default": true,
+          "title": "Automatic Illustrations",
+          "type": "boolean"
+        },
+        "style": {
+          "default": "balanced",
+          "enum": [
+            "minimal",
+            "balanced",
+            "rich"
+          ],
+          "title": "Style",
+          "type": "string"
+        },
+        "prefer_real_photos": {
+          "default": true,
+          "title": "Prefer Real Photos",
+          "type": "boolean"
+        },
+        "generation_allowed": {
+          "default": false,
+          "title": "Generation Allowed",
+          "type": "boolean"
+        },
+        "thematic_icons": {
+          "default": true,
+          "title": "Thematic Icons",
+          "type": "boolean"
+        },
+        "hold_after_response_seconds": {
+          "default": 12,
+          "maximum": 120,
+          "minimum": 0,
+          "title": "Hold After Response Seconds",
+          "type": "integer"
+        },
+        "return_to_idle": {
+          "default": true,
+          "title": "Return To Idle",
+          "type": "boolean"
+        }
+      },
+      "title": "ScreenPreferences",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1,
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "client_id": {
+      "pattern": "^browser-device-[a-f0-9-]{36}$",
+      "title": "Client Id",
+      "type": "string"
+    },
+    "client_kind": {
+      "const": "browser_device",
+      "default": "browser_device",
+      "title": "Client Kind",
+      "type": "string"
+    },
+    "display": {
+      "$ref": "#/$defs/DeviceDisplay"
+    },
+    "skin": {
+      "$ref": "#/$defs/DeviceSkin"
+    },
+    "screen": {
+      "$ref": "#/$defs/ScreenPreferences"
+    },
+    "interaction_mode": {
+      "default": "hold",
+      "enum": [
+        "hold",
+        "toggle",
+        "wake"
+      ],
+      "title": "Interaction Mode",
+      "type": "string"
+    },
+    "keep_screen_awake": {
+      "default": false,
+      "title": "Keep Screen Awake",
+      "type": "boolean"
+    },
+    "has_screensaver": {
+      "default": false,
+      "title": "Has Screensaver",
+      "type": "boolean"
+    }
+  },
+  "title": "DeviceProfile",
+  "type": "object"
+}

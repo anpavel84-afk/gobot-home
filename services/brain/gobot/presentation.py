@@ -58,6 +58,12 @@ class VisualMetadata(Strict):
     query_sent_to_source:bool=False
     approximate_match:bool=False
     selection_basis:Literal['local_state','curated_visual_review','source_metadata_search_unverified']='local_state'
+    visual_priority:Literal['required','helpful','optional']='required'
+    visual_strategy:Literal['retrieve','generate','render_local','mixed']='render_local'
+    synthetic:bool=False
+    backend:str|None=Field(default=None,max_length=80)
+    icon:str|None=Field(default=None,max_length=12)
+    template:str|None=Field(default=None,max_length=50)
     deadline:float|None=Field(default=None,allow_inf_nan=False)
     duration_ms:int|None=Field(default=None,ge=1,le=86400000)
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
@@ -145,6 +151,9 @@ class ESP32Presentation(Strict):
     image:CompactImage|None=None
     credit:CompactCredit|None=None
     deadline:float|None=Field(default=None,allow_inf_nan=False)
+    synthetic:bool=False
+    visual_strategy:Literal['retrieve','generate','render_local','mixed']='render_local'
+    template:str|None=Field(default=None,max_length=50)
     @model_validator(mode='after')
     def credit_required(self):
         if self.image and not self.credit:raise ValueError('Image credit must not be dropped')
@@ -154,12 +163,13 @@ def esp32_projection(frame:Presentation):
     """Compact JSON only. Native firmware must enqueue it in the GUI task.
     Image download/MCP invocation is separately capability/permission gated.
     """
-    payload={'namespace':'gobot.ui','version':2,'command':'presentation.show','id':frame.id,'type':frame.type,'title':frame.title[:80],'text':frame.text[:240],'state':frame.metadata.state}
+    payload={'namespace':'gobot.ui','version':2,'command':'presentation.show','id':frame.id,'type':frame.type,'title':frame.title[:80],'text':frame.text[:240],'state':frame.metadata.state,'synthetic':frame.metadata.synthetic,'visual_strategy':frame.metadata.visual_strategy}
     if frame.images:
         image=frame.images[0]
         payload['image']={'asset_id':image.asset_id,'variant':'device','width':240,'height':240,'mime':'image/jpeg','max_bytes':65536}
         payload['credit']={'author':image.attribution,'source':image.source.model_dump(),'license':image.license,'license_url':image.license_url,'changes':image.changes}
     if frame.metadata.deadline is not None:payload['deadline']=frame.metadata.deadline
+    if frame.metadata.template is not None:payload['template']=frame.metadata.template
     import json
     payload=ESP32Presentation.model_validate(payload).model_dump(exclude_none=True)
     if len(json.dumps(payload,ensure_ascii=False).encode())>8192:raise ValueError('Device UI metadata limit')

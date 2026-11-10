@@ -103,3 +103,30 @@ CLI/STT/TTS, использует remember=false и останавливает �
 Benchmark требует уже заполненный кэш и запрещает сетевые загрузки.
 Запуск/остановка продукта прежние: scripts/manage.py start|stop и scripts/web.py
 start|stop. Новый listener или Windows autostart не добавлялся.
+
+## Device mode и проверка без платных вызовов
+
+Панель → «Устройство → Экран и внешний вид» → Classic/Soft/Minimal → сохранить.
+Разрешения расходов и основной голос выбираются в прежних настройках; кнопка
+«Режим устройства» переносит фактический выбор, не включает расходы сама.
+Открыть /device → «Включить GoBot» → удерживать круг → отпустить. Общая запись/STT
+автоматически отправляет финальную фразу. Для остановки ответа — кнопка или новое
+удержание. Полное отключение — «Микрофон выключить». После ухода/блокировки нажать
+«Возобновить GoBot». Wake «ГоБот» пока недоступен, не заменяется облачным прослушиванием.
+
+```powershell
+.venv/Scripts/python.exe -X utf8 scripts/e2e_device.py
+node tests/device_ui.cjs
+node tests/device_shared_client.cjs
+node tests/capture_activity.cjs
+```
+
+E2E проверяет прежний private HTTPS и локальный таймер, текст на mock, speak=false,
+remember=false; не вызывает микрофон/STT/TTS/CLI. Unit fixtures проверяют сохранение
+скина после нового DeviceStore, server ownership и сценарий hold→STT→auto-send.
+Реальная запись/воспроизведение Safari требуют отдельной проверки на телефоне.
+Профиль: data/browser-devices/profiles.sqlite; резервировать SQLite backup API,
+нормализованные screensaver JPEG сохранять как приватные данные, не в Git.
+
+Обычная публикация исходников: тесты → staged diff + secret scan → commit → git push.
+origin/master: https://github.com/anpavel84-afk/gobot-home . Новые релизы/Actions не нужны.

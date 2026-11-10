@@ -26,23 +26,28 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
 
     async def produce_text():
         nonlocal text_final
+        sentences_closed=False
         iterator = service.events(request, replay)
         try:
             async for item in iterator:
+                if item.type=='tool_status' and item.data.get('status')=='speech_input_complete':
+                    if not sentences_closed:await sentences.put(None);sentences_closed=True
+                    continue
                 if item.type == "final":
                     text_final = item.model_dump()
                 else:
                     await output.put(item.model_dump())
-                if item.type == "sentence_ready" and speak and not tts_failed and not replay:
+                if item.type == "sentence_ready" and speak and not tts_failed and not replay and not sentences_closed:
+                    measurements.setdefault('first_sentence_ready',(time.perf_counter()-start)*1000)
                     await sentences.put(item.data["text"])
                 if item.type in {"error", "cancelled"}:
                     audio_cancel.set()
                     await output.put(audio_event('audio_stop',audio_id=audio_id,reason=item.type))
-            await sentences.put(None)
+            if not sentences_closed:await sentences.put(None)
         finally:
             await iterator.aclose()
 
-    async def produce_audio():
+    async def consume_audio(synthesizer):
         nonlocal seq, tts_failed
         first = True;segment_sequence=0
         while True:
@@ -58,7 +63,8 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 segment_id=audio_id+':'+str(segment_sequence);segment_sequence+=1
                 service.memory.archive.speech(request,segment_id,segment_sequence,text,'submitted_to_tts')
                 synthesis_started=time.perf_counter()
-                async for pcm, rate in speech.synthesize(text, tts_provider, tts_voice, paid_consent=paid_tts_consent):
+                if first:await output.put(audio_event('tts_status',status='preparing',provider=tts_provider))
+                async for pcm, rate in synthesizer.synthesize(text, tts_provider, tts_voice, paid_consent=paid_tts_consent):
                     if audio_cancel.is_set():
                         break
                     if first:
@@ -85,12 +91,25 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
         if speak:
             await output.put(audio_event('audio_stop',audio_id=audio_id,reason='finished' if not tts_failed else 'tts_error'))
 
+    async def produce_audio():
+        if not hasattr(speech,'turn'):return await consume_audio(speech)
+        async with speech.turn() as synthesizer:
+            # Handshake only: no response.create, no placeholder speech, no retries.
+            # It is allowed solely for this owner's explicit per-request speech consent.
+            prepare=None
+            if speak and paid_tts_consent and not replay and tts_provider=='openai':
+                prepare=asyncio.create_task(synthesizer.prepare(tts_provider,tts_voice,paid_consent=True))
+            try:await consume_audio(synthesizer)
+            finally:
+                if prepare is not None:prepare.cancel();await asyncio.gather(prepare,return_exceptions=True)
+
     async def run():
         try:
             async with asyncio.TaskGroup() as group:
                 group.create_task(produce_text())
                 group.create_task(produce_audio())
             if text_final:
+                text_final['data']['speech_metrics']=dict(measurements)
                 await output.put(text_final)
         finally:
             service.memory.record_metrics(request.turn_id,tts_provider,measurements)
@@ -101,6 +120,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
             else:
                 await output.put(None)
 
+    service.active_voice_streams=getattr(service,'active_voice_streams',0)+1
     worker = asyncio.create_task(run())
     try:
         while (item := await output.get()) is not None:
@@ -109,3 +129,4 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
     finally:
         worker.cancel()
         await asyncio.gather(worker, return_exceptions=True)
+        service.active_voice_streams-=1

@@ -77,3 +77,25 @@ Pillow, httpx, Pydantic и SQLite из существующего requirements.l
 зависимость без git SHA; отказ/изменение снимка даёт честный fallback. Прямой
 Wikimedia адаптер подготовлен отдельно, на этом хосте получен HTTP 403.
 Политика/проверки: VISUAL_PIPELINE.md, visual-e2e.json. Upstream SHAs не менялись.
+
+## Device / Multimodal response — 10 ноября 2026
+
+Новых runtime Python/Node пакетов нет. Device renderer — собственные canvas/CSS
+примитивы; иконки PWA процедурно созданы в проекте, не семейные фотографии.
+Процедурные схемы используют существующий Pillow. Neural imagegen не подключён.
+Wake detector не установлен: English pretrained openWakeWord не подтверждает
+русское «ГоБот»; sherpa_onnx сам по себе не предоставляет проверенную KWS-модель.
+
+Опциональный русско-английский noun/adjective lexicon: FreeDict/WikDict rus-eng
+2025.11.23, 33717 headwords, CC BY-SA 3.0. Source archive:
+https://download.freedict.org/dictionaries/rus-eng/2025.11.23/freedict-rus-eng-2025.11.23.src.tar.xz
+SHA512: `9adf7a5eda27ccfa3e496b86b2fd575fc0e4af7ac5626a219d44e4ebfd56280deaf67cefd995ab04e9d7ef415e88f8cf0f9cae3252da6221376fd6d0c39012ba`.
+Программа scripts/prepare_visual_dictionary.py проверяет checksum, извлекает
+только ограниченные TEI/COPYING members без tar extraction, записывает provenance,
+license и описание преобразования. Archive/lexicon/license — ignored vendor/dictionaries.
+Словарь помогает image query, не ограничивает поддержку только включёнными словами.
+Без него исходный русский запрос остаётся best-effort путём Openverse.
+
+TTS WS reuse: официальный out-of-band response.create с conversation:none и custom
+input, https://developers.openai.com/api/docs/guides/realtime-conversations .
+Новая оптимизация проверена fixtures, не новым платным API probe.
