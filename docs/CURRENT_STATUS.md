@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `9b78a1c1b904848174d11026657f48d1d7889b60`.
+  Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `4f239089a146d23b177810062e0d32bd74b7a0ef`.
   Default по-прежнему legacy; B доступен по отдельному тестовому лимиту (§16.2).
   Исторические проверки стабилизации — раздел 10.
 
@@ -894,3 +894,19 @@ close. Native/browser/expert subset: 45 passed / 8.73 s. Full suite перед d
 выполняется отдельно. Реальные вызовы разработчиком для этого переключения не запускались.
 
 Итог полного набора: **1143 passed / 35.01 s**. GET native status теперь no-store, чтобы телефон не сохранял старое состояние «проба использована». Нового оплаченного developer вызова не было.
+
+
+### 19.1. Допуск включён и проверен на сервере
+
+Runtime 4f23908 опубликован и загружен; перед restart все legacy/native операции
+отсутствовали. Новая owner_interactive authorization действует до отзыва: counts,
+application session duration и expiry=null, output cap=4096. Привязка к прежнему
+клиенту iPhone сохранена, realtime_consent=true. Старый policy snapshot сохранён
+в ignored run/realtime/policy-history; usage SQLite не сбрасывалась. CLI/ImageGen OFF.
+
+Реальный GET status подтверждает unlimited_manual_testing=true, sessions_remaining=null,
+no-store; A/B/device routes HTTP200, active sessions=0 и pending hangups=0 на момент
+включения. Новый developer оплаченный вызов не создавался. Подтверждение:
+`realtime-owner-manual-admission.json`. Фактический iPhone audio retest выполняет
+владелец в удобном ему количестве; старое отрицательное состояние страницы надо
+обновить, чтобы загрузить исправленный browser preflight.

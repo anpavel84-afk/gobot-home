@@ -188,3 +188,5 @@ Runtime 9b78a1c загружен; 1139 regression tests passed. Desktop UI sourc
 | Costs/consent/ACL/cleanup сохранены | existing budget, session expiry/Stop and typed gateway | Revocation/client/consent fixtures; CLI/ImageGen отдельны и OFF |
 
 См. CURRENT_STATUS.md §19. Старые one-time trials остаются историческими фактами и не переоткрываются.
+
+Owner manual admission включён на runtime 4f23908: limits/expiry=null, allowed phone client, CLI/ImageGen OFF. Реальный status/HTTP подтверждены в realtime-owner-manual-admission.json. Full suite: 1143 passed / 35.01 s; повторный звук на iPhone не подменяется этими проверками.

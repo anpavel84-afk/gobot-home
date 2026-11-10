@@ -1,0 +1,29 @@
+{
+  "code_commit": "4f239089a146d23b177810062e0d32bd74b7a0ef",
+  "owner_explicitly_authorized_ongoing_manual_testing": true,
+  "audience": "owner_interactive",
+  "manual_sessions_limit": null,
+  "manual_responses_limit": null,
+  "application_session_seconds_limit": null,
+  "authorization_expiry": null,
+  "max_output_tokens": 4096,
+  "client_bound": true,
+  "expert_jobs_allowed": false,
+  "image_generation_allowed": false,
+  "old_policy_archived_privately": true,
+  "prior_usage_not_reset": true,
+  "sessions_reserved_for_new_authorization": 0,
+  "active_sessions": 0,
+  "pending_hangups": 0,
+  "new_paid_developer_calls": 0,
+  "status_cache_control": "no-store",
+  "http_checks": {
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200
+  },
+  "tests_passed": 1143,
+  "tests_seconds": 35.01,
+  "default_engine": "legacy",
+  "iphone_audio_retest_completed": false
+}

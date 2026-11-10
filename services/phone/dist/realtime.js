@@ -9,7 +9,7 @@
     status(text){document.getElementById('realtime-status')?.replaceChildren(document.createTextNode(text));document.getElementById('mic-status')?.replaceChildren(document.createTextNode(text));window.goBotDevice?.status(text);}
     async api(path,body,signal){
       const r=await this.fetcher('/api/realtime/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal,keepalive:path.endsWith('/command')&&body.action==='close'});
-      if(!r.ok)throw Error('Realtime: '+(r.status===403?'нужно отдельное разрешение и серверный лимит':r.status===409?'сессия занята или команда уже неактуальна':'соединение недоступно'));
+      if(!r.ok)throw Error('Realtime: '+(r.status===403?'нужны серверный допуск и согласие на API':r.status===409?'сессия занята или команда уже неактуальна':'соединение недоступно'));
       return r.json();
     }
     selected(){return document.getElementById('conversation-engine')?.value==='realtime';}
@@ -34,7 +34,7 @@
       this.status('Подключаю Realtime. Говори после сигнала готовности.');
       try{
         const admission=await (await this.fetcher('/api/realtime/status')).json();
-        if(!admission.budget?.enabled)throw Error('Для Realtime ещё не задан отдельный серверный лимит.');
+        if(!admission.budget?.enabled)throw Error('Доступ к Realtime не активирован владельцем.');
         if(admission.budget.sessions_remaining===0||(typeof admission.budget.max_sessions==='number'&&admission.budget.sessions_reserved>=admission.budget.max_sessions))throw Error('Разрешённая проба уже использована. Для следующей нужен новый серверный лимит.');
         await this.acquire();if(epoch!==this.generation)throw Error('Запуск отменён');
         this.context=new AudioContext();await this.context.resume();
@@ -209,10 +209,10 @@
       const section=document.createElement('section');section.className='reply';
       const label=document.createElement('label');label.textContent='Разговорный движок';select=document.createElement('select');select.id='conversation-engine';
       for(const [value,text] of [['legacy','Legacy · STT → CLI → TTS'],['realtime','Realtime Mini · кандидат']]){const option=document.createElement('option');option.value=value;option.textContent=text;select.append(option);}label.append(select);section.append(label);
-      const consentLabel=document.createElement('label');consentLabel.className='check';const consent=document.createElement('input');consent.type='checkbox';consent.id='realtime-consent';consentLabel.append(consent,document.createTextNode('Разрешаю Realtime API в пределах отдельного серверного лимита'));section.append(consentLabel);
+      const consentLabel=document.createElement('label');consentLabel.className='check';const consent=document.createElement('input');consent.type='checkbox';consent.id='realtime-consent';consentLabel.append(consent,document.createTextNode('Разрешаю платный Realtime API в разрешённом владельцем режиме'));section.append(consentLabel);
       const speakerLabel=document.createElement('label');speakerLabel.className='check';const speakerCheck=document.createElement('input');speakerCheck.type='checkbox';speakerCheck.id='realtime-speaker-enabled';speakerCheck.checked=true;speakerLabel.append(speakerCheck,document.createTextNode('Локально определять говорящего через ECAPA · без внешнего STT'));section.append(speakerLabel);
       const modeLabel=document.createElement('label');modeLabel.textContent='Характер и голос';const mode=document.createElement('select');mode.id='realtime-personalization';for(const [v,t] of [['guest','Нейтральный гостевой'],['confirmed_profile','Мой PIN-профиль · только голос и стиль']]){const o=document.createElement('option');o.value=v;o.textContent=t;mode.append(o);}modeLabel.append(mode);section.append(modeLabel);const speakerStatus=document.createElement('p');speakerStatus.id='realtime-speaker-status';speakerStatus.className='hint';section.append(speakerStatus);
-      const p=document.createElement('p');p.id='realtime-status';p.className='hint';p.textContent='Тестовый кандидат. Запуск доступен только с отдельным серверным лимитом; страница сама сессию не запускает.';section.append(p);
+      const p=document.createElement('p');p.id='realtime-status';p.className='hint';p.textContent='Тестовый кандидат. Запуск доступен только с серверным допуском; страница сама сессию не запускает.';section.append(p);
       const anchor=document.getElementById('device-appearance')||document.querySelector('footer');
       if(anchor)anchor.before(section);else (document.querySelector('main details')||document.querySelector('main'))?.append(section);
     }
