@@ -189,7 +189,7 @@ async function send(options={}) {
         else if(item.type==='screen_scene'&&!data.scene?.preserve_visual&&['icon','info_card'].includes(data.scene?.scene_type)){
           const payload=data.scene.visual_payload||{};
           visuals?.render({namespace:'gobot.ui',version:2,id:'scene-'+currentTurn,type:'info_card',title:payload.title||data.scene.visual_subject,
-            text:data.scene.scene_type==='info_card'?payload.text||'':'',images:[],metadata:{state:payload.data_status==='unverified'?'unavailable':'ready',icon:payload.icon}});visuals?.syncDisplay(answer);
+            text:data.scene.scene_type==='info_card'?payload.text||'':'',images:[],metadata:{transient_scene:true,state:payload.data_status==='unverified'?'unavailable':'ready',icon:payload.icon}});visuals?.syncDisplay(answer);
         }
         else if(item.type==='tts_status')$('voice-status').textContent='Готовлю серверный голос…';
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;

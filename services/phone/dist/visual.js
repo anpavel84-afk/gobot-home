@@ -13,11 +13,14 @@
     interrupt(){if(this.loadingNow){this.loadingNow=false;this.root.replaceChildren(node('p','Поиск изображения остановлен.','visual-progress'));}}
     syncDisplay(text){for(const entry of this.frames.values())entry.body.hidden=!!text&&text.trim()===(entry.frame.text||'').trim();}
     hasTimer(id){return this.timerCards.has(id)||this.currentTimer===id;}
+    clearScene(){for(const [id,entry] of this.frames){if(entry.frame.metadata?.transient_scene){entry.card.remove();this.frames.delete(id);}}}
     render(frame){
       if(frame?.metadata?.backend==='answer_map')return false;
       if(!frame||frame.namespace!=='gobot.ui'||frame.version!==2||!kinds.has(frame.type)||typeof frame.id!=='string')return false;
       const existingTimer=frame.type==='timer_widget'&&this.timerCards.get(frame.metadata?.timer_id);
       if(existingTimer){if(frame.metadata.state==='cancelled'){clearInterval(existingTimer.ticker);this.intervals.delete(existingTimer.ticker);existingTimer.output.textContent='Таймер остановлен';existingTimer.frame.metadata.state='cancelled';}return true;}
+      if(Array.isArray(frame.images)&&frame.images.some(image=>imagePath.test(image?.url||'')))this.clearScene();
+      if(this.frames.has(frame.id)&&frame.metadata?.transient_scene){this.clearScene();}
       if(this.frames.has(frame.id))return true;
       this.loadingNow=false;this.root.hidden=false;
       if(!this.frames.size)this.root.replaceChildren();
@@ -64,7 +67,7 @@
         this.timerRoot.hidden=false;this.timerRoot.append(card);if(!this.root.children.length)this.root.hidden=true;
         if(this.timerCards.size>16){const [id,old]=this.timerCards.entries().next().value;clearInterval(old.ticker);this.intervals.delete(old.ticker);old.card.remove();this.timerCards.delete(id);}
       }else this.root.append(card);
-      this.frames.set(frame.id,{frame,body});return true;
+      this.frames.set(frame.id,{frame,body,card});return true;
     }
   }
   window.GoBotVisual={BrowserVisualRenderer};

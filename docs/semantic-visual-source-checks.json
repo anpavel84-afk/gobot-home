@@ -1,98 +1,115 @@
-[
-  {
-    "question": "Что такое чёрная дыра?",
-    "subject": "черная дыра",
-    "elapsed_ms": 18.46,
-    "images": 1,
-    "state": "ready",
-    "reason": null,
-    "cache_hit": true,
-    "selection_basis": "wikimedia_article_image",
-    "facts": {
-      "entity_title": "Чёрная дыра",
-      "entity_source": "https://ru.wikipedia.org/wiki/%D0%A7%D1%91%D1%80%D0%BD%D0%B0%D1%8F_%D0%B4%D1%8B%D1%80%D0%B0",
-      "entity_match": "exact_name"
+{
+  "provenance": "real_free_source_requests_and_cache; no LLM or paid speech",
+  "source_checks": [
+    {
+      "question": "Что такое чёрная дыра?",
+      "subject": "черная дыра",
+      "elapsed_ms": 18.46,
+      "images": 1,
+      "state": "ready",
+      "reason": null,
+      "cache_hit": true,
+      "selection_basis": "wikimedia_article_image",
+      "facts": {
+        "entity_title": "Чёрная дыра",
+        "entity_source": "https://ru.wikipedia.org/wiki/%D0%A7%D1%91%D1%80%D0%BD%D0%B0%D1%8F_%D0%B4%D1%8B%D1%80%D0%B0",
+        "entity_match": "exact_name"
+      },
+      "assets": [
+        "13593bf4e0f132fa5720ecf4fe03f0bd32eb142bdcb4b76a946c55cc0f8cadb9"
+      ],
+      "source": [
+        {
+          "label": "Wikimedia Commons",
+          "url": "https://commons.wikimedia.org/wiki/File:Black_hole_-_Messier_87_crop_max_res.jpg"
+        }
+      ]
     },
-    "assets": [
-      "13593bf4e0f132fa5720ecf4fe03f0bd32eb142bdcb4b76a946c55cc0f8cadb9"
+    {
+      "question": "Что такое северное сияние?",
+      "subject": "северное сияние",
+      "elapsed_ms": 2230.3,
+      "images": 1,
+      "state": "ready",
+      "reason": null,
+      "cache_hit": false,
+      "selection_basis": "wikimedia_article_image",
+      "facts": {
+        "entity_title": "Полярное сияние",
+        "entity_source": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D0%BB%D1%8F%D1%80%D0%BD%D0%BE%D0%B5_%D1%81%D0%B8%D1%8F%D0%BD%D0%B8%D0%B5",
+        "entity_match": "exact_name"
+      },
+      "assets": [
+        "5bc003df60e72b517baa519a6d4ba131fa25a13ea1c36f876088ddf7359e966f"
+      ],
+      "source": [
+        {
+          "label": "Wikimedia Commons",
+          "url": "https://commons.wikimedia.org/wiki/File:Arkhangelsk_Aurora_borealis.jpg"
+        }
+      ]
+    },
+    {
+      "question": "Как устроена эндокринная система?",
+      "subject": "эндокринная система",
+      "elapsed_ms": 8.83,
+      "images": 1,
+      "state": "ready",
+      "reason": null,
+      "cache_hit": true,
+      "selection_basis": "wikimedia_article_image",
+      "facts": {
+        "entity_title": "Эндокринная система",
+        "entity_source": "https://ru.wikipedia.org/wiki/%D0%AD%D0%BD%D0%B4%D0%BE%D0%BA%D1%80%D0%B8%D0%BD%D0%BD%D0%B0%D1%8F_%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%B0",
+        "entity_match": "exact_name"
+      },
+      "assets": [
+        "4cb8088b57c48eb11873818f569d09c60326109e0af623e5d21fa28db8637b37"
+      ],
+      "source": [
+        {
+          "label": "Wikimedia Commons",
+          "url": "https://commons.wikimedia.org/wiki/File:Endocrine_English.svg"
+        }
+      ]
+    },
+    {
+      "question": "Как приготовить оливье?",
+      "subject": "блюдо оливье",
+      "elapsed_ms": 8.39,
+      "images": 1,
+      "state": "ready",
+      "reason": null,
+      "cache_hit": true,
+      "selection_basis": "wikimedia_article_image",
+      "facts": {
+        "entity_title": "Оливье (салат)",
+        "entity_source": "https://ru.wikipedia.org/wiki/%D0%9E%D0%BB%D0%B8%D0%B2%D1%8C%D0%B5_%28%D1%81%D0%B0%D0%BB%D0%B0%D1%82%29",
+        "entity_match": "topic_overview"
+      },
+      "assets": [
+        "cec2d29011729ac2c8d0d726b99b691da7bba813df353edad81d17fc471ef47f"
+      ],
+      "source": [
+        {
+          "label": "Wikimedia Commons",
+          "url": "https://commons.wikimedia.org/wiki/File:%D0%A1%D0%B0%D0%BB%D0%B0%D1%82_%D0%9E%D0%BB%D0%B8%D0%B2%D1%8C%D0%B5_03.jpg"
+        }
+      ]
+    }
+  ],
+  "browser_verification": {
+    "panel": "real cached M87 photo displayed; initial placeholder replaced",
+    "device": "real Device Renderer and server image event, text command injected through shared client; no microphone or TTS",
+    "raster_profile": [
+      240,
+      240
     ],
-    "source": [
-      {
-        "label": "Wikimedia Commons",
-        "url": "https://commons.wikimedia.org/wiki/File:Black_hole_-_Messier_87_crop_max_res.jpg"
-      }
-    ]
+    "physical_iphone": false,
+    "image_vs_voice_timing_ms": null
   },
-  {
-    "question": "Что такое северное сияние?",
-    "subject": "северное сияние",
-    "elapsed_ms": 2230.3,
-    "images": 1,
-    "state": "ready",
-    "reason": null,
-    "cache_hit": false,
-    "selection_basis": "wikimedia_article_image",
-    "facts": {
-      "entity_title": "Полярное сияние",
-      "entity_source": "https://ru.wikipedia.org/wiki/%D0%9F%D0%BE%D0%BB%D1%8F%D1%80%D0%BD%D0%BE%D0%B5_%D1%81%D0%B8%D1%8F%D0%BD%D0%B8%D0%B5",
-      "entity_match": "exact_name"
-    },
-    "assets": [
-      "5bc003df60e72b517baa519a6d4ba131fa25a13ea1c36f876088ddf7359e966f"
-    ],
-    "source": [
-      {
-        "label": "Wikimedia Commons",
-        "url": "https://commons.wikimedia.org/wiki/File:Arkhangelsk_Aurora_borealis.jpg"
-      }
-    ]
-  },
-  {
-    "question": "Как устроена эндокринная система?",
-    "subject": "эндокринная система",
-    "elapsed_ms": 8.83,
-    "images": 1,
-    "state": "ready",
-    "reason": null,
-    "cache_hit": true,
-    "selection_basis": "wikimedia_article_image",
-    "facts": {
-      "entity_title": "Эндокринная система",
-      "entity_source": "https://ru.wikipedia.org/wiki/%D0%AD%D0%BD%D0%B4%D0%BE%D0%BA%D1%80%D0%B8%D0%BD%D0%BD%D0%B0%D1%8F_%D1%81%D0%B8%D1%81%D1%82%D0%B5%D0%BC%D0%B0",
-      "entity_match": "exact_name"
-    },
-    "assets": [
-      "4cb8088b57c48eb11873818f569d09c60326109e0af623e5d21fa28db8637b37"
-    ],
-    "source": [
-      {
-        "label": "Wikimedia Commons",
-        "url": "https://commons.wikimedia.org/wiki/File:Endocrine_English.svg"
-      }
-    ]
-  },
-  {
-    "question": "Как приготовить оливье?",
-    "subject": "блюдо оливье",
-    "elapsed_ms": 8.39,
-    "images": 1,
-    "state": "ready",
-    "reason": null,
-    "cache_hit": true,
-    "selection_basis": "wikimedia_article_image",
-    "facts": {
-      "entity_title": "Оливье (салат)",
-      "entity_source": "https://ru.wikipedia.org/wiki/%D0%9E%D0%BB%D0%B8%D0%B2%D1%8C%D0%B5_%28%D1%81%D0%B0%D0%BB%D0%B0%D1%82%29",
-      "entity_match": "topic_overview"
-    },
-    "assets": [
-      "cec2d29011729ac2c8d0d726b99b691da7bba813df353edad81d17fc471ef47f"
-    ],
-    "source": [
-      {
-        "label": "Wikimedia Commons",
-        "url": "https://commons.wikimedia.org/wiki/File:%D0%A1%D0%B0%D0%BB%D0%B0%D1%82_%D0%9E%D0%BB%D0%B8%D0%B2%D1%8C%D0%B5_03.jpg"
-      }
-    ]
-  }
-]
+  "screenshots_local_ignored": [
+    "run/semantic-browser-photo.png",
+    "run/semantic-device-photo.png"
+  ]
+}

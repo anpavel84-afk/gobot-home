@@ -171,7 +171,9 @@ class SpeculativePhoto:
                 await asyncio.gather(self.lookup,return_exceptions=True)
                 self.lookup=self.start(selected)
             result=await self.lookup
-            if result and result.frame.images:self.diagnostics['candidate_ready']=True
+            if result and result.frame.images:
+                self.diagnostics['candidate_ready']=True
+                self.diagnostics['visual_strategy']=result.frame.metadata.visual_strategy
             if result and result.frame.images:
                 result.frame.id=frame_id(self.req.turn_id,'attachment')
                 mark('visual_prefetch_released',cache_hit=result.frame.metadata.cache_hit)

@@ -113,3 +113,16 @@ def test_cancel_stops_pending_image_and_clears_visual_context(settings,monkeypat
         assert closed.is_set() and not any(e.type=='visual_response' for e in events)
         with service.memory.connect() as c:assert not c.execute('SELECT * FROM active_visual_subjects').fetchall()
     asyncio.run(run())
+
+
+def test_cancel_racing_completion_cannot_restore_subject(settings):
+    memory=Memory(settings.db)
+    req=ChatRequest(text='Что такое чёрная дыра?',mode='auto')
+    trace=[{'visual_decision':{'subject_confirmed':True,'visual_subject':'черная дыра','subject_resolution_method':'request_noun_phrase'}}]
+    memory.start(req);memory.clear_visual_turn(req.turn_id)
+    memory.finish(req,'completed','Чёрная дыра.','bridge:antigravity',trace)
+    with memory.connect() as c:assert not c.execute('SELECT * FROM active_visual_subjects').fetchall()
+    later=ChatRequest(text='А расскажи ещё',mode='auto',conversation_id=req.conversation_id)
+    memory.start(later);memory.finish(later,'completed','Чёрная дыра.','bridge:antigravity',trace)
+    memory.clear_visual_turn(req.turn_id)
+    with memory.connect() as c:assert c.execute('SELECT turn_id FROM active_visual_subjects').fetchone()[0]==later.turn_id

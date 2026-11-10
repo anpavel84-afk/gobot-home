@@ -4,7 +4,8 @@ class Element{
   constructor(tag){this.tagName=tag;this.children=[];this.dataset={};this.attributes={};this.hidden=false;this._text='';}
   set textContent(value){this._text=String(value);this.children=[];}
   get textContent(){return this._text+this.children.map(child=>child.textContent).join('');}
-  append(...children){this.children.push(...children);}
+  append(...children){for(const child of children)child.parent=this;this.children.push(...children);}
+  remove(){if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);}
   replaceChildren(...children){this.children=children;this._text='';}
   setAttribute(key,value){this.attributes[key]=String(value);}
 }
@@ -38,5 +39,11 @@ assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer
   persistent.render({...frame,id:'next-question'});assert.equal(all(tray,'article').length,1);assert.equal(all(main,'img').length,1);
   persistent.render({...persistentFrame,metadata:{...persistentFrame.metadata,state:'cancelled',deadline:null}});assert.equal(all(tray,'output')[0].textContent,'Таймер остановлен');assert.equal(ticks.size,0);
   for(const type of ['weather_card','music_card','status_card','info_card','rich_answer']){renderer.begin();assert(renderer.render({...frame,id:type,type,images:[],metadata:{state:'unavailable',facts:{'Источник':'не настроен'}}}));assert.match(root.textContent,/Данные недоступны/);}
+  renderer.begin();
+  renderer.render({...frame,id:'pending-scene',type:'info_card',images:[],metadata:{transient_scene:true}});
+  assert.equal(all(root,'article').length,1);
+  renderer.render({...frame,id:'resolved-photo'});
+  assert.equal(all(root,'article').length,1);assert.equal(all(root,'img').length,1);
+  assert(!renderer.frames.has('pending-scene'));
   console.log('Visual DOM units: card, gallery, partial payload, dedupe, safe paths, countdown, cancel and all 8 types passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

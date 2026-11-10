@@ -94,8 +94,12 @@ class AntigravityAdapter:
         from .live_agents import context_prompt
         parser=AntigravityEvents();mark("argv_policy_start")
         prompt=context_prompt(text,context)
-        from .context_manager import tokens
-        mark('cli_prompt_prepared',context_tokens=tokens(prompt))
+        # Reuse the Brain estimate: loading a second tokenizer in Bridge's
+        # first request would itself add cold-start delay. Bytes are measured
+        # on the actual prompt; neither counter includes provider-side input.
+        mark('cli_prompt_prepared',input_bytes=len(prompt.encode('utf-8')),
+             context_tokens=context.get('_context_meta',{}).get('packet_tokens'),
+             count_kind='brain_token_estimate_plus_actual_prompt_bytes')
         async with native_process(argv(model_id=model_id),WORK,environment()) as process:
             process.stdin.write(json.dumps({'event':'user','message':{'content':prompt}},ensure_ascii=False).encode()+b'\n')
             await process.stdin.drain();mark("prompt_sent")

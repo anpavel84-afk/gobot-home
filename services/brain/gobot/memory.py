@@ -31,7 +31,7 @@ class Memory:
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(3,?)',(time.time(),))
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(6,?)',(time.time(),))
         from .archive import Archive
-        self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock()
+        self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock();self.visual_cancelled={}
     @contextmanager
     def connect(self):
         c=sqlite3.connect(self.path, timeout=5);c.row_factory=sqlite3.Row
@@ -88,7 +88,7 @@ class Memory:
                 row=self.transient.get(req.turn_id)
                 if row and row['status']=='running':
                     from .visual_memory import confirmed
-                    row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time(),visual=confirmed(trace) if status=='completed' else None)
+                    row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time(),visual=confirmed(trace) if status=='completed' and req.turn_id not in self.visual_cancelled else None)
                     if status!='completed' or req.new_topic:
                         for other in self.transient.values():
                             if other is not row and other['owner']==req.device_id and other['conversation']==req.conversation_id:other.pop('visual',None)
@@ -159,12 +159,19 @@ class Memory:
         return {'messages':messages}
     def clear_visual_turn(self,turn):
         with self.transient_lock:
+            self.visual_cancelled[turn]=time.time()
+            if len(self.visual_cancelled)>2048:self.visual_cancelled.pop(next(iter(self.visual_cancelled)))
             row=self.transient.get(turn)
             if row:
-                for other in self.transient.values():
-                    if other['owner']==row['owner'] and other['conversation']==row['conversation']:other.pop('visual',None)
+                rows=[v for v in self.transient.values() if v['owner']==row['owner'] and v['conversation']==row['conversation']]
+                if rows[-1] is row:
+                    for other in rows:other.pop('visual',None)
+                else:row.pop('visual',None)
         with self.connect() as c:
-            c.execute('DELETE FROM active_visual_subjects WHERE conversation_id IN (SELECT conversation_id FROM turns WHERE id=?)',(turn,))
+            c.execute('''DELETE FROM active_visual_subjects WHERE turn_id=? OR
+                (conversation_id IN (SELECT conversation_id FROM turns WHERE id=?) AND NOT EXISTS
+                 (SELECT 1 FROM messages WHERE conversation_id=active_visual_subjects.conversation_id AND role='user'
+                  AND id>(SELECT MAX(id) FROM messages WHERE turn_id=? AND role='user')))''',(turn,turn,turn))
     def status(self,turn):
         with self.connect() as c:
             r=c.execute("SELECT id,status,provider,updated FROM turns WHERE id=?",(turn,)).fetchone();return dict(r) if r else None

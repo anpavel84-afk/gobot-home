@@ -24,7 +24,7 @@ def active(memory,req,context):
             (req.device_id,req.conversation_id,req.profile_epoch,time.time())).fetchone()
     if not row or row['topic_id']!=topic.get('topic_id'):return None
     return {'subject':row['subject'],'anchors':json.loads(row['anchors']),'source':row['source'],
-            'topic_id':row['topic_id'],'conversation_id':row['conversation_id'],'confirmed':row['confirmed'],'expires':row['expires']}
+            'source_turn_id':row['turn_id'],'topic_id':row['topic_id'],'conversation_id':row['conversation_id'],'confirmed':row['confirmed'],'expires':row['expires']}
 
 def confirmed(trace):
     for entry in reversed(trace):
@@ -36,6 +36,7 @@ def confirmed(trace):
 
 def finish(memory,c,req,status,provider,trace):
     from .archive import diagnostic
+    if req.turn_id in memory.visual_cancelled:return
     if status!='completed' or req.new_topic:
         c.execute('DELETE FROM active_visual_subjects WHERE owner=? AND conversation_id=?',(req.device_id,req.conversation_id))
     if status!='completed' or diagnostic(req) or provider in {'mock','bridge:mock'}:return

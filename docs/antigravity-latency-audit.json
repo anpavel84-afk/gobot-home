@@ -104,7 +104,7 @@
   "after_real_useful_answer_latency_ms": null,
   "after_real_iphone_image_vs_voice_ms": null,
   "instrumentation_added": [
-    "cli_prompt_prepared with tokenizer estimate",
+    "cli_prompt_prepared with reused Brain token estimate and actual UTF-8 prompt bytes; no second tokenizer cold start",
     "provider_step_agent_response",
     "provider_step_thinking",
     "provider_step_planning",
