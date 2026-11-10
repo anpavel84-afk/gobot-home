@@ -1,0 +1,18 @@
+{
+  "role": "filler",
+  "text": "Секунду.",
+  "engine": "existing local Piper",
+  "voice": "denis, static interface clip only",
+  "dataset_license": "CC0 per pinned local MODEL_CARD",
+  "model_card_sha256": "f037c8ec8b6574de644bf9e5916c749e83d4ff297facd97895b56d733f6ba3fe",
+  "source": "https://huggingface.co/rhasspy/piper-voices/blob/main/ru/ru_RU/denis/medium/MODEL_CARD",
+  "engine_license": "GPL-3.0, engine not redistributed here",
+  "generated_output_license": "CC0-1.0",
+  "sha256": "e25c69ac427200decaff6583984a13327a3cedf75fa9f5e13ce66f0c6583299a",
+  "sample_rate": 22050,
+  "seconds": 0.905578231292517,
+  "bytes": 39980,
+  "paid_calls": 0,
+  "contains_family_recording": false,
+  "main_answer_tts": "OpenAI unchanged"
+}

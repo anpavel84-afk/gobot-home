@@ -2,7 +2,7 @@
 'use strict';
 window.GoBotCapture={
   active:null,pending:false,
-  async start({context,onChunk,onStop,onError,maxMs=60000,signal,minDurationMs=0,minSpeechMs=0}){
+  async start({context,onChunk,onStop,onError,maxMs=60000,signal,minDurationMs=0,minSpeechMs=0,onInputClosed}){
     if(this.active||this.pending)throw new Error('Микрофон уже записывает.');
     if(!window.isSecureContext||!navigator.mediaDevices?.getUserMedia)throw new Error('Микрофон требует доверенного HTTPS.');
     this.pending=true;
@@ -11,9 +11,9 @@ window.GoBotCapture={
     catch(error){this.pending=false;throw error;}
     if(signal?.aborted){stream.getTracks().forEach(t=>t.stop());this.pending=false;throw new DOMException('Запись отменена','AbortError');}
     let stop,timer,node,source,mute,recorder,meter,meterSource,meterTimer,speechMs=0,done=false,finishing=false;
-    const started=performance.now();let previous=started,abort;
+    const started=performance.now();let previous=started,abort,closedAt=null;
     const cleanup=()=>{clearTimeout(timer);clearInterval(meterTimer);signal?.removeEventListener('abort',abort);stream.getTracks().forEach(t=>t.stop());source?.disconnect();meterSource?.disconnect();node?.disconnect();mute?.disconnect();this.active=null;this.pending=false;};
-    const finish=blob=>{if(done)return;done=true;const duration=performance.now()-started;cleanup();if(duration<minDurationMs||speechMs<minSpeechMs){onError?.(new Error('Слишком короткая или тихая запись. Удерживай экран и произнеси вопрос.'));return;}onStop?.(blob);};
+    const finish=blob=>{if(done)return;done=true;const duration=performance.now()-started;cleanup();if(duration<minDurationMs||speechMs<minSpeechMs){onError?.(new Error('Слишком короткая или тихая запись. Удерживай экран и произнеси вопрос.'));return;}onStop?.(blob,{input_closed_at:closedAt??performance.now(),audio_seconds:((closedAt??performance.now())-started)/1000});};
     try{
       if(minSpeechMs>0){
         if(!context?.createAnalyser)throw Error('Не удалось включить локальную проверку записи.');
@@ -35,7 +35,7 @@ window.GoBotCapture={
         recorder.onerror=()=>{if(done)return;done=true;cleanup();onError?.(new Error('Ошибка микрофона.'));};
         stop=()=>{if(recorder.state==='recording')recorder.stop();};recorder.start(250);
       }
-      const handle={stop:()=>{if(!done)stop();},cancel:()=>{if(done)return;done=true;cleanup();if(recorder?.state==='recording')recorder.stop();}};
+      const handle={stop:()=>{if(done||closedAt!==null)return;closedAt=performance.now();const accepted=closedAt-started>=minDurationMs&&speechMs>=minSpeechMs;stop();stream.getTracks().forEach(t=>t.stop());if(accepted)onInputClosed?.({input_closed_at:closedAt,audio_seconds:(closedAt-started)/1000});},cancel:()=>{if(done)return;done=true;cleanup();if(recorder?.state==='recording')recorder.stop();}};
       abort=()=>handle.cancel();signal?.addEventListener('abort',abort,{once:true});
       if(signal?.aborted){handle.cancel();throw new DOMException('Запись отменена','AbortError');}
       for(const track of stream.getAudioTracks())track.addEventListener('ended',()=>{if(!done){handle.cancel();onError?.(new Error('Микрофон был прерван браузером. Включи GoBot снова.'));}},{once:true});

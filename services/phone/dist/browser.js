@@ -6,6 +6,7 @@ localStorage.setItem('gobot.conversation', conversation);
 let active = null, audio = null, gain = null, nextAt = 0, epoch = 0, recording = null, micPending = false;
 let lastSpeakerJob=null,transcriptPending=false;
 let outputAnalyser=null,transcriptionAbort=null;
+let requestTrace=null,feedbackBuffer=null,earconBuffer=null,feedbackGain=null;const feedbackSources=new Set();
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
@@ -39,6 +40,11 @@ const errors = {
   openai_tts_timeout: 'OpenAI не успел подготовить голос. Текст сохранён; другой голос не включался.',
   timeout: 'Превышено время ответа.', brain_unavailable: 'Основной сервер недоступен.',
 };
+function renderTiming(bundle){
+  if(!bundle)return;const current=window.GoBotClient?.trace();if(current&&bundle.client?.trace_id===current.id)bundle.client=current.snapshot();
+  const node=$('latency-trace');if(node)node.textContent=JSON.stringify(bundle,null,2);
+  const summary=$('latency-summary');if(summary){const events=bundle.client?.events||[];const value=name=>{const found=events.find(e=>e.name===name);return found?Math.round(found.ms)+' мс':'не измерено / выключено';};summary.textContent='От конца ввода: локальный сигнал '+value('earcon_started')+'; текст '+value('first_text')+'; первый ненулевой звук ответа '+value('first_answer_playback')+'. Playback — оценка AudioContext, не акустический замер.';}
+}
 function explain(code) { return errors[code] || 'Запрос не завершён: ' + code; }
 function renderDisplay(text){
   const root=$('answer');root.replaceChildren();let code=false,block=null;
@@ -65,12 +71,39 @@ async function unlockAudio() {
   await audio.resume();
   if(audio.state&&audio.state!=='running')throw Error('audio_context_paused');
 }
+async function prepareFeedback(){
+  await unlockAudio();
+  feedbackGain?.disconnect();feedbackGain=audio.createGain();
+  earconBuffer=audio.createBuffer(1,Math.round(audio.sampleRate*.08),audio.sampleRate);const tone=earconBuffer.getChannelData(0);for(let i=0;i<tone.length;i++)tone[i]=Math.sin(2*Math.PI*740*i/audio.sampleRate)*.3*Math.sin(Math.PI*i/tone.length);feedbackGain.gain.value=.22;feedbackGain.connect(gain);
+  try{const response=await fetch('/feedback-wait.wav');if(!response.ok)throw Error();feedbackBuffer=await audio.decodeAudioData(await response.arrayBuffer());}catch(_){feedbackBuffer=null;}
+}
+function stopFeedback(fade,trace){
+  if(!feedbackSources.size)return;
+  if(fade){if([...feedbackSources].some(s=>s.gobotAudioRole==='filler'))trace?.mark('filler_preempted');feedbackGain.gain.cancelScheduledValues(audio.currentTime);feedbackGain.gain.setValueAtTime(feedbackGain.gain.value,audio.currentTime);feedbackGain.gain.linearRampToValueAtTime(0,audio.currentTime+.04);}
+  for(const source of feedbackSources){try{source.stop(audio.currentTime+(fade?.04:0));}catch(_){}}feedbackSources.clear();
+}
+function playFeedback(role,trace){
+  if(!audio||audio.state!=='running'||!feedbackGain||!$('speak').checked||Number($('volume').value)<=0)return;
+  const buffer=role==='earcon'?earconBuffer:feedbackBuffer;
+  if(!buffer)return;
+  feedbackGain.gain.cancelScheduledValues(audio.currentTime);feedbackGain.gain.setValueAtTime(feedback?.config.volume??.22,audio.currentTime);
+  const source=audio.createBufferSource();source.buffer=buffer;source.connect(feedbackGain);source.gobotAudioRole=role;feedbackSources.add(source);source.onended=()=>feedbackSources.delete(source);source.start();
+  trace?.mark(role==='earcon'?'earcon_started':'filler_started');
+}
+const feedback=window.GoBotTiming?new window.GoBotTiming.FeedbackController({play:playFeedback,stop:stopFeedback}):null;
+function inputClosed(info={}){
+  requestTrace?.inputClosed(info.input_closed_at);if(requestTrace){requestTrace.audioSeconds=info.audio_seconds??null;requestTrace.sttMode=$('stt-mode').value||'file';}requestTrace?.mark('encoding_start');
+  window.GoBotHooks?.onInputClosed?.();
+  const trace=requestTrace;requestAnimationFrame(()=>trace?.mark('feedback_rendered'));
+  if(window.GoBotHooks?.clientKind==='device'&&trace){feedback?.begin(trace);}
+}
 function clearAudio() {
   epoch++; for (const source of sources) { try { source.stop(); } catch (_) {} } sources.clear(); seen.clear(); audioSequences.clear();playedSegments.clear(); nextAt = 0;
 }
 async function play(data, runEpoch) {
   const key = data.audio_id + ':' + data.seq;
   if (runEpoch !== epoch || seen.has(key)) return;
+  requestTrace?.mark('first_audio_received');
   const expected=audioSequences.get(data.audio_id)||0;
   if(data.seq!==expected)throw new Error('audio_sequence_gap');
   audioSequences.set(data.audio_id,expected+1);
@@ -83,14 +116,20 @@ async function play(data, runEpoch) {
   const raw = atob(data.pcm), bytes = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
   if (bytes.length % 2) throw new Error('pcm_alignment');
+  let firstNonzero=null;
   const pcm = new DataView(bytes.buffer), buffer = audio.createBuffer(1, bytes.length / 2, data.sample_rate), channel = buffer.getChannelData(0);
-  for (let i = 0; i < channel.length; i++) channel[i] = pcm.getInt16(i * 2, true) / 32768;
+  for (let i = 0; i < channel.length; i++) {channel[i] = pcm.getInt16(i * 2, true) / 32768;if(firstNonzero===null&&Math.abs(channel[i])>.001)firstNonzero=i;}
+  requestTrace?.mark('decode_complete');if(firstNonzero!==null)feedback?.answerReady();
   const source = audio.createBufferSource(); source.buffer = buffer; source.connect(gain);
   nextAt = Math.max(nextAt, audio.currentTime + .04); sources.add(source);
   const turn=currentTurn;
-  source.onended = () => {sources.delete(source);if(runEpoch===epoch&&data.segment_id){const milliseconds=(playedSegments.get(data.segment_id)||0)+buffer.duration*1000;playedSegments.set(data.segment_id,milliseconds);fetch('/api/audio/playback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turn_id:turn,segment_id:data.segment_id,milliseconds})}).catch(()=>{});}}; source.start(nextAt); nextAt += buffer.duration;
+  source.onended = () => {sources.delete(source);if(runEpoch===epoch&&!sources.size){requestTrace?.playbackFinished?.(active===null);renderTiming(window.gobotLastTrace);}if(runEpoch===epoch&&data.segment_id){const milliseconds=(playedSegments.get(data.segment_id)||0)+buffer.duration*1000;playedSegments.set(data.segment_id,milliseconds);fetch('/api/audio/playback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turn_id:turn,segment_id:data.segment_id,milliseconds})}).catch(()=>{});}}; source.start(nextAt);requestTrace?.mark('scheduled');
+  const trace=requestTrace,startAt=nextAt+(firstNonzero||0)/data.sample_rate;
+  const acknowledge=()=>{if(runEpoch!==epoch||audio.state!=='running')return;if(audio.currentTime<startAt){setTimeout(acknowledge,10);return;}trace?.mark('first_answer_playback');trace?.flush();if(trace&&window.gobotLastTrace){window.gobotLastTrace.client=trace.snapshot();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);}};if(firstNonzero!==null&&trace&&!trace.playbackPending){trace.playbackPending=true;setTimeout(acknowledge,Math.max(0,(startAt-audio.currentTime)*1000));}
+  nextAt += buffer.duration;
 }
-function stop() {
+function stop(preserveWaiting=false) {
+  if(preserveWaiting!==true){feedback?.cancel();if(requestTrace&&!requestTrace.complete){requestTrace.mark("cancelled");requestTrace.flush();}}
   if (active) active.abort(); active = null; clearAudio();
   transcriptionAbort?.abort();transcriptionAbort=null;window.GoBotHooks?.onStopped?.();
   visuals?.interrupt();
@@ -99,7 +138,7 @@ function stop() {
 async function send() {
   if(transcriptPending)return;
   const text = $('question').value.trim(); if (!text) return;
-  stop();visuals?.begin();$('timer').hidden=true; const runEpoch = epoch;
+  stop(true);if(!requestTrace||requestTrace.complete){requestTrace=window.GoBotTiming?new window.GoBotTiming.TurnTrace(uuid()).inputClosed():null;}requestTrace?.mark("chat_submit");visuals?.begin();$('timer').hidden=true; const runEpoch = epoch;
   const controller = new AbortController(); active = controller;
   $('send').disabled = true; $('answer').textContent = ''; $('voice-status').textContent = '';
   $('orb').classList.add('busy'); $('result-badge').textContent = 'Получаем ответ';
@@ -111,7 +150,7 @@ async function send() {
   try {
     const response = await fetch('/api/chat/stream', {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
       body: JSON.stringify({text, mode: $('model').value, conversation_id: conversation, turn_id: currentTurn, request_id:currentTurn,utterance_id:utterance,remember:$('remember').checked,context_detail:$('detailed-context').checked?'detailed':'standard', correlation_id: uuid(),
-        usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
+        trace_id:requestTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
     if (!response.ok) throw new Error('http_' + response.status);
     const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
     while (true) {
@@ -124,7 +163,7 @@ async function send() {
         const item = JSON.parse(line.slice(6)), data = item.data || {};
         if (runEpoch !== epoch) return;
         window.GoBotHooks?.onEvent?.(item);
-        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
+        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;requestTrace?.mark('first_text');answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
         else if (item.type === 'tool_status') {
           if(data.status==='loading_visual')visuals?.loading();
           if(data.status==='preparing_visual_attachment')visuals?.loading();
@@ -144,24 +183,25 @@ async function send() {
         else if(item.type==='tts_status')$('voice-status').textContent='Готовлю серверный голос…';
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
-        else if (item.type === 'tts_error') $('voice-status').textContent = explain(data.code);
+        else if (item.type === 'tts_error') {feedback?.cancel();requestTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
         else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
-          terminal = true; $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
+          terminal = true; if(requestTrace){window.gobotLastTrace={client:requestTrace.snapshot(),stt:requestTrace.stt,gateway_stt:requestTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry};requestTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
           const usage=data.usage?Object.entries(data.usage).map(([key,value])=>key+': '+value).join(', '):'Исполнитель не сообщил счётчики токенов';
-          $('route-statistics').textContent='Модель: '+(data.model||'локально / диагностика')+' · первый ответ: '+Math.round(firstDeltaAt||0)+' мс · маршрутизация: '+(data.router_ms==null?'—':data.router_ms.toFixed(2)+' мс')+' · '+(data.billing_kind==='cli_subscription'?'Квота CLI-подписки, без пересчёта в доллары':data.billing_kind==='api_tokens'?'Оплачиваемые API-токены':'Локальная обработка')+' · '+usage;
+          $('route-statistics').textContent='Модель: '+(data.model||'локально / диагностика')+' · первый текст после отправки в Brain: '+Math.round(firstDeltaAt||0)+' мс · маршрутизация: '+(data.router_ms==null?'—':data.router_ms.toFixed(2)+' мс')+' · '+(data.billing_kind==='cli_subscription'?'Квота CLI-подписки, без пересчёта в доллары':data.billing_kind==='api_tokens'?'Оплачиваемые API-токены':'Локальная обработка')+' · '+usage;
           if(data.quality)$('route-statistics').textContent+=' · Проверка: '+data.quality.method+' · обязательна: '+(data.quality.verification_required?'да':'нет')+' · сложность / фактическая неопределённость / последствия: '+data.quality.complexity+' / '+data.quality.factual_uncertainty+' / '+data.quality.consequence_risk+' (внутренние уровни, не вероятности)';
           if(data.presentation_plan?.visual_needed)$('route-statistics').textContent+=' · Визуал: '+data.presentation_plan.visual_strategy+' / '+data.presentation_plan.visual_priority+' · '+data.presentation_plan.reason;
           if(data.speech_metrics?.first_audio_server!=null)$('route-statistics').textContent+=' · Первый аудиочанк сервера: '+Math.round(data.speech_metrics.first_audio_server)+' мс';
         }
-        else if (['error', 'cancelled'].includes(item.type)) { terminal = true; clearAudio(); $('result-badge').textContent = 'Не завершено'; $('voice-status').textContent = explain(data.code || 'cancelled'); }
+        else if (['error', 'cancelled'].includes(item.type)) { terminal = true; feedback?.cancel();requestTrace?.mark('error');clearAudio(); $('result-badge').textContent = 'Не завершено'; $('voice-status').textContent = explain(data.code || 'cancelled'); }
       }
       if (part.done) break;
     }
     if (!terminal) throw new Error('stream_disconnected');
   } catch (error) {
-    if (error.name !== 'AbortError') { clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
+    if (error.name !== 'AbortError') { feedback?.cancel();requestTrace?.mark('error');clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
   } finally {
+    if(requestTrace)requestTrace.complete=true;
     if (active === controller) { active = null; $('send').disabled = false; $('orb').classList.remove('busy'); await loadHistory();await refreshMemory(); }
     window.GoBotHooks?.onStreamEnd?.({turn_id:sendTurn});
   }
@@ -188,7 +228,7 @@ async function startRecording() {
     if($('stt-mode').value==='live')await unlockAudio();
     stop();
     const captureEpoch=epoch;
-    lastSpeakerJob=null;lastUtterance=uuid();$('question').value='';
+    lastSpeakerJob=null;lastUtterance=uuid();requestTrace=window.GoBotTiming?new window.GoBotTiming.TurnTrace(lastUtterance):null;$('question').value='';
     const provider=$('stt').value,consent=$('paid-stt').checked,live=$('stt-mode').value==='live';
     if(provider==='openai'&&!consent){$('paid-stt').scrollIntoView?.({block:'center',behavior:'smooth'});$('paid-stt').focus();throw new Error(explain('openai_stt_consent_required'));}
     if(live&&provider!=='openai')throw new Error('Потоковый режим доступен у OpenAI. Для Whisper/Mock выбери готовую фразу.');
@@ -200,38 +240,41 @@ async function startRecording() {
         socket.onmessage=e=>{const item=JSON.parse(e.data),data=item.data||{};
           if(item.type==='stt_ready')resolve();
           if(item.type==='stt_partial'){partial+=data.text;$('question').value=partial;$('mic-status').textContent='Распознаю речь · промежуточный текст';}
-          if(item.type==='stt_final'){transcriptPending=false;$('send').disabled=false;lastSpeakerJob=data.speaker_job_id;$('question').value=data.text;$('mic-status').textContent='Финальный текст готов. Проверь и отправь. До первого текста: '+Math.round(data.first_interim_ms||0)+' мс · после окончания речи: '+Math.round(data.speech_end_to_final_ms)+' мс';showSpeaker(data.speaker_job_id,data.speaker);socket.close();}
+          if(item.type==='stt_final'){requestTrace?.mark('stt_final_received');if(requestTrace)requestTrace.stt=data.telemetry;transcriptPending=false;$('send').disabled=false;lastSpeakerJob=data.speaker_job_id;$('question').value=data.text;$('mic-status').textContent='Финальный текст готов. Проверь и отправь. До первого текста: '+Math.round(data.first_interim_ms||0)+' мс · после окончания речи: '+Math.round(data.speech_end_to_final_ms)+' мс';showSpeaker(data.speaker_job_id,data.speaker);socket.close();}
           if(item.type==='error'){transcriptPending=false;$('send').disabled=false;$('question').value='';const error=new Error(explain(data.code));reject(error);$('mic-status').textContent=error.message;recording?.cancel();recording=null;socket.close();}
         };
         socket.onclose=()=>{if(recording){recording.cancel();recording=null;} $('record').textContent='Начать запись';if(transcriptPending){transcriptPending=false;$('send').disabled=false;$('question').value='';$('mic-status').textContent='Распознавание прервано до финального текста.';}};
       });
-      socket.send(JSON.stringify({provider:'openai',paid_consent:consent}));
+      socket.send(JSON.stringify({provider:'openai',paid_consent:consent,trace_id:requestTrace?.id||lastUtterance}));
       await Promise.race([ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('OpenAI STT не подтвердил готовность')),10000))]);
-      recording=await GoBotCapture.start({context:audio,onChunk:chunk=>{
+      recording=await GoBotCapture.start({context:audio,onInputClosed:inputClosed,onChunk:chunk=>{
         if(socket.bufferedAmount>512000){recording?.cancel();socket.close();$('mic-status').textContent='Аудиосеть перегружена. Запись остановлена.';return;}
         if(socket.readyState===WebSocket.OPEN)socket.send(chunk);
       },onStop:()=>{recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь · ждём финальный текст';if(socket.readyState===WebSocket.OPEN)socket.send('end');}});
     }else{
-      recording=await GoBotCapture.start({context:audio,...(window.GoBotHooks?.captureOptions||{}),onStop:async blob=>{
+      recording=await GoBotCapture.start({context:audio,...(window.GoBotHooks?.captureOptions||{}),onInputClosed:inputClosed,onStop:async(blob,info={})=>{
+        requestTrace?.inputClosed(info.input_closed_at);requestTrace?.mark('encoding_end');
         if(captureEpoch!==epoch)return;
         window.GoBotHooks?.onRecognizing?.();
         recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь…';
-        try{const query=new URLSearchParams({provider,paid_consent:String(consent)});
+        try{const query=new URLSearchParams({provider,paid_consent:String(consent),trace_id:requestTrace?.id||lastUtterance});
           transcriptionAbort=new AbortController();
+          requestTrace?.mark('upload_start');
           const response=await fetch('/api/audio/transcribe?'+query,{method:'POST',headers:{'Content-Type':blob.type},body:blob,signal:transcriptionAbort.signal});
           const result=await response.json();if(!response.ok)throw new Error(explain(result.detail||'stt_unavailable'));
           if(captureEpoch!==epoch)return;
+          requestTrace?.mark('stt_final_received');if(requestTrace){requestTrace.stt=result.telemetry;requestTrace.gatewayStt=result.gateway_telemetry;}
           lastSpeakerJob=result.speaker_job_id;$('question').value=result.text;$('mic-status').textContent='Распознано. Исправь текст и отправь. '+result.provider+' · '+Math.round(result.stt_ms)+' мс';showSpeaker(result.speaker_job_id,result.speaker);
           transcriptPending=false;$('send').disabled=false;
           await window.GoBotHooks?.onTranscript?.({text:result.text,utterance_id:lastUtterance});
-        }catch(error){if(captureEpoch===epoch){$('mic-status').textContent=error.message;$('question').value='';window.GoBotHooks?.onCaptureError?.(error.message);}}
+        }catch(error){if(captureEpoch===epoch){feedback?.cancel();requestTrace?.mark('error');requestTrace?.flush();$('mic-status').textContent=error.message;$('question').value='';window.GoBotHooks?.onCaptureError?.(error.message);}}
         finally{if(captureEpoch===epoch){transcriptPending=false;$('send').disabled=false;}}
       },onError:error=>{$('mic-status').textContent=error.message;recording=null;transcriptPending=false;$('send').disabled=false;window.GoBotHooks?.onCaptureError?.(error.message);}});
     }
     $('record').textContent = '■ Закончить диктовку';$('record').setAttribute('aria-pressed','true');$('record').classList.add('recording'); $('mic-status').textContent = 'Слушаю. Нажми ещё раз, когда закончишь.';
     window.GoBotHooks?.onListening?.();
   } catch (error) {
-    transcriptPending=false;$('send').disabled=false;
+    feedback?.cancel();transcriptPending=false;$('send').disabled=false;
     const message=error.name==='NotAllowedError'?'Доступ к микрофону не разрешён. В Safari открой настройки этого сайта и разреши микрофон. Если ссылка открыта внутри другого приложения, открой её в Safari.':error.name==='NotFoundError'?'Браузер не обнаружил микрофон.':error.name==='NotReadableError'?'Микрофон занят другим приложением. Закрой запись в нём и попробуй снова.':error.message;
     $('mic-status').textContent=message;$('record').textContent='🎙 Начать диктовку';$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording');
     window.GoBotHooks?.onCaptureError?.(message);
@@ -302,15 +345,16 @@ async function changeMemory(action,id,content=''){
 $('memory-refresh').onclick=refreshMemory;
 $('rename-topic').onclick=()=>{if(currentTopic&&$('topic-name').value.trim())changeMemory('rename_topic',currentTopic,$('topic-name').value.trim());};
 $('forget-conversation').onclick=()=>{if(window.confirm('Удалить сообщения и производные данные этого разговора из рабочей базы GoBot?'))changeMemory('forget_conversation',conversation);};
+window.addEventListener('storage', event=>{if(event.key==='gobot.conversation'){stop();recording?.cancel();recording=null;liveSocket?.close();$('answer').textContent='';$('history').replaceChildren();conversation=localStorage.getItem('gobot.conversation')||uuid();window.GoBotHooks?.onScopeChanged?.();}});
 window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSocket?.close(); });
-window.GoBotClient={send,stop,unlockAudio,startRecording,endRecording,explain,
+window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,unlockAudio,startRecording,endRecording,explain,
   cancelRecording(){recording?.cancel();recording=null;liveSocket?.close();transcriptPending=false;stop();},
   isRecording:()=>!!recording||micPending,
   audioSnapshot(){let level=0;if(outputAnalyser){const data=new Uint8Array(outputAnalyser.fftSize);outputAnalyser.getByteTimeDomainData(data);level=Math.sqrt(data.reduce((sum,value)=>sum+((value-128)/128)**2,0)/data.length);}return {level,playing:sources.size>0&&(!audio.state||audio.state==='running'),state:audio?.state||'closed'};},
-  getSettings:()=>({model:$('model').value,tts:$('tts').value,voice:$('voice').value||'marin',stt:$('stt').value,speak:$('speak').checked,paid:$('paid').checked,paid_stt:$('paid-stt').checked,quota:$('quota').checked,volume:$('volume').value}),
+  getSettings:()=>({model:$('model').value,tts:$('tts').value,voice:$('voice').value||'marin',stt:$('stt').value,speak:$('speak').checked,paid:$('paid').checked,paid_stt:$('paid-stt').checked,quota:$('quota').checked,remember:$('remember').checked,volume:$('volume').value}),
   saveSettings(){localStorage.setItem('gobot.voice-settings',JSON.stringify(this.getSettings()));},
-  restoreSettings(){try{const value=JSON.parse(localStorage.getItem('gobot.voice-settings')||'{}');for(const key of ['model','tts','stt','volume'])if(value[key]!=null)$(key).value=value[key];for(const key of ['speak','paid','quota'])if(typeof value[key]==='boolean')$(key).checked=value[key];if(typeof value.paid_stt==='boolean')$('paid-stt').checked=value.paid_stt;if(value.voice&&$('voice').options.length)$('voice').value=value.voice;}catch(_){}}
+  restoreSettings(){try{const value=JSON.parse(localStorage.getItem('gobot.voice-settings')||'{}');for(const key of ['model','tts','stt','volume'])if(value[key]!=null)$(key).value=value[key];for(const key of ['speak','paid','quota','remember'])if(typeof value[key]==='boolean')$(key).checked=value[key];if(typeof value.paid_stt==='boolean')$('paid-stt').checked=value.paid_stt;if(value.voice&&$('voice').options.length)$('voice').value=value.voice;}catch(_){}}
 };
 window.GoBotClient.restoreSettings();
-for(const key of ['model','tts','voice','stt','speak','paid','paid-stt','quota','volume'])$(key).addEventListener?.('change',()=>window.GoBotClient.saveSettings());
+for(const key of ['model','tts','voice','stt','speak','paid','paid-stt','quota','volume','remember'])$(key).addEventListener?.('change',()=>window.GoBotClient.saveSettings());
 refresh(); loadHistory();refreshMemory();loadVisualSettings();

@@ -1,6 +1,7 @@
 """Structured CLI adapters. Live execution is not exposed by the host Bridge.
 Parsers and JSON-RPC lifecycle are usable with fixture transports without spending quota.
 """
+from .telemetry import mark
 import asyncio,json,os,signal
 from pathlib import Path
 from .security import redact
@@ -95,10 +96,12 @@ class CodexAppServerAdapter:
     async def interrupt(self):
         if self.thread_id and self.turn_id:await self.rpc.request('turn/interrupt',{'threadId':self.thread_id,'turnId':self.turn_id})
     async def stream(self,text):
+        mark("prompt_dispatch_start")
         result=await self.rpc.request('turn/start',{'threadId':self.thread_id,'input':[{'type':'text','text':text,'text_elements':[]}],'approvalPolicy':'on-request','sandboxPolicy':{'type':'readOnly'}})
-        self.turn_id=result['turn']['id'];parser=CodexEventAdapter()
+        mark('prompt_sent');self.turn_id=result['turn']['id'];parser=CodexEventAdapter()
         try:
             async for obj in self.rpc.events():
+                mark("raw_event")
                 if obj.get('method')=='thread/tokenUsage/updated':
                     raw=obj.get('params',{}).get('tokenUsage',{}).get('last',{})
                     self.usage={k:v for k,v in raw.items() if k in {'inputTokens','outputTokens','totalTokens','cachedInputTokens','reasoningOutputTokens'} and isinstance(v,int) and v>=0}
@@ -108,7 +111,8 @@ class CodexAppServerAdapter:
                     if method in {'item/commandExecution/requestApproval','item/fileChange/requestApproval'}:await self.rpc.reply(obj['id'],{'decision':'decline'})
                     else:await self.rpc.reply(obj['id'],error={'code':-32601,'message':'GoBot denies tool requests'})
                     continue
-                for delta in parser.parse(obj):yield delta
+                for delta in parser.parse(obj):
+                    mark("assistant_delta");yield delta
                 if parser.completed:return
             raise RuntimeError('App Server disconnected before completion')
         finally:

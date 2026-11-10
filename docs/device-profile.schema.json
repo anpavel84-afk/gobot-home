@@ -113,6 +113,42 @@
       "title": "DeviceSkin",
       "type": "object"
     },
+    "FeedbackPreferences": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "filler_enabled": {
+          "default": true,
+          "title": "Filler Enabled",
+          "type": "boolean"
+        },
+        "quiet": {
+          "default": false,
+          "title": "Quiet",
+          "type": "boolean"
+        },
+        "threshold_ms": {
+          "default": 2250,
+          "maximum": 2500,
+          "minimum": 2000,
+          "title": "Threshold Ms",
+          "type": "integer"
+        },
+        "volume": {
+          "default": 0.22,
+          "maximum": 0.5,
+          "minimum": 0,
+          "title": "Volume",
+          "type": "number"
+        }
+      },
+      "title": "FeedbackPreferences",
+      "type": "object"
+    },
     "ScreenPreferences": {
       "additionalProperties": false,
       "properties": {
@@ -190,6 +226,9 @@
     },
     "screen": {
       "$ref": "#/$defs/ScreenPreferences"
+    },
+    "feedback": {
+      "$ref": "#/$defs/FeedbackPreferences"
     },
     "interaction_mode": {
       "default": "hold",

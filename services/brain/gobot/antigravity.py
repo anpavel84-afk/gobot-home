@@ -1,5 +1,6 @@
 """Official pinned agy native binary; no API key, no shell or copied OAuth files."""
 import asyncio,hashlib,json
+from .telemetry import mark
 from functools import lru_cache
 from pathlib import Path
 from .processes import AgentError,clean_environment,native_process,failure_code
@@ -85,16 +86,19 @@ class AntigravityAdapter:
     def __init__(self):self.usage=None
     async def stream(self,text,context,model_id=None):
         from .live_agents import context_prompt
-        parser=AntigravityEvents()
+        parser=AntigravityEvents();mark("argv_policy_start")
         async with native_process(argv(model_id=model_id),WORK,environment()) as process:
             process.stdin.write(json.dumps({'event':'user','message':{'content':context_prompt(text,context)}},ensure_ascii=False).encode()+b'\n')
-            await process.stdin.drain()
+            await process.stdin.drain();mark("prompt_sent")
             try:
                 async with asyncio.timeout(95):
                     while line:=await process.stdout.readline():
+                        mark("raw_event") if not parser.initialized else None
                         try:item=json.loads(line)
                         except ValueError:continue
-                        for delta in parser.parse(item):yield delta
+                        if item.get("event")=="init":mark("provider_initialized")
+                        for delta in parser.parse(item):
+                            mark("assistant_delta");yield delta
                         if parser.completed:self.usage=parser.usage;return
                 raise AgentError(process.gobot_failure or 'antigravity_incomplete_stream')
             finally:process.stdin.close()

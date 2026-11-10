@@ -1,0 +1,261 @@
+{
+  "kind": "free HTTPS mock trace smoke, not speech performance",
+  "client": "Python HTTP driver, no physical browser",
+  "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+  "traces": [
+    {
+      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "clock_domain": "brain",
+      "events": [
+        {
+          "name": "stt_upload_first",
+          "ms": 0.004,
+          "metadata": {}
+        },
+        {
+          "name": "stt_upload_last",
+          "ms": 0.129,
+          "metadata": {
+            "input_bytes": 6444,
+            "stt_mode": "mock"
+          }
+        },
+        {
+          "name": "stt_final",
+          "ms": 0.2,
+          "metadata": {}
+        },
+        {
+          "name": "memory_prepare_start",
+          "ms": 315.654,
+          "metadata": {}
+        },
+        {
+          "name": "memory_prepare_end",
+          "ms": 315.897,
+          "metadata": {}
+        },
+        {
+          "name": "voice_stream_open",
+          "ms": 332.673,
+          "metadata": {
+            "utterance_id": null,
+            "request_id": null,
+            "turn_id": "755680e0-562c-4751-b33e-f1469e968f60",
+            "conversation_id": "temporary-dc9547ae-cc1c-4952-9004-af31fd45ac80"
+          }
+        },
+        {
+          "name": "brain_queue_start",
+          "ms": 332.76,
+          "metadata": {}
+        },
+        {
+          "name": "brain_queue_end",
+          "ms": 332.794,
+          "metadata": {}
+        },
+        {
+          "name": "context_start",
+          "ms": 332.804,
+          "metadata": {}
+        },
+        {
+          "name": "context_end",
+          "ms": 332.992,
+          "metadata": {}
+        },
+        {
+          "name": "admission_start",
+          "ms": 333.0,
+          "metadata": {}
+        },
+        {
+          "name": "admission_end",
+          "ms": 340.477,
+          "metadata": {}
+        },
+        {
+          "name": "router_end",
+          "ms": 342.049,
+          "metadata": {
+            "route": "FAST_CHAT",
+            "model": null,
+            "concurrency": 1
+          }
+        },
+        {
+          "name": "context_pack_end",
+          "ms": 440.36,
+          "metadata": {
+            "context_tokens": 378
+          }
+        },
+        {
+          "name": "first_assistant_delta",
+          "ms": 445.481,
+          "metadata": {}
+        },
+        {
+          "name": "chunker_sentence_ready",
+          "ms": 487.509,
+          "metadata": {}
+        },
+        {
+          "name": "sentence_ready",
+          "ms": 487.531,
+          "metadata": {}
+        },
+        {
+          "name": "voice_stream_closed",
+          "ms": 551.707,
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "input_bytes": 6444,
+        "stt_mode": "mock",
+        "utterance_id": null,
+        "request_id": null,
+        "turn_id": "755680e0-562c-4751-b33e-f1469e968f60",
+        "conversation_id": "temporary-dc9547ae-cc1c-4952-9004-af31fd45ac80",
+        "route": "FAST_CHAT",
+        "model": null,
+        "concurrency": 1,
+        "context_tokens": 378
+      },
+      "code_config_fingerprint": "7446e8588813065c8dda",
+      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "unknown_stages": [
+        "provider_internal_inference",
+        "stt_tls_handshake",
+        "physical_acoustic_output"
+      ],
+      "contains_content": false
+    },
+    {
+      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "clock_domain": "client_monotonic",
+      "revision": 1,
+      "events": [
+        {
+          "name": "input_closed",
+          "ms": 0
+        },
+        {
+          "name": "upload_start",
+          "ms": 343.207
+        },
+        {
+          "name": "stt_final_received",
+          "ms": 692.283
+        },
+        {
+          "name": "chat_submit",
+          "ms": 692.288
+        },
+        {
+          "name": "first_text",
+          "ms": 1012.042
+        }
+      ],
+      "source": "untrusted_client_estimated_output_not_acoustic_proof",
+      "contains_content": false
+    },
+    {
+      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "clock_domain": "gateway-chat",
+      "events": [
+        {
+          "name": "request_received",
+          "ms": 0.003,
+          "metadata": {}
+        },
+        {
+          "name": "profile_start",
+          "ms": 0.21,
+          "metadata": {}
+        },
+        {
+          "name": "profile_end",
+          "ms": 0.222,
+          "metadata": {}
+        },
+        {
+          "name": "gateway_queue_start",
+          "ms": 1.217,
+          "metadata": {}
+        },
+        {
+          "name": "gateway_queue_end",
+          "ms": 1.254,
+          "metadata": {}
+        },
+        {
+          "name": "brain_first_bytes",
+          "ms": 314.376,
+          "metadata": {}
+        },
+        {
+          "name": "gateway_closed",
+          "ms": 432.188,
+          "metadata": {}
+        }
+      ],
+      "metadata": {},
+      "code_config_fingerprint": "7446e8588813065c8dda",
+      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "unknown_stages": [
+        "provider_internal_inference",
+        "stt_tls_handshake",
+        "physical_acoustic_output"
+      ],
+      "contains_content": false
+    },
+    {
+      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "clock_domain": "gateway-stt",
+      "events": [
+        {
+          "name": "upload_first",
+          "ms": 0.004,
+          "metadata": {}
+        },
+        {
+          "name": "upload_last",
+          "ms": 0.174,
+          "metadata": {
+            "input_bytes": 6444
+          }
+        },
+        {
+          "name": "stt_gateway_queue_end",
+          "ms": 0.197,
+          "metadata": {}
+        },
+        {
+          "name": "stt_returned",
+          "ms": 327.808,
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "input_bytes": 6444
+      },
+      "code_config_fingerprint": "7446e8588813065c8dda",
+      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "unknown_stages": [
+        "provider_internal_inference",
+        "stt_tls_handshake",
+        "physical_acoustic_output"
+      ],
+      "contains_content": false
+    }
+  ],
+  "persistent_test_messages": 0,
+  "paid_requests": 0,
+  "cli_model_requests": 0,
+  "tts_enabled": false,
+  "first_answer_audible_ms": null,
+  "iphone_verified": false
+}

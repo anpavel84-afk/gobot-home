@@ -14,6 +14,7 @@ from contextlib import asynccontextmanager
 from .antigravity_login import AntigravityLogin
 from .device_store import DeviceStore
 from .activation import WakeWordActivationService
+from .telemetry import Trace,Traces
 
 from .secrets_store import openai_key_present, save_openai_key
 
@@ -27,6 +28,7 @@ def create_browser_app(settings=None):
     if settings is None:
         from .config import load
         settings=load()
+    traces=Traces(Path(settings.db).resolve().parent)
     login=AntigravityLogin();devices=DeviceStore(Path(settings.db).resolve().parent/'browser-devices')
     @asynccontextmanager
     async def lifespan(app):
@@ -53,6 +55,7 @@ def create_browser_app(settings=None):
 
     @app.post('/api/chat/stream')
     async def chat(request:Request):
+        timing=Trace('pending','gateway-chat');timing.mark('request_received')
         downgraded=False
         raw=bytearray()
         async for chunk in request.stream():
@@ -60,7 +63,9 @@ def create_browser_app(settings=None):
             if len(raw)>20000:raise HTTPException(413,'request_too_large')
         try:
             body=json.loads(raw)
+            timing.id=str(body.get('trace_id') or body.get('utterance_id') or body.get('turn_id') or 'chat')[:100];timing.mark('profile_start')
             body['device_id']=await subject(request)
+            timing.mark('profile_end')
             if body.get('speaker_job_id') and not re.fullmatch(r'[a-f0-9-]{36}',str(body['speaker_job_id'])):raise ValueError('invalid_speaker_job')
             if body.get('speaker_job_id') and body['device_id'].startswith('personal:'):
                 async with httpx.AsyncClient(trust_env=False,timeout=2) as client:
@@ -78,8 +83,10 @@ def create_browser_app(settings=None):
             body.setdefault('mode','auto')
             req=VoiceRequest.model_validate(body)
         except (ValueError,TypeError,AttributeError):raise HTTPException(422,'invalid_chat_request')
+        timing.mark('gateway_queue_start')
         try:await asyncio.wait_for(slots.acquire(),.1)
         except TimeoutError:raise HTTPException(429,'busy')
+        timing.mark('gateway_queue_end')
         async def generate():
             try:
                 if downgraded:
@@ -89,27 +96,35 @@ def create_browser_app(settings=None):
                         if response.status_code!=200:
                             yield 'event: error\ndata: {"type":"error","data":{"code":"brain_request_failed"}}\n\n'
                             return
-                        async for chunk in response.aiter_bytes():yield chunk
+                        async for chunk in response.aiter_bytes():
+                            timing.mark('brain_first_bytes');yield chunk
             except httpx.HTTPError:
                 yield 'event: error\ndata: {"type":"error","data":{"code":"brain_unavailable"}}\n\n'
-            finally:slots.release()
+            finally:
+                timing.mark('gateway_closed');await asyncio.to_thread(traces.save,req.device_id,timing);slots.release()
         result=StreamingResponse(generate(),media_type='text/event-stream',headers={'X-Accel-Buffering':'no'})
         if downgraded:result.delete_cookie('gobot_profile')
         return result
 
     @app.post('/api/audio/transcribe')
     async def transcribe(request:Request):
+        ident=request.query_params.get('trace_id') or 'upload'
+        if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,100}',ident):raise HTTPException(422)
+        trace=Trace(ident,'gateway-stt');trace.mark('upload_first')
         raw=bytearray()
         async for chunk in request.stream():
             raw.extend(chunk)
             if len(raw)>8*1024*1024:raise HTTPException(413,'audio_too_large')
+        trace.mark('upload_last',input_bytes=len(raw));owner=await subject(request)
         async with slots:
+            trace.mark('stt_gateway_queue_end')
             try:
                 async with httpx.AsyncClient(trust_env=False,timeout=120) as client:
                     response=await client.post('http://127.0.0.1:18781/api/v1/audio/transcribe',content=bytes(raw),params={
                         'provider':request.query_params.get('provider','openai'),'paid_consent':request.query_params.get('paid_consent','false'),
-                        'device_id':device(request)},headers={**auth,'Content-Type':request.headers.get('content-type','')})
-                return JSONResponse(response.json(),status_code=response.status_code)
+                        'device_id':device(request),'trace_id':request.query_params.get('trace_id'),'trace_owner':owner},headers={**auth,'Content-Type':request.headers.get('content-type','')})
+                trace.mark('stt_returned');result=response.json();result['gateway_telemetry']=trace.snapshot();await asyncio.to_thread(traces.save,owner,trace)
+                return JSONResponse(result,status_code=response.status_code)
             except httpx.HTTPError:raise HTTPException(503,'stt_unavailable')
 
     @app.get('/api/history/{conversation}')
@@ -279,6 +294,9 @@ def create_browser_app(settings=None):
             attempts[request.client.host]=[];return response
         return JSONResponse(result.json(),status_code=result.status_code)
 
+    @app.get('/feedback-wait.wav')
+    async def feedback_wait():return FileResponse(ROOT/'services/phone/dist/feedback-wait.wav',media_type='audio/wav')
+
     @app.get('/audio/voice-check.wav')
     async def voice_check():
         path=ROOT/'data/openai-voice-owner-approved.wav'
@@ -377,6 +395,20 @@ def create_browser_app(settings=None):
     async def index():
         return FileResponse(ROOT / "services/phone/dist/browser.html", media_type="text/html")
 
+    @app.api_route('/api/telemetry/{ident}',methods=['GET','POST'])
+    async def telemetry(request:Request,ident:str):
+        if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,100}',ident):raise HTTPException(422)
+        owner=await subject(request)
+        async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
+            if request.method=='POST':
+                raw=await request.body()
+                if len(raw)>16384:raise HTTPException(413)
+                try:body=json.loads(raw);body['trace_id']=ident;body['device_id']=owner
+                except (ValueError,TypeError):raise HTTPException(422)
+                result=await client.post('http://127.0.0.1:18781/api/v1/telemetry',headers=auth,json=body)
+            else:result=await client.get('http://127.0.0.1:18781/api/v1/telemetry/'+ident,headers=auth,params={'device_id':owner})
+        return JSONResponse(result.json(),status_code=result.status_code)
+
     @app.get('/device')
     async def device_page():return FileResponse(ROOT/'services/phone/dist/device.html',media_type='text/html')
 
@@ -424,7 +456,7 @@ def create_browser_app(settings=None):
 
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','device.js','device-renderer.js','device-settings.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'

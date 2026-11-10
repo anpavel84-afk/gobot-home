@@ -21,12 +21,14 @@ from .visual_images import ImageCache
 from pathlib import Path
 from .presentation_planner import MultimodalResponsePlanner
 from .response_composer import VisualResponseComposer
+from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
 
 class Service:
     def __init__(self,settings):
         self.presentation_planner=MultimodalResponsePlanner()
         self.composer=VisualResponseComposer(self.presentation_planner)
         self.active_voice_streams=0
+        self.traces=Traces(Path(settings.db).parent)
         self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
     async def prepare(self,req):
         try:return await asyncio.to_thread(self.memory.start,req)
@@ -45,17 +47,25 @@ class Service:
             yield event(req,'final' if replay['status']=='completed' else replay['status'] if replay['status'] in {'cancelled','error'} else 'error',text=replay['result'],provider=replay['provider'],replayed=True);return
         cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None
         try:
-            try:await asyncio.wait_for(self.limit.acquire(),0.1);acquired=True
+            mark("brain_queue_start")
+            try:await asyncio.wait_for(self.limit.acquire(),0.1);acquired=True;mark("brain_queue_end")
             except TimeoutError:
                 state='error';yield event(req,'error',code='busy');return
             async with asyncio.timeout(self.settings.timeout):
+                mark("context_start")
                 ctx=await asyncio.to_thread(self.memory.context,req)
+                mark("context_end")
                 decision=None;widget=None;selected=req.mode;verification=None;must_gate=False;spoken_override=None;visual_frame=None
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
                     request_for_route=req if req.mode is not None else req.model_copy(update={'mode':req.provider})
-                    decision=self.router.choose(request_for_route,ctx,await asyncio.to_thread(agent_status,req.usage_consent))
+                    mark("admission_start")
+                    admission=await asyncio.to_thread(agent_status,req.usage_consent)
+                    mark("admission_end")
+                    decision=self.router.choose(request_for_route,ctx,admission)
+                    mark("router_end",route=decision.category,model=decision.model,concurrency=len(self.running))
                     ctx=self.context_manager.pack(req.text,ctx,'DETAILED' if req.context_detail=='detailed' else decision.category)
                     if req.remember:await asyncio.to_thread(self.memory.archive.record_context,req,ctx,decision.provider)
+                    mark("context_pack_end",context_tokens=ctx.get("_context_meta",{}).get("packet_tokens"))
                     route=decision.category;provider=('bridge:'+decision.provider) if decision.provider in {'codex','antigravity'} else decision.provider
                     second=decision.reason=='explicit_model_selection';trace=[decision.public()]
                     source_req=req.model_copy(update={'provider':decision.provider,'model_id':decision.model}) if decision.provider in {'codex','antigravity'} else req
@@ -116,7 +126,7 @@ class Service:
                                 for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
                                 yield event(req,'tool_status',status='speech_input_complete')
                             continue
-                        if first is None:first=(time.perf_counter()-started)*1000
+                        if first is None:first=(time.perf_counter()-started)*1000;mark("first_assistant_delta")
                         text+=delta
                         if len(text)>32000:raise ValueError('Output limit')
                         if not must_gate:
@@ -135,7 +145,7 @@ class Service:
                     source_req=req.model_copy(update={'provider':'codex','model_id':'gpt-6.1-sol'})
                     iterator=cancellable(bridge_stream(self.settings,source_req,ctx),cancel)
                     async for delta in iterator:
-                        if first is None:first=(time.perf_counter()-started)*1000
+                        if first is None:first=(time.perf_counter()-started)*1000;mark("first_assistant_delta")
                         text+=delta
                         if len(text)>32000:raise AgentError('output_limit')
                         if not must_gate:
@@ -162,7 +172,7 @@ class Service:
                 state='completed'
                 await asyncio.to_thread(self.memory.finish,req,state,text.strip(),provider,trace)
                 if req.remember:await asyncio.to_thread(self.memory.archive.record_usage,req,ctx.get('_provider_usage'),ctx.get('_provider_session_id'))
-                yield event(req,'final',text=text.strip(),provider=provider,trace=trace,presentation_plan=presentation_plan.model_dump(),llm_first_token_ms=first,total_ms=(time.perf_counter()-started)*1000,mock=provider.startswith('mock') or provider=='bridge:mock',model=decision.model if decision else None,usage=ctx.get('_provider_usage'),billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification)
+                yield event(req,'final',text=text.strip(),provider=provider,trace=trace,presentation_plan=presentation_plan.model_dump(),llm_first_token_ms=first,total_ms=(time.perf_counter()-started)*1000,mock=provider.startswith('mock') or provider=='bridge:mock',model=decision.model if decision else None,bridge_telemetry=ctx.get('_bridge_telemetry'),usage=ctx.get('_provider_usage'),billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification)
         except TimeoutError:
             state='error';yield event(req,'error',code='timeout')
         except asyncio.CancelledError:
@@ -195,7 +205,9 @@ def create_app(settings=None):
     settings.validate();service=Service(settings);speech=Speech();family=Family(service.memory);identity=SpeakerIdentity(family)
     @asynccontextmanager
     async def lifespan(app):
-        await asyncio.to_thread(service.memory.recover);yield
+        await asyncio.to_thread(service.memory.recover)
+        await asyncio.to_thread(agent_status) # Metadata/hash warmup only; admission still rechecks per request.
+        yield
         for flag in service.running.values():flag.set()
         await identity.close()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
@@ -269,32 +281,47 @@ def create_app(settings=None):
         await asyncio.to_thread(service.memory.archive.playback,body['device_id'],body['turn_id'],body['segment_id'],value)
         return {'recorded':True,'source':'untrusted_client_telemetry_not_acoustic_proof'}
     @app.post('/api/v1/audio/transcribe',dependencies=[Depends(auth)])
-    async def transcribe(request:Request,provider:str='openai',paid_consent:bool=False,device_id:str='local-test'):
+    async def transcribe(request:Request,provider:str='openai',paid_consent:bool=False,device_id:str='local-test',trace_id:str|None=None,trace_owner:str|None=None):
+        trace=service.traces.get(trace_owner or device_id,trace_id or 'upload');trace.mark('stt_upload_first')
         data=bytearray()
         async for chunk in request.stream():
             data.extend(chunk)
             if len(data)>8*1024*1024:raise HTTPException(413,'audio_too_large')
+        trace.mark("stt_upload_last",input_bytes=len(data),stt_mode=provider)
         # Launch local decoding/identity and STT together; never await identity before STT.
         job=identity.submit_recording(bytes(data),request.headers.get('content-type',''),speech,device_id)
         try:
-            result=await speech.transcribe(bytes(data),request.headers.get('content-type',''),provider,paid_consent=paid_consent)
+            with scope(trace):result=await speech.transcribe(bytes(data),request.headers.get('content-type',''),provider,paid_consent=paid_consent)
+            trace.mark('stt_final');result['telemetry']=trace.snapshot();await asyncio.to_thread(service.traces.save,trace_owner or device_id,trace)
             result['speaker_job_id']=job
             result['speaker']=identity.result(job,device_id) if job else {'state':'unknown','reason':'identity_pending','personal_authorized':False}
             await asyncio.to_thread(service.memory.record_metrics,job or 'upload',result.get('provider',provider),{'stt_final':result.get('stt_ms')})
             return result
         except AgentError as error:raise HTTPException(422,error.code)
         except Exception:raise HTTPException(503,'stt_unavailable')
+    @app.post('/api/v1/telemetry',dependencies=[Depends(auth)])
+    async def telemetry_post(request:Request):
+        raw=await request.body()
+        if len(raw)>16384:raise HTTPException(413)
+        try:
+            body=json.loads(raw);owner=body.pop('device_id');sample=client_trace(body)
+            if not isinstance(owner,str) or len(owner)>100:raise ValueError()
+        except (ValueError,KeyError,TypeError):raise HTTPException(422)
+        await asyncio.to_thread(service.traces.save,owner,sample);return {'recorded':True}
+    @app.get('/api/v1/telemetry/{ident}',dependencies=[Depends(auth)])
+    async def telemetry_get(ident:str,device_id:str):return {'traces':await asyncio.to_thread(service.traces.read,device_id,ident)}
     @app.get('/api/v1/speaker/{job}',dependencies=[Depends(auth)])
     async def speaker_result(job:str,device_id:str):return identity.result(job,device_id)
     @app.websocket('/api/v1/audio/live')
     async def live_stt(ws:WebSocket):
         if not hmac.compare_digest(ws.headers.get('authorization',''),'Bearer '+settings.api_token):
             await ws.close(code=4401);return
-        await ws.accept();iterator=None
+        await ws.accept();iterator=None;trace=None;token=None
         try:
             config=json.loads(await asyncio.wait_for(ws.receive_text(),5))
             if config.get('provider','openai')!='openai':raise AgentError('live_stt_requires_openai')
             pcm=bytearray();device_id=str(config.get('device_id','local-test'))[:100];job=None
+            trace=service.traces.get(device_id,str(config.get('trace_id') or 'live')[:100]);trace.mark('live_connected',stt_mode='openai-live');token=CURRENT.set(trace)
             def start_identity():
                 nonlocal job
                 if job is not None:return
@@ -319,6 +346,7 @@ def create_app(settings=None):
             iterator=OpenAIRecognition().live(chunks(),paid_consent=config.get('paid_consent') is True)
             async for item in iterator:
                 if item['type']=='stt_final':
+                    trace.mark('stt_final');item['data']['telemetry']=trace.snapshot()
                     item['data']['speaker_job_id']=job
                     item['data']['speaker']=identity.result(job,device_id) if job else {'state':'unknown','reason':'identity_pending','personal_authorized':False}
                     await asyncio.to_thread(service.memory.record_metrics,job or 'live','openai-live',{
@@ -332,15 +360,21 @@ def create_app(settings=None):
             with __import__('contextlib').suppress(Exception):await ws.send_json({'type':'error','data':{'code':'live_stt_unavailable'}})
         finally:
             if iterator:await iterator.aclose()
+            if trace:await asyncio.to_thread(service.traces.save,device_id,trace)
+            if token is not None:CURRENT.reset(token)
             with __import__('contextlib').suppress(Exception):await ws.close()
     @app.post('/api/v1/chat/voice/stream',dependencies=[Depends(auth)])
     async def voice_stream(req:VoiceRequest,request:Request):
         chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id'}))
+        trace=service.traces.get(chat_req.device_id,chat_req.trace_id or chat_req.utterance_id or chat_req.turn_id);trace.mark("memory_prepare_start")
         replay=await service.prepare(chat_req)
+        trace.mark("memory_prepare_end")
         async def generate():
             iterator=voiced_events(service,speech,chat_req,speak=req.speak,tts_provider=req.tts_provider,tts_voice=req.tts_voice,paid_tts_consent=req.paid_tts_consent,replay=replay,prepared=True)
             try:
                 async for item in iterator:
+                    if item['type']=='audio_chunk':trace.mark('audio_transport_send')
+                    if item['type']=='final':item['data']['telemetry']=trace.snapshot()
                     yield 'event: '+item['type']+'\ndata: '+json.dumps(item,ensure_ascii=False)+'\n\n'
             finally:await iterator.aclose()
         return StreamingResponse(generate(),media_type='text/event-stream',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})

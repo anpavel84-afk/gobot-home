@@ -31,7 +31,7 @@ Health: http://127.0.0.1:18781/healthz . Ключи генерируются в 
 gemini-3.8-flash-medium. Argon и Codex — явно вручную. Gemini CLI/API исключены.
 Admission CLI проверяется offline; доступ требует согласия на квоту. Прошивки не было.
 
-Контекст ограничен, архив принадлежит GoBot. Проверки: 519 pytest, 240 synthetic
+Контекст ограничен, архив принадлежит GoBot. Проверки: 527 pytest, 240 synthetic
 router cases, 200-turn day. Это не подтверждает качество LLM или семейной биометрии.
 [Контекст](docs/CONTEXT_POLICY.md) · [Память](docs/MEMORY_ARCHITECTURE.md) ·
 [Оценка](docs/CONTEXT_EVALUATION.md) · [Speech Formatter](docs/SPEECH_FORMATTING.md).
@@ -48,9 +48,13 @@ AUTO показывает реальные фото/галерею, локаль
 Visual Response Composer выбирает сцену для каждого product-ответа, включая лицо,
 иконку, фото, процедурную схему или виджет. Не вызывает отдельную модель ради выбора
 визуала. [Multimodal Responses](docs/MULTIMODAL_RESPONSES.md).
-Проверены отдельный HTTPS image E2E и 519 бесплатных pytest; реальный Safari
+Проверены отдельный HTTPS image E2E и 527 бесплатных pytest; реальный Safari
 layout и новый платный TTS smoke этой фазы не проверялись.
 
 Публичный исходный код: [anpavel84-afk/gobot-home](https://github.com/anpavel84-afk/gobot-home),
 ветка master. GitHub connector подключён; Actions выключены. Правила публикации:
 [GITHUB_PUBLICATION.md](docs/GITHUB_PUBLICATION.md). Runtime data и ключи не публикуются.
+
+Текущий приоритет M1 по [целевой v0.2](docs/GOBOT_HOME_TARGET_SYSTEM.md):
+[сквозная телеметрия](docs/LATENCY_V02.md) и [матрица требований](docs/REQUIREMENTS_MATRIX.md).
+Earcon/filler отделены от полезного ответа; реальное сокращение iPhone TTFA пока не подтверждено.

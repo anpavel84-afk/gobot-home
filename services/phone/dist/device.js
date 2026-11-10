@@ -18,14 +18,17 @@
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
       this.renderer.onImageError=()=>this.status('Изображение не загрузилось. Ответ продолжается.');
       const hooks=window.GoBotHooks;
+      hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{if(this.enabled)this.state('idle');};
       hooks.onTurn=({turn_id})=>{this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.streamDone=false;this.state('thinking','Готовлю ответ…');};
       hooks.onListening=()=>this.state('listening','Слушаю. Отпусти круг, когда закончишь.');
       hooks.onCapturePending=()=>this.status('Включаю микрофон…');
+      hooks.onInputClosed=()=>this.state('thinking','Вопрос записан. Обрабатываю…');
       hooks.onRecognizing=()=>this.state('recognizing','Распознаю речь…');
       hooks.onCaptureError=message=>{if(this.enabled)this.state('error',message);};
       hooks.onTranscript=async item=>{if(!this.enabled||!item.text?.trim()||this.sent.has(item.utterance_id))return;this.sent.add(item.utterance_id);if(this.sent.size>128)this.sent.delete(this.sent.values().next().value);await window.GoBotClient.send();};
       hooks.onEvent=item=>this.event(item);
+      hooks.onTrace=trace=>{this.diagnostics.timing=trace;document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);};
       hooks.onStreamEnd=({turn_id})=>{if(turn_id===this.turn){this.streamDone=true;this.manager.finish(turn_id);}};
       const canvas=document.getElementById('device-screen');
       canvas.onpointerdown=event=>{if(this.profile.interaction_mode!=='hold')return;event.preventDefault();try{canvas.setPointerCapture(event.pointerId);}catch(_){}this.press();};
@@ -73,6 +76,9 @@
         if(generation!==this.generation){this.releaseLock?.();this.releaseLock=null;return;}
         const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});stream.getTracks().forEach(track=>track.stop());await unlocked;
         if(generation!==this.generation){this.releaseLock?.();this.releaseLock=null;return;}
+        await window.GoBotClient.prepareFeedback?.();
+        window.GoBotClient.feedback?.configure({...this.profile.feedback,enabled:this.profile.feedback?.enabled!==false&&settings.speak});
+        if(generation!==this.generation)return;
         this.enabled=true;this.state('idle','Готов. Удерживай круг и говори.');document.getElementById('device-enable').textContent='GoBot включён';
         this.timerPoll=setInterval(()=>this.refreshTimer(),5000);
         if(this.profile.keep_screen_awake&&navigator.wakeLock){try{this.wakeLock=await navigator.wakeLock.request('screen');this.wakeLock.addEventListener('release',()=>{this.wakeLock=null;});}catch(_){this.status('Готов. Браузер не разрешил удержание экрана.');}}

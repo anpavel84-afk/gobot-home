@@ -28,6 +28,8 @@ class ChatRequest(BaseModel):
     context_detail:Literal['standard','detailed']='standard'
     client_kind:Literal['panel','device']='panel'
     client_id:str|None=Field(default=None,pattern=ID)
+    trace_id:str|None=Field(default=None,pattern=ID)
+    profile_epoch:str|None=Field(default=None,pattern=ID)
     screen_preferences:ScreenPreferences|None=None
 
 class VoiceRequest(ChatRequest):

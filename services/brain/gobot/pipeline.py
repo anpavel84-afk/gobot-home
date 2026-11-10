@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from .processes import AgentError
 from .speech_formatter import SpeechFormatter
+from .telemetry import scope,mark
 
 async def voiced_events(service, speech, request, *, speak=True, tts_provider="openai",
                         tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False):
@@ -20,6 +21,8 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
     audio_cancel = asyncio.Event()
     measurements={}
     formatter=SpeechFormatter()
+    trace=service.traces.get(request.device_id,request.trace_id or request.utterance_id or request.turn_id) if hasattr(service,"traces") else None
+    if trace:trace.mark('voice_stream_open',utterance_id=request.utterance_id,request_id=request.request_id,turn_id=request.turn_id,conversation_id=request.conversation_id)
     def audio_event(kind, **data):
         return {'type':kind,'data':data,**{name:getattr(request,name) for name in
                 ('correlation_id','device_id','conversation_id','turn_id')}}
@@ -37,7 +40,8 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                     text_final = item.model_dump()
                 else:
                     await output.put(item.model_dump())
-                if item.type == "sentence_ready" and speak and not tts_failed and not replay and not sentences_closed:
+                if item.type == "sentence_ready":mark("sentence_ready")
+                if item.type == "sentence_ready" and speak and not tts_failed and not replay and not sentences_closed and item.data.get("representation")!="progress":
                     measurements.setdefault('first_sentence_ready',(time.perf_counter()-start)*1000)
                     await sentences.put(item.data["text"])
                 if item.type in {"error", "cancelled"}:
@@ -58,23 +62,26 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 continue
             segment_id=None
             try:
+                mark("formatter_start")
                 text=formatter.format(text)
+                mark("formatter_end")
                 if not text:continue
                 segment_id=audio_id+':'+str(segment_sequence);segment_sequence+=1
                 service.memory.archive.speech(request,segment_id,segment_sequence,text,'submitted_to_tts')
-                synthesis_started=time.perf_counter()
+                synthesis_started=time.perf_counter();mark("tts_segment_submit",voice=tts_voice,transport="realtime_ws",audio_role="answer")
                 if first:await output.put(audio_event('tts_status',status='preparing',provider=tts_provider))
                 async for pcm, rate in synthesizer.synthesize(text, tts_provider, tts_voice, paid_consent=paid_tts_consent):
                     if audio_cancel.is_set():
                         break
                     if first:
+                        mark("tts_first_audio_payload")
                         measurements['tts_first_chunk']=(time.perf_counter()-synthesis_started)*1000
                         measurements['first_audio_server']=(time.perf_counter()-start)*1000
                         await output.put(audio_event('audio_start',audio_id=audio_id,provider=tts_provider,
                                                     voice=tts_voice,first_chunk_ms=(time.perf_counter()-start)*1000))
                         first = False
                     await output.put(audio_event('audio_chunk',audio_id=audio_id,segment_id=segment_id,segment_sequence=segment_sequence,seq=seq,sample_rate=rate,
-                                                 format='pcm_s16le',pcm=base64.b64encode(pcm).decode()))
+                                                 audio_role='answer',format='pcm_s16le',pcm=base64.b64encode(pcm).decode()))
                     seq += 1
                 service.memory.archive.speech(request,segment_id,segment_sequence,text,'generated' if not audio_cancel.is_set() else 'interrupted')
             except AgentError as error:
@@ -109,7 +116,9 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 group.create_task(produce_text())
                 group.create_task(produce_audio())
             if text_final:
+                if text_final['data'].get('bridge_telemetry'):await asyncio.to_thread(service.traces.save,request.device_id,text_final['data']['bridge_telemetry'])
                 text_final['data']['speech_metrics']=dict(measurements)
+                if trace:text_final['data']['telemetry']=trace.snapshot()
                 await output.put(text_final)
         finally:
             service.memory.record_metrics(request.turn_id,tts_provider,measurements)
@@ -121,7 +130,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 await output.put(None)
 
     service.active_voice_streams=getattr(service,'active_voice_streams',0)+1
-    worker = asyncio.create_task(run())
+    with scope(trace):worker = asyncio.create_task(run())
     try:
         while (item := await output.get()) is not None:
             yield item
@@ -130,3 +139,5 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
         worker.cancel()
         await asyncio.gather(worker, return_exceptions=True)
         service.active_voice_streams-=1
+        if trace is not None:
+            trace.mark("voice_stream_closed");await asyncio.to_thread(service.traces.save,request.device_id,trace)

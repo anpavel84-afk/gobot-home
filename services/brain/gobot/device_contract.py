@@ -35,6 +35,13 @@ class DeviceSkin(Strict):
     reduced_motion:bool=False
     idle_screen:Literal['face','clock','image']='face'
 
+class FeedbackPreferences(Strict):
+    enabled:bool=True
+    filler_enabled:bool=True
+    quiet:bool=False
+    threshold_ms:int=Field(default=2250,ge=2000,le=2500)
+    volume:float=Field(default=.22,ge=0,le=.5,allow_inf_nan=False)
+
 class DeviceProfile(Strict):
     version:Literal[1]=1
     client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^browser-device-[a-f0-9-]{36}$')
@@ -42,6 +49,7 @@ class DeviceProfile(Strict):
     display:DeviceDisplay=Field(default_factory=DeviceDisplay)
     skin:DeviceSkin=Field(default_factory=DeviceSkin)
     screen:ScreenPreferences=Field(default_factory=ScreenPreferences)
+    feedback:FeedbackPreferences=Field(default_factory=FeedbackPreferences)
     interaction_mode:Literal['hold','toggle','wake']='hold'
     keep_screen_awake:bool=False
     has_screensaver:bool=False

@@ -1,0 +1,30 @@
+{
+  "kind": "real local metadata/hash timings, not real provider latency",
+  "samples": [
+    {
+      "unprimed_admission_ms": 550.9107999969274,
+      "first_request_after_startup_priming_ms": 7.382300005701836
+    },
+    {
+      "unprimed_admission_ms": 527.942400003667,
+      "first_request_after_startup_priming_ms": 7.5633000014931895
+    },
+    {
+      "unprimed_admission_ms": 543.3015999951749,
+      "first_request_after_startup_priming_ms": 7.893399997556116
+    },
+    {
+      "unprimed_admission_ms": 522.3708999983501,
+      "first_request_after_startup_priming_ms": 7.426399999530986
+    }
+  ],
+  "source_head": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+  "code_config_fingerprint": "c89c353f1f8833a7f305",
+  "change": "Brain and Bridge lifespan prime metadata before readiness; per-request checks remain",
+  "cli_spawns": 0,
+  "model_calls": 0,
+  "openai_calls": 0,
+  "overall_speech_improvement_measured": false,
+  "p95": null,
+  "note": "n=4 paired fresh-process observations; not a representative distribution"
+}

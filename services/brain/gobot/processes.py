@@ -1,6 +1,7 @@
 """Native asyncio subprocesses with bounded output and kill-on-close Windows jobs."""
 import asyncio
 import os
+from .telemetry import mark
 from contextlib import asynccontextmanager
 
 class AgentError(RuntimeError):
@@ -79,10 +80,12 @@ def clean_environment(source=None):
 @asynccontextmanager
 async def native_process(argv, cwd, env=None, discard_errors=True):
     options = {"creationflags": 0x08000000} if os.name == "nt" else {"start_new_session": True}
+    mark("process_spawn_start")
     process = await asyncio.create_subprocess_exec(
         *map(str, argv), cwd=str(cwd), env=env if env is not None else clean_environment(),
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         limit=262144, **options)
+    mark("process_spawn_end")
     job = None
     process.gobot_failure=None
     async def discard_stderr():

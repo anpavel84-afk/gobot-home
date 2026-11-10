@@ -14,6 +14,7 @@ import httpx
 
 from .processes import AgentError, native_process
 from .secrets_store import load_openai_key, openai_key_present
+from .telemetry import mark
 
 ROOT = Path(__file__).resolve().parents[3]
 OPENAI_VOICES = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo",
@@ -224,12 +225,14 @@ class SpeechTurn:
         key=self.speech.api_key if self.speech.api_key is not None else await asyncio.to_thread(load_openai_key)
         if not key:raise AgentError('openai_tts_key_missing')
         from websockets.asyncio.client import connect
+        mark("tts_handshake_start",cold=True)
         connector=self.speech.connector or connect
         async with asyncio.timeout(10):
             self.ws=await self.stack.enter_async_context(connector('wss://api.openai.com/v1/realtime?model='+TTS_MODEL,
                 additional_headers={'Authorization':'Bearer '+key,'OpenAI-Safety-Identifier':'gobot-home-owner'},
                 proxy=None,open_timeout=5,close_timeout=2,max_size=1048576,max_queue=4))
             await configure_voice(self.ws,self.voice)
+            mark("tts_handshake_end")
     @asynccontextmanager
     async def connection(self,voice,consent):
         await self.prepare('openai',voice,paid_consent=consent)

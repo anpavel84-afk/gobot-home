@@ -1,5 +1,6 @@
 """Official CLI transports. Admission depends on local isolation evidence and owner quota consent."""
 import asyncio
+from .telemetry import mark
 import hashlib
 import json
 import os
@@ -25,7 +26,7 @@ def _cached_digest(path,size,modified):return hashlib.sha256(Path(path).read_byt
 
 def policy_digest():
     paths = [Path(__file__), ROOT / 'services/brain/gobot/agents.py',
-             ROOT / 'services/brain/gobot/processes.py', POLICIES / 'gemini-settings.json',
+             ROOT / 'services/brain/gobot/processes.py', ROOT / 'services/brain/gobot/telemetry.py', POLICIES / 'gemini-settings.json',
              POLICIES / 'gemini-deny.toml']
     return hashlib.sha256(''.join(digest(p) for p in paths).encode()).hexdigest()
 
@@ -143,14 +144,17 @@ def context_prompt(text, context):
 class CodexLiveAdapter:
     def __init__(self):self.usage=None
     async def stream(self, text, context, *, extra_config=None,model_id=None):
+        mark("argv_policy_start")
         argv, workspace, model = codex_argv(extra_config)
+        mark("argv_policy_end")
         model=model_id or model
         async with native_process(argv, workspace) as process:
             rpc = AppServerTransport(process.stdout, process.stdin, timeout=15)
             await rpc.start()
             adapter = CodexAppServerAdapter(rpc, workspace)
             try:
-                await adapter.initialize()
+                mark("provider_init_start")
+                await adapter.initialize();mark("provider_initialized")
                 result = await rpc.request("thread/start", {
                     "cwd": str(workspace), "model": model, "approvalPolicy": "on-request",
                     "sandbox": "read-only", "ephemeral": True,
@@ -201,7 +205,10 @@ def agent_status(usage_consent=False):
     return statuses
 
 async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None):
-    state = agent_status(usage_consent).get(provider)
+    mark("bridge_admission_start")
+    state = await asyncio.to_thread(agent_status,usage_consent)
+    state = state.get(provider)
+    mark("bridge_admission_end")
     if not state or not state["available"]:
         raise AgentError(state["reason"] if state else "unknown_provider")
     if provider=='codex':adapter=CodexLiveAdapter()

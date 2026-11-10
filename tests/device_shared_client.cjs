@@ -4,7 +4,7 @@ const nodes=new Map(),store=new Map(),requests=[];let captures=0;
 const ctx=new Proxy({measureText:s=>({width:String(s).length*6})},{get:(o,k)=>k in o?o[k]:(()=>{})});
 class E{constructor(tag){this.tag=tag;this.children=[];this.options=[];this.value='';this.checked=false;this.classList={add(){},remove(){}};this.textContent='';}set id(v){this._id=v;nodes.set(v,this);}get id(){return this._id;}append(...children){this.children.push(...children);if(this.tag==='select'){this.options.push(...children);if(!this.value)this.value=children[0].value;}}replaceChildren(...c){this.children=c;}addEventListener(){}setAttribute(){}getContext(){return ctx;}setPointerCapture(){}}
 function el(id){if(!nodes.has(id)){const n=new E('div');n.id=id;}return nodes.get(id);}
-class Audio{constructor(){this.state='running';this.destination={};}async resume(){this.state='running';}createGain(){return {gain:{value:1},connect(){}};}createAnalyser(){return {fftSize:256,connect(){},getByteTimeDomainData:data=>data.fill(128)};}}
+class Audio{constructor(){this.state='running';this.destination={};this.sampleRate=24000;}createBuffer(n,len,rate){return {getChannelData:()=>new Float32Array(len),duration:len/rate};}async resume(){this.state='running';}createGain(){return {gain:{value:1},connect(){},disconnect(){}};}createAnalyser(){return {fftSize:256,connect(){},getByteTimeDomainData:data=>data.fill(128)};}}
 store.set('gobot.voice-settings',JSON.stringify({model:'mock',stt:'mock',tts:'openai',voice:'marin',speak:false,paid:false,paid_stt:false,quota:false,volume:'.8'}));
 const env={console,Date,Math,Set,Map,Uint8Array,Uint8ClampedArray,Float32Array,DataView,JSON,Promise,Error,AbortController,TextDecoder,URLSearchParams,Blob,atob,performance,setTimeout,clearTimeout,crypto:require('node:crypto').webcrypto,
  document:{body:new E('body'),createElement:t=>new E(t),getElementById:el,addEventListener(){}},
@@ -19,7 +19,7 @@ const env={console,Date,Math,Set,Map,Uint8Array,Uint8ClampedArray,Float32Array,D
    }
    return {ok:true,json:async()=>url==='/api/device/profile'?{profile:env.profile,capabilities:{},activation:{configured:false}}:url==='/api/status'?{services:[],backend:{voice:{tts:{voices:['marin']}}}}:url.startsWith('/api/audio/transcribe')?{text:'Синтетический вопрос',provider:'mock',stt_ms:0}:url==='/api/device/timers'?{timers:[]}:{messages:[]}};
  }};
-vm.createContext(env);for(const file of ['device-renderer.js','device.js','browser.js'])vm.runInContext(fs.readFileSync('services/phone/dist/'+file,'utf8'),env);
+vm.createContext(env);for(const file of ['turn-trace.js','device-renderer.js','device.js','browser.js'])vm.runInContext(fs.readFileSync('services/phone/dist/'+file,'utf8'),env);
 env.profile=JSON.parse(JSON.stringify(env.window.GoBotDeviceRenderer.defaults));env.profile.client_id='browser-device-fixture';env.profile.interaction_mode='hold';
 (async()=>{
  const app=new env.window.GoBotDeviceApp();await app.init();await app.enable();assert(app.enabled);

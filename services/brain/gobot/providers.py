@@ -2,6 +2,7 @@ import asyncio,json
 import httpx
 from .security import canonical,signed_request,verify_event
 from .processes import AgentError
+from .telemetry import mark,CURRENT
 
 class MockAgentAdapter:
     async def stream(self,text,context):
@@ -30,7 +31,7 @@ async def fast_stream(settings,req,context):
                 if isinstance(delta,str):yield delta
 
 async def bridge_stream(settings,req,context):
-    body=canonical({'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id,'usage_consent':req.usage_consent,'model_id':req.model_id})
+    body=canonical({'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id,'usage_consent':req.usage_consent,'model_id':req.model_id,'trace_id':req.trace_id or req.utterance_id or req.turn_id})
     headers=signed_request(settings.bridge_secret,body);seq=0
     async with httpx.AsyncClient(timeout=httpx.Timeout(settings.timeout,connect=2),trust_env=False) as client:
         async with client.stream('POST',settings.bridge_url+'/v1/stream',content=body,headers={**headers,'Content-Type':'application/json'}) as response:
@@ -39,7 +40,8 @@ async def bridge_stream(settings,req,context):
             async for line in response.aiter_lines():
                 if not line:continue
                 item=verify_event(settings.bridge_secret,headers['X-GoBot-Nonce'],seq,json.loads(line));seq+=1
-                if item['type']=='text_delta':yield item['text']
+                if item['type']=='telemetry':context['_bridge_telemetry']=item['trace']
+                elif item['type']=='text_delta':mark('bridge_first_text');yield item['text']
                 elif item['type']=='usage':context['_provider_usage']=item['usage']
                 elif item['type']=='session':context['_provider_session_id']=item['session_id']
                 elif item['type']=='error':raise AgentError(item.get('code','agent_unavailable'))
@@ -61,6 +63,7 @@ class SentenceBuffer:
             if not match:break
             end=match.end();out.append(self.buffer[:end].strip());self.buffer=self.buffer[end:]
         if final and self.buffer.strip():out.append(self.buffer.strip());self.buffer=''
+        if out:mark("chunker_sentence_ready")
         return [s for s in out if s]
 
 async def cancellable(source,flag):

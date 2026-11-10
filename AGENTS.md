@@ -10,5 +10,8 @@ heavy agent or mock. Expensive fallback requires explicit per-request approval.
 OpenAI STT and TTS are primary. Whisper and Denis are explicit manual offline choices only.
 OpenAI paid speech tests require separate owner permission; CLI quota consent does not cover API charges.
 Speaker embeddings stay local, encrypted with Windows DPAPI; no raw enrollment recordings on disk.
+Product source: docs/GOBOT_HOME_TARGET_SYSTEM.md v0.2 (96e0f3d), still a draft beyond owner-approved corrections.
+Current priority is M1 telemetry and measured latency. Feedback never counts as useful-answer TTFA.
+Real profiling requires explicit remaining owner budget; historical latency evidence stays unchanged.
 Family/personal/guest scopes must not cross. Voice identity alone cannot grant personal-history access;
 uncertain voice/pending recognition downgrades to guest, except a short utterance in a PIN-confirmed session.
