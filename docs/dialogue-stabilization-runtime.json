@@ -1,0 +1,16 @@
+{
+  "runtime_commit": "a71b71e987efdfe01884e34de10712782c0e36ac",
+  "health": "all services OK",
+  "native_metadata_isolation": true,
+  "local_end_http_ms": 379.23,
+  "local_end_status": "conversation_ended",
+  "duplicate_delivery_replayed": true,
+  "cached_marin_clips": 100,
+  "new_client_served": true,
+  "device_http": 200,
+  "antigravity_transport": "stream_json",
+  "acp_admitted": false,
+  "paid_api_requests": 0,
+  "model_prompts": 0,
+  "physical_iphone": false
+}

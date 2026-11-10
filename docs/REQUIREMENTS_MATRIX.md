@@ -112,3 +112,9 @@ M2/M3 сохраняются в очереди; отсутствие child lock 
 Следует читать вместе с [CURRENT_STATUS.md](CURRENT_STATUS.md), раздел 11,
 и [обезличенным отчётом](dialogue-stabilization-checks.json).
 Новый бюджет API/CLI не расходован; ACP/useful TTFA/iPhone не приняты этими тестами.
+
+
+Текущий проверенный runtime стабилизации — a71b71e; 965 regression tests,
+приватный HTTPS и desktop Web Audio проверены отдельно от iPhone.
+Подтверждение: [dialogue-stabilization-runtime.json](dialogue-stabilization-runtime.json).
+ACP выключен и fail-closed; новая скорость inference не измерялась.
