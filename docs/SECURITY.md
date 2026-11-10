@@ -60,3 +60,13 @@ MIME/Content-Length/origin/redirect: имеющийся preview tool сам эт
 HA/Music пока read-only interfaces/mocks. Замки, critical power, remote files и shell запрещены даже
 при простом human_confirmation flag: полноценный permission layer ещё нужен. Memory purge удаляет
 записи/WAL, не обещает физическое стирание блоков SSD/backup.
+# Дополнение: публичные визуальные материалы
+
+Visual Pipeline использует фиксированные Openverse/Wikimedia HTTPS endpoints;
+нет произвольного URL proxy, redirects, cookie или ключей в image запросах.
+Проверяются разрешённые хосты/пути, public DNS, MIME, размер загрузки и decoded pixels.
+Browser media выдаётся через прежний защищённый Tailscale gateway; Brain/Bridge
+остаются loopback. Внешний поиск получает только запрос изображения, не ContextPacket.
+Явные личные фотографии/планы не ищутся наружу. Настройки позволяют выключить источник.
+Нормализованные JPEG не содержат EXIF; TTL/LRU и лимиты media/source ограничены.
+Подробности и оставшиеся ограничения: [VISUAL_PIPELINE.md](VISUAL_PIPELINE.md).

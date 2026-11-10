@@ -1,0 +1,9 @@
+{
+  "kind": "warm local cache + schema construction, not network/browser/audio latency",
+  "n": 60,
+  "p50_ms": 4.6688499987794785,
+  "p95_ms": 8.847500001138542,
+  "network_requests": 0,
+  "model_calls": 0,
+  "paid_api_calls": 0
+}

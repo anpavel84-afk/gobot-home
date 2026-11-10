@@ -1,0 +1,225 @@
+{
+  "$defs": {
+    "CompactCredit": {
+      "additionalProperties": false,
+      "properties": {
+        "author": {
+          "maxLength": 600,
+          "title": "Author",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/VisualSource"
+        },
+        "license": {
+          "maxLength": 100,
+          "title": "License",
+          "type": "string"
+        },
+        "license_url": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License Url"
+        },
+        "changes": {
+          "maxLength": 200,
+          "title": "Changes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "author",
+        "source",
+        "license",
+        "changes"
+      ],
+      "title": "CompactCredit",
+      "type": "object"
+    },
+    "CompactImage": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "variant": {
+          "const": "device",
+          "default": "device",
+          "title": "Variant",
+          "type": "string"
+        },
+        "width": {
+          "const": 240,
+          "default": 240,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "const": 240,
+          "default": 240,
+          "title": "Height",
+          "type": "integer"
+        },
+        "mime": {
+          "const": "image/jpeg",
+          "default": "image/jpeg",
+          "title": "Mime",
+          "type": "string"
+        },
+        "max_bytes": {
+          "const": 65536,
+          "default": 65536,
+          "title": "Max Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "asset_id"
+      ],
+      "title": "CompactImage",
+      "type": "object"
+    },
+    "VisualSource": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 160,
+          "title": "Label",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "VisualSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "namespace": {
+      "const": "gobot.ui",
+      "default": "gobot.ui",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "version": {
+      "const": 2,
+      "default": 2,
+      "title": "Version",
+      "type": "integer"
+    },
+    "command": {
+      "const": "presentation.show",
+      "default": "presentation.show",
+      "title": "Command",
+      "type": "string"
+    },
+    "id": {
+      "maxLength": 100,
+      "title": "Id",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "image_card",
+        "image_gallery",
+        "info_card",
+        "timer_widget",
+        "weather_card",
+        "status_card",
+        "music_card",
+        "rich_answer"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 80,
+      "title": "Title",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 240,
+      "title": "Text",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "ready",
+        "loading",
+        "unavailable",
+        "expired",
+        "cancelled"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompactImage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "credit": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CompactCredit"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "deadline": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Deadline"
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "title",
+    "text",
+    "state"
+  ],
+  "title": "ESP32Presentation",
+  "type": "object"
+}

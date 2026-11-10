@@ -23,7 +23,7 @@ def build():
         add('dialogue',dialogue[i%10]+suffix,'flash')
         add('follow_up',follow[i%10]+suffix,'flash',context={'summary':'Активная тема: радуга и солнечный свет.'})
         add('rare_fact',rare[i%5]+variant,'verification',True)
-        add('current_information',current[i%5]+variant,'verification',True)
+        add('current_information',current[i%5]+variant,'visual' if i%5==0 else 'verification',True)
         add('high_consequence',risks[i%5]+variant,'verification',True)
         add('personal_memory',memory[i%5]+variant,'memory',True)
         add('reasoning',reason[i%5]+variant,'reasoning')

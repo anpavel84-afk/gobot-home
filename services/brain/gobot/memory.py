@@ -75,7 +75,7 @@ class Memory:
         if not req.remember:
             with self.transient_lock:
                 row=self.transient.get(req.turn_id)
-                if row and row['status']=='running':row.update(status=status,result=text,provider=provider,updated=time.time())
+                if row and row['status']=='running':row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time())
             return
         with self.connect() as c:
             c.execute("BEGIN IMMEDIATE")

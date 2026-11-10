@@ -19,7 +19,10 @@ class MockUIRenderer:
     def __init__(self):self.state={};self.queue=[]
     def enqueue(self,envelope):
         if envelope.get('type')!='custom':raise ValueError('Not a UI envelope')
-        command=UICommand.model_validate(envelope['payload'])
+        if envelope.get('payload',{}).get('version')==2:
+            from .presentation import ESP32Presentation
+            command=ESP32Presentation.model_validate(envelope['payload'])
+        else:command=UICommand.model_validate(envelope['payload'])
         if len(self.queue)>=16:raise ValueError('UI queue full')
         self.queue.append(command)
     def gui_tick(self):

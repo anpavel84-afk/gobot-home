@@ -16,15 +16,27 @@ from .routing import SmartRouter
 from .context_manager import ContextManager
 from .quality import Assessment,SelectiveVerifier
 from .local_tools import LocalTools,text_stream
+from .visual import VisualService
+from .visual_images import ImageCache
+from pathlib import Path
 
 class Service:
     def __init__(self,settings):
-        self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier()
+        self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
     async def prepare(self,req):
         try:return await asyncio.to_thread(self.memory.start,req)
         except Conflict as e:raise HTTPException(409,str(e))
     async def events(self,req,replay=None):
         if replay:
+            try:
+                for entry in json.loads(replay.get('trace') or '[]'):
+                    if entry.get('presentation'):
+                        frame=self.visual.replay(entry['presentation'])
+                        if frame.type=='timer_widget' and frame.metadata.timer_id:
+                            with self.memory.connect() as c:timer=c.execute('SELECT status FROM timers WHERE id=? AND device_id=?',(frame.metadata.timer_id,req.device_id)).fetchone()
+                            if not timer or timer[0]=='cancelled':frame.metadata.state='cancelled';frame.metadata.deadline=None;frame.text='Таймер остановлен.';frame.actions=[]
+                        yield event(req,'visual_response',presentation=frame.model_dump(),replayed=True)
+            except (ValueError,TypeError):pass
             yield event(req,'final' if replay['status']=='completed' else replay['status'] if replay['status'] in {'cancelled','error'} else 'error',text=replay['result'],provider=replay['provider'],replayed=True);return
         cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None
         try:
@@ -33,7 +45,7 @@ class Service:
                 state='error';yield event(req,'error',code='busy');return
             async with asyncio.timeout(self.settings.timeout):
                 ctx=await asyncio.to_thread(self.memory.context,req)
-                decision=None;widget=None;selected=req.mode;verification=None;must_gate=False
+                decision=None;widget=None;selected=req.mode;verification=None;must_gate=False;spoken_override=None;visual_frame=None
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
                     request_for_route=req if req.mode is not None else req.model_copy(update={'mode':req.provider})
                     decision=self.router.choose(request_for_route,ctx,await asyncio.to_thread(agent_status,req.usage_consent))
@@ -43,10 +55,22 @@ class Service:
                     second=decision.reason=='explicit_model_selection';trace=[decision.public()]
                     source_req=req.model_copy(update={'provider':decision.provider,'model_id':decision.model}) if decision.provider in {'codex','antigravity'} else req
                     if ctx.get('topic',{}).get('outcome')=='ambiguous':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
+                    elif decision.provider=='local' and decision.tool=='visual':
+                        yield event(req,'tool_status',status='loading_visual',route='TOOL',provider='local',reason=decision.reason,model=None)
+                        work=asyncio.create_task(self.visual.handle(req,active_turns=len(self.running)));stop=asyncio.create_task(cancel.wait())
+                        try:
+                            done,_=await asyncio.wait({work,stop},return_when=asyncio.FIRST_COMPLETED)
+                            if stop in done:raise asyncio.CancelledError()
+                            result=work.result();visual_frame=result.frame;spoken_override=result.speech_text;source=text_stream(result.display_text)
+                            verification={'accepted':True,'method':'image_source_metadata' if visual_frame.images else 'explicit_availability_state','fact_confirmed':False}
+                        finally:
+                            work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
                         tool_result=await asyncio.to_thread(self.tools.execute,decision.tool,req);widget=tool_result.widget
                         verification=self.verifier.check(Assessment(**decision.quality),tool_result.text,tool_result.evidence)
                         source=text_stream(tool_result.text if verification['accepted'] else 'Не удалось подтвердить ответ по доступным данным. Я не буду выдавать предположение за факт.')
+                        if widget and widget.get('payload',{}).get('timer_id'):visual_frame=self.visual.timer(req,widget)
+                        elif decision.tool=='verification' and self.visual.intent.detect(req.text):visual_frame=self.visual.fallback(req,'Нужна проверка','verification_unavailable',kind='status_card',text=tool_result.text).frame
                     elif decision.provider=='mock':source=MockAgentAdapter().stream(req.text,ctx)
                     else:source=bridge_stream(self.settings,source_req,ctx)
                     must_gate=bool(decision.quality.get('verification_required') and decision.provider not in {'local','mock'})
@@ -60,6 +84,9 @@ class Service:
                     if req.remember:await asyncio.to_thread(self.memory.archive.record_context,req,ctx,provider)
                     source=bridge_stream(self.settings,req,ctx) if route=='agent' else fast_stream(self.settings,req,ctx)
                 yield event(req,'tool_status',status='running',route=route,provider=provider,second_opinion=second,model=decision.model if decision else None,reason=decision.reason if decision else trace[0]['reason'],billing_kind=decision.billing_kind if decision else 'diagnostic',router_ms=decision.router_ms if decision else None,quality=decision.quality if decision else None,verification=verification,topic=ctx.get('topic'),context=ctx.get('_context_meta'))
+                if visual_frame:
+                    yield event(req,'visual_response',presentation=visual_frame.model_dump())
+                    trace.append({'presentation':visual_frame.model_dump()})
                 try:
                     iterator=cancellable(source,cancel)
                     async for delta in iterator:
@@ -68,7 +95,8 @@ class Service:
                         if len(text)>32000:raise ValueError('Output limit')
                         if not must_gate:
                             yield event(req,'text_delta',text=delta)
-                            for sentence in buffer.feed(delta):yield event(req,'sentence_ready',text=sentence)
+                            if spoken_override is None:
+                                for sentence in buffer.feed(delta):yield event(req,'sentence_ready',text=sentence)
                 except asyncio.CancelledError:raise
                 except Exception as error:
                     if not req.expensive_fallback_approved or not req.usage_consent or text or provider=='bridge:codex':raise
@@ -93,7 +121,10 @@ class Service:
                     yield event(req,'text_delta',text=text)
                     for sentence in buffer.feed(text):yield event(req,'sentence_ready',text=sentence)
                 if decision:trace.append({'verification':verification or {'method':'not_required'}})
-                for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
+                if spoken_override is not None:
+                    if spoken_override:yield event(req,'sentence_ready',text=spoken_override,representation='speech')
+                else:
+                    for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
                 if widget:
                     yield event(req,'widget_command',command=widget,mock=False)
                 elif (decision is None or decision.provider=='mock') and 'таймер' in req.text.lower():
@@ -146,7 +177,21 @@ def create_app(settings=None):
     async def ready():
         await asyncio.to_thread(service.memory.status,'readiness');return {'ready':True,'mode':'mock' if settings.fast_provider=='mock' else 'configured','voice_hardware_ready':False}
     @app.get('/api/v1/status',dependencies=[Depends(auth)])
-    async def status():return {'active_turns':len(service.running),'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
+    async def status():return {'active_turns':len(service.running),'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'visual':service.visual.available(),'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
+    @app.get('/api/v1/visual/assets/{asset}/{variant}.jpg',dependencies=[Depends(auth)])
+    async def visual_asset(asset:str,variant:str):
+        from fastapi import Response
+        try:data,record=await asyncio.to_thread(service.visual.cache.read,asset,variant)
+        except (KeyError,OSError):raise HTTPException(404,'image_expired_or_missing')
+        return Response(data,media_type='image/jpeg',headers={'Content-Length':str(len(data)),'X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300'})
+    @app.post('/api/v1/visual/timer/cancel',dependencies=[Depends(auth)])
+    async def cancel_visual_timer(request:Request):
+        body=await request.json();owner=body.get('device_id');ident=body.get('timer_id')
+        if not isinstance(owner,str) or not isinstance(ident,str) or not re.fullmatch(r'[a-f0-9-]{36}',ident):raise HTTPException(422)
+        def update():
+            with service.memory.connect() as c:return c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=?",(ident,owner)).rowcount
+        if not await asyncio.to_thread(update):raise HTTPException(404,'timer_not_found_or_not_owned')
+        return {'cancelled':True,'timer_id':ident}
     @app.get('/api/v1/history/{conversation_id}',dependencies=[Depends(auth)])
     async def history(conversation_id:str,device_id:str):
         return await asyncio.to_thread(service.memory.history,conversation_id,device_id)

@@ -29,9 +29,10 @@ abstention, ContextPacket с cap, темы/эпизоды, scoped FTS5, идем
 факты с исправлением/удалением, удаление разговора, режим «не запоминать», диагностика
 packet/source IDs/provider usage. Это не отправляет ключи в браузер или CLI.
 
-Бесплатные проверки: 357 pytest, Node harness, 240 уникальных synthetic router cases,
+Бесплатные проверки: 394 pytest, Node harness, 240 уникальных synthetic router cases,
 200-turn synthetic day. Поиск по синонимам не работает; semantic encoder не подключён.
-Внешнего проверенного web/home источника нет: требующие его ответы отклоняются.
+Общего проверяющего web/home инструмента нет: требующие его ответы отклоняются.
+Openverse — источник изображений, а не проверка фактических утверждений.
 ECAPA embeddings реально вычисляются локально, семейной калибровки пока нет.
 Нет подтверждения всего нового сценария физический iPhone → OpenAI STT → Flash →
 OpenAI TTS после последнего обновления.
@@ -48,3 +49,15 @@ XiaoZhi v1/v2/v3 сейчас fixture. Upstream Python voice server имеет b
 Подробные политики и результаты: CONTEXT_POLICY.md, MEMORY_ARCHITECTURE.md,
 CONTEXT_EVALUATION.md, SPEECH_FORMATTING.md. Нижеуказанные старые отчёты отражают
 исторические этапы; этот файл описывает текущее состояние.
+
+Визуальные ответы: gobot.ui v2, восемь типов, отдельный Browser Renderer и compact
+ESP32 DTO. Реальные фото через Openverse/Flickr: два Oxheart references, лабрадор,
+Raspberry Pi. Credits/лицензии видны; точный сорт/ревизия не утверждаются без основания.
+TTL/LRU кэш 128 объектов/128 MiB; device JPEG 240×240 ≤64 KiB. Таймер использует
+SQLite deadline и остаётся при следующем вопросе. Погода/музыка — unavailable cards.
+Локальная схема и карточка результата работают без LLM. Новых портов нет.
+Текущий private HTTPS image E2E: 10 сценариев + повторный cache hit, без постоянных
+сообщений теста и без CLI/STT/TTS. 394 pytest и Node DOM regressions прошли.
+Safari UI пока не осмотрен: инструменты не предоставили доступный браузер.
+Общий image search best-effort, качество не измерено; в пробе подсолнуха — fallback.
+Физического ESP32 renderer/LAN media delivery пока нет. См. VISUAL_PIPELINE.md.

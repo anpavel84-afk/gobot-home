@@ -6,6 +6,7 @@ localStorage.setItem('gobot.conversation', conversation);
 let active = null, audio = null, gain = null, nextAt = 0, epoch = 0, recording = null, micPending = false;
 let lastSpeakerJob=null,transcriptPending=false;
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
+const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
 const errors = {
   no_real_executor_available: 'Реальный исполнитель недоступен. Проверь квоту, авторизацию и состояние ниже. Mock можно выбрать отдельно.',
@@ -87,12 +88,13 @@ async function play(data, runEpoch) {
 }
 function stop() {
   if (active) active.abort(); active = null; clearAudio();
+  visuals?.interrupt();
   $('send').disabled = false; $('orb').classList.remove('busy'); $('result-badge').textContent = 'Остановлено';
 }
 async function send() {
   if(transcriptPending)return;
   const text = $('question').value.trim(); if (!text) return;
-  stop(); const runEpoch = epoch;
+  stop();visuals?.begin();$('timer').hidden=true; const runEpoch = epoch;
   const controller = new AbortController(); active = controller;
   $('send').disabled = true; $('answer').textContent = ''; $('voice-status').textContent = '';
   $('orb').classList.add('busy'); $('result-badge').textContent = 'Получаем ответ';
@@ -114,18 +116,20 @@ async function send() {
         const line = frame.split('\n').find(value => value.startsWith('data: ')); if (!line) continue;
         const item = JSON.parse(line.slice(6)), data = item.data || {};
         if (runEpoch !== epoch) return;
-        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;answer += data.text;renderDisplay(answer); }
+        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
         else if (item.type === 'tool_status') {
+          if(data.status==='loading_visual')visuals?.loading();
           if(data.topic){currentTopic=data.topic.topic_id;$('topic-label').textContent='Тема: '+(data.topic.label||'новая')+' · '+data.topic.outcome;}
           if(data.context)$('context-statistics').textContent=JSON.stringify(data.context,null,2);
           $('robot-label').textContent = data.provider || 'GoBot отвечает';
-          if(data.model||data.provider==='local')$('route-meta').textContent='Отвечает: '+(data.provider==='bridge:antigravity'?'Antigravity':data.provider==='bridge:codex'?'Codex':'GoBot локально')+' · '+(data.model||'детерминированный инструмент')+' · '+(data.route||'');
+          if(data.model||data.provider==='local')$('route-meta').textContent='Отвечает: '+(data.provider==='bridge:antigravity'?'Antigravity':data.provider==='bridge:codex'?'Codex':'GoBot локально')+' · '+(data.model||(String(data.reason||'').startsWith('server_driven_visual_')?'визуальный ответ':'серверный инструмент'))+' · '+(data.route||'');
           if(data.status==='guest_context'){conversation=data.conversation_id;localStorage.setItem('gobot.conversation',conversation);$('speaker-status').textContent='Личность не подтверждена: используем гостевой контекст, личная история закрыта.';}
         }
+        else if(item.type==='visual_response'){visuals?.render(data.presentation);visuals?.syncDisplay(answer);}
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
         else if (item.type === 'tts_error') $('voice-status').textContent = explain(data.code);
-        else if (item.type === 'widget_command') { $('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер'; }
+        else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
           terminal = true; $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
           const usage=data.usage?Object.entries(data.usage).map(([key,value])=>key+': '+value).join(', '):'Исполнитель не сообщил счётчики токенов';
@@ -247,6 +251,8 @@ $('quota').onchange=()=>{localStorage.setItem('gobot.cli-quota-consent',String($
 $('new-conversation').onclick = () => { stop(); conversation = uuid();currentTopic=null;lastUtterance=null; localStorage.setItem('gobot.conversation', conversation); loadHistory();refreshMemory(); };
 $('question').oninput=()=>{lastUtterance=null;};
 $('remember').onchange=()=>{$('new-conversation').onclick();$('context-statistics').textContent=$('remember').checked?'Архив включён.':'Не запоминать: только оперативная память, до часа.';};
+async function loadVisualSettings(){try{const response=await fetch('/api/settings/visual');if(!response.ok)return;const state=await response.json();$('visual-source').value=state.provider||'openverse';$('visual-contact').value=state.contact||'';$('visual-settings-status').textContent=state.provider==='openverse'?'Openverse: без ключа и регистрации, с локальным кэшем.':state.configured?'Wikimedia: контакт настроен; доступ проверяется при загрузке.':'Внешние изображения отключены. Локальные виджеты работают.';}catch(_){}}
+$('visual-settings-save').onclick=async()=>{try{const response=await fetch('/api/settings/visual',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('visual-source').value,contact:$('visual-contact').value,public_contact_consent:$('visual-contact-consent').checked})});if(!response.ok)throw Error();await loadVisualSettings();}catch(_){$('visual-settings-status').textContent='Для прямой Wikimedia нужен корректный публичный email/HTTPS-адрес и согласие на отправку контакта.';}};
 async function refreshMemory(){
   try{const response=await fetch('/api/memory?'+new URLSearchParams({conversation_id:conversation}));if(!response.ok)return;const data=await response.json();
     currentTopic=data.topic?.id||null;$('topic-label').textContent=data.topic?'Тема: '+data.topic.label:'Новая тема';$('topic-name').value=data.topic?.label||'';
@@ -268,4 +274,4 @@ $('memory-refresh').onclick=refreshMemory;
 $('rename-topic').onclick=()=>{if(currentTopic&&$('topic-name').value.trim())changeMemory('rename_topic',currentTopic,$('topic-name').value.trim());};
 $('forget-conversation').onclick=()=>{if(window.confirm('Удалить сообщения и производные данные этого разговора из рабочей базы GoBot?'))changeMemory('forget_conversation',conversation);};
 window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSocket?.close(); });
-refresh(); loadHistory();refreshMemory();
+refresh(); loadHistory();refreshMemory();loadVisualSettings();

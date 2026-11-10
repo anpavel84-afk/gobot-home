@@ -67,3 +67,13 @@ Hermes имеет experimental Spotpear profile и предупреждение 
 router, не CLI adapter, не установлен. JPEGDEC/esp-iot-solution не внедрялись. faster-whisper/sherpa/Piper
 и русские models не устанавливались; для Piper требуется проверка GPL/лицензии голоса. ASR по сегментам
 не объявляется token streaming, sentence WAV TTS не объявляется проверенным streaming audio backend.
+# Visual Pipeline — 10 ноября 2026
+
+Новых Python/Node пакетов и глобальных установок нет. Используются закреплённые
+Pillow, httpx, Pydantic и SQLite из существующего requirements.lock.txt.
+Основной внешний источник — [Openverse API v1](https://api.openverse.org/v1/),
+без OAuth/API ключа. Изображения каталога, авторы, лицензии, source URLs и SHA-256
+миниатюр закреплены в services/brain/visual-catalog.json. Сервисный API — внешняя
+зависимость без git SHA; отказ/изменение снимка даёт честный fallback. Прямой
+Wikimedia адаптер подготовлен отдельно, на этом хосте получен HTTP 403.
+Политика/проверки: VISUAL_PIPELINE.md, visual-e2e.json. Upstream SHAs не менялись.

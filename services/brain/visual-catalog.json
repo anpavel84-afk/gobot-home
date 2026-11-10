@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "checked": "2026-11-10",
+  "items": {
+    "oxheart": {
+      "title": "Томаты типа «Бычье сердце»",
+      "text": "Примеры, подписанные автором как Oxheart Tomato. Это визуальные референсы типа «Бычье сердце», а не подтверждение конкретного российского сорта или ваших плодов.",
+      "speech": "Вот примеры томатов сердцевидного типа. Разновидность каждого снимка указана в источнике.",
+      "approximate_match": true,
+      "images": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Coeur_de_boeuf_vraie.JPG",
+          "caption": "Сердцевидный томат cœur de bœuf на растении",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Coeur_de_boeuf_vraie.JPG",
+          "author": "Arn",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+        }
+      ],
+      "search_query": "oxheart tomato",
+      "openverse_images": [
+        {
+          "url": "https://api.openverse.org/v1/images/a222f11d-1e95-4739-8815-76097e4e53b1/thumb/",
+          "caption": "Oxheart Tomato · крупный плод; название по подписи автора",
+          "source_url": "https://www.flickr.com/photos/38345025@N00/4912465128",
+          "author": "Robert Sanzalone",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0/",
+          "source_label": "Openverse · Flickr",
+          "sha256": "bee3ea17aaa3a5df5839d3925291c05b616d49ea8901485316eff6e30da90437"
+        },
+        {
+          "url": "https://api.openverse.org/v1/images/062ea16e-b87f-4dfb-8013-6b5d4ddb4359/thumb/",
+          "caption": "Oxheart Tomato · сравнение размера плодов",
+          "source_url": "https://www.flickr.com/photos/38345025@N00/4911835501",
+          "author": "Robert Sanzalone",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0/",
+          "source_label": "Openverse · Flickr",
+          "sha256": "8b4a11d0b6a619d8d401d1e3c6f84a86919770534fb287502bf8271f2b37aa62"
+        }
+      ]
+    },
+    "labrador": {
+      "title": "Лабрадор-ретривер",
+      "text": "Пример внешности лабрадора-ретривера. Название породы приведено по описанию источника.",
+      "speech": "Вот фотография лабрадора-ретривера.",
+      "approximate_match": false,
+      "images": [
+        {
+          "url": "https://upload.wikimedia.org/wikipedia/commons/2/26/YellowLabradorLooking_new.jpg",
+          "caption": "Палевый лабрадор на траве; ретушированное фото",
+          "source_url": "https://commons.wikimedia.org/wiki/File:YellowLabradorLooking_new.jpg",
+          "author": "Elf; derivative: Djmirko, FT2",
+          "license": "CC BY-SA 3.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/3.0/"
+        }
+      ],
+      "openverse_images": [
+        {
+          "url": "https://api.openverse.org/v1/images/952c459d-f0b8-4040-bacf-1e0e24cda24f/thumb/",
+          "caption": "Лабрадор-ретривер · фотография из источника",
+          "source_url": "https://www.flickr.com/photos/59976664@N00/290990809",
+          "author": "jfch",
+          "license": "CC BY-SA 2.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/2.0/",
+          "source_label": "Openverse · Flickr",
+          "sha256": "733ba7abf42591bf9559a41a6f276788478da085b1ba9d305b065b9d87a2b46f"
+        }
+      ],
+      "search_query": "Labrador retriever"
+    },
+    "raspberry-pi": {
+      "title": "Raspberry Pi",
+      "text": "Одна из плат семейства Raspberry Pi. Точная ревизия автоматически не подтверждается; для конкретной модели нужен её отдельный референс.",
+      "speech": "Вот пример платы Распберри Пи.",
+      "approximate_match": true,
+      "images": [
+        {
+          "url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ef/Raspberry_Pi_5_Board.jpg/960px-Raspberry_Pi_5_Board.jpg",
+          "caption": "Raspberry Pi 5 на тёмном фоне",
+          "source_url": "https://commons.wikimedia.org/wiki/File:Raspberry_Pi_5_Board.jpg",
+          "author": "SimonWaldherr",
+          "license": "CC BY-SA 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+        }
+      ],
+      "openverse_images": [
+        {
+          "url": "https://api.openverse.org/v1/images/73050388-2ca4-4965-a715-a29bfc941d1b/thumb/",
+          "caption": "Плата Raspberry Pi · пример из семейства",
+          "source_url": "https://www.flickr.com/photos/110255976@N07/11140909414",
+          "author": "blacklerphotos",
+          "license": "CC BY 2.0",
+          "license_url": "https://creativecommons.org/licenses/by/2.0/",
+          "source_label": "Openverse · Flickr",
+          "sha256": "ca252a56ca409643a4e8ce0168256f7d56eea76b41c5e3cdc4c7dfbfd54dc986"
+        }
+      ],
+      "search_query": "raspberry pi board"
+    }
+  }
+}

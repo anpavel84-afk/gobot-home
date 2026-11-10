@@ -6,7 +6,8 @@
   "failures": [],
   "distribution": {
     "flash": 60,
-    "verification": 60,
+    "verification": 56,
+    "visual": 4,
     "memory": 20,
     "reasoning": 20,
     "file_permission": 20,
@@ -16,8 +17,8 @@
     "argon": 10
   },
   "router_ms": {
-    "p50": 0.010149999070563354,
-    "p95": 0.014500001270789653
+    "p50": 0.01655000050959643,
+    "p95": 0.022500000341096893
   },
   "classifier_model_calls": 0,
   "total_model_calls": 0,

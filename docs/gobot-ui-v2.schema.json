@@ -1,0 +1,415 @@
+{
+  "$defs": {
+    "VisualAction": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "open_image",
+            "view_source",
+            "dismiss",
+            "timer_cancel"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 80,
+          "title": "Label",
+          "type": "string"
+        },
+        "asset_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Asset Id"
+        },
+        "timer_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9-]{36}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timer Id"
+        }
+      },
+      "required": [
+        "type",
+        "label"
+      ],
+      "title": "VisualAction",
+      "type": "object"
+    },
+    "VisualImage": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "url": {
+          "pattern": "^/api/visual/assets/[a-f0-9]{64}/(?:browser|preview|device)\\.jpg$",
+          "title": "Url",
+          "type": "string"
+        },
+        "preview_variant": {
+          "pattern": "^/api/visual/assets/[a-f0-9]{64}/(?:browser|preview|device)\\.jpg$",
+          "title": "Preview Variant",
+          "type": "string"
+        },
+        "device_variant": {
+          "pattern": "^/api/visual/assets/[a-f0-9]{64}/(?:browser|preview|device)\\.jpg$",
+          "title": "Device Variant",
+          "type": "string"
+        },
+        "caption": {
+          "maxLength": 400,
+          "title": "Caption",
+          "type": "string"
+        },
+        "alt": {
+          "maxLength": 400,
+          "title": "Alt",
+          "type": "string"
+        },
+        "mime_type": {
+          "const": "image/jpeg",
+          "default": "image/jpeg",
+          "title": "Mime Type",
+          "type": "string"
+        },
+        "width": {
+          "maximum": 1200,
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "maximum": 1200,
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/VisualSource"
+        },
+        "attribution": {
+          "maxLength": 600,
+          "title": "Attribution",
+          "type": "string"
+        },
+        "license": {
+          "maxLength": 100,
+          "title": "License",
+          "type": "string"
+        },
+        "license_url": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License Url"
+        },
+        "changes": {
+          "default": "Scaled and re-encoded; device image padded to square; metadata removed",
+          "title": "Changes",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id",
+        "url",
+        "preview_variant",
+        "device_variant",
+        "caption",
+        "alt",
+        "width",
+        "height",
+        "source",
+        "attribution",
+        "license"
+      ],
+      "title": "VisualImage",
+      "type": "object"
+    },
+    "VisualMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "default": "ready",
+          "enum": [
+            "ready",
+            "loading",
+            "unavailable",
+            "expired",
+            "cancelled"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "maxLength": 100,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "cache_hit": {
+          "default": false,
+          "title": "Cache Hit",
+          "type": "boolean"
+        },
+        "query_sent_to_source": {
+          "default": false,
+          "title": "Query Sent To Source",
+          "type": "boolean"
+        },
+        "approximate_match": {
+          "default": false,
+          "title": "Approximate Match",
+          "type": "boolean"
+        },
+        "selection_basis": {
+          "default": "local_state",
+          "enum": [
+            "local_state",
+            "curated_visual_review",
+            "source_metadata_search_unverified"
+          ],
+          "title": "Selection Basis",
+          "type": "string"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deadline"
+        },
+        "duration_ms": {
+          "anyOf": [
+            {
+              "maximum": 86400000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Ms"
+        },
+        "timer_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9-]{36}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timer Id"
+        },
+        "facts": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "maxProperties": 12,
+          "title": "Facts",
+          "type": "object"
+        },
+        "device_width": {
+          "const": 240,
+          "default": 240,
+          "title": "Device Width",
+          "type": "integer"
+        },
+        "device_height": {
+          "const": 240,
+          "default": 240,
+          "title": "Device Height",
+          "type": "integer"
+        },
+        "device_max_bytes": {
+          "const": 65536,
+          "default": 65536,
+          "title": "Device Max Bytes",
+          "type": "integer"
+        }
+      },
+      "title": "VisualMetadata",
+      "type": "object"
+    },
+    "VisualSource": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 160,
+          "title": "Label",
+          "type": "string"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 1500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "VisualSource",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "namespace": {
+      "const": "gobot.ui",
+      "default": "gobot.ui",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "version": {
+      "const": 2,
+      "default": 2,
+      "title": "Version",
+      "type": "integer"
+    },
+    "id": {
+      "maxLength": 100,
+      "title": "Id",
+      "type": "string"
+    },
+    "type": {
+      "enum": [
+        "image_card",
+        "image_gallery",
+        "info_card",
+        "timer_widget",
+        "weather_card",
+        "status_card",
+        "music_card",
+        "rich_answer"
+      ],
+      "title": "Type",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 160,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "subtitle": {
+      "default": "",
+      "maxLength": 300,
+      "title": "Subtitle",
+      "type": "string"
+    },
+    "text": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Text",
+      "type": "string"
+    },
+    "images": {
+      "items": {
+        "$ref": "#/$defs/VisualImage"
+      },
+      "maxItems": 4,
+      "title": "Images",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/VisualAction"
+      },
+      "maxItems": 6,
+      "title": "Actions",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/VisualMetadata"
+    },
+    "source": {
+      "$ref": "#/$defs/VisualSource"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "updated_at": {
+      "title": "Updated At",
+      "type": "number"
+    },
+    "cache_key": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cache Key"
+    }
+  },
+  "required": [
+    "id",
+    "type",
+    "title"
+  ],
+  "title": "Presentation",
+  "type": "object"
+}

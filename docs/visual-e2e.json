@@ -1,0 +1,243 @@
+{
+  "transport": "private Tailscale HTTPS, certificate verified",
+  "real_public_images": true,
+  "synthetic_images": false,
+  "source": "Openverse public thumbnail API, curated Flickr images",
+  "cases": [
+    {
+      "case": "oxheart",
+      "type": "image_gallery",
+      "state": "ready",
+      "images": 2,
+      "cache_hit": true,
+      "ms": 235.52879999988363,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 32388
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 25505
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 10297
+        },
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 40321
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 31373
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 12020
+        }
+      ]
+    },
+    {
+      "case": "labrador",
+      "type": "image_card",
+      "state": "ready",
+      "images": 1,
+      "cache_hit": true,
+      "ms": 190.7565000001341,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 39010
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 29182
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 9804
+        }
+      ]
+    },
+    {
+      "case": "raspberry-pi",
+      "type": "image_card",
+      "state": "ready",
+      "images": 1,
+      "cache_hit": true,
+      "ms": 185.75920000148471,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            600,
+            449
+          ],
+          "bytes": 50380
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            359
+          ],
+          "bytes": 37895
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 12988
+        }
+      ]
+    },
+    {
+      "case": "timer",
+      "type": "timer_widget",
+      "state": "ready",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 192.15729999996256,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "weather",
+      "type": "weather_card",
+      "state": "unavailable",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 184.37429999903543,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "music",
+      "type": "music_card",
+      "state": "unavailable",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 197.18529999954626,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "diagram",
+      "type": "rich_answer",
+      "state": "ready",
+      "images": 1,
+      "cache_hit": false,
+      "ms": 187.68360000103712,
+      "short_speech_fragments": 1,
+      "variants": [
+        {
+          "variant": "url",
+          "dimensions": [
+            960,
+            538
+          ],
+          "bytes": 37321
+        },
+        {
+          "variant": "preview_variant",
+          "dimensions": [
+            480,
+            269
+          ],
+          "bytes": 14762
+        },
+        {
+          "variant": "device_variant",
+          "dimensions": [
+            240,
+            240
+          ],
+          "bytes": 5425
+        }
+      ]
+    },
+    {
+      "case": "info",
+      "type": "info_card",
+      "state": "ready",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 178.6768000019947,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "private",
+      "type": "info_card",
+      "state": "unavailable",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 178.7261000026774,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "status",
+      "type": "status_card",
+      "state": "ready",
+      "images": 0,
+      "cache_hit": false,
+      "ms": 183.3550000010291,
+      "short_speech_fragments": 1,
+      "variants": []
+    },
+    {
+      "case": "repeat_oxheart",
+      "cache_hit": true,
+      "ms": 191.74969999949099
+    }
+  ],
+  "persistent_message_delta": 0,
+  "paid_model_calls": 0,
+  "cli_calls": 0,
+  "stt_tts_calls": 0,
+  "iphone_render_verified": false,
+  "desktop_visual_inspection": "No browser exposed to computer-use tools; DOM units only"
+}

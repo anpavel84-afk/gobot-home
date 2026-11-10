@@ -4,6 +4,7 @@ import re,time,json
 from pathlib import Path
 from .processes import AgentError
 from .quality import RiskAssessment
+from .presentation import PresentationDecision
 
 @dataclass(frozen=True)
 class RouterPolicy:
@@ -56,6 +57,8 @@ class SmartRouter:
         if files:return result('AGENT','local',None,'file_access_requires_separate_permission','local','file_permission',True)
         if policy.prefer_deterministic_tools and assessment.method=='calculator':return result('TOOL','local',None,'deterministic_calculation','local','calculator')
         if assessment.method=='memory_source':return result('TOOL','local',None,'memory_requires_original_records','local','memory')
+        visual=PresentationDecision().detect(req.text)
+        if visual and assessment.consequence_risk<2:return result('TOOL','local',None,'server_driven_visual_'+visual.kind,'local','visual')
         if policy.selective_verification and assessment.external_verification:
             return result('REASONING' if assessment.complexity else 'FAST_CHAT','local',None,'required_external_verifier_not_configured','local','verification')
         explicit=mode in {'codex','google','gemini','antigravity'}

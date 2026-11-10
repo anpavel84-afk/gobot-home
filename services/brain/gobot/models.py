@@ -34,7 +34,7 @@ class VoiceRequest(ChatRequest):
     paid_tts_consent: bool = False
 
 class Event(BaseModel):
-    type: Literal["text_delta","sentence_ready","tool_status","widget_command","final","error","cancelled"]
+    type: Literal["text_delta","sentence_ready","tool_status","widget_command","visual_response","final","error","cancelled"]
     correlation_id: str
     device_id: str
     conversation_id: str

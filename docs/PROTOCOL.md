@@ -67,3 +67,13 @@ conversation_id/turn_id. audio_chunk.data: audio_id, монотонный seq с
 (24000 OpenAI либо 22050 Denis), pcm base64. Это отдельный браузерный transport, не XiaoZhi binary frames.
 Повтор turn_id воспроизводит финальный текст без повторного TTS/расхода. POST /api/audio/transcribe
 принимает bounded browser recording с настоящим MIME, возвращает редактируемый текст STT.
+# Визуальные ответы v2
+
+Общий транспортный контракт `gobot.ui` version 2 описан в
+[VISUAL_PIPELINE.md](VISUAL_PIPELINE.md); JSON Schema:
+[browser/server](gobot-ui-v2.schema.json), [compact ESP32](gobot-ui-esp32-v2.schema.json).
+SSE `visual_response` несёт `data.presentation`, отдельно от text_delta,
+sentence_ready и audio_chunk. Поддерживаются восемь типов карточек/виджетов;
+старые v1 widget_command сохранены. Изображения доставляются отдельным HTTP GET
+с Content-Length/MIME; ни PCM, ни JPEG не подменяют бинарные Opus WS frames.
+Физический LVGL renderer и доступный плате media origin ещё не подтверждены.

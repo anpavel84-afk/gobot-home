@@ -82,3 +82,24 @@ CLI auth homes не монтируются; host Bridge connection отсутс�
 Реальный голос сначала half-duplex/PTT. Silero/русские ASR/TTS требуют моделей или разрешённых ключей.
 faster-whisper/sherpa-onnx — CPU-кандидаты после проверки моделей; GPU inference на Radeon не проверен.
 Piper — опционально после проверки GPL/лицензии голоса. Full-duplex/wake word — следующая измеряемая фаза.
+# Проверка визуального слоя
+
+На iPhone: включить Tailscale, открыть https://plan.tailffc57c.ts.net:18786,
+обновить страницу. AUTO: «Покажи, как выглядит лабрадор», «Покажи картинку
+Raspberry Pi», «Покажи, как выглядят помидоры Бычье сердце», «Поставь таймер на
+3 минуты». Картинки открываются крупнее нажатием. Таймер остаётся при следующем
+вопросе; «Остановить таймер» изменяет его состояние на сервере.
+В настройках визуальных ответов Openverse выбран по умолчанию, ключ не нужен.
+Погода/музыка показывают отсутствие источника, не вымышленные данные.
+
+```powershell
+node tests/browser_visuals.cjs
+.venv\Scripts\python.exe -X utf8 scripts/e2e_visual.py --network
+.venv\Scripts\python.exe -X utf8 scripts/benchmark_visual_cache.py
+```
+
+`--network` разрешает бесплатные запросы источника изображений. Скрипт не вызывает
+CLI/STT/TTS, использует remember=false и останавливает созданный тестовый таймер.
+Benchmark требует уже заполненный кэш и запрещает сетевые загрузки.
+Запуск/остановка продукта прежние: scripts/manage.py start|stop и scripts/web.py
+start|stop. Новый listener или Windows autostart не добавлялся.

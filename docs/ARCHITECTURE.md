@@ -55,3 +55,14 @@ interrupt и decline approvals реализованы с fixture transport. Curs
 Launcher управляет только GoBot, проверяет порты, имеет restart budget и stop. Docker отсутствует;
 host.docker.internal не проверен и не используется. Compose — отдельный неподтверждённый mock-container
 профиль без соединения с host Bridge и без CLI auth mounts.
+## Visual response extension
+
+Browser и будущий ESP32 используют общий `PresentationDecision → VisualService →
+gobot.ui v2` слой Brain. Источник фото Openverse отделён от model providers и
+не требует CLI. Media cache имеет собственный SQLite index и три JPEG варианта;
+conversation archive хранит только типизированный presentation trace, не бинарные данные.
+Browser Renderer получает отдельное SSE событие; короткая speech representation
+идёт через существующий Speech Formatter/TTS. Таймеры остаются операционным SQLite
+состоянием, а не производной текстовой истории. Future ESP32 Renderer формирует
+компактный JSON/MCP request только при capability/permission; физический LVGL код
+и LAN origin ещё не готовы. [Подробности](VISUAL_PIPELINE.md).

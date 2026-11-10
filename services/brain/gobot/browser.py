@@ -145,6 +145,46 @@ def create_browser_app(settings=None):
             result=await client.post('http://127.0.0.1:18781/api/v1/audio/playback',headers=auth,json=body)
             return JSONResponse(result.json(),status_code=result.status_code)
 
+    @app.get('/api/visual/assets/{asset}/{variant}.jpg')
+    async def visual_asset(asset:str,variant:str):
+        from fastapi import Response
+        if not re.fullmatch(r'[a-f0-9]{64}',asset) or variant not in {'browser','preview','device'}:raise HTTPException(404)
+        async with httpx.AsyncClient(trust_env=False,timeout=5) as client:
+            response=await client.get('http://127.0.0.1:18781/api/v1/visual/assets/'+asset+'/'+variant+'.jpg',headers=auth)
+        if response.status_code!=200:raise HTTPException(404,'image_expired_or_missing')
+        limit=65536 if variant=='device' else 2*1024*1024
+        if response.headers.get('content-type')!='image/jpeg' or len(response.content)>limit:raise HTTPException(502,'invalid_image_variant')
+        return Response(response.content,media_type='image/jpeg',headers={'Content-Length':str(len(response.content)),'X-Content-Type-Options':'nosniff'})
+
+    @app.post('/api/visual/timer/cancel')
+    async def cancel_timer_proxy(request:Request):
+        body=await request.json()
+        if not isinstance(body,dict) or set(body)-{'timer_id'}:raise HTTPException(422)
+        body['device_id']=await subject(request)
+        async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
+            response=await client.post('http://127.0.0.1:18781/api/v1/visual/timer/cancel',headers=auth,json=body)
+        return JSONResponse(response.json(),status_code=response.status_code)
+
+    @app.get('/api/settings/visual')
+    async def visual_settings():
+        from .visual_images import source_config
+        config=source_config()
+        return {'configured':bool(config),'contact':config.get('contact',''),'provider':config.get('provider','disabled'),'private_history_sent':False}
+
+    @app.post('/api/settings/visual')
+    async def save_visual_settings(request:Request):
+        from .visual_images import CONTACT,valid_contact
+        raw=await request.body()
+        if len(raw)>2048:raise HTTPException(413)
+        try:body=json.loads(raw);contact=body.get('contact','').strip();provider=body.get('provider','wikimedia')
+        except (ValueError,TypeError,KeyError,AttributeError):raise HTTPException(422,'invalid_public_contact')
+        if set(body)-{'contact','public_contact_consent','provider'} or provider not in {'openverse','wikimedia','disabled'}:raise HTTPException(422,'invalid_image_provider')
+        if provider=='wikimedia' and (body.get('public_contact_consent') is not True or not valid_contact(contact)):raise HTTPException(422,'valid_public_contact_and_consent_required')
+        config={'provider':provider}
+        if provider=='wikimedia':config['contact']=contact
+        CONTACT.parent.mkdir(exist_ok=True);temporary=CONTACT.with_suffix('.tmp');temporary.write_text(json.dumps(config),encoding='utf-8');temporary.replace(CONTACT)
+        return {'configured':provider!='disabled','provider':provider,'connection_verified':False}
+
     @app.get('/api/speaker/{job}')
     async def speaker_status(job:str,request:Request):
         if not re.fullmatch(r'[a-f0-9-]{36}',job):raise HTTPException(422)
@@ -333,7 +373,7 @@ def create_browser_app(settings=None):
 
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js']}
         assets['style.css']='text/css'
         if asset not in assets:
             raise HTTPException(404)
