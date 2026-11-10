@@ -22,6 +22,7 @@
       this.renderer.onImagePresented=(_,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();}};
       const hooks=window.GoBotHooks;
       hooks.onNativeClosed=({reason,message,error})=>{
+        this.cancelTapGuard();
         this.generation++;this.enabled=false;this.held=false;this.endConversation();this.streamDone=true;
         clearInterval(this.timerPoll);this.releaseLock?.();this.releaseLock=null;
         this.wakeLock?.release().catch(()=>{});this.wakeLock=null;
@@ -73,6 +74,11 @@
     event(item){
       if(window.GoBotRealtime?.selected()&&['closed','error','warning'].includes(item.type))return;
       if(item.turn_id!==this.turn)return;const data=item.data||{};
+      if(item.type==='meaning_mismatch'){
+        this.manager.visual=null;this.manager.scene=null;this.manager.gallery=[];this.manager.galleryAt=null;this.renderer.clearImage();
+        this.diagnostics.subject_alignment='needs_user_confirmation';
+        document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);
+      }
       if(item.type==='visual_response'){if(this.manager.frame(data.presentation,item.turn_id))this.renderer.load(data.presentation,item.turn_id,id=>id===this.turn);}
       if(item.type==='screen_scene')this.manager.compose(data.scene,item.turn_id);
       if(item.type==='tool_status'&&this.preservedVisual&&data.topic?.outcome==='new_topic'){
@@ -147,6 +153,22 @@
     }
     async press(){
       if(!this.enabled){this.status(this.lastNativeClosure||'Сначала нажми «Включить GoBot».');return;}
+      if(this.held)return;
+      const audio=window.GoBotClient.audioSnapshot();
+      if(audio.playing||audio.feedback_playing){
+        if(this.profile.interaction_mode==='toggle'){
+          this.status('Ответ продолжается. Для нового вопроса сначала нажми «Остановить ответ».');return;
+        }
+        // Do not mute, cancel provider audio or capture a microphone for a short accidental tap.
+        this.held=true;const generation=this.generation;
+        const guard={};this.tapGuard=guard;
+        const confirmed=await new Promise(resolve=>{guard.resolve=resolve;guard.timer=setTimeout(()=>resolve(true),500);});
+        if(!confirmed||this.tapGuard!==guard||!this.held||!this.enabled||generation!==this.generation)return;
+        this.tapGuard=null;this.held=false;
+      }
+      return this.beginPress();
+    }
+    async beginPress(){
       if(window.GoBotRealtime?.selected()){if(this.held)return;this.held=true;const started=await window.GoBotRealtime.pttStart();if(!started)this.held=false;return;}
       if(this.followupPending||window.GoBotClient.isRecording()&&!this.held){this.cancelCapture();}
       if(this.held||window.GoBotClient.isRecording())return;
@@ -159,8 +181,9 @@
         if(!this.held)this.cancelCapture();
       }catch(_){this.held=false;this.captureAbort.abort();this.state('error','Не удалось начать запись. Обнови страницу и попробуй снова.');}
     }
-    release(){if(!this.held)return;this.held=false;window.GoBotClient.endRecording();}
-    cancelCapture(){this.held=false;this.captureAbort?.abort();window.GoBotClient.cancelRecording();if(this.enabled)this.state('idle','Запись отменена.');}
+    cancelTapGuard(){const guard=this.tapGuard;if(!guard)return false;this.tapGuard=null;this.held=false;clearTimeout(guard.timer);guard.resolve(false);return true;}
+    release(){if(this.cancelTapGuard())return;if(!this.held)return;this.held=false;window.GoBotClient.endRecording();}
+    cancelCapture(){if(this.cancelTapGuard())return;this.held=false;this.captureAbort?.abort();window.GoBotClient.cancelRecording();if(this.enabled)this.state('idle','Запись отменена.');}
     async refreshTimer(){if(document.hidden||!this.enabled||this.manager.visual?.type!=='timer_widget')return;const frame=this.manager.visual;try{const data=await(await fetch('/api/device/timers')).json();if(this.manager.visual!==frame)return;if(!data.timers?.some(timer=>timer.id===(frame.metadata.timer_id||frame.id))&&frame.metadata.deadline>Date.now()/1000){frame.metadata.deadline=null;frame.metadata.state='cancelled';}}catch(_){}}
     pause(text){this.generation++;this.enabled=false;clearInterval(this.timerPoll);this.cancelCapture();window.GoBotClient.stop();this.releaseLock?.();this.releaseLock=null;this.wakeLock?.release().catch(()=>{});this.wakeLock=null;this.state('muted',text);document.getElementById('device-enable').textContent='Возобновить GoBot';}
   }

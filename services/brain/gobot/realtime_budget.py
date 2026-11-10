@@ -71,7 +71,7 @@ class RealtimeBudget:
     def total_tokens(self,session):
         with self.connect() as c:rows=c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),)).fetchall()
         return sum(json.loads(row[0]).get('total_tokens',0) for row in rows)
-    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None):
+    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None,alignment_counts=None):
         # Explicit allowlist: captions, queries, speaker IDs and raw audio cannot enter this ledger.
         setup_keys={'call_created','sideband_connected','settings_acknowledged'}
         turn_keys={'input_ended','response_created','answer_transcript','output_buffer_started','client_playback','client_playback_stopped'}
@@ -92,6 +92,7 @@ class RealtimeBudget:
             report['lifecycle_ms']=clean({'lifetime':lifetime_ms},{'lifetime'})
             report['provider_errors']={k:v for k,v in (provider_errors or {}).items() if k in error_codes and type(v) is int and 0<v<=1000}
             report['completion_counts']={k:v for k,v in (completion_counts or {}).items() if k in {'max_output_tokens','completed','cancelled','failed','incomplete','other'} and type(v) is int and 0<v<=1000}
+            report['alignment_counts']={k:v for k,v in (alignment_counts or {}).items() if k in {'match','suspected_mismatch'} and type(v) is int and 0<v<=1000}
             c.execute('INSERT OR IGNORE INTO reports VALUES(?,?,?)',(self.key(session),time.time(),json.dumps(report)))
     def latest_report(self):
         with self.connect() as c:row=c.execute('SELECT report FROM reports ORDER BY created DESC LIMIT 1').fetchone()

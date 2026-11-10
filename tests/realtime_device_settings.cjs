@@ -20,5 +20,17 @@ vm.runInNewContext(fs.readFileSync('services/phone/dist/realtime.js','utf8'),{wi
  assert.equal(details.children.length,1);
  assert.equal(window.GoBotRealtime.selected(),true);
  assert.deepEqual(requests,['/api/realtime/status','/api/device/profile']);
+ const client=window.GoBotRealtime,confirmed=[];client.ready=true;client.sendText=async text=>confirmed.push(text);
+ client.event({type:'turn_started',turn_id:'current',data:{}});
+ client.event({type:'input_transcript',turn_id:'current',data:{text:'Какой самый ядовитый паук?',confirm_text_allowed:true}});
+ assert(document.getElementById('realtime-heard').textContent.includes('паук'));
+ const confirm=document.getElementById('realtime-confirm-question');assert.equal(confirm.hidden,false);
+ assert.equal(confirmed.length,0);await confirm.onclick();await confirm.onclick();assert.deepEqual(confirmed,['Какой самый ядовитый паук?']);
+ client.event({type:'input_transcript',turn_id:'old',data:{text:'Старое личное сообщение',confirm_text_allowed:true}});
+ assert.equal(client.lastInputText,'Какой самый ядовитый паук?');
+ client.event({type:'turn_started',turn_id:'timer',data:{}});
+ client.event({type:'input_transcript',turn_id:'timer',data:{text:'Поставь таймер',confirm_text_allowed:false}});
+ assert.equal(confirm.hidden,true);
+ client.clearReview();assert.equal(client.lastInputText,'');assert.equal(document.getElementById('realtime-heard').hidden,true);
  console.log('Device settings mounted; B selected; no provider/microphone calls');
 })().catch(e=>{console.error(e);process.exitCode=1;});

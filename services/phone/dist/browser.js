@@ -445,6 +445,7 @@ window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,un
     if(item.type==='input_transcript')$('question').value=data.text;
     if(item.type==='turn_complete')window.GoBotHooks?.onStreamEnd?.({turn_id:item.turn_id});
     if(item.type==='visual_response')visuals?.render(data.presentation);
+    if(item.type==='meaning_mismatch')visuals?.begin();
     if(item.type==='ready'){$('route-meta').textContent='OpenAI Realtime · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent='Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
     if(item.type==='tool_status'&&data.status==='settings_applied')applyServerProfile(data.profile);
     if(item.type==='expert_result'){

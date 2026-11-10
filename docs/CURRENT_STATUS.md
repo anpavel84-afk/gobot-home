@@ -910,3 +910,68 @@ no-store; A/B/device routes HTTP200, active sessions=0 и pending hangups=0 на
 `realtime-owner-manual-admission.json`. Фактический iPhone audio retest выполняет
 владелец в удобном ему количестве; старое отрицательное состояние страницы надо
 обновить, чтобы загрузить исправленный browser preflight.
+
+
+## 20. Случайное касание и «паук»/«плод» в native B
+
+Аудит кода подтвердил два параллельных пути: native audio → Realtime ответ и committed
+input audio → gpt-transcribe → текст для UI/визуала/context. Второй не подменяет аудио
+основной модели текстом. Это не два последовательных STT и не legacy CLI/TTS.
+[Официальный reference](https://developers.openai.com/api/reference/resources/realtime/server-events)
+указывает на асинхронность и возможное отличие transcript от понимания native model.
+Скриншот «Пауки» — request-side scene label, не доказательство правильного голосового
+понимания и не готовая фотография. Исходное аудио и закрытые transcripts не сохранялись,
+поэтому точный acoustic/ASR механизм прежней подмены не восстанавливается.
+
+Последний доступный перед изменением content-free report: completed=1,
+provider_errors={}, close_reason=page_hidden, input end→client audio signal 2065.23 ms,
+setup ack 1754.95 ms. Это последний ledger, не доказанная идентификация конкретного
+содержания вопроса со скриншота. Не объявляется новой акустической оценкой произношения.
+
+### 20.1. Управление касанием
+
+`DeviceApp.press/beginPress/cancelTapGuard`: при playing/feedback короткое касание
+не вызывает NativeVoice.pttStart, Stop, endRecording или microphone capture.
+Удержание 500 ms разрешает прежний путь намеренного прерывания. Pointer release/cancel
+и native close отменяют таймер. Idle PTT начинается как раньше, без задержки.
+В toggle mode нужен явный Stop, чтобы случайным касанием не оборвать речь.
+Это предотвращение случайной отмены, не кэш/replay уже отменённого provider-аудио.
+Фикстуры исполняют production device.js: short tap, cancelled pointer, stale timer,
+deliberate hold, toggle. Реальное ощущение порога на iPhone ещё не принято.
+
+### 20.2. Согласованность и подтверждённое уточнение
+
+В NativeSession retrieval loading scene теперь avatar, а не query-only «Пауки».
+SpeculativePhoto/ImageCache/Wikimedia-first сохранены; готовое фото по-прежнему требует
+подтверждения сущности текстом ответа. Голос не ждёт картинку.
+
+`response_alignment.py`: локальное сравнение повторённой превосходной конструкции и
+существительного. «Самый ядовитый паук»/«самым ядовитым плодом» даёт suspected_mismatch;
+синонимы/свободные перефразировки/неподходящая грамматика остаются unknown. Это не
+универсальный semantic checker; возможны пропуски и ложные предупреждения (например,
+близкие head nouns). Он не переписывает голос, не закрывает сессию и не вызывает LLM.
+Нестабильное последнее слово delta отбрасывается; порядок input/output events независим.
+При warning снимается неподтверждённая картинка, выбранное лицо продолжает речь.
+В ledger остаются только alignment_counts без raw question/answer/entity.
+
+Вне круга видна «Авторасшифровка» и кнопка «Ответить по этой расшифровке». Только её
+нажатие явно отправляет текущий подтверждённый текст через имеющийся NativeVoice.sendText
+в ту же сессию и голос; нет нового STT/CLI/отдельного TTS. Для распознанных quick tools
+кнопка скрыта, чтобы не предлагать повторное действие. Кнопка защищена от двойного
+нажатия, review привязан к turn_id, очищается при close/profile/новой реплике.
+Это RAM/UI текущего вопроса, а не новые содержательные диагностические логи.
+
+Native instructions дополнены просьбой уточнять неясный главный объект, а не заменять
+его созвучным. Prompt не выдаётся за гарантированную точность распознавания.
+Нативный быстрый audio path остаётся; автоматического ожидания внешнего STT до каждой
+первой фразы не добавлено. Бюджет owner manual остаётся uncapped; CLI/ImageGen отдельны.
+
+### 20.3. Проверки
+
+12 grammar fixtures; native ASR-before-output и ASR-after-output conflict fixtures;
+partial unfinished noun не даёт warning; initial retrieval сцены остаются avatar;
+нет автоматического дополнительного response.create, warning счётчик без raw content;
+production DOM correction требует click, игнорирует старый turn и не дублирует отправку.
+**Полный набор: 1158 passed / 36.81 s**; production JS syntax checks пройдены.
+Новых оплаченных developer вызовов нет; физический iPhone retest после deployment
+остаётся отдельной проверкой владельца, а не подтверждённым результатом fixtures.

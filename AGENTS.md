@@ -41,3 +41,8 @@ an established parental grant. Preserve legacy SpeechFormatter/audio and demo A 
 demo2 A/B shares one Brain, and the local full backup is never published.
 
 After every meaningful implementation, update docs/CURRENT_STATUS.md as the single factual project passport. Link changed code and evidence, record limitations and deployment state, and distinguish planned/mock/provider/browser/iPhone/hardware validation. Keep GOBOT_HOME_TARGET_SYSTEM.md as the requirements authority; do not create another competing status document.
+
+Separate native input transcription is asynchronous guidance, not proof of what the audio model understood.
+Keep native audio fast; explicit user-confirmed text correction reuses the same session.
+Subject-frame warnings must not launch automatic paid repairs or be called universal semantic verification.
+Protect short accidental face taps from cancelling playing audio; Stop remains immediate.

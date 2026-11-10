@@ -190,3 +190,16 @@ Runtime 9b78a1c загружен; 1139 regression tests passed. Desktop UI sourc
 См. CURRENT_STATUS.md §19. Старые one-time trials остаются историческими фактами и не переоткрываются.
 
 Owner manual admission включён на runtime 4f23908: limits/expiry=null, allowed phone client, CLI/ImageGen OFF. Реальный status/HTTP подтверждены в realtime-owner-manual-admission.json. Full suite: 1143 passed / 35.01 s; повторный звук на iPhone не подменяется этими проверками.
+
+
+## Owner §43 — touch guard и native interpretation alignment
+
+| Проверка | Реализация / evidence | Статус |
+| --- | --- | --- |
+| Случайное касание не обрывает речь | DeviceApp tap guard; production device_ui.cjs | Short/release/cancel/stale timer fixtures; deliberate hold=500 ms; iPhone feel pending |
+| UI label не доказывает native interpretation | NativeSession.visual loading avatar; existing SpeculativePhoto | Initial scenes fixtures; metadata grounding, без задержки аудио |
+| «паук»/«плод», иные существительные | response_alignment.py; test_response_alignment.py/native tests | 12 grammar cases + оба порядка ASR/output + partial-word case; не универсальный semantic/ASR verifier |
+| User-confirmed correction | realtime.js current-turn review / sendText; realtime_device_settings.cjs | Нет auto call; click-only existing native text path, double click/stale turn guarded |
+| Privacy/cost | content-free alignment_counts, clearReview, uncapped owner policy unchanged | Full suite 1158 passed; no new paid developer calls; real iPhone retest pending |
+
+Подробности и границы достоверности — CURRENT_STATUS.md §20. Legacy A и первоначальный backup сохранены.

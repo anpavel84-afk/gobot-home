@@ -448,6 +448,52 @@ def test_reasoning_only_limit_does_not_start_followup_or_retry(tmp_path,settings
         await m.shutdown()
     asyncio.run(run())
 
+@pytest.mark.parametrize('transcript_first',[True,False])
+def test_native_audio_and_async_transcript_disagreement_warns_without_automatic_paid_repair(tmp_path,settings,transcript_first):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        async def no_network(req,plan,**kw):return m.brain.visual.fallback(req,'Fixture','image_not_found')
+        m.brain.visual.attachment=no_network
+        s=await start(m)
+        await s.new_turn('audio-item')
+        await s.response();await tick()
+        transcript={'type':'conversation.item.input_audio_transcription.completed','item_id':'audio-item','transcript':'Какой самый ядовитый паук в Бразилии?'}
+        output={'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'Самым ядовитым плодом в Бразилии считают растение.'}
+        for event in ([transcript,output] if transcript_first else [output,transcript]):await s.handle(event)
+        for _ in range(40):
+            if s.current.alignment_state=='suspected_mismatch':break
+            await asyncio.sleep(.01)
+        assert s.current.alignment_state=='suspected_mismatch' and not s.closed
+        assert sum(e['type']=='response.create' for e in s.ws.sent)==1
+        warning=next(e for e in s.events if e['type']=='meaning_mismatch')
+        assert warning['data']['automatic_retry'] is False
+        assert not any(e['type']=='visual_response' for e in s.events)
+        scenes=[e['data']['scene'] for e in s.events if e['type']=='screen_scene']
+        assert all(e['scene_type']=='avatar' for e in scenes)
+        assert any(e['type']=='input_transcript' and e['data']['confirm_text_allowed'] for e in s.events)
+        await m.shutdown()
+        report=b.latest_report()
+        assert report['alignment_counts']=={'suspected_mismatch':1}
+        assert 'паук' not in json.dumps(report,ensure_ascii=False) and 'плод' not in json.dumps(report,ensure_ascii=False)
+    asyncio.run(run())
+
+def test_partial_unfinished_noun_cannot_raise_subject_warning(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        async def no_network(req,plan,**kw):return m.brain.visual.fallback(req,'Fixture','image_not_found')
+        m.brain.visual.attachment=no_network
+        s=await start(m);await command(s,'text',text='Какой самый ядовитый паук?');await tick()
+        await s.handle({'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'Самым ядовитым пау'})
+        await tick();assert s.current.alignment_state=='unknown'
+        await s.handle({'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'ком в Бразилии называют вид из этого рода.'})
+        for _ in range(50):
+            if s.current.alignment_state=='match':break
+            await asyncio.sleep(.01)
+        assert s.current.alignment_state=='match'
+        assert not any(e['type']=='meaning_mismatch' for e in s.events)
+        await m.shutdown()
+    asyncio.run(run())
+
 def test_no_thanks_declines_expert_proposal_without_closing_or_starting_cli(tmp_path,settings):
     async def run():
         m,p,b=configured(tmp_path,settings)

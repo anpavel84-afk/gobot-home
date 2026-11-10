@@ -124,6 +124,10 @@
       if(!text.trim())return;
       await this.start({microphone:false});this.mic(false);await this.command('text',{text});
     }
+    clearReview(){
+      this.lastInputText='';this.reviewTurn=null;
+      for(const id of ['realtime-heard','realtime-confirm-question']){const node=document.getElementById(id);if(node){node.hidden=true;if(id==='realtime-heard')node.textContent='';}}
+    }
     event(item){
       if(item.session_id&&item.session_id!==this.id)return;
       if(item.type==='speaker_readiness'){
@@ -133,7 +137,15 @@
       if(item.type==='speaker_segment')this.speakerMirror?.begin(item.data.segment_id);
       if(item.type==='speaker_segment_end')void this.speakerMirror?.flush();
       if(item.type==='speaker_identity')this.speakerStatus(item.data.state==='recognized'?'Предположительное совпадение голоса · личная память не разрешена':'Говорящий неизвестен · гостевой контекст');
-      if(item.type==='turn_started'){this.mic(false);this.heard=false;this.drained=false;this.response=null;window.GoBotHooks?.onTurn?.({turn_id:item.turn_id,conversation_id:item.conversation_id});}
+      if(item.type==='turn_started'){this.clearReview();this.currentTurn=item.turn_id;this.mic(false);this.heard=false;this.drained=false;this.response=null;window.GoBotHooks?.onTurn?.({turn_id:item.turn_id,conversation_id:item.conversation_id});}
+      if(item.type==='input_transcript'){
+        if(item.turn_id!==this.currentTurn)return;
+        this.lastInputText=item.data.text;this.reviewTurn=item.turn_id;
+        const heard=document.getElementById('realtime-heard'),confirm=document.getElementById('realtime-confirm-question');
+        if(heard){heard.textContent='Авторасшифровка: '+item.data.text.slice(0,320);heard.hidden=false;}
+        if(confirm){confirm.disabled=false;confirm.hidden=item.data.confirm_text_allowed!==true;}
+      }
+      if(item.type==='meaning_mismatch')this.status('Предмет ответа может отличаться от вопроса. Проверь авторасшифровку; можно ответить по её тексту.');
       if(item.type==='playback_buffer_started'){
         this.response=item.data.response_id;this.drained=false;this.heard=false;this.playing=true;this.mic(false);
         if(this.output)this.output.muted=false;
@@ -179,6 +191,7 @@
     close(message='GoBot выключен',reason='user_stop',error=false){
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
+      this.clearReview();
       this.abort?.abort();clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);this.mic(false);
       this.stream?.getTracks().forEach(t=>{t.onended=null;t.stop();});this.events?.close();this.events=null;
       this.speakerMirror?.close();this.speakerMirror=null;
@@ -213,6 +226,15 @@
       const speakerLabel=document.createElement('label');speakerLabel.className='check';const speakerCheck=document.createElement('input');speakerCheck.type='checkbox';speakerCheck.id='realtime-speaker-enabled';speakerCheck.checked=true;speakerLabel.append(speakerCheck,document.createTextNode('Локально определять говорящего через ECAPA · без внешнего STT'));section.append(speakerLabel);
       const modeLabel=document.createElement('label');modeLabel.textContent='Характер и голос';const mode=document.createElement('select');mode.id='realtime-personalization';for(const [v,t] of [['guest','Нейтральный гостевой'],['confirmed_profile','Мой PIN-профиль · только голос и стиль']]){const o=document.createElement('option');o.value=v;o.textContent=t;mode.append(o);}modeLabel.append(mode);section.append(modeLabel);const speakerStatus=document.createElement('p');speakerStatus.id='realtime-speaker-status';speakerStatus.className='hint';section.append(speakerStatus);
       const p=document.createElement('p');p.id='realtime-status';p.className='hint';p.textContent='Тестовый кандидат. Запуск доступен только с серверным допуском; страница сама сессию не запускает.';section.append(p);
+      const review=document.createElement('p');review.id='realtime-heard';review.className='hint';review.hidden=true;
+      const confirm=document.createElement('button');confirm.id='realtime-confirm-question';confirm.type='button';confirm.hidden=true;confirm.textContent='Ответить по этой расшифровке';
+      confirm.onclick=async()=>{
+        const query=client.lastInputText,turn=client.reviewTurn;
+        if(confirm.disabled||!query||turn!==client.currentTurn||!client.ready)return;
+        confirm.disabled=true;
+        try{await client.sendText(query);}catch(error){client.status(error.message);if(client.reviewTurn===turn)confirm.disabled=false;}
+      };
+      (document.querySelector('.device-controls')||section).append(review,confirm);
       const anchor=document.getElementById('device-appearance')||document.querySelector('footer');
       if(anchor)anchor.before(section);else (document.querySelector('main details')||document.querySelector('main'))?.append(section);
     }

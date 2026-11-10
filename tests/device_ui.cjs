@@ -89,5 +89,23 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   sandbox.window.GoBotHooks.onNativeClosed({reason:'provider_error',message:'Сбой сервиса; микрофон выключен.',error:true});
   await app.press();assert.equal(el('device-status').textContent,'Сбой сервиса; микрофон выключен.');
   assert.equal(app.manager.state,'error');
+  app.manager.gallery=[{id:'unconfirmed-a'},{id:'unconfirmed-b'}];app.manager.galleryAt=0;
+  app.event({type:'meaning_mismatch',turn_id:app.turn,data:{}});app.manager.tick(true);
+  assert.equal(app.manager.visual,null);assert.equal(app.manager.gallery.length,0);
+  // Short taps and cancelled pointers during speech must never touch the old audio.
+  const guards=[];sandbox.setTimeout=(callback,ms)=>{guards.push({callback,ms});return guards.length;};
+  let nativeStarts=0,ends=0,cancels=0;
+  sandbox.window.GoBotRealtime={selected:()=>true,pttStart:async()=>{nativeStarts++;return true;}};
+  sandbox.window.GoBotClient.audioSnapshot=()=>({playing:true,level:.2,state:'running'});
+  sandbox.window.GoBotClient.endRecording=()=>ends++;
+  sandbox.window.GoBotClient.cancelRecording=()=>cancels++;
+  app.enabled=true;app.profile.interaction_mode='hold';const stopsBefore=stops;
+  const accidental=app.press();assert(app.tapGuard);assert.equal(guards.at(-1).ms,500);app.release();await accidental;
+  assert.equal(nativeStarts,0);assert.equal(ends,0);assert.equal(cancels,0);assert.equal(stops,stopsBefore);
+  guards.shift().callback();assert.equal(nativeStarts,0);
+  const cancelled=app.press();app.cancelCapture();await cancelled;assert.equal(cancels,0);assert.equal(nativeStarts,0);
+  const deliberate=app.press();guards.at(-1).callback();await deliberate;
+  assert.equal(nativeStarts,1);app.release();assert.equal(ends,1);
+  app.profile.interaction_mode='toggle';await app.press();assert.equal(nativeStarts,1);assert(!app.tapGuard);
   console.log('Device units: raster, scenes, capture, followup playback gate, stop and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});
