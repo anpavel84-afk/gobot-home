@@ -108,6 +108,64 @@ def test_trial_budget_is_bound_to_one_client_and_excludes_other_spending(tmp_pat
     assert p.input_transcription is False and not p.expert_jobs_allowed and not p.image_generation_allowed
     assert p.max_session_seconds==90 and p.max_responses_per_session==4
 
+def owner_policy(**kw):
+    return RealtimePolicy(enabled=True,audience='owner_interactive',authorization='explicit-owner-interactive-fixture',
+        allowed_client_id='client-1',expires_at=None,max_sessions=None,max_responses_per_session=None,
+        max_session_seconds=None,observed_token_limit=None,max_output_tokens=4096,**kw)
+
+def test_uncapped_owner_policy_is_client_bound_and_keeps_counting_after_old_limits(tmp_path):
+    b=RealtimeBudget(tmp_path);p=owner_policy();b.policy_path.write_text(p.model_dump_json())
+    with pytest.raises(PermissionError):b.reserve_session('wrong-client',True,'other')
+    with pytest.raises(PermissionError):b.reserve_session('no-consent',False,'client-1')
+    for n in range(105):b.reserve_session('manual-'+str(n),True,'client-1')
+    with b.connect() as c:c.execute('UPDATE sessions SET started=started-10000')
+    for _ in range(60):b.reserve_response('manual-0',p)
+    assert b.status()['sessions_reserved']==105 and b.status()['sessions_remaining'] is None
+    assert b.status()['unlimited_manual_testing'] and b.status()['enabled']
+    with b.connect() as c:assert c.execute('SELECT responses FROM sessions WHERE id=?',(b.key('manual-0'),)).fetchone()[0]==60
+    with pytest.raises(ValueError):b.reserve_session('manual-0',True,'client-1')
+    b.policy_path.write_text(p.model_copy(update={'enabled':False}).model_dump_json())
+    with pytest.raises(PermissionError):b.reserve_response('manual-0',p)
+
+def test_uncapped_developer_or_unbound_policy_is_invalid():
+    with pytest.raises(ValueError):RealtimePolicy(expires_at=None)
+    with pytest.raises(ValueError):RealtimePolicy(audience='owner_interactive',expires_at=None)
+
+def test_long_manual_session_removes_command_count_limit_without_allowing_replay(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings);b.policy_path.write_text(owner_policy().model_dump_json())
+        s=await start(m)
+        assert s.config['max_output_tokens']==4096
+        for n in range(270):await s.command(RealtimeCommand(command_id='manual-command-'+str(n),action='ptt_cancel'))
+        sent=len(s.ws.sent)
+        duplicate=await s.command(RealtimeCommand(command_id='manual-command-0',action='ptt_cancel'))
+        assert duplicate['duplicate'] and len(s.ws.sent)==sent and len(s.commands)<256
+        await s.handle({'type':'response.done','response':{'id':'usage-fixture','status':'completed','usage':{'total_tokens':1000001}}})
+        await tick();assert not s.closed
+        b.policy_path.write_text(owner_policy().model_copy(update={'enabled':False}).model_dump_json())
+        for _ in range(100):
+            if s.closed:break
+            await asyncio.sleep(.02)
+        assert s.closed and s.close_reason=='budget_expired'
+        await m.shutdown()
+    asyncio.run(run())
+
+def test_evicted_closed_sessions_keep_persistent_ownership_and_replay_protection(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        identity=('owner','client','epoch');b.cancel('past',identity)
+        m.sessions={'past':SimpleNamespace(closed=True,setup_done=True,hangup_confirmed=True)}
+        m.sessions.update({str(n):SimpleNamespace(closed=True,setup_done=True,hangup_confirmed=True) for n in range(300)})
+        m.tombstones={str(n):identity for n in range(300)}
+        m.prune_lifecycle()
+        assert len(m.sessions)==128 and len(m.tombstones)==256 and 'past' not in m.sessions
+        with pytest.raises(KeyError):await m.close('past','someone-else','client','epoch')
+        assert (await m.close('past',*identity))['closed']
+        with pytest.raises(KeyError):await m.close('past','someone-else','client','epoch')
+        with pytest.raises(ValueError):await m.start(offer().model_copy(update={'session_id':'past'}))
+        assert not p.creations
+    asyncio.run(run())
+
 def test_token_cost_estimate_uses_reported_categories_not_seconds():
     assert estimate_usd({'input_token_details':{'text_tokens':1000000,'audio_tokens':1000000,'cached_tokens_details':{'text_tokens':100000,'audio_tokens':200000}},'output_token_details':{'text_tokens':1000000,'audio_tokens':1000000}})==pytest.approx(31.006)
 

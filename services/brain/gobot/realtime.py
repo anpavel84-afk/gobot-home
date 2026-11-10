@@ -169,8 +169,9 @@ class NativeSession:
                 await asyncio.sleep(1)
                 reason=None
                 if self.personalization and not await asyncio.to_thread(self.manager.identity.family.session_valid,self.access.confirmed_profile_id,self.offer.confirmed_profile_epoch):reason='profile_authorization_revoked'
-                if time.monotonic()-self.started>=self.policy.max_session_seconds:reason='session_time_limit'
-                elif time.time()>=self.policy.expires_at:reason='budget_expired'
+                policy=await asyncio.to_thread(self.manager.budget.policy)
+                if self.policy.max_session_seconds is not None and time.monotonic()-self.started>=self.policy.max_session_seconds:reason='session_time_limit'
+                elif not self.manager.budget.active(policy) or policy.authorization!=self.policy.authorization:reason='budget_expired'
                 elif time.monotonic()-self.last_activity>45 and not self.generating and not self.speaking:reason='idle_timeout'
                 elif self.followup_deadline and time.monotonic()>self.followup_deadline:reason='followup_timeout'
                 if reason:await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,reason);return
@@ -341,7 +342,7 @@ class NativeSession:
             r=obj.get('response',{});ident=r.get('id','')
             if ident and isinstance(r.get('usage'),dict):
                 await asyncio.to_thread(self.manager.budget.record,self.id,ident,r['usage'])
-                if await asyncio.to_thread(self.manager.budget.total_tokens,self.id)>=self.policy.observed_token_limit:
+                if self.policy.observed_token_limit is not None and await asyncio.to_thread(self.manager.budget.total_tokens,self.id)>=self.policy.observed_token_limit:
                     self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'observed_token_limit'))
             if ident==self.live_response:self.generating=False;self.response_requested=False
             turn=self.response_turn.get(ident)
@@ -480,7 +481,8 @@ class NativeSession:
         async with self.lock:
             if self.closed:raise ValueError('realtime_session_closed')
             if command.command_id in self.commands:return {'duplicate':True}
-            if len(self.commands)>=512:raise ValueError('realtime_command_limit')
+            if not await asyncio.to_thread(self.manager.budget.claim_command,self.id,command.command_id):return {'duplicate':True}
+            if len(self.commands)>=256:self.commands.clear() # Durable ledger still rejects every old command.
             self.commands.add(command.command_id);self.last_activity=time.monotonic()
             action=command.action
             if action=='text':
@@ -532,9 +534,17 @@ class RealtimeManager:
         if not s or (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)!=(owner,client,epoch):raise KeyError('realtime_session_not_found')
         return s
 
+    def prune_lifecycle(self):
+        for ident,s in list(self.sessions.items()):
+            if len(self.sessions)<=128:break
+            if s.closed and s.setup_done and s.hangup_confirmed:self.sessions.pop(ident)
+        if len(self.tombstones)>256:
+            self.tombstones=dict(list(self.tombstones.items())[-256:])
+
     async def start(self,offer):
         audio_only_sdp(offer.sdp)
         async with self.lock:
+            self.prune_lifecycle()
             for call in await asyncio.to_thread(self.budget.pending_calls):
                 if any(s.call_id==call and not s.closed for s in self.sessions.values()):continue
                 try:
@@ -544,7 +554,7 @@ class RealtimeManager:
                 except Exception:
                     self.hangups[call]=time.monotonic()
                     raise ValueError('realtime_previous_hangup_unconfirmed')
-            # Bound records, never evict cancellation IDs into a replay window.
+            # Bound RAM records; persistent cancellation still prevents replay after eviction.
             if len(self.tombstones)+len(self.sessions)>=1024:raise ValueError('realtime_lifecycle_capacity')
             if offer.session_id in self.sessions or offer.session_id in self.tombstones:raise ValueError('realtime_session_id_reused')
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in self.sessions.values()):raise ValueError('realtime_audio_session_already_active')
@@ -572,9 +582,9 @@ class RealtimeManager:
             if s and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)!=(owner,client,epoch):raise KeyError('realtime_session_not_found')
             identity=(owner,client,epoch)
             if ident in self.tombstones and self.tombstones[ident]!=identity:raise KeyError('realtime_session_not_found')
-            if len(self.tombstones)>=1024 and ident not in self.tombstones:raise ValueError('realtime_lifecycle_capacity')
-            self.tombstones[ident]=identity
+            if len(self.tombstones)>256:self.tombstones=dict(list(self.tombstones.items())[-256:])
             await asyncio.to_thread(self.budget.cancel,ident,identity)
+            self.tombstones[ident]=identity
             if not s:return {'closed':True}
             already_closed=s.closed
             s.closed=True;s.ready=False

@@ -858,3 +858,39 @@ realtime-guest RAM scope: новая native сессия не обнуляет �
 идёт OpenAI для server VAD, в legacy VAD локальный; молчание в native окне не объявляется
 гарантированно бесплатным. Эта проверка не заменяет iPhone audio/network acceptance.
 Legacy A, Speech Formatter, private backup и 100 marin-клипов сохранены.
+
+
+## 19. Владелец разрешил постоянное ручное тестирование B
+
+Новый OWNER DIRECT отменяет прежнюю одноразовую пробу для собственного iPhone.
+Реализована явная owner_interactive policy: max_sessions/max_responses_per_session,
+max_session_seconds, observed_token_limit и expires_at могут быть null. Это настоящий
+uncapped режим, не подстановка большого скрытого числа. Null допускается только для
+owner_interactive с конкретным allowed_client_id; developer_trial сохраняет scoped
+ограничения. Старые usage/cancellation/call ledgers и отчёты не очищаются.
+
+На ответ выбран поддерживаемый предел 4096 вместо слишком малого тестового 384.
+API/провайдерские ресурсные ограничения остаются; это не обещание бесконечной длины
+одного ответа или непрерывного фонового микрофона. Native expiry watcher учитывает
+отзыв policy; Stop/idle/followup timeout/pagehide/offline по-прежнему закрывают звук
+и микрофон. Следующий ручной запуск не требует нового разового разрешения.
+
+Счётчики usage сохраняются без application spending cap; согласие не переносится на
+CLI/ImageGen или автоматические платные developer прогоны. Default engine вне B пока
+legacy; A и backup остаются для сравнения.
+
+Browser preflight правильно понимает sessions_remaining/max_sessions=null вместо
+ошибочного JS сравнения с нулём. В диагностике виден статус ручного тестирования.
+Закрытые сессии вытесняются из RAM, а durable cancellation не позволяет переиспользовать
+их IDs. Command deduplication вынесена в прежний SQLite ledger: лимит 512 команд больше
+не закрывает долгую ручную беседу; повтор старой команды после вытеснения RAM-кэша
+по-прежнему не выполняется.
+
+Бесплатные проверки: более 100 session reservations и более 50 responses без old caps;
+old timestamps без искусственного 90 s cutoff; другой client/нет consent запрещены;
+повтор session ID/command ID запрещён; revocation закрывает активную fixture session;
+свыше 256 command IDs сохраняют dedup; очищенный RAM cache не открывает replay/чужой
+close. Native/browser/expert subset: 45 passed / 8.73 s. Full suite перед deployment
+выполняется отдельно. Реальные вызовы разработчиком для этого переключения не запускались.
+
+Итог полного набора: **1143 passed / 35.01 s**. GET native status теперь no-store, чтобы телефон не сохранял старое состояние «проба использована». Нового оплаченного developer вызова не было.

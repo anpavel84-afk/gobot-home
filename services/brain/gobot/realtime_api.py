@@ -2,7 +2,7 @@
 import asyncio,json,re,time
 import httpx
 from fastapi import Request,HTTPException,Depends
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse,JSONResponse
 from pydantic import ValidationError
 from .realtime_contract import RealtimeOffer,RealtimeCommand
 from .models import ID
@@ -112,8 +112,8 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
     async def status():
         try:
             async with httpx.AsyncClient(trust_env=False,timeout=3) as c:r=await c.get(base+'/status',headers=auth)
-            return r.json()
-        except Exception:return {'default_engine':'legacy','available':False,'code':'brain_unavailable'}
+            return JSONResponse(r.json(),headers={'Cache-Control':'no-store'})
+        except Exception:return JSONResponse({'default_engine':'legacy','available':False,'code':'brain_unavailable'},headers={'Cache-Control':'no-store'})
 
     @app.post('/api/realtime/sessions')
     async def create(request:Request):

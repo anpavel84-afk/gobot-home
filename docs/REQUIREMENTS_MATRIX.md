@@ -176,3 +176,15 @@ R-018/019/068–070/082: реальная одна сессия/3 responses за
 Актуальное развертывание/лимиты — CURRENT_STATUS.md §§17–18. Новый документ-паспорт не создаётся.
 
 Runtime 9b78a1c загружен; 1139 regression tests passed. Desktop UI source policy/default gen OFF подтверждён. Повторный iPhone с новым лимитом ожидает согласия; exact terminal reason первой сессии не восстановлен. См. realtime-visual-fix-deployment.json и паспорт §18.1.
+
+
+## Owner §42 — постоянное ручное тестирование B
+
+| Проверка | Реализация | Статус |
+| --- | --- | --- |
+| Нет одноразового session/response/time cap или expiry у owner | RealtimePolicy owner-only nullable limits, RealtimeBudget | >100 sessions/>50 responses fixtures; developer/unbound null отвергнуты |
+| Повторный ручной Start без renewal | native browser null-safe admission | Production JS fixture, страница не создаёт call автоматически |
+| Count cap не маскируется под RAM capacity | lifecycle pruning + durable command/cancellation ledger | Старый ID/чужой scope/replayed command запрещены после eviction |
+| Costs/consent/ACL/cleanup сохранены | existing budget, session expiry/Stop and typed gateway | Revocation/client/consent fixtures; CLI/ImageGen отдельны и OFF |
+
+См. CURRENT_STATUS.md §19. Старые one-time trials остаются историческими фактами и не переоткрываются.

@@ -19,6 +19,6 @@ vm.runInNewContext(fs.readFileSync('services/phone/dist/realtime.js','utf8'),{wi
  assert.equal(document.getElementById('realtime-speaker-enabled').checked,true);
  assert.equal(details.children.length,1);
  assert.equal(window.GoBotRealtime.selected(),true);
- assert.deepEqual(requests,['/api/device/profile']);
+ assert.deepEqual(requests,['/api/realtime/status','/api/device/profile']);
  console.log('Device settings mounted; B selected; no provider/microphone calls');
 })().catch(e=>{console.error(e);process.exitCode=1;});

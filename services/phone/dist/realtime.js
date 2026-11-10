@@ -35,7 +35,7 @@
       try{
         const admission=await (await this.fetcher('/api/realtime/status')).json();
         if(!admission.budget?.enabled)throw Error('Для Realtime ещё не задан отдельный серверный лимит.');
-        if(admission.budget.sessions_remaining===0||admission.budget.sessions_reserved>=admission.budget.max_sessions)throw Error('Разрешённая проба уже использована. Для следующей нужен новый серверный лимит.');
+        if(admission.budget.sessions_remaining===0||(typeof admission.budget.max_sessions==='number'&&admission.budget.sessions_reserved>=admission.budget.max_sessions))throw Error('Разрешённая проба уже использована. Для следующей нужен новый серверный лимит.');
         await this.acquire();if(epoch!==this.generation)throw Error('Запуск отменён');
         this.context=new AudioContext();await this.context.resume();
         this.output=document.createElement('audio');this.output.autoplay=true;this.output.playsInline=true;
@@ -217,6 +217,9 @@
       if(anchor)anchor.before(section);else (document.querySelector('main details')||document.querySelector('main'))?.append(section);
     }
     select.value=document.body.dataset.conversationEngine||'legacy';
+    fetch('/api/realtime/status').then(r=>r.json()).then(data=>{
+      if(data.budget?.enabled&&data.budget.unlimited_manual_testing)document.getElementById('realtime-status').textContent='Ручное тестирование владельца: число запусков и ответов не ограничено. API-расход учитывается; CLI и ImageGen имеют отдельные разрешения.';
+    }).catch(()=>{});
     fetch('/api/device/profile').then(r=>r.json()).then(data=>{select.value=document.body.dataset.conversationEngine||data.profile?.voice?.engine||'legacy';document.getElementById('realtime-consent').checked=data.profile?.voice?.realtime_consent===true;document.getElementById('realtime-speaker-enabled').checked=data.profile?.voice?.speaker_identity_enabled!==false;document.getElementById('realtime-personalization').value=data.profile?.voice?.personalization_mode||'guest';}).catch(()=>{});
     document.getElementById('realtime-consent')?.addEventListener('change',async e=>{
       if(!e.target.checked)await client.close().catch(()=>{});

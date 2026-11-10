@@ -17,6 +17,10 @@ heavy agent or mock. Expensive fallback requires explicit per-request approval.
 OpenAI STT and TTS remain primary for legacy. Whisper and Denis are explicit manual offline choices only.
 OpenAI paid speech tests require separate owner permission; CLI quota consent does not cover API charges.
 Realtime developer trials require a new scoped budget; old speech/phone/opening budgets cannot be reused.
+OWNER DIRECT 2026-11-10 now authorizes ongoing manual Realtime testing on the owner phone:
+owner_interactive may have no session/response/time/usage cap or expiry, bound to that client.
+Do not keep asking to renew each manual trial. This does not authorize automated paid developer
+runs, experts or image generation. Keep consent, usage accounting, Stop, idle/pagehide cleanup and ACL.
 Keep all 100 cached openings for legacy; disable them for native Realtime conversation.
 Speaker embeddings stay local, encrypted with Windows DPAPI; no raw enrollment recordings on disk.
 Product source: docs/GOBOT_HOME_TARGET_SYSTEM.md v0.2 (96e0f3d), still a draft beyond owner-approved corrections.

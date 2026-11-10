@@ -1,7 +1,7 @@
 """Native Realtime contracts. No GPT-Live events and no legacy speech pipeline."""
 import re
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field,model_validator
 from .models import ID
 
 MODEL = 'gpt-realtime-2.1-mini'
@@ -41,18 +41,25 @@ class RealtimePolicy(Strict):
     accepted_as_default: bool = False
     authorization: str = Field(default='',max_length=200)
     audience: Literal['owner_interactive','developer_trial'] = 'developer_trial'
-    expires_at: float = Field(default=0,ge=0,allow_inf_nan=False)
-    max_sessions: int = Field(default=0,ge=0,le=100)
-    max_responses_per_session: int = Field(default=8,ge=1,le=50)
-    max_session_seconds: int = Field(default=180,ge=30,le=900)
-    max_output_tokens: int = Field(default=384,ge=64,le=1024)
-    observed_token_limit: int = Field(default=12000,ge=1000,le=1000000)
+    expires_at: float|None = Field(default=0,ge=0,allow_inf_nan=False)
+    max_sessions: int|None = Field(default=0,ge=0,le=100)
+    max_responses_per_session: int|None = Field(default=8,ge=1,le=50)
+    max_session_seconds: int|None = Field(default=180,ge=30,le=3600)
+    max_output_tokens: int = Field(default=384,ge=64,le=4096)
+    observed_token_limit: int|None = Field(default=12000,ge=1000,le=1000000)
     input_transcription: bool = False
     transcription_model: Literal['gpt-transcribe'] = 'gpt-transcribe'
     voice: Literal['marin','cedar','alloy','ash','ballad','coral','echo','sage','shimmer','verse'] = 'marin'
     allowed_client_id: str|None = Field(default=None,pattern=ID)
     expert_jobs_allowed: bool = False
     image_generation_allowed: bool = False
+
+    @model_validator(mode='after')
+    def unlimited_requires_owner_interactive(self):
+        if any(getattr(self,key) is None for key in ('expires_at','max_sessions','max_responses_per_session','max_session_seconds','observed_token_limit')):
+            if self.audience!='owner_interactive' or not self.allowed_client_id:
+                raise ValueError('Uncapped use requires an explicitly authorized owner client')
+        return self
 
 def audio_only_sdp(sdp):
     """Enforce the boundary on both offer and answer, not only browser JS."""

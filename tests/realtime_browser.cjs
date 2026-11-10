@@ -1,7 +1,7 @@
 /* Executes the production client with fake media/network; no API or microphone. */
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements={'conversation-engine':{value:'realtime'},'realtime-consent':{checked:true},'realtime-speaker-enabled':{checked:true},'realtime-personalization':{value:'guest'}};
-const requests=[],tracks=[],peers=[],callbacks={},closures=[];let uuid=0,raf=0,exhausted=false,mediaCalls=0;
+const requests=[],tracks=[],peers=[],callbacks={},closures=[];let uuid=0,raf=0,exhausted=false,unlimited=false,mediaCalls=0;
 const track={enabled:true,onended:null,stop(){this.stopped=true;}};
 class Peer{
  constructor(){this.connectionState='connected';this.iceGatheringState='complete';peers.push(this);}
@@ -20,7 +20,7 @@ class Context{
 }
 const fetcher=async(url,options={})=>{
  requests.push({url,body:typeof options.body==='string'?JSON.parse(options.body):null});
- if(url.endsWith('/status'))return {ok:true,json:async()=>({budget:{enabled:true,sessions_remaining:exhausted?0:1}})};
+ if(url.endsWith('/status'))return {ok:true,json:async()=>({budget:{enabled:true,sessions_remaining:exhausted?0:unlimited?null:1,max_sessions:unlimited?null:1,sessions_reserved:unlimited?314:0}})};
  if(url.endsWith('/sessions'))return {ok:true,json:async()=>({configuration_confirmed:true,model:'gpt-realtime-2.1-mini',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n',speaker_readiness:{ready:false}})};
  return {ok:true,json:async()=>({accepted:true,closed:true,hangup_confirmed:true,speaker_segment_id:'segment-fixture'})};
 };
@@ -48,7 +48,7 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
  assert.equal(client.termination('followup_timeout').error,false);
  assert.equal(client.termination('session_time_limit').error,false);
  assert.equal(client.termination('sideband_closed').error,true);
- await client.start();client.event({session_id:client.id,type:'closed',data:{reason:'followup_timeout'}});await client.closing;
+ unlimited=true;await client.start();assert(client.ready);client.event({session_id:client.id,type:'closed',data:{reason:'followup_timeout'}});await client.closing;
  assert.equal(closures.at(-1).error,false);assert(closures.at(-1).message.includes('Окно продолжения'));
  const sessionsBefore=requests.filter(r=>r.url.endsWith('/sessions')).length,micsBefore=mediaCalls;
  exhausted=true;await assert.rejects(client.start(),/проба уже использована/);

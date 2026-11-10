@@ -13,22 +13,25 @@ class RealtimeBudget:
             c.execute('CREATE TABLE IF NOT EXISTS cancelled(id TEXT PRIMARY KEY,scope TEXT)')
             c.execute('CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY,closed INTEGER DEFAULT 0)')
             c.execute('CREATE TABLE IF NOT EXISTS reports(session TEXT PRIMARY KEY,created REAL,report TEXT)')
+            c.execute('CREATE TABLE IF NOT EXISTS commands(session TEXT,id TEXT,PRIMARY KEY(session,id))')
     def connect(self):return sqlite3.connect(self.path,timeout=5)
     def policy(self):
         if not self.policy_path.exists():return RealtimePolicy()
         return RealtimePolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8'))
     @staticmethod
     def key(ident):return hashlib.sha256(ident.encode()).hexdigest()
+    @staticmethod
+    def active(policy):return policy.enabled and bool(policy.authorization) and (policy.expires_at is None or policy.expires_at>time.time())
     def reserve_session(self,ident,consent,client_id=None):
         p=self.policy()
-        if not (p.enabled and p.authorization and p.expires_at>time.time() and consent):raise PermissionError('realtime_budget_or_consent_required')
+        if not (self.active(p) and consent):raise PermissionError('realtime_budget_or_consent_required')
         if p.allowed_client_id and p.allowed_client_id!=client_id:raise PermissionError('realtime_trial_client_not_allowed')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(self.key(ident),)).fetchone():raise ValueError('realtime_session_cancelled')
             if c.execute('SELECT 1 FROM sessions WHERE id=?',(self.key(ident),)).fetchone():raise ValueError('realtime_session_already_attempted')
             count=c.execute('SELECT count(*) FROM sessions WHERE authorization=?',(p.authorization,)).fetchone()[0]
-            if count>=p.max_sessions:raise PermissionError('realtime_session_budget_exhausted')
+            if p.max_sessions is not None and count>=p.max_sessions:raise PermissionError('realtime_session_budget_exhausted')
             c.execute('INSERT INTO sessions(id,authorization,started) VALUES(?,?,?)',(self.key(ident),p.authorization,time.time()))
         return p
     def cancel(self,ident,scope):
@@ -46,12 +49,16 @@ class RealtimeBudget:
         with self.connect() as c:return [r[0] for r in c.execute('SELECT id FROM calls WHERE closed=0')]
     def reserve_response(self,ident,policy):
         p=self.policy()
-        if not p.enabled or p.authorization!=policy.authorization or p.expires_at<=time.time():raise PermissionError('realtime_budget_expired')
+        if not self.active(p) or p.authorization!=policy.authorization:raise PermissionError('realtime_budget_expired')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             row=c.execute('SELECT started,responses FROM sessions WHERE id=?',(self.key(ident),)).fetchone()
-            if not row or row[1]>=policy.max_responses_per_session or time.time()-row[0]>policy.max_session_seconds:raise PermissionError('realtime_response_budget_exhausted')
+            if not row or (policy.max_responses_per_session is not None and row[1]>=policy.max_responses_per_session) or (policy.max_session_seconds is not None and time.time()-row[0]>policy.max_session_seconds):raise PermissionError('realtime_response_budget_exhausted')
             c.execute('UPDATE sessions SET responses=responses+1 WHERE id=?',(self.key(ident),))
+    def claim_command(self,session,ident):
+        with self.connect() as c:
+            c.execute('INSERT OR IGNORE INTO commands VALUES(?,?)',(self.key(session),self.key(ident)))
+            return c.total_changes>0
     def record(self,session,response,usage):
         # Keep only numeric provider accounting. No arbitrary strings, transcripts or raw events.
         def numeric(obj):
@@ -93,9 +100,10 @@ class RealtimeBudget:
         p=self.policy()
         with self.connect() as c:
             count=c.execute('SELECT count(*) FROM sessions WHERE authorization=?',(p.authorization,)).fetchone()[0]
-        return {'enabled':p.enabled and p.expires_at>time.time(),'audience':p.audience,'sessions_reserved':count,
+        return {'enabled':self.active(p),'audience':p.audience,'sessions_reserved':count,
                 'max_sessions':p.max_sessions,'expires_at':p.expires_at,'accepted_as_default':p.accepted_as_default,
-                'sessions_remaining':max(0,p.max_sessions-count),
+                'sessions_remaining':None if p.max_sessions is None else max(0,p.max_sessions-count),
+                'unlimited_manual_testing':p.audience=='owner_interactive' and p.max_sessions is None and p.max_responses_per_session is None,
                 'input_transcription':p.input_transcription,'max_session_seconds':p.max_session_seconds,
                 'max_responses_per_session':p.max_responses_per_session,'max_output_tokens':p.max_output_tokens,
                 'client_bound':bool(p.allowed_client_id),'expert_jobs_allowed':p.expert_jobs_allowed,
