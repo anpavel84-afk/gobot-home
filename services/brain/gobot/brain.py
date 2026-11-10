@@ -19,7 +19,8 @@ from .local_tools import LocalTools,text_stream
 from .visual import VisualService
 from .visual_images import ImageCache
 from pathlib import Path
-from .presentation_planner import MultimodalResponsePlanner
+from .presentation_planner import MultimodalResponsePlanner,ResponsePresentationPlan
+from .visual_subject import visual_plan_stream
 from .response_composer import VisualResponseComposer
 from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
 
@@ -45,7 +46,7 @@ class Service:
                         yield event(req,'visual_response',presentation=frame.model_dump(),replayed=True)
             except (ValueError,TypeError):pass
             yield event(req,'final' if replay['status']=='completed' else replay['status'] if replay['status'] in {'cancelled','error'} else 'error',text=replay['result'],provider=replay['provider'],replayed=True);return
-        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None
+        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None;answer_visual_future=None
         try:
             mark("brain_queue_start")
             try:await asyncio.wait_for(self.limit.acquire(),0.1);acquired=True;mark("brain_queue_end")
@@ -107,21 +108,42 @@ class Service:
                 presentation_plan=self.composer.plan(req,route=decision,context=ctx)
                 if decision:yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan).model_dump(exclude={'display_text','speech_text'}),phase='planning')
                 if decision:trace.append({'presentation_plan':presentation_plan.model_dump()})
-                if decision and not visual_frame and presentation_plan.visual_needed and presentation_plan.origin=='implicit':
+                if decision and not visual_frame and self.composer.answer_visual_eligible(req,decision,ctx,presentation_plan):
+                    answer_visual_future=asyncio.get_running_loop().create_future()
+                    async def answer_visual_work():
+                        plan=await answer_visual_future
+                        if plan is None:return None
+                        return await self.visual.attachment(req,plan,timeout=self.presentation_planner.policy.helpful_timeout_seconds)
+                    visual_task=asyncio.create_task(answer_visual_work())
+                elif decision and not visual_frame and presentation_plan.visual_needed and presentation_plan.origin=='implicit':
                     visual_task=asyncio.create_task(self.visual.attachment(req,presentation_plan,timeout=self.presentation_planner.policy.helpful_timeout_seconds))
                     yield event(req,'tool_status',status='preparing_visual_attachment',presentation_plan=presentation_plan.model_dump())
                 if visual_frame:
                     yield event(req,'visual_response',presentation=visual_frame.model_dump())
                     trace.append({'presentation':visual_frame.model_dump()})
+                def accept_visual(directive):
+                    nonlocal presentation_plan
+                    if answer_visual_future is None or answer_visual_future.done():return
+                    refined=self.composer.plan_from_answer(req,text,decision,ctx,presentation_plan,directive=directive)
+                    if refined:
+                        presentation_plan=refined
+                        trace.append({'answer_presentation_plan':refined.model_dump()})
+                        answer_visual_future.set_result(refined if refined.visual_needed else None)
+                    else:
+                        presentation_plan=ResponsePresentationPlan(reason='model_visual_plan_rejected')
+                        trace.append({'visual_plan_rejected':True});answer_visual_future.set_result(None)
                 try:
-                    iterator=merge_presentation(cancellable(source,cancel),visual_task,cancel)
+                    iterator=merge_presentation(visual_plan_stream(cancellable(source,cancel),accept_visual),visual_task,cancel)
                     async for kind,delta in iterator:
                         if kind=='visual_failed':
                             trace.append({'optional_visual_error':'attachment_unavailable'});continue
                         if kind=='visual':
+                            if delta is None:continue
                             yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
                             trace.append({'presentation':delta.frame.model_dump()});continue
                         if kind=='text_done':
+                            if answer_visual_future is not None and not answer_visual_future.done():
+                                presentation_plan=ResponsePresentationPlan(reason='model_visual_plan_unavailable');answer_visual_future.set_result(None)
                             if not must_gate and spoken_override is None:
                                 for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
                                 yield event(req,'tool_status',status='speech_input_complete')
@@ -143,7 +165,7 @@ class Service:
                         decision=replace(decision,provider='codex',model='gpt-6.1-sol',reason='approved_expensive_fallback')
                     yield event(req,'tool_status',status='fallback',provider=provider,reason=trace[-1]['reason'])
                     source_req=req.model_copy(update={'provider':'codex','model_id':'gpt-6.1-sol'})
-                    iterator=cancellable(bridge_stream(self.settings,source_req,ctx),cancel)
+                    iterator=visual_plan_stream(cancellable(bridge_stream(self.settings,source_req,ctx),cancel),lambda _:None)
                     async for delta in iterator:
                         if first is None:first=(time.perf_counter()-started)*1000;mark("first_assistant_delta")
                         text+=delta

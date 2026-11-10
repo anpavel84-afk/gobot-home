@@ -14,7 +14,19 @@ ALIASES={'кот':'cat','кошка':'cat','собака':'dog','пес':'dog','
  'пончик':'doughnut','красный':'red','черный':'black',
  'белый':'white','синий':'blue','голубой':'light blue','зеленый':'green',
  'желтый':'yellow','шоколадный':'chocolate',
- 'черный лабрадор':'black labrador retriever'}
+ 'черный лабрадор':'black labrador retriever',
+ # Reviewed names: https://parrots.org/encyclopedia/sun-conure/
+ 'солнечная аратинга':'sun conure','солнечные аратинги':'sun conure'}
+
+def subject_matches_caption(query,caption):
+    """Metadata relevance gate; this is not pixel-level species verification."""
+    names=list(ImageQueryPlanner().plan(query).terms)
+    if any(normal(name)=='sun conure' for name in names):names.append('Aratinga solstitialis')
+    words=set(re.findall(r'[a-zа-яё0-9]+',normal(caption)))
+    for name in names:
+        required=set(re.findall(r'[a-zа-яё0-9]+',normal(name)))-{'the','a','of'}
+        if required and required<=words:return True
+    return False
 
 def normal(value):return unicodedata.normalize('NFC',value.replace('\u0301','')).casefold().replace('ё','е').strip()
 

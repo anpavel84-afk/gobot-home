@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit,urlunsplit,parse_qsl
 
 import httpx
 from PIL import Image,ImageOps
@@ -145,7 +145,14 @@ class CommonsImages:
             license_url=meta.get('LicenseUrl',{}).get('value','').replace('http://creativecommons.org','https://creativecommons.org')
             if license not in LICENSES or not license_url.startswith('https://creativecommons.org/'):continue
             if info.get('mime') not in {'image/jpeg','image/png','image/webp'}:continue
-            candidates.append(ImageCandidate(info.get('thumburl') or info.get('url',''),plain(meta.get('ImageDescription',{}).get('value',page.get('title','')),300),info.get('descriptionurl',''),plain(meta.get('Artist',{}).get('value',''),400),license,license_url))
+            url=info.get('thumburl') or info.get('url','')
+            # imageinfo now appends analytics to thumb.wikimedia.org URLs. Strip
+            # only these observed tracking fields; arbitrary queries stay denied.
+            parsed=urlsplit(url);tracking=dict(parse_qsl(parsed.query,keep_blank_values=True))
+            expected={'utm_source':'commons.wikimedia.org','utm_campaign':'imageinfo','utm_content':'thumbnail'}
+            if parsed.hostname in IMAGE_HOSTS and tracking and all(expected.get(k)==v for k,v in tracking.items()):
+                url=urlunsplit((parsed.scheme,parsed.netloc,parsed.path,'',parsed.fragment))
+            candidates.append(ImageCandidate(url,plain(meta.get('ImageDescription',{}).get('value',page.get('title','')),300),info.get('descriptionurl',''),plain(meta.get('Artist',{}).get('value',''),400),license,license_url))
             if len(candidates)>=limit:break
         return candidates
 

@@ -1,0 +1,25 @@
+{
+  "integration": "real image retrieval; model plan is a fixture",
+  "paid_model_calls": 0,
+  "saved_conversations": 0,
+  "state": "ready",
+  "reason": null,
+  "image_count": 1,
+  "query": "солнечные аратинги",
+  "backend": "wikimedia",
+  "asset_id": "b64532f65ba5ad91a95157a857f9a17b9d0df00ff42cba4ee3c1a4f1e2c5551f",
+  "caption": "Aratinga solstitialis (Linnaeus, 1758), Sun parakeet; Loro Parque, Tenerife, Canary Islands, Spain.",
+  "source": {
+    "label": "Wikimedia Commons",
+    "url": "https://commons.wikimedia.org/wiki/File:Aratinga_solstitialis_-_Loro_Parque_01.jpg"
+  },
+  "license": "CC BY-SA 3.0",
+  "device_bytes": 13713,
+  "device_size": [
+    240,
+    240
+  ],
+  "attribution": "H. Zell",
+  "physically_verified_iphone": false,
+  "model_directive_from_real_cli_verified": false
+}

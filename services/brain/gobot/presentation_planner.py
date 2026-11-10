@@ -23,6 +23,8 @@ class ResponsePresentationPlan(BaseModel):
     speech_policy:Literal['follow_answer','brief_visual','silent']='follow_answer'
     origin:Literal['explicit','implicit','structured','none']='none'
     reason:str='no_helpful_visual'
+    subject_source:Literal['request','answer']='request'
+    subject_label:str=Field(default='',max_length=160)
 
 class MultimodalResponsePlanner:
     def __init__(self,policy=None):

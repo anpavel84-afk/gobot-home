@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,VisualIntent,frame_id
 from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION,FETCH_POLICY_VERSION
-from .image_query import DICTIONARY,VERSION as QUERY_VERSION
+from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,ImageQueryPlanner
 
 REASONS={
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
@@ -37,9 +37,10 @@ class VisualResult:
     speech_text:str
 
 class VisualService:
-    def __init__(self,cache=None,*,provider_factory=None,config_loader=source_config):
+    def __init__(self,cache=None,*,provider_factory=None,config_loader=source_config,fallback_factory=None):
         self.cache=cache or ImageCache();self.intent=PresentationDecision();self.config_loader=config_loader
         self.provider_factory=provider_factory or (lambda cfg:(OpenverseImages if cfg.get('provider')=='openverse' else CommonsImages)(SafeImageHTTP(cfg['user_agent'],budget=self.cache.reserve_request,on_limit=self.cache.delay_source)))
+        self.answer_fallback=fallback_factory if provider_factory else (fallback_factory or (lambda:CommonsImages(SafeImageHTTP('GoBotHomeVisual/0.3 (https://github.com/anpavel84-afk/gobot-home)',budget=self.cache.reserve_request,on_limit=self.cache.delay_source))))
         self.catalog=json.loads((Path(__file__).parents[1]/'visual-catalog.json').read_text(encoding='utf-8'))['items']
         self.slots=asyncio.Semaphore(2);self.locks={}
 
@@ -58,6 +59,7 @@ class VisualService:
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
         config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
         base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
+        if intent.strict_subject:base+=['answer_subject_v3_canonical_commons']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
@@ -80,8 +82,19 @@ class VisualService:
                         async with self.slots,asyncio.timeout(18):
                             curated=(catalog.get('openverse_images') if config.get('provider')=='openverse' else catalog.get('images')) if catalog else None
                             sent=not bool(curated)
-                            candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
+                            hybrid=intent.strict_subject and config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
+                            if hybrid:
+                                try:
+                                    async with asyncio.timeout(3):candidates=await provider.search(intent.query,3)
+                                except (ImageUnavailable,TimeoutError):candidates=[]
+                                candidates=[item for item in candidates if subject_matches_caption(intent.query,item.caption)]
+                                if not candidates:
+                                    provider=self.answer_fallback()
+                                    query_plan=await asyncio.to_thread(ImageQueryPlanner().plan,intent.query)
+                                    candidates=await provider.search(query_plan.terms[0],3)
+                            else:candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
                             for candidate in candidates[:3]:
+                                if intent.strict_subject and not subject_matches_caption(intent.query,candidate.caption):continue
                                 try:
                                     record=await asyncio.to_thread(self.cache.source,candidate.url)
                                     if record and candidate.sha256 and record.get('source_sha256')!=candidate.sha256:record=None
@@ -149,8 +162,14 @@ class VisualService:
                         expires_at=record['expires_at'],cache_key=record['asset_id'])
                     return VisualResult(frame,frame.text,'Подготовил поясняющую иллюстрацию.')
                 if req.mode=='mock':return self.fallback(req,'Визуальное сопровождение','diagnostic_no_external_images',text='В диагностическом Mock-режиме внешний поиск не запускается.')
-                result=await self.images(req,VisualIntent('image',query=plan.visual_query))
-                result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve';result.frame.metadata.backend='openverse' if self.config_loader().get('provider')=='openverse' else 'wikimedia'
+                result=await self.images(req,VisualIntent('image',query=plan.visual_query,strict_subject=plan.subject_source=='answer'))
+                result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve'
+                if result.frame.images:result.frame.metadata.backend='wikimedia' if result.frame.images[0].source.label.startswith('Wikimedia') else 'openverse'
+                if plan.subject_source=='answer':
+                    result.frame.metadata.facts.update({'subject':plan.subject_label,'query_basis':'answer_entity','identification':'illustrative_example_not_confirmed_identification'})
+                    if result.frame.images:
+                        result.frame.title=plan.subject_label
+                        result.frame.text='Пример вида, упомянутого в ответе. Подбор по метаданным источника; это не идентификация конкретной птицы.'
                 return result
         except asyncio.CancelledError:raise
         except Exception:

@@ -5,16 +5,16 @@
   "api_cost": 0,
   "cli_quota_used": 0,
   "packet_tokens": {
-    "start": 866,
-    "middle": 2499,
-    "end": 2499,
-    "maximum": 2692,
-    "p50": 2499.0,
-    "p95": 2675
+    "start": 1182,
+    "middle": 2817,
+    "end": 2819,
+    "maximum": 3019,
+    "p50": 2819.0,
+    "p95": 3000
   },
   "context_build_ms": {
-    "p50": 6.901750002725748,
-    "p95": 8.660799998324364
+    "p50": 7.134899999073241,
+    "p95": 9.304300001531374
   },
   "explicit_returns": {
     "passed": 10,

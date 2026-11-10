@@ -20,6 +20,31 @@ class ResponseScene(BaseModel):
 
 class VisualResponseComposer:
     def __init__(self,planner=None):self.planner=planner or MultimodalResponsePlanner()
+    def answer_visual_eligible(self,req,route=None,context=None,plan=None):
+        from .visual_subject import PRIVATE_QUERY
+        pref=req.screen_preferences or ScreenPreferences()
+        quality=getattr(route,'quality',None) or {}
+        return (pref.automatic_illustrations and pref.style!='minimal' and pref.prefer_real_photos
+                and self.planner.policy.auto_visual_for_helpful_topics
+                and not PRIVATE_QUERY.search(req.text)
+                and (plan is None or plan.origin in {'none','implicit'})
+                and (plan is None or plan.visual_strategy=='retrieve' or plan.reason=='no_helpful_visual')
+                and not getattr(route,'tool',None) and not quality.get('verification_required')
+                and not quality.get('consequence_risk',0)>=2
+                and (context or {}).get('topic',{}).get('outcome')!='ambiguous')
+    def plan_from_answer(self,req,answer,route=None,context=None,plan=None,directive=None):
+        if not self.answer_visual_eligible(req,route,context,plan):return None
+        from .visual_subject import grounded
+        if directive is None or not grounded(directive,req.text,answer):return None
+        if directive.kind=='avatar':return ResponsePresentationPlan(origin='implicit',reason='model_selected_avatar')
+        if directive.kind=='diagram':
+            return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='diagram',
+                visual_strategy='generate',template=directive.template,subject_label=directive.subject,
+                subject_source='answer',origin='implicit',reason='main_response_visual_plan')
+        subject=directive.subject
+        return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='image_card',
+            visual_strategy='retrieve',visual_query=subject,subject_label=subject,subject_source='answer',
+            origin='implicit',reason='main_response_visual_plan')
     def plan(self,req,route=None,context=None):
         plan=self.planner.plan(req.text,route=route,context=context)
         pref=req.screen_preferences or ScreenPreferences()
@@ -54,6 +79,7 @@ class VisualResponseComposer:
         plan=plan or self.plan(req,route,context);pref=req.screen_preferences or ScreenPreferences()
         scene=ResponseScene(display_text=answer,speech_policy=plan.speech_policy,scene_duration=pref.hold_after_response_seconds,
             preserve_visual=has_visual,source_metadata={'basis':'response_content_and_route','verification':'not_implied_by_visual'})
+        if plan.reason=='model_selected_avatar':return scene
         if plan.visual_needed:
             strategy={'retrieve':'retrieve_photo','generate':'generate_illustration','render_local':'render_widget','mixed':'render_widget'}[plan.visual_strategy]
             if plan.template in {'lunar_crater','earth_moon','solar_eclipse','volcano','tomato_plant'}:strategy='render_diagram'
@@ -67,8 +93,9 @@ class VisualResponseComposer:
         elif tool=='verification' or re.search(r'не удалось подтвердить|нет проверенн|не найден',answer,re.I):icon,title='?','Нужен проверенный источник'
         elif re.search(r'праздник|выходной',lower):icon,title='✦','Календарь'
         elif re.search(r'анекдот|шутк',lower):scene.visual_payload={'mood':'smile','decorative':True};return scene
+        elif re.search(r'\bпопуга\w*',req.text,re.I):icon,title='🦜','Попугаи'
         elif re.search(r'пингвин',answer,re.I):icon,title='🐧','Пингвины'
-        elif re.search(r'растени|цвет|дерев',answer,re.I):icon,title='❧','Растения'
+        elif re.search(r'\b(?:растени\w*|цвет(?:ок|ка|ки|ков|ами|ах|ку|ком|ке)|дерев\w*)\b',answer,re.I):icon,title='❧','Растения'
         elif re.search(r'географ|страна|бразили|столиц|находится',lower):icon,title='◎','География'
         elif re.search(r'истори|древн',lower):icon,title='◴','История'
         elif re.search(r'техническ|архитектур|программ',lower):icon,title='⚙','Объяснение'

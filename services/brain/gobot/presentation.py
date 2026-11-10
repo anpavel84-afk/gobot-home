@@ -99,6 +99,7 @@ class VisualIntent:
     query:str=''
     gallery:bool=False
     catalog_id:str|None=None
+    strict_subject:bool=False
 
 class PresentationDecision:
     def detect(self,text):
