@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-10",
+  "real_provider": "authorized Antigravity CLI",
+  "model": "gemini-3.8-flash-low",
+  "observation_source": "IAB rendered page, image complete/naturalWidth, UI provider usage",
+  "real_cli_turns": 3,
+  "checks": [
+    {
+      "case": "white mushroom varieties",
+      "runtime_code_commit": "8c8636008d27b318b442bb61b2fc69a4b4021c6f",
+      "outcome": "real model plan and browser image displayed",
+      "subject": "еловый белый гриб",
+      "entity_match": "topic_overview",
+      "first_text_ms": 6138,
+      "input_tokens": 9426,
+      "output_tokens": 278,
+      "total_tokens": 9704,
+      "asset_id": "4533f9c69c00bc6c4bf8c0dcedc0efb09cd93478ec6cc15fd12d0baac9d80b60",
+      "browser_natural_size": [
+        480,
+        320
+      ],
+      "source_url": "https://commons.wikimedia.org/wiki/File:(Gemeine_Steinpilz)_Boletus_edulis.jpg",
+      "source_label": "Wikimedia Commons",
+      "attribution": "Holger Krisp",
+      "license": "CC BY 3.0",
+      "device_size": [
+        240,
+        240
+      ],
+      "device_jpeg_bytes": 15541
+    },
+    {
+      "case": "orange parrot before inflection fix",
+      "runtime_code_commit": "8c8636008d27b318b442bb61b2fc69a4b4021c6f",
+      "outcome": "failed image lookup; then corrected",
+      "subject": "солнечный аратинга",
+      "first_text_ms": 5470,
+      "input_tokens": 9716,
+      "output_tokens": 211,
+      "total_tokens": 9927
+    },
+    {
+      "case": "orange parrot after inflection fix",
+      "runtime_code_commit": "fc92688f5b2d7fdb99c147d6637553193ef6389a",
+      "outcome": "real model plan and browser image displayed",
+      "subject": "солнечный аратинга",
+      "display_title": "солнечная аратинга",
+      "first_text_ms": 6524,
+      "input_tokens": 9433,
+      "output_tokens": 155,
+      "total_tokens": 9588,
+      "asset_id": "532157af4c3f327e8bef1dddc9fbf7ed059bd9333d808fcb5399450b2937da86",
+      "browser_natural_size": [
+        320,
+        480
+      ],
+      "source_url": "https://www.flickr.com/photos/22490717@N02/36386482514",
+      "source_label": "Openverse · flickr",
+      "attribution": "archer10 (Dennis)",
+      "license": "CC BY-SA 2.0",
+      "device_size": [
+        240,
+        240
+      ],
+      "device_jpeg_bytes": 13671
+    }
+  ],
+  "provider_reported_tokens": {
+    "input_tokens": 28575,
+    "output_tokens": 644,
+    "total_tokens": 29219
+  },
+  "billing_kind": "cli_subscription",
+  "monetary_cost": "not inferred",
+  "openai_stt_calls": 0,
+  "openai_tts_calls": 0,
+  "paid_image_generation_calls": 0,
+  "permanent_test_dialogues": 0,
+  "remember": false,
+  "iphone_physically_verified": false,
+  "audible_voice_latency_measured": false,
+  "limits": [
+    "Small diagnostic sample, not universal image relevance evaluation",
+    "Mushroom image is an overview, not confirmation of a named form or edibility",
+    "First text remained 5.47-6.52 seconds; useful audible answer not measured"
+  ]
+}

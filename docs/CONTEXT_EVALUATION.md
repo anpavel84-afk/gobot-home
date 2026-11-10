@@ -10,7 +10,7 @@ node tests/browser_microphone.cjs
 .\.venv\Scripts\python.exe -X utf8 scripts/evaluate_router.py
 ```
 
-Последний полный прогон: 563 pytest passed, включая рабочее окно, явные границы,
+Последний полный прогон: 575 pytest passed, включая рабочее окно, явные границы,
 изоляцию mock/owner, целые обмены и совместную передачу summary/recent. Node harness
 выполняются через регрессионные pytest-обёртки.
 Это не реальный Safari и не измерение акустической точности.
