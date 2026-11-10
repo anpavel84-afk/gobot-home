@@ -70,6 +70,15 @@ def test_color_words_are_not_plant_scenes():
     assert other.visual_subject!='Растения'
 
 
+@pytest.mark.parametrize('name',['солнечный аратинга','солнечной аратинги','солнечные аратинги'])
+def test_inflected_species_phrase_preserves_semantics(name):
+    from gobot.image_query import ImageQueryPlanner,canonical_subject
+    assert ImageQueryPlanner().plan(name).terms[0]=='sun conure'
+    assert subject_matches_caption(name,'Aratinga solstitialis, Sun conure')
+    assert not subject_matches_caption(name,'Orange flower')
+    assert canonical_subject(name) in {'солнечная аратинга','солнечные аратинги'}
+
+
 def test_strict_subject_metadata_gate_and_cache(tmp_path):
     calls=[];downloads=[];raw=io.BytesIO();Image.new('RGB',(300,200),'orange').save(raw,'JPEG')
     class Provider:

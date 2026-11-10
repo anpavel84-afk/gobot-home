@@ -18,6 +18,23 @@ ALIASES={'кот':'cat','кошка':'cat','собака':'dog','пес':'dog','
  # Reviewed names: https://parrots.org/encyclopedia/sun-conure/
  'солнечная аратинга':'sun conure','солнечные аратинги':'sun conure'}
 
+def phrase_lemmas(value):
+    return tuple(morphology().parse(word)[0].normal_form if re.search('[а-яё]',word) else word
+                 for word in re.findall(r'[\w-]+',normal(value)))
+
+@lru_cache(maxsize=1)
+def reviewed_phrase_forms():
+    result={}
+    for phrase in ALIASES:
+        if ' ' in phrase:result.setdefault(phrase_lemmas(phrase),phrase)
+    return result
+
+def canonical_subject(value):
+    """Normalize inflection against reviewed phrases without dropping modifiers."""
+    clean=normal(value)
+    if clean in ALIASES:return clean
+    return reviewed_phrase_forms().get(phrase_lemmas(clean),value)
+
 def subject_matches_caption(query,caption):
     """Metadata relevance gate; this is not pixel-level species verification."""
     names=list(ImageQueryPlanner().plan(query).terms)
@@ -58,7 +75,7 @@ class ImageQueryPlanner:
             if len(senses)>1:return None,True
             term=senses[0][0] if senses and senses[0] else None
             return (term if isinstance(term,str) and re.fullmatch(r"[A-Za-z][A-Za-z '-]{0,79}",term) else None),False
-        translated,ambiguous=translation(clean)
+        translated,ambiguous=translation(normal(canonical_subject(clean)))
         if translated:return ImageQueryPlan((translated,original),'local_dictionary')
         if ambiguous:return ImageQueryPlan((original,),'ambiguous_dictionary',True)
         # Preserve every modifier: if any word is unknown, do not drop it to get hits.

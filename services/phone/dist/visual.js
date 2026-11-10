@@ -53,7 +53,9 @@
         }
       }
       if(state.facts&&typeof state.facts==='object'){
-        const facts=node('dl',undefined,'visual-facts');for(const [key,value] of Object.entries(state.facts).slice(0,12))facts.append(node('dt',key),node('dd',String(value)));card.append(facts);
+        const internal=new Set(['entity_title','entity_source','entity_match','subject','query_basis','identification']);
+        const entries=Object.entries(state.facts).filter(([key])=>!internal.has(key)).slice(0,12);
+        if(entries.length){const facts=node('dl',undefined,'visual-facts');for(const [key,value] of entries)facts.append(node('dt',key),node('dd',String(value)));card.append(facts);}
       }
       if(state.state&&state.state!=='ready')card.append(node('small',state.state==='loading'?'Загружается':state.state==='expired'?'Срок истёк':state.state==='cancelled'?'Остановлено':'Данные недоступны','visual-state'));
       if(frame.type==='timer_widget'&&this.timerRoot!==this.root){

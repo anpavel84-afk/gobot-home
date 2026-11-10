@@ -19,6 +19,9 @@ const image=(id='a'.repeat(64))=>({asset_id:id,url:`/api/visual/assets/${id}/bro
 const frame={namespace:'gobot.ui',version:2,id:'one',type:'image_card',title:'Изображение',text:'Пояснение',images:[image()],metadata:{state:'ready'}};
 assert.equal(renderer.render(frame),true);assert.equal(all(root,'img').length,1);assert.equal(all(root,'article').length,1);
 assert.equal(renderer.render(frame),true);assert.equal(all(root,'article').length,1);
+renderer.render({...frame,id:'facts',metadata:{state:'ready',facts:{entity_source:'INTERNAL',query_basis:'INTERNAL',identification:'INTERNAL','Источник':'доступен'}}});
+assert(!root.textContent.includes('INTERNAL'));assert(root.textContent.includes('доступен'));
+renderer.begin();renderer.render(frame);
 renderer.syncDisplay('Пояснение');assert.equal(renderer.frames.get('one').body.hidden,true);
 all(root,'img')[0].onerror();assert.match(root.textContent,/недоступно/);
 renderer.begin();renderer.render({...frame,id:'gallery',type:'image_gallery',images:[image(),image('b'.repeat(64))]});assert.equal(all(root,'img').length,2);

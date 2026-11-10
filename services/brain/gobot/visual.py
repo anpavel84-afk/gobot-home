@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,VisualIntent,frame_id
 from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION,FETCH_POLICY_VERSION
-from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,ImageQueryPlanner
+from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,ImageQueryPlanner,canonical_subject
 
 REASONS={
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
@@ -59,7 +59,7 @@ class VisualService:
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
         config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
         base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
-        if intent.strict_subject:base+=['answer_subject_v4_entity_resolution']
+        if intent.strict_subject:base+=['answer_subject_v5_grammatical_names']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
@@ -188,7 +188,8 @@ class VisualService:
                 if plan.subject_source=='answer':
                     result.frame.metadata.facts.update({'subject':plan.subject_label,'query_basis':'answer_entity','identification':'illustrative_example_not_confirmed_identification'})
                     if result.frame.images:
-                        result.frame.title=plan.subject_label+(' · обзор' if result.frame.metadata.facts.get('entity_match')=='topic_overview' else '')
+                        result.frame.title=result.frame.metadata.facts.get('entity_title') or canonical_subject(plan.subject_label)
+                        if result.frame.metadata.facts.get('entity_match')=='topic_overview':result.frame.title+=' · обзор'
                         if not result.frame.metadata.facts.get('entity_source'):result.frame.text='Пример объекта, упомянутого в ответе. Подбор по метаданным источника; это не идентификация конкретного экземпляра.'
                 return result
         except asyncio.CancelledError:raise

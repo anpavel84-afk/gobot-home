@@ -19,7 +19,7 @@ from urllib.parse import urlsplit,urlunsplit,parse_qsl,quote
 import httpx
 from PIL import Image,ImageOps
 from .presentation import VisualImage,VisualSource
-from .image_query import ImageQueryPlanner
+from .image_query import ImageQueryPlanner,canonical_subject
 
 ROOT=Path(__file__).resolve().parents[3]
 CONTACT=ROOT/'run/visual-source.json'
@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=2
-FETCH_POLICY_VERSION=4
+FETCH_POLICY_VERSION=5
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -153,7 +153,7 @@ class CommonsImages:
         language='ru' if re.search('[а-яё]',query,re.I) else 'en'
         endpoint='https://'+language+'.wikipedia.org/w/api.php'
         data,_=await self.client.get(endpoint,api=True,params={'action':'query','format':'json','generator':'search',
-            'gsrsearch':query[:180],'gsrnamespace':0,'gsrlimit':3,'prop':'pageimages|pageprops',
+            'gsrsearch':canonical_subject(query)[:180],'gsrnamespace':0,'gsrlimit':3,'prop':'pageimages|pageprops',
             'piprop':'name','ppprop':'disambiguation'})
         try:pages=json.loads(data).get('query',{}).get('pages',{})
         except ValueError:raise ImageUnavailable('invalid_entity_metadata') from None
