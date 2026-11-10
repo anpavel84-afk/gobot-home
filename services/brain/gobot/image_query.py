@@ -19,7 +19,7 @@ ALIASES={'кот':'cat','кошка':'cat','собака':'dog','пес':'dog','
  'солнечная аратинга':'sun conure','солнечные аратинги':'sun conure'}
 
 def phrase_lemmas(value):
-    return tuple(morphology().parse(word)[0].normal_form if re.search('[а-яё]',word) else word
+    return tuple(normal(morphology().parse(word)[0].normal_form) if re.search('[а-яё]',word) else word
                  for word in re.findall(r'[\w-]+',normal(value)))
 
 @lru_cache(maxsize=1)

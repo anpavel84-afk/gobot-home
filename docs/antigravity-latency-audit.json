@@ -116,5 +116,7 @@
     "https://antigravity.google/docs/cli/commands/context/",
     "https://antigravity.google/docs/cli/acp",
     "https://antigravity.google/docs/cli/reference/"
-  ]
+  ],
+  "scope": "Free audit before separately authorized real probes; new-model counters in this snapshot remain zero",
+  "subsequent_authorized_probes": "real-latency-probes-20261110.json"
 }

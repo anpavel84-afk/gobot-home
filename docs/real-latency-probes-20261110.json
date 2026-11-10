@@ -1,0 +1,308 @@
+{
+  "date_local": "2026-11-10",
+  "timezone": "America/Sao_Paulo",
+  "kind": "two owner-authorized real Flash and OpenAI TTS probes in desktop in-app browser",
+  "tested_commit": "a0e46f87169812b77250caf88f50505212fdf0f1",
+  "permission": {
+    "maximum_flash_requests": 2,
+    "maximum_tts_characters": 800,
+    "paid_stt": false,
+    "image_generation": false
+  },
+  "conditions": {
+    "input": "text, no STT",
+    "model": "gemini-3.8-flash-low",
+    "mode": "fast",
+    "voice": "marin",
+    "tts_model": "gpt-realtime-2.1-mini",
+    "remember": false,
+    "physical_iphone": false,
+    "acoustic_microphone_measurement": false,
+    "client_playback_counter": "browser AudioContext scheduling/currentTime, not acoustic proof",
+    "comparison_limitations": [
+      "different clients: historical phone versus desktop in-app browser",
+      "different context sizes and cache warmth",
+      "one sample per question in each revision",
+      "not a controlled causal latency benchmark"
+    ]
+  },
+  "probes": [
+    {
+      "question": "Что такое чёрная дыра?",
+      "answer": "Чёрная дыра — это область в космосе с настолько мощной гравитацией, что её не может покинуть даже свет. Она обычно образуется после гибели и сжатия массивных звёзд. \n\nРассказать подробнее, как они устроены и что с ними происходит со временем?",
+      "trace_id": "0a8722b3-7d27-4b59-9578-7445c5f2a2ea",
+      "client_ms": {
+        "input_closed": 0,
+        "chat_submit": 0,
+        "first_text": 6775.79999999702,
+        "visual_decoded": 7042.5,
+        "visual_presented": 7057.5999999940395,
+        "first_audio_received": 7735.0999999940395,
+        "decode_complete": 7736,
+        "scheduled": 7738.5999999940395,
+        "first_answer_playback": 7783.399999991059,
+        "playback_complete": 24333.5
+      },
+      "bridge_ms": {
+        "bridge_queue_start": 0.006,
+        "bridge_queue_end": 17.749,
+        "bridge_admission_start": 17.829,
+        "bridge_admission_end": 27.617,
+        "argv_policy_start": 27.678,
+        "cli_prompt_prepared": 29.394,
+        "process_spawn_start": 30.396,
+        "process_spawn_end": 36.486,
+        "prompt_sent": 36.899,
+        "raw_event": 3263.491,
+        "provider_initialized": 3263.543,
+        "provider_other_step": 3315.974,
+        "provider_step_agent_response": 6085.716,
+        "assistant_delta": 6085.745
+      },
+      "brain_ms": {
+        "memory_prepare_start": 0.005,
+        "memory_prepare_end": 0.251,
+        "voice_stream_open": 19.451,
+        "brain_queue_start": 19.563,
+        "brain_queue_end": 19.596,
+        "context_start": 19.608,
+        "context_end": 19.788,
+        "admission_start": 19.793,
+        "tts_handshake_start": 30.438,
+        "admission_end": 32.979,
+        "router_end": 35.775,
+        "context_pack_end": 155.643,
+        "visual_prefetch_start": 159.803,
+        "visual_candidate_ready": 413.051,
+        "tts_handshake_end": 1875.204,
+        "bridge_first_text": 6497.214,
+        "first_assistant_delta": 6497.318,
+        "visual_entity_confirmed": 6547.825,
+        "visual_prefetch_released": 6548.026,
+        "visual_scene_sent": 6548.163,
+        "chunker_sentence_ready": 6801.069,
+        "sentence_ready": 6801.098,
+        "formatter_start": 6801.329,
+        "formatter_end": 6803.256,
+        "tts_segment_submit": 6803.28,
+        "tts_first_audio_payload": 7457.033,
+        "audio_transport_send": 7457.297
+      },
+      "tts_ms": {
+        "first_sentence_ready": 6781.949500000337,
+        "tts_characters_submitted": 238,
+        "tts_first_chunk": 653.7671999976737,
+        "first_audio_server": 7437.890000001062
+      },
+      "usage": {
+        "input_tokens": 9242,
+        "output_tokens": 66,
+        "thinking_tokens": 0,
+        "cache_read_tokens": 0,
+        "total_tokens": 9308
+      },
+      "billing_kind": "cli_subscription",
+      "context_packet_estimate": 928,
+      "visual": {
+        "visual_needed": true,
+        "visual_subject": "черная дыра",
+        "subject_resolution_method": "request_noun_phrase",
+        "visual_strategy": "retrieve",
+        "retrieval_started": true,
+        "candidate_ready": true,
+        "candidate_rejected_reason": null,
+        "scene_sent": true,
+        "scene_presented": "unavailable",
+        "fallback_reason": null,
+        "subject_confirmed": true,
+        "anchors": [
+          "черная дыра"
+        ]
+      },
+      "actual_visual_frames": 1,
+      "source": "https://commons.wikimedia.org/wiki/File:Black_hole_-_Messier_87_crop_max_res.jpg",
+      "before_text_submit_baseline": {
+        "first_text_ms": 6312,
+        "first_answer_playback_ms": 7677,
+        "clock_origin": "historical chat_submit; historical STT excluded"
+      },
+      "playback_after_minus_before_ms": 106.4,
+      "image_before_playback_ms": 725.8,
+      "generated_voice_playback_window_ms": 16550.1,
+      "errors": []
+    },
+    {
+      "question": "А расскажи еще что-нибудь.",
+      "answer": "Вблизи чёрной дыры время течёт заметно медленнее, чем для далёкого наблюдателя. Если бы вы падали внутрь, то вас начало бы вытягивать в тонкую нить из-за чудовищной разницы притяжения, и физики в шутку называют это спагеттификацией. Хотите узнать, что находится на её границе, которую называют горизонтом событий?",
+      "trace_id": "cac299c5-c1c2-448d-a4b4-54a3a46b37e0",
+      "client_ms": {
+        "input_closed": 0,
+        "chat_submit": 0,
+        "first_text": 5450.899999991059,
+        "first_audio_received": 6919.29999999702,
+        "decode_complete": 6920,
+        "scheduled": 6920.0999999940395,
+        "first_answer_playback": 6971.0999999940395,
+        "playback_complete": 28847.59999999404
+      },
+      "bridge_ms": {
+        "bridge_queue_start": 0.005,
+        "bridge_queue_end": 0.282,
+        "bridge_admission_start": 0.298,
+        "bridge_admission_end": 8.877,
+        "argv_policy_start": 8.914,
+        "cli_prompt_prepared": 8.966,
+        "process_spawn_start": 9.915,
+        "process_spawn_end": 13.391,
+        "prompt_sent": 13.726,
+        "raw_event": 2793.153,
+        "provider_initialized": 2793.202,
+        "provider_other_step": 2845.708,
+        "provider_step_agent_response": 5027.756,
+        "assistant_delta": 5027.771
+      },
+      "brain_ms": {
+        "memory_prepare_start": 0.009,
+        "memory_prepare_end": 0.439,
+        "voice_stream_open": 1.262,
+        "brain_queue_start": 1.348,
+        "brain_queue_end": 1.377,
+        "context_start": 1.385,
+        "context_end": 1.619,
+        "admission_start": 1.624,
+        "tts_handshake_start": 2.565,
+        "admission_end": 9.502,
+        "router_end": 9.6,
+        "context_pack_end": 10.565,
+        "visual_prefetch_start": 12.15,
+        "visual_candidate_ready": 228.194,
+        "tts_handshake_end": 998.226,
+        "bridge_first_text": 5253.96,
+        "first_assistant_delta": 5254.007,
+        "chunker_sentence_ready": 5814.701,
+        "sentence_ready": 5814.722,
+        "formatter_start": 5815.701,
+        "formatter_end": 5815.786,
+        "tts_segment_submit": 5815.793,
+        "tts_first_audio_payload": 6721.221,
+        "audio_transport_send": 6721.463
+      },
+      "tts_ms": {
+        "first_sentence_ready": 5813.909300006344,
+        "tts_characters_submitted": 311,
+        "tts_first_chunk": 905.4404000053182,
+        "first_audio_server": 6720.415200004936
+      },
+      "usage": {
+        "input_tokens": 9336,
+        "output_tokens": 89,
+        "thinking_tokens": 0,
+        "cache_read_tokens": 0,
+        "total_tokens": 9425
+      },
+      "billing_kind": "cli_subscription",
+      "context_packet_estimate": 1070,
+      "visual": {
+        "visual_needed": true,
+        "visual_subject": "черная дыра",
+        "subject_resolution_method": "active_visual_subject",
+        "visual_strategy": "retrieve",
+        "retrieval_started": true,
+        "candidate_ready": true,
+        "candidate_rejected_reason": "subject_not_grounded_in_answer",
+        "scene_sent": false,
+        "scene_presented": "unavailable",
+        "fallback_reason": "subject_not_confirmed",
+        "subject_confirmed": false
+      },
+      "actual_visual_frames": 0,
+      "source": null,
+      "before_text_submit_baseline": {
+        "first_text_ms": 6758,
+        "first_answer_playback_ms": 7803,
+        "clock_origin": "historical chat_submit; historical STT excluded"
+      },
+      "playback_after_minus_before_ms": -831.9,
+      "image_before_playback_ms": null,
+      "generated_voice_playback_window_ms": 21876.5,
+      "errors": []
+    }
+  ],
+  "accounting": {
+    "actual_flash_requests": 2,
+    "actual_tts_characters_submitted": 549,
+    "unused_tts_characters": 251,
+    "cli_total_tokens": 18733,
+    "cli_dollar_cost": null,
+    "api_dollar_cost": null,
+    "api_cost_status": "not reported by current speech adapter; character count is not dollar billing",
+    "production_archive_test_messages": 0,
+    "retries": 0
+  },
+  "finding": {
+    "followup_photo_rejected": true,
+    "cause": "lemma normal forms retained ё while matcher alternatives normalized е; case-inflected subject failed to ground",
+    "fix": "normalize morphological lemmas through the same normal() used for source text; no subject exception",
+    "new_paid_probe_after_fix": false,
+    "offline_replay": [
+      {
+        "question": "Что такое чёрная дыра?",
+        "visual_subject": "черная дыра",
+        "method": "request_noun_phrase",
+        "cached_asset": "13593bf4e0f132fa5720ecf4fe03f0bd32eb142bdcb4b76a946c55cc0f8cadb9",
+        "image_before_model_end": true,
+        "replay_ms": 172.57,
+        "new_llm_calls": 0,
+        "new_tts_calls": 0
+      },
+      {
+        "question": "А расскажи еще что-нибудь.",
+        "visual_subject": "черная дыра",
+        "method": "active_visual_subject",
+        "cached_asset": "13593bf4e0f132fa5720ecf4fe03f0bd32eb142bdcb4b76a946c55cc0f8cadb9",
+        "image_before_model_end": true,
+        "replay_ms": 18.45,
+        "new_llm_calls": 0,
+        "new_tts_calls": 0
+      }
+    ]
+  },
+  "free_acp_session_readiness": {
+    "kind": "ACP metadata only; no session/prompt sent",
+    "cli_version": "1.5.3",
+    "requests": [
+      {
+        "method": "initialize",
+        "ms": 148.55,
+        "error_code": null
+      },
+      {
+        "method": "session/new",
+        "ms": 1722.79,
+        "error_code": null,
+        "fresh_session_created": true
+      },
+      {
+        "method": "session/close",
+        "ms": 0.34,
+        "error_code": null
+      },
+      {
+        "method": "session/new",
+        "ms": 15.63,
+        "error_code": null,
+        "fresh_session_created": true
+      },
+      {
+        "method": "session/close",
+        "ms": 0.28,
+        "error_code": null
+      }
+    ],
+    "model_prompts_sent": 0,
+    "model_quality_tested": false,
+    "product_transport_changed": false,
+    "text_only_isolation_verified": false,
+    "provider_usage_available": false
+  }
+}

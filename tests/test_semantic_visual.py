@@ -12,6 +12,18 @@ from test_speculative_visuals import photo
 
 CASES=json.loads((Path(__file__).parent/'data/semantic_visual_cases.json').read_text(encoding='utf8'))['cases']
 
+@pytest.mark.parametrize('subject,sentence',[
+    ('чёрная дыра','Вблизи чёрной дыры время течёт медленнее.'),
+    ('черная дыра','Мы говорим о чёрной дыре.'),
+    ('чёрная дыра','Телескоп наблюдает черную дыру.'),
+    ('жёлтая кувшинка','Посмотри на жёлтую кувшинку.'),
+])
+def test_yo_and_case_inflections_use_one_normalization(subject,sentence):
+    from gobot.visual_prefetch import Entity
+    entity=Entity(subject,subject,(subject,))
+    assert entity.confirm(sentence)
+    assert not entity.confirm('Речь идёт о солнечной системе.')
+
 @pytest.mark.parametrize('case',CASES,ids=[c['question'] for c in CASES])
 def test_public_noun_phrases_do_not_depend_on_dictionary(case,monkeypatch):
     from gobot import image_query
