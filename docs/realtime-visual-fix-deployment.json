@@ -1,0 +1,25 @@
+{
+  "code_commit": "9b78a1c1b904848174d11026657f48d1d7889b60",
+  "default_engine": "legacy",
+  "existing_native_trial": {
+    "sessions_reserved": 1,
+    "sessions_remaining": 0,
+    "automatic_extension": false
+  },
+  "active_native_sessions": 0,
+  "pending_hangups": 0,
+  "browser_source_policy": "wikimedia_generate",
+  "browser_generation_enabled": false,
+  "browser_generation_consent": false,
+  "browser_generation_limit": 0,
+  "desktop_settings_ui_verified": true,
+  "desktop_muted_stop_scene_verified": true,
+  "native_followup_disclosure": "audio goes to OpenAI during active window",
+  "new_realtime_calls": 0,
+  "paid_image_generation_calls": 0,
+  "fixed_iphone_trial_verified": false,
+  "tests": {
+    "passed": 1139,
+    "elapsed_s": 31.88
+  }
+}

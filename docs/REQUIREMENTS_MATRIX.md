@@ -174,3 +174,5 @@ R-018/019/068–070/082: реальная одна сессия/3 responses за
 | 11–12 Display/shared contract | ImageCache variants, Presentation v2, esp32_projection | JPEG 240×240 реально декодирован; работа LVGL/платы не заявляется |
 
 Актуальное развертывание/лимиты — CURRENT_STATUS.md §§17–18. Новый документ-паспорт не создаётся.
+
+Runtime 9b78a1c загружен; 1139 regression tests passed. Desktop UI source policy/default gen OFF подтверждён. Повторный iPhone с новым лимитом ожидает согласия; exact terminal reason первой сессии не восстановлен. См. realtime-visual-fix-deployment.json и паспорт §18.1.
