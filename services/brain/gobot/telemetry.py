@@ -69,7 +69,7 @@ class Traces:
 
 def client_trace(data):
     """Accept only named numeric offsets; never arbitrary log text or audio."""
-    allowed={'input_closed','encoding_start','encoding_end','upload_start','stt_final_received','chat_submit','first_text','first_audio_received','decode_complete','scheduled','first_answer_playback','feedback_rendered','earcon_started','filler_started','filler_preempted','visual_decoded','visual_presented','cancelled','error','playback_complete'}
+    allowed={'input_closed','encoding_start','encoding_end','upload_start','stt_final_received','chat_submit','first_text','first_audio_received','decode_complete','scheduled','first_answer_playback','feedback_rendered','earcon_started','filler_started','filler_preempted','opening_offered','opening_decoded','opening_completed','opening_preempted','opening_skipped','opening_failed','followup_opened','visual_decoded','visual_presented','cancelled','error','playback_complete'}
     if not isinstance(data,dict) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,100}',str(data.get('trace_id',''))):raise ValueError('invalid_trace')
     seconds=data.get('audio_seconds');mode=data.get('stt_mode','text')
     if seconds is not None and (isinstance(seconds,bool) or not isinstance(seconds,(int,float)) or not math.isfinite(seconds) or not 0<=seconds<=61):raise ValueError('invalid_audio_duration')
@@ -84,4 +84,8 @@ def client_trace(data):
         value=row.get('ms')
         if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or not 0<=value<=600000:raise ValueError('invalid_trace_time')
         clean.append({'name':row['name'],'ms':value})
+        code=row.get('code')
+        if code is not None:
+            if code not in {'settings','stale_turn','http','size','decode','web_audio','cancelled','timeout','answer_ready','complete','preempted'}:raise ValueError('invalid_trace_code')
+            clean[-1]['code']=code
     return {'trace_id':data['trace_id'],'clock_domain':'client_monotonic','revision':revision,'audio_seconds':seconds,'stt_mode':mode,'events':clean,'source':'untrusted_client_estimated_output_not_acoustic_proof','contains_content':False}

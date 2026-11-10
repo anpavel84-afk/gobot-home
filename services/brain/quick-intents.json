@@ -27,7 +27,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "clock_date",
@@ -46,7 +50,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "clock_weekday",
@@ -61,7 +69,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "timer_start",
@@ -82,14 +94,20 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "timer_duration_parser",
-      "priority": 0
+      "priority": 0,
+      "slots": [
+        "duration"
+      ],
+      "permissions": "owner_scoped",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "timer_cancel",
       "executor": "timer",
       "status": "implemented",
       "patterns": [
-        "(?:отмени|останови|выключи|убери)(?: все| мои| мой)? таймер(?:ы)?"
+        "(?:отмени|останови|выключи|убери)(?: (?P<target>.+?))? таймер(?:ы)?(?: (?P<after>.+))?"
       ],
       "examples": [
         "Отмени таймер",
@@ -99,7 +117,13 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "timer_duration_parser",
-      "priority": 0
+      "priority": 0,
+      "slots": [
+        "target"
+      ],
+      "permissions": "owner_scoped",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "timer_remaining",
@@ -120,7 +144,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "owner_scoped",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "quick_help",
@@ -139,7 +167,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "timer_or_stopwatch",
@@ -153,7 +185,11 @@
       ],
       "source": "gobot_authored",
       "slot_validation": "exact_utterance",
-      "priority": 10
+      "priority": 10,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "conversation_end",
@@ -167,7 +203,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "calculation",
@@ -180,7 +220,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "memory_read",
@@ -193,7 +237,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "owner_scoped",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "weather_now",
@@ -206,7 +254,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "music_now",
@@ -219,7 +271,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "device_status",
@@ -232,7 +288,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "stop_audio",
@@ -246,7 +306,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "local_result_or_clarification",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "confirm_action",
@@ -259,7 +323,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "existing_router",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "reminder_create",
@@ -271,43 +339,66 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "alarm_create",
       "executor": null,
       "status": "planned",
-      "patterns": [],
+      "patterns": [
+        "(?:поставь|установи|заведи) будильник(?: .+)?",
+        "разбуди меня(?: .+)?"
+      ],
       "examples": [
         "Разбуди меня в семь утра"
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "stopwatch_start",
       "executor": null,
       "status": "planned",
-      "patterns": [],
+      "patterns": [
+        "(?:запусти|включи|поставь) секундомер"
+      ],
       "examples": [
         "Запусти секундомер"
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "shopping_add",
       "executor": null,
       "status": "planned",
-      "patterns": [],
+      "patterns": [
+        "добавь .+ в (?:покупки|список покупок)"
+      ],
       "examples": [
         "Добавь молоко в покупки"
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "shopping_read",
@@ -319,19 +410,29 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "music_pause",
       "executor": null,
       "status": "needs_integration",
-      "patterns": [],
+      "patterns": [
+        "(?:поставь музыку на паузу|приостанови музыку)"
+      ],
       "examples": [
         "Поставь музыку на паузу"
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "volume_set",
@@ -344,7 +445,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "light_set",
@@ -356,7 +461,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "thermostat_set",
@@ -368,7 +477,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "door_unlock",
@@ -380,7 +493,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "calendar_read",
@@ -392,7 +509,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "house_temperature",
@@ -404,7 +525,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "scene_activate",
@@ -416,7 +541,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     },
     {
       "intent": "media_next",
@@ -428,7 +557,11 @@
       ],
       "source": "gobot_authored",
       "matcher": "not_active",
-      "priority": 0
+      "priority": 0,
+      "slots": [],
+      "permissions": "no_device_action",
+      "response_policy": "honest_unavailable",
+      "tests": "tests/test_dialogue_stabilization.py; tests/test_fast_dialogue_openings.py"
     }
   ]
 }

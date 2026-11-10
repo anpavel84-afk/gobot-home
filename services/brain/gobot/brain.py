@@ -28,7 +28,7 @@ from .response_composer import VisualResponseComposer
 from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
 from .conversation_control import closing_intent
 from .speech_openings import OpeningCache
-from .quick_intents import match_quick
+from .quick_intents import resolve_quick
 
 class Service:
     def __init__(self,settings):
@@ -132,13 +132,17 @@ class Service:
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
                     request_for_route=req if req.mode is not None else req.model_copy(update={'mode':req.provider})
                     mark("admission_start")
-                    admission={} if closing_intent(req.text,ctx) or match_quick(req.text) else await asyncio.to_thread(agent_status,req.usage_consent)
+                    local_intent=resolve_quick(req.text,ctx)
+                    admission={} if closing_intent(req.text,ctx) or local_intent or req.text.strip().lower() in {'да','нет','подтверждаю','отмена','отмени'} else await asyncio.to_thread(agent_status,req.usage_consent)
                     mark("admission_end")
-                    decision=self.router.choose(request_for_route,ctx,admission)
+                    decision=self.router.choose(request_for_route,ctx,admission,local_intent=local_intent)
                     mark("router_end",route=decision.category,model=decision.model,concurrency=len(self.running))
                     opening=None
                     if opening_voice and decision.provider in {'antigravity','codex'} and not decision.quality.get('verification_required') and decision.quality.get('consequence_risk',0)<2:
-                        opening=await asyncio.to_thread(self.openings.select,req.text,opening_voice,ctx,req.turn_id)
+                        try:
+                            opening=await asyncio.wait_for(asyncio.to_thread(self.openings.select,req.text,opening_voice,ctx,req.turn_id,session=(req.device_id,req.conversation_id,req.profile_epoch)),.08)
+                        except Exception:mark('opening_skipped',code='optional_cache_unavailable');opening=None
+                        if opening:mark('opening_selected',code=opening['id'])
                         if opening:ctx['speech_opening']={'id':opening['id'],'text':opening['text']}
                     ctx=self.context_manager.pack(req.text,ctx,'DETAILED' if req.context_detail=='detailed' else decision.category)
                     if opening:yield event(req,'tool_status',status='speech_opening_ready',opening=opening)
@@ -147,7 +151,7 @@ class Service:
                     route=decision.category;provider=('bridge:'+decision.provider) if decision.provider in {'codex','antigravity'} else decision.provider
                     second=decision.reason=='explicit_model_selection';trace=[decision.public()]
                     source_req=req.model_copy(update={'provider':decision.provider,'model_id':decision.model}) if decision.provider in {'codex','antigravity'} else req
-                    if ctx.get('topic',{}).get('outcome')=='ambiguous' and decision.tool!='dialogue_end':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
+                    if decision.tool=='clarify_topic':source=text_stream('Уточни, к какой теме или прошлому разговору ты хочешь вернуться. Подходящий источник пока не найден.');provider='local'
                     elif decision.provider=='local' and decision.tool=='visual':
                         yield event(req,'tool_status',status='loading_visual',route='TOOL',provider='local',reason=decision.reason,model=None)
                         initial_plan=self.composer.plan(req,route=decision,context=ctx)
@@ -164,10 +168,10 @@ class Service:
                         finally:
                             work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
-                        tool_result=await asyncio.to_thread(self.tools.execute,decision.tool,req);widget=tool_result.widget
-                        if decision.tool=='dialogue_end':
+                        tool_result=await asyncio.to_thread(self.tools.execute,decision.tool,req,decision.slots);widget=tool_result.widget
+                        if decision.tool in {'dialogue_end','pending_decline','stop_output'}:
                             spoken_override=''
-                            yield event(req,'tool_status',status='conversation_ended',reason=decision.reason)
+                            yield event(req,'tool_status',status={'dialogue_end':'conversation_ended','pending_decline':'pending_declined','stop_output':'output_stopped'}[decision.tool],reason=decision.reason)
                         verification=self.verifier.check(Assessment(**decision.quality),tool_result.text,tool_result.evidence)
                         source=text_stream(tool_result.text if verification['accepted'] else 'Не удалось подтвердить ответ по доступным данным. Я не буду выдавать предположение за факт.')
                         if widget and widget.get('payload',{}).get('timer_id'):visual_frame=self.visual.timer(req,widget)
@@ -232,6 +236,10 @@ class Service:
                             yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
                             trace.append({'presentation':delta.frame.model_dump()});continue
                         if kind=='text_done':
+                            # Optional images may outlive spoken content. Commit the
+                            # completed text before the next turn cancels their fetch.
+                            if text and not must_gate and decision and decision.provider in {'antigravity','codex'}:
+                                await asyncio.to_thread(self.memory.finish,req,'completed',text,provider,trace+[{'text_complete_before_optional_visual':True}])
                             if not must_gate and spoken_override is None:
                                 for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
                                 yield event(req,'tool_status',status='speech_input_complete')

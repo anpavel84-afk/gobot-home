@@ -2,10 +2,10 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const nodes=new Map(),store=new Map();let captures=0;
 function element(id){if(!nodes.has(id))nodes.set(id,{value:'',checked:false,disabled:false,textContent:'',hidden:false,options:[],attrs:{},
-  classList:{add(){},remove(){}},setAttribute(k,v){this.attrs[k]=v;},append(){},replaceChildren(){},focus(){},scrollIntoView(){}});return nodes.get(id);}
+  addEventListener(){},classList:{add(){},remove(){}},setAttribute(k,v){this.attrs[k]=v;},append(){},replaceChildren(){},focus(){},scrollIntoView(){}});return nodes.get(id);}
 element('stt').value='whisper';element('stt-mode').value='file';element('model').value='mock';
 const context={console,crypto:require('node:crypto').webcrypto,performance,AbortController,TextDecoder,URLSearchParams,Blob,setTimeout,clearTimeout,atob,
-  document:{getElementById:element,createElement:()=>element('created')},
+  document:{addEventListener(){},getElementById:element,createElement:()=>element('created')},
   localStorage:{getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)},
   navigator:{mediaDevices:{getUserMedia(){}}},
   window:{isSecureContext:true,addEventListener(){},AudioContext:class{constructor(){throw new Error('File capture must not initialize playback');}}},

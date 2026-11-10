@@ -8,6 +8,7 @@ from .processes import AgentError
 from .speech_formatter import SpeechFormatter
 from .telemetry import scope,mark
 from .conversation_control import closing_intent
+from .quick_intents import resolve_quick
 
 async def voiced_events(service, speech, request, *, speak=True, tts_provider="openai",
                         tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False,tts_character_limit=None):
@@ -107,7 +108,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 if segment_id:service.memory.archive.speech(request,segment_id,segment_sequence,text,'interrupted')
                 raise
         if speak:
-            await output.put(audio_event('audio_stop',audio_id=audio_id,reason='finished' if not tts_failed else 'tts_error'))
+            await output.put(audio_event('audio_stop',audio_id=audio_id,reason='tts_error' if tts_failed else 'finished' if seq else 'no_audio',chunks=seq))
 
     async def produce_audio():
         if not hasattr(speech,'turn'):return await consume_audio(speech)
@@ -115,7 +116,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
             # Handshake only: no response.create, no placeholder speech, no retries.
             # It is allowed solely for this owner's explicit per-request speech consent.
             prepare=None
-            if speak and paid_tts_consent and not replay and tts_provider=='openai' and tts_character_limit!=0 and not closing_intent(request.text):
+            if speak and paid_tts_consent and not replay and tts_provider=='openai' and tts_character_limit!=0 and not closing_intent(request.text) and request.text.strip().lower() not in {'нет','да','отмена','подтверждаю'} and not resolve_quick(request.text):
                 prepare=asyncio.create_task(synthesizer.prepare(tts_provider,tts_voice,paid_consent=True))
             try:await consume_audio(synthesizer)
             finally:

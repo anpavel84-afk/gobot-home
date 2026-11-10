@@ -14,10 +14,11 @@ def closing_intent(text,context=None):
         'больше ничего не нужно','ничего больше не нужно','все понятно спасибо',
         'спасибо больше ничего не нужно','no thanks','no thank you',
     }
-    if value in direct:return 'end_conversation'
     ctx=context or {};pending=ctx.get('pending_action')
-    if value in {'нет','не надо','отмена'} and pending and pending.get('expires',0)>time.time():
+    if value in {'нет','не надо','отмена','нет спасибо','нет благодарю'} and pending and pending.get('expires',0)>time.time():
         return 'decline_pending'
+    if value in direct:return 'end_conversation'
+    if value in {'стоп','хватит','остановись'}:return 'stop_output'
     if value not in {'нет','спасибо','благодарю','не надо'}:return None
     messages=[*ctx.get('messages',[]),*ctx.get('recent_dialogue',[])]
     if messages and all(isinstance(row.get('id'),int) for row in messages):messages.sort(key=lambda row:row['id'])

@@ -301,7 +301,8 @@
     {
       "id": "opening-060",
       "category": "comparison",
-      "text": "Давай рассмотрим оба варианта."
+      "text": "Давай рассмотрим оба варианта.",
+      "requires": "two_options"
     },
     {
       "id": "opening-061",
@@ -406,7 +407,8 @@
     {
       "id": "opening-081",
       "category": "continuation",
-      "text": "Добавлю пояснение по нашей теме."
+      "text": "Добавлю пояснение по нашей теме.",
+      "requires": "two_options"
     },
     {
       "id": "opening-082",
@@ -431,17 +433,20 @@
     {
       "id": "opening-086",
       "category": "creative",
-      "text": "Давай начнём эту историю."
+      "text": "Давай начнём эту историю.",
+      "requires": "story"
     },
     {
       "id": "opening-087",
       "category": "creative",
-      "text": "Итак, представим такую картину."
+      "text": "Итак, представим такую картину.",
+      "requires": "scene"
     },
     {
       "id": "opening-088",
       "category": "creative",
-      "text": "Начну с небольшой зарисовки."
+      "text": "Начну с небольшой зарисовки.",
+      "requires": "scene"
     },
     {
       "id": "opening-089",
@@ -451,27 +456,32 @@
     {
       "id": "opening-090",
       "category": "creative",
-      "text": "Итак, начну рассказ."
+      "text": "Итак, начну рассказ.",
+      "requires": "story"
     },
     {
       "id": "opening-091",
       "category": "creative",
-      "text": "Давай отправимся в эту историю."
+      "text": "Давай отправимся в эту историю.",
+      "requires": "story"
     },
     {
       "id": "opening-092",
       "category": "creative",
-      "text": "Начну с первой сцены."
+      "text": "Начну с первой сцены.",
+      "requires": "story"
     },
     {
       "id": "opening-093",
       "category": "creative",
-      "text": "Представим начало этой истории."
+      "text": "Представим начало этой истории.",
+      "requires": "story"
     },
     {
       "id": "opening-094",
       "category": "creative",
-      "text": "Итак, вот начало рассказа."
+      "text": "Итак, вот начало рассказа.",
+      "requires": "story"
     },
     {
       "id": "opening-095",
@@ -481,27 +491,32 @@
     {
       "id": "opening-096",
       "category": "creative",
-      "text": "Начну с образа, вокруг которого всё строится."
+      "text": "Начну с образа, вокруг которого всё строится.",
+      "requires": "scene"
     },
     {
       "id": "opening-097",
       "category": "creative",
-      "text": "Давай представим этот мир."
+      "text": "Давай представим этот мир.",
+      "requires": "scene"
     },
     {
       "id": "opening-098",
       "category": "creative",
-      "text": "Итак, откроем нашу историю."
+      "text": "Итак, откроем нашу историю.",
+      "requires": "story"
     },
     {
       "id": "opening-099",
       "category": "creative",
-      "text": "Начну с того, что можно вообразить."
+      "text": "Начну с того, что можно вообразить.",
+      "requires": "scene"
     },
     {
       "id": "opening-100",
       "category": "creative",
-      "text": "Давай начнём с одной картины."
+      "text": "Давай начнём с одной картины.",
+      "requires": "scene"
     }
   ]
 }

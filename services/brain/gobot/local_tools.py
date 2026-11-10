@@ -2,8 +2,7 @@ import re,time
 from uuid import uuid4
 from dataclasses import dataclass
 from .quality import calculate,arithmetic_expression
-from .timer_duration import timer_seconds,duration_text
-from .quick_intents import match_quick
+from .timer_duration import duration_text
 
 @dataclass
 class ToolResult:
@@ -15,25 +14,29 @@ class LocalTools:
     def __init__(self,memory):
         self.memory=memory
         with memory.connect() as c:c.execute('''CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY,device_id TEXT,conversation_id TEXT,deadline REAL,status TEXT)''')
-    def execute(self,tool,req):
+    def execute(self,tool,req,slots=None):
         text=req.text.lower()
+        slots=slots or {}
         if tool=='dialogue_end':
-            if req.remember:
-                with self.memory.connect() as c:
-                    c.execute("UPDATE pending_actions SET status='cancelled' WHERE owner=? AND conversation_id=? AND status='pending' AND expires>?",(req.device_id,req.conversation_id,time.time()))
+            self.memory.settle_pending(req,'cancelled')
             return ToolResult('Хорошо.',evidence={'method':'dialogue_control','verified':True,'canonical_answer':'Хорошо.'})
+        if tool=='pending_decline':
+            self.memory.settle_pending(req,'declined',slots.get('pending_id'))
+            return ToolResult('Действие отменено.')
+        if tool=='stop_output':return ToolResult('Остановлено.')
+        if tool=='unavailable':return ToolResult('Эта функция пока не подключена. Действие не выполнено.')
         if tool=='clock':
             from datetime import datetime
-            now=datetime.now().astimezone();kind=match_quick(req.text).intent
+            now=datetime.now().astimezone();kind=slots['intent']
             weekdays=['понедельник','вторник','среда','четверг','пятница','суббота','воскресенье']
             value=now.strftime('%H:%M') if kind=='clock_time' else weekdays[now.weekday()] if kind=='clock_weekday' else now.strftime('%d.%m.%Y')
             answer=('По времени домашнего сервера сейчас ' if kind=='clock_time' else 'Сегодня ')+value+'.'
             return ToolResult(answer,evidence={'method':'server_clock','verified':True,'canonical_answer':answer,'display':value,'utc_offset':now.strftime('%z'),'as_of':now.isoformat()})
         if tool=='timer_status':
-            with self.memory.connect() as c:rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline",(req.device_id,time.time())).fetchall()
-            answer=('До ближайшего таймера осталось '+duration_text(max(1,int(rows[0]['deadline']-time.time())))+'.') if rows else 'У тебя нет активных таймеров.'
+            with self.memory.connect() as c:rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline,id",(req.device_id,time.time())).fetchall()
+            answer=('Таймеры по ближайшему срабатыванию: '+'; '.join(str(i+1)+': '+duration_text(max(1,int(row['deadline']-time.time())))+' (ID '+row['id']+')' for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет активных таймеров.'
             return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'active_count':len(rows)})
-        if tool=='quick_clarify':return ToolResult('Нужно запустить секундомер или поставить таймер? Для таймера назови длительность.')
+        if tool=='quick_clarify':return ToolResult('Уточни одну команду таймеру: одну длительность без альтернатив или конкретный таймер для отмены.' if slots.get('intent','').startswith('timer_') and slots.get('intent')!='timer_or_stopwatch' else 'Нужен таймер с длительностью или секундомер? Секундомер пока не подключён.')
         if tool=='quick_help':return ToolResult('Могу назвать время и дату, поставить таймер, проверить оставшееся время или посчитать выражение. Личная история доступна после подтверждения профиля.')
         if tool=='calculator':
             try:
@@ -60,24 +63,38 @@ class LocalTools:
                 row=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.owner=? AND a.namespace='production' AND a.status='completed' AND m.role='user' AND m.turn_id!=? ORDER BY m.id DESC LIMIT 1",(req.device_id,req.turn_id)).fetchone()
                 return ToolResult('В сохранённой истории последний вопрос был: '+row[0],evidence={'method':'memory_source','verified':True,'canonical_answer':row[0]}) if row else ToolResult('В твоей сохранённой истории пока нет предыдущих вопросов.',evidence={'abstained':True})
         if tool=='timer':
-            if re.search(r'отмени|останови|выключи|убери',text):
-                with self.memory.connect() as c:c.execute("UPDATE timers SET status='cancelled' WHERE device_id=? AND status='running'",(req.device_id,))
-                return ToolResult('Твои активные таймеры остановлены.')
-            seconds=timer_seconds(text)
+            if slots.get('operation')=='cancel':return self.cancel_timer(req,slots.get('target',''))
+            seconds=slots.get('seconds')
             if seconds is None:
-                if req.remember:
-                    with self.memory.connect() as c:
-                        c.execute("UPDATE pending_actions SET status='superseded' WHERE owner=? AND conversation_id=? AND status='pending'",(req.device_id,req.conversation_id))
-                        c.execute("INSERT INTO pending_actions VALUES(?,?,?,'timer_duration','{}',?,'pending')",(str(uuid4()),req.device_id,req.conversation_id,time.time()+120))
+                self.memory.set_pending(req,'timer_duration')
                 return ToolResult('На сколько минут или секунд поставить таймер?')
+            if slots.get('status') not in {None,'validated'}:return ToolResult('Уточни одну длительность таймера без альтернатив и дополнительных команд.')
             if not 1<=seconds<=86400:return ToolResult('Таймер можно поставить на время от одной секунды до суток.')
             ident=str(uuid4());deadline=time.time()+seconds
             with self.memory.connect() as c:
                 c.execute("INSERT INTO timers VALUES(?,?,?,?,'running')",(ident,req.device_id,req.conversation_id,deadline))
-                c.execute("UPDATE pending_actions SET status='completed' WHERE owner=? AND conversation_id=? AND kind='timer_duration' AND expires>? AND status='pending'",(req.device_id,req.conversation_id,time.time()))
+            self.memory.settle_pending(req,'completed')
             widget={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':seconds*1000,'timer_id':ident,'deadline':deadline}}
             return ToolResult('Таймер запущен на '+duration_text(seconds)+'.',widget)
         return ToolResult('Нужное действие пока не настроено.')
+
+    def cancel_timer(self,req,target):
+        # Numbering is explicitly shown by the status result: increasing deadline.
+        with self.memory.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
+            rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline,id",(req.device_id,time.time())).fetchall()
+            value=' '.join(target.lower().split())
+            if not rows:return ToolResult('У тебя нет активных таймеров.')
+            if value in {'все','все мои','мои все'}:selected=rows
+            elif value in {'','мой'}:selected=rows if len(rows)==1 else []
+            else:
+                ordinal={'первый':1,'второй':2,'третий':3,'четвертый':4,'пятый':5}
+                index=ordinal.get(value)
+                if index is None and re.fullmatch(r'№?\d+',value):index=int(value.lstrip('№'))
+                selected=[rows[index-1]] if index and 0<index<=len(rows) else [r for r in rows if r['id']==value]
+            if not selected:return ToolResult('Уточни таймер: назови его номер по ближайшему срабатыванию, идентификатор или явно скажи «все таймеры».')
+            for row in selected:c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=? AND status='running'",(row['id'],req.device_id))
+        return ToolResult('Все твои активные таймеры остановлены.' if value in {'все','все мои','мои все'} else 'Выбранный таймер остановлен.')
 
 async def text_stream(text):
     yield text

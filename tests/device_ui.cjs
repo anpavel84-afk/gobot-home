@@ -57,7 +57,7 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   sandbox.window.GoBotClient.startRecording=realStart;await app.press();assert.equal(starts,2);app.release();app.pause('Готово');
   const pendingFollowup=[];sandbox.setTimeout=callback=>{pendingFollowup.push(callback);return pendingFollowup.length;};
   app.profile.conversation={followup_enabled:true,followup_seconds:12,silence_ms:900,min_speech_ms:300,echo_guard_ms:350};
-  app.enabled=true;app.sessionActive=true;app.serverAudioEnded=true;
+  app.enabled=true;app.sessionActive=true;app.serverAudioEnded=true;app.answerPlaybackStarted=true;
   app.checkFollowup({playing:true});assert.equal(pendingFollowup.length,0);
   app.checkFollowup({playing:false});assert.equal(pendingFollowup.length,1);
   app.endConversation();const previousStarts=starts;await pendingFollowup.shift()();assert.equal(starts,previousStarts);
@@ -68,5 +68,13 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   app.event({type:'tool_status',turn_id:'closing',data:{status:'conversation_ended'}});
   app.event({type:'audio_stop',turn_id:'closing',data:{reason:'finished'}});
   app.checkFollowup({playing:false});assert(!app.sessionActive);assert(!app.followupPending);assert(app.conversationEnded);
+  for(const reason of ['no_audio','tts_error','cancelled']){
+    app.sessionActive=true;app.serverAudioEnded=false;app.audioStreamId='a';app.answerPlaybackStarted=false;
+    app.event({type:'audio_stop',turn_id:'closing',data:{audio_id:'a',reason,chunks:0}});
+    app.checkFollowup({playing:false,feedback_playing:true});assert(!app.followupPending);assert(!app.sessionActive);
+  }
+  app.sessionActive=true;app.serverAudioEnded=true;app.answerPlaybackStarted=false;app.checkFollowup({playing:false});assert(!app.followupPending);
+  app.answerPlaybackStarted=true;app.checkFollowup({playing:false,feedback_playing:true});assert(!app.followupPending);
+  app.serverAudioEnded=false;app.event({type:'audio_stop',turn_id:'old',data:{reason:'finished',chunks:1}});assert(!app.serverAudioEnded);
   console.log('Device units: raster, scenes, capture, followup playback gate, stop and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

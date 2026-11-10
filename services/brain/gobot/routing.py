@@ -7,7 +7,7 @@ from .quality import RiskAssessment,Assessment
 from .presentation import PresentationDecision
 from .timer_duration import is_timer_duration_reply
 from .conversation_control import closing_intent
-from .quick_intents import match_quick
+from .quick_intents import resolve_quick
 
 @dataclass(frozen=True)
 class RouterPolicy:
@@ -37,13 +37,14 @@ class Decision:
     router_ms:float=0
     classifier_calls:int=0
     quality:dict|None=None
+    slots:dict|None=None
     def public(self):return asdict(self)
 
 class SmartRouter:
     def __init__(self,policy=None,semantic=None):
         self.policy=policy or RouterPolicy();self.semantic=semantic;self.risk=RiskAssessment()
         self.capabilities=json.loads((Path(__file__).parents[1]/'model-capabilities.json').read_text(encoding='utf-8'))
-    def choose(self,req,context,states,*,api_ready=False):
+    def choose(self,req,context,states,*,api_ready=False,local_intent=None):
         started=time.perf_counter();text=req.text.strip().lower();mode=req.mode or 'auto';policy=self.policy
         assessment=self.risk.assess(text,context)
         def result(category,provider,model,reason,billing,tool=None,permission=False):
@@ -56,11 +57,18 @@ class SmartRouter:
         # Diagnostic selection is explicit, never a failure fallback.
         if mode=='mock':return result('FAST_CHAT','mock',None,'explicit_diagnostics','local_mock')
         closing=closing_intent(req.text,context)
-        if closing:return result('TOOL','local',None,closing,'local','dialogue_end')
-        quick=match_quick(req.text)
+        if closing:
+            decision=result('TOOL','local',None,closing,'local',{'end_conversation':'dialogue_end','decline_pending':'pending_decline','stop_output':'stop_output'}[closing])
+            decision.slots={'pending_id':context.get('pending_action',{}).get('id')} if context.get('pending_action') else {}
+            return decision
+        quick=local_intent or resolve_quick(req.text,context)
         if quick:
             if quick.executor in {'clock','timer_status'}:assessment=Assessment(tool_execution=True,verification_required=True,method='server_clock' if quick.executor=='clock' else 'timer_state',basis='read_actual_server_state')
-            return result('TOOL','local',None,'quick_intent_'+quick.intent,'local',quick.executor)
+            decision=result('TOOL','local',None,'quick_intent_'+quick.intent,'local',quick.executor)
+            decision.slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
+            return decision
+        if text in {'отмена','да','нет','подтверждаю','отмени'}:
+            return result('TOOL','local',None,'session_control_without_model','local','control')
         if context.get('topic',{}).get('outcome')=='ambiguous':return result('TOOL','local',None,'ambiguous_topic_reference','local','clarify_topic')
         files=bool(re.search(r'^(?:гобот[,! ]+)?(?:проверь|исправь|измени|удали|прочитай|отредактируй|проанализируй|подготовь).*?(?:файл|репозитор|локальн|мо[а-яё]*\s+проект|использовани[ея] файлов)',text))
         if files:return result('AGENT','local',None,'file_access_requires_separate_permission','local','file_permission',True)
@@ -81,10 +89,6 @@ class SmartRouter:
             if not state.get('available'):raise AgentError(state.get('reason') or 'executor_unavailable')
             model=req.model_id or ('gpt-6.1-sol' if provider=='codex' else policy.manual_google_model)
             return result('AGENT',provider,model,'explicit_model_selection','cli_subscription')
-        pending=context.get('pending_action')
-        if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(text):
-            return result('TOOL','local',None,'pending_timer_duration','local','timer')
-        if re.search(r'^(?:гобот[,! ]+)?(?:поставь|установи|запусти|отмени|останови|выключи)\b.*таймер|^таймер(?:\s+на|\s+\d|$)',text):return result('TOOL','local',None,'known_timer_intent','local','timer')
         if text in {'стоп','остановись','хватит','отмена','да','нет','подтверждаю','отмени'}:
             return result('TOOL','local',None,'session_control_without_model','local','control')
         if re.search(r'^(?:гобот[,! ]+)?(?:включи|выключи|останови|открой|закрой|запри|разблокируй).*?(?:музык|свет|ламп|двер|замок|питан)',text):

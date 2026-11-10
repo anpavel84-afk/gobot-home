@@ -3,7 +3,8 @@ import json,re
 from pathlib import Path
 from functools import lru_cache
 from dataclasses import dataclass
-from .timer_duration import timer_seconds
+from .timer_duration import timer_seconds,is_timer_duration_reply
+import time
 
 @lru_cache(maxsize=1)
 def library():return json.loads((Path(__file__).parents[1]/'quick-intents.json').read_text(encoding='utf8'))
@@ -13,26 +14,52 @@ class QuickIntent:
     intent:str
     executor:str
     slots:dict
+    status:str='validated'
+    reason:str=''
 
 def normalize(text):
     value=' '.join(text.casefold().replace('ё','е').strip().rstrip('.!?').split())
     for _ in range(2):value=re.sub(r'^(?:гобот[, ]+|пожалуйста[, ]+|(?:скажи|подскажи)[, ]+пожалуйста[, ]+)','',value)
     return re.sub(r'[, ]+пожалуйста$','',value)
 
-def match_quick(text):
+def resolve_quick(text,context=None):
     if len(text)>200:return None
     value=normalize(text)
+    # A polite refusal followed by an explicit new question is not a session end.
+    value=re.sub(r'^нет[, ]+спасибо[, ]+(?:а\s+)?','',value)
+    pending=(context or {}).get('pending_action')
+    if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(value):
+        return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value),'operation':'start'})
     matches=[]
     for row in library()['entries']:
-        if row['status']!='implemented':continue
         for pattern in row['patterns']:
             found=re.fullmatch(pattern,value)
             if found:
                 slots=found.groupdict()
+                status='validated' if row['status']=='implemented' else 'unavailable'
+                executor=row['executor'] if status=='validated' else 'unavailable'
                 if row['intent']=='timer_start':
-                    if re.search(r'\bили\b',slots.get('duration') or ''):continue
                     slots['seconds']=timer_seconds(slots.get('duration') or '')
-                matches.append((row.get('priority',0),QuickIntent(row['intent'],row['executor'],slots)));break
+                    slots['operation']='start'
+                    if slots['seconds'] is None:
+                        status='needs_parameters' if not slots.get('duration') else 'rejected'
+                        if status=='rejected':executor='quick_clarify'
+                if row['intent']=='timer_cancel':
+                    slots.update(operation='cancel',target=slots.get('target') or slots.get('after') or '')
+                    if (slots.get('target') and slots.get('after')) or re.search(r'\b(?:и|или|не|либо)\b',slots['target']):
+                        status='rejected';executor='quick_clarify'
+                matches.append((row.get('priority',0),QuickIntent(row['intent'],executor,slots,status)));break
     best=max((priority for priority,_ in matches),default=0)
     unique={m.intent:m for priority,m in matches if priority==best}
-    return next(iter(unique.values())) if len(unique)==1 else None
+    if len(unique)>1:return QuickIntent('ambiguous','quick_clarify',{},'rejected','multiple_intents')
+    if unique:return next(iter(unique.values()))
+    # Command-shaped but unsupported timer syntax is a clarification, never a
+    # second permissive route into the executor. Questions are not commands.
+    if re.match(r'^(?:(?:поставь|установи|запусти|включи|отмени|останови|выключи|убери)\b.*таймер|таймер\b|(?:засеки|отсчитай)\b)',value):
+        return QuickIntent('timer_ambiguous','quick_clarify',{},'rejected','whole_command_not_validated')
+    return None
+
+def match_quick(text):
+    """Compatibility view for the catalog/eval; routing uses resolve_quick once."""
+    result=resolve_quick(text)
+    return result if result and result.status in {'validated','needs_parameters'} else None

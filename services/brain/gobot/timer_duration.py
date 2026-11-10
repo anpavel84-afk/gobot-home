@@ -10,13 +10,19 @@ UNIT=r'секунд(?:а|у|ы)?|сек|с|минут(?:а|у|ы)?|мин|час
 PART=re.compile(r'(?<![\w.,])('+NUMBER+r')\s*('+UNIT+r')\b\.?',re.I)
 
 def timer_seconds(text):
-    text=text.casefold().strip()
+    text=' '.join(text.casefold().replace('ё','е').strip().split()).rstrip('!?')
+    text=re.sub(r'^(?:(?:поставь|установи|запусти|включи)(?: мне)? таймер|таймер|(?:засеки|отсчитай)(?: мне)?)(?: на)?\s*','',text)
+    text=re.sub(r'^на\s+','',text)
+    text=re.sub(r'[, ]+пожалуйста[.!?]*$','',text)
+    if re.search(r'\b(?:не|или|либо)\b',text):return None
+    if re.fullmatch(r'полчаса[.!?]*',text):return 1800
+    if re.fullmatch(r'час[.!?]*',text):return 3600
     matches=list(PART.finditer(text))
-    if re.search(r'\bполчаса\b',text):return 1800 if not matches else None
     if not matches:return None
     # Do not turn an unsupported compound number into its final word/digits.
     prefix=text[:matches[0].start()]
     if re.search(r'\bминус\b',prefix):return 0
+    if prefix.strip():return None
     if re.search(r'\d|\b(?:'+'|'.join(WORDS)+r')\b',prefix):return None
     from .speech_formatter import morphology
     if any(any(p.tag.POS=='NUMR' for p in morphology().parse(word)) for word in re.findall(r'[а-яё]+',prefix)):return None

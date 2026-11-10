@@ -7,6 +7,7 @@ let active = null, audio = null, gain = null, nextAt = 0, epoch = 0, recording =
 let lastSpeakerJob=null,transcriptPending=false;
 let outputAnalyser=null,transcriptionAbort=null;
 let requestTrace=null,earconBuffer=null,feedbackGain=null;const feedbackSources=new Set();
+const openingDecoded=new Map();let openingFetchAbort=null;
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
@@ -88,28 +89,44 @@ async function prepareFeedback(){
 
 }
 function stopFeedback(fade,trace){
+  openingFetchAbort?.abort();openingFetchAbort=null;
   if(!feedbackSources.size)return;
   if(fade){if([...feedbackSources].some(s=>s.gobotAudioRole==='filler'))trace?.mark('filler_preempted');feedbackGain.gain.cancelScheduledValues(audio.currentTime);feedbackGain.gain.setValueAtTime(feedbackGain.gain.value,audio.currentTime);feedbackGain.gain.linearRampToValueAtTime(0,audio.currentTime+.04);}
-  for(const source of feedbackSources){try{source.stop(audio.currentTime+(fade?.04:0));}catch(_){}}feedbackSources.clear();
+  for(const source of feedbackSources){source.gobotPreempted=true;try{source.stop(audio.currentTime+(fade?.04:0));}catch(_){}}feedbackSources.clear();
 }
-function playFeedback(role,trace){
-  if(!audio||audio.state!=='running'||!feedbackGain||!$('speak').checked||Number($('volume').value)<=0)return;
+function playFeedback(role,trace,opening){
+  if(document.hidden||!audio||audio.state!=='running'||!feedbackGain||!$('speak').checked||Number($('volume').value)<=0)return false;
+  if(role==='filler'&&(requestTrace!==trace||opening?.runEpoch!==epoch||opening.voice!==($('voice').value||'marin')||$('tts').value!=='openai'||!$('paid').checked||!feedback.config.enabled||feedback.config.quiet||!feedback.config.filler_enabled)){trace?.openingStatus?.('skipped','settings');return false;}
   const buffer=role==='earcon'?earconBuffer:opening?.buffer;
-  if(!buffer)return;
+  if(!buffer)return false;
+  try{
   feedbackGain.gain.cancelScheduledValues(audio.currentTime);feedbackGain.gain.setValueAtTime(feedback?.config.volume??.22,audio.currentTime);
-  const source=audio.createBufferSource();source.buffer=buffer;source.connect(feedbackGain);source.gobotAudioRole=role;feedbackSources.add(source);source.onended=()=>feedbackSources.delete(source);source.start();
+  const source=audio.createBufferSource();source.buffer=buffer;source.connect(feedbackGain);source.gobotAudioRole=role;
+  source.onended=()=>{feedbackSources.delete(source);if(role==='filler')trace?.mark(source.gobotPreempted?'opening_preempted':'opening_completed');};source.start();feedbackSources.add(source);
   trace?.mark(role==='earcon'?'earcon_started':'filler_started');
+  return true;
+  }catch(_){trace?.openingStatus?.('failed','web_audio');return false;}
 }
 async function offerOpening(opening,trace,runEpoch){
-  if(!opening||$('tts').value!=='openai'||opening.voice!==($('voice').value||'marin')||!$('speak').checked||!$('paid').checked)return;
+  if(!opening||$('tts').value!=='openai'||opening.voice!==($('voice').value||'marin')||!$('speak').checked||!$('paid').checked){trace?.openingStatus?.('skipped','settings');return;}
   if(!/^\/api\/speech\/openings\/[a-z]+\/opening-\d{3}\.wav$/.test(opening.url||''))return;
+  trace?.mark('opening_offered');openingFetchAbort?.abort();const abort=new AbortController();openingFetchAbort=abort;
+  const timeout=setTimeout(()=>abort.abort(),5000);
   try{
-    const response=await fetch(opening.url);if(!response.ok)return;
-    const raw=await response.arrayBuffer();if(raw.byteLength>600000)return;
-    const buffer=await audio.decodeAudioData(raw);
-    if(runEpoch!==epoch||requestTrace!==trace||audio.state!=='running')return;
-    feedback?.offer({...opening,buffer},trace);
-  }catch(_){}
+    let buffer=openingDecoded.get(opening.url);
+    if(!buffer){
+      const response=await fetch(opening.url,{signal:abort.signal});if(!response.ok)throw Error('opening_http');
+      const raw=await response.arrayBuffer();if(raw.byteLength>600000)throw Error('opening_size');
+      buffer=await audio.decodeAudioData(raw);
+      if(buffer.duration>10)throw Error('opening_duration');
+      if(openingDecoded.size>=8)openingDecoded.delete(openingDecoded.keys().next().value);
+      openingDecoded.set(opening.url,buffer);
+    }
+    trace?.mark('opening_decoded');
+    if(abort.signal.aborted||document.hidden||runEpoch!==epoch||requestTrace!==trace||audio.state!=='running'||opening.voice!==($('voice').value||'marin')){trace?.openingStatus?.('skipped','stale_turn');return;}
+    if(!feedback?.offer({...opening,buffer,runEpoch},trace))trace?.mark('opening_skipped');
+  }catch(error){trace?.openingStatus?.(abort.signal.aborted?'skipped':'failed',abort.signal.aborted?'cancelled':error.message==='opening_http'?'http':error.message==='opening_size'?'size':'decode');}
+  finally{clearTimeout(timeout);if(openingFetchAbort===abort)openingFetchAbort=null;}
 }
 const feedback=window.GoBotTiming?new window.GoBotTiming.FeedbackController({play:playFeedback,stop:stopFeedback}):null;
 function inputClosed(info={}){
@@ -141,12 +158,12 @@ async function play(data, runEpoch) {
   const pcm = new DataView(bytes.buffer), buffer = audio.createBuffer(1, bytes.length / 2, data.sample_rate), channel = buffer.getChannelData(0);
   for (let i = 0; i < channel.length; i++) {channel[i] = pcm.getInt16(i * 2, true) / 32768;if(firstNonzero===null&&Math.abs(channel[i])>.001)firstNonzero=i;}
   requestTrace?.mark('decode_complete');if(firstNonzero!==null)feedback?.answerReady();
-  const source = audio.createBufferSource(); source.buffer = buffer; source.connect(gain);
+  const source = audio.createBufferSource(); source.buffer = buffer; source.gobotAudioRole="answer"; source.connect(gain);
   nextAt = Math.max(nextAt, audio.currentTime + .04); sources.add(source);
   const turn=currentTurn;
   source.onended = () => {sources.delete(source);if(runEpoch===epoch&&!sources.size){requestTrace?.playbackFinished?.(active===null);renderTiming(window.gobotLastTrace);}if(runEpoch===epoch&&data.segment_id){const milliseconds=(playedSegments.get(data.segment_id)||0)+buffer.duration*1000;playedSegments.set(data.segment_id,milliseconds);fetch('/api/audio/playback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({turn_id:turn,segment_id:data.segment_id,milliseconds})}).catch(()=>{});}}; source.start(nextAt);requestTrace?.mark('scheduled');
   const trace=requestTrace,startAt=nextAt+(firstNonzero||0)/data.sample_rate;
-  const acknowledge=()=>{if(runEpoch!==epoch||audio.state!=='running')return;if(audio.currentTime<startAt){setTimeout(acknowledge,10);return;}trace?.mark('first_answer_playback');trace?.flush();if(trace&&window.gobotLastTrace){window.gobotLastTrace.client=trace.snapshot();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);}};if(firstNonzero!==null&&trace&&!trace.playbackPending){trace.playbackPending=true;setTimeout(acknowledge,Math.max(0,(startAt-audio.currentTime)*1000));}
+  const acknowledge=()=>{if(runEpoch!==epoch||audio.state!=='running')return;if(audio.currentTime<startAt){setTimeout(acknowledge,10);return;}trace?.mark('first_answer_playback');window.GoBotHooks?.onAnswerPlayback?.(turn);trace?.flush();if(trace&&window.gobotLastTrace){window.gobotLastTrace.client=trace.snapshot();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);}};if(firstNonzero!==null&&trace&&!trace.playbackPending){trace.playbackPending=true;setTimeout(acknowledge,Math.max(0,(startAt-audio.currentTime)*1000));}
   nextAt += buffer.duration;
 }
 function stop(preserveWaiting=false) {
@@ -188,7 +205,7 @@ async function send(options={}) {
         window.GoBotHooks?.onEvent?.(item);
         if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;turnTrace?.mark('first_text');answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
         else if (item.type === 'tool_status') {
-          if(data.status==='conversation_ended'){feedback?.cancel();$('voice-status').textContent='Разговор завершён.';}
+          if(['conversation_ended','pending_declined','output_stopped'].includes(data.status)){feedback?.cancel();$('voice-status').textContent=data.status==='conversation_ended'?'Разговор завершён.':data.status==='pending_declined'?'Действие отменено.':'Остановлено.';}
           if(data.status==='speech_opening_ready')void offerOpening(data.opening,turnTrace,runEpoch);
           if(data.status==='loading_visual')visuals?.loading();
           if(data.status==='preparing_visual_attachment')visuals?.loading();
@@ -209,6 +226,7 @@ async function send(options={}) {
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
         else if (item.type === 'tts_error') {feedback?.cancel();turnTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
+        else if(item.type==='audio_stop'&&data.reason!=='finished')feedback?.cancel();
         else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
           terminal = true; if(turnTrace){window.gobotLastTrace={client:turnTrace.snapshot(),stt:turnTrace.stt,gateway_stt:turnTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry,visual:data.trace?.find(entry=>entry.visual_decision)?.visual_decision};turnTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
@@ -224,7 +242,7 @@ async function send(options={}) {
     }
     if (!terminal) throw new Error('stream_disconnected');
   } catch (error) {
-    if (error.name !== 'AbortError') { feedback?.cancel();turnTrace?.mark('error');clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
+    if (error.name !== 'AbortError') { feedback?.cancel();turnTrace?.mark('error');clearAudio();window.GoBotHooks?.onStopped?.(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
   } finally {
     if(turnTrace)turnTrace.complete=true;
     if (active === controller) { active = null; $('send').disabled = false; $('orb').classList.remove('busy'); await loadHistory();await refreshMemory(); }
@@ -318,9 +336,11 @@ $('hold').onpointerup = $('hold').onpointercancel = event => { event.preventDefa
 $('hold').oncontextmenu = event => event.preventDefault();
 $('record').onclick = () => recording ? endRecording() : startRecording();
 $('send').onclick = send; $('stop').onclick = stop;
-$('volume').oninput = () => { if (gain) gain.gain.value = Number($('volume').value); };
+$('volume').oninput = () => { if (gain) gain.gain.value = Number($('volume').value);if(Number($('volume').value)<=0)feedback?.cancel(); };
 $('speak').onchange = () => { if (!$('speak').checked) stop(); };
-$('tts').onchange = () => { $('voice').disabled = $('tts').value !== 'openai'; };
+$('tts').onchange = () => {feedback?.cancel(); $('voice').disabled = $('tts').value !== 'openai'; };
+$('voice').addEventListener('change',()=>feedback?.cancel());
+document.addEventListener('visibilitychange',()=>{if(document.hidden)feedback?.cancel();});
 let historyVersion=0;
 async function loadHistory() {
   const version=++historyVersion,requested=conversation;

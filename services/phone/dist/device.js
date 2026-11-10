@@ -23,7 +23,8 @@
       const hooks=window.GoBotHooks;
       hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
-      hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.conversationEnded=false;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.state('thinking','Готовлю ответ…');};
+      hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.conversationEnded=false;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.answerPlaybackStarted=false;this.audioStreamId=null;this.state('thinking','Готовлю ответ…');};
+      hooks.onAnswerPlayback=turn=>{if(turn===this.turn)this.answerPlaybackStarted=true;};
       hooks.onListening=()=>{
         if(this.followupPending&&!this.held){
           this.state('listening','Жду продолжение разговора · '+this.profile.conversation.followup_seconds+' секунд');
@@ -68,13 +69,17 @@
         this.preservedVisual=false;this.manager.visual=null;this.renderer.clearImage();
       }
       if(item.type==='tool_status'&&data.model){this.diagnostics.executor={provider:data.provider,model:data.model,route:data.route};document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);}
-      if(item.type==='tool_status'&&data.status==='conversation_ended'){
+      if(item.type==='tool_status'&&['conversation_ended','output_stopped'].includes(data.status)){
         this.conversationEnded=true;this.endConversation();this.captureAbort?.abort();this.streamDone=true;
         this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.state('idle','Хорошо. Жду нового обращения.');
       }
       if(item.type==='tts_status')this.status('Готовлю серверный голос…');
-      if(item.type==='audio_start')this.status('Ответ готовится к воспроизведению');
-      if(item.type==='audio_stop'&&data.reason==='finished')this.serverAudioEnded=true;
+      if(item.type==='audio_start'){this.audioStreamId=data.audio_id;this.status('Ответ готовится к воспроизведению');}
+      if(item.type==='audio_stop'){
+        if(data.audio_id!==this.audioStreamId)return;
+        if(data.reason==='finished'&&data.chunks>0)this.serverAudioEnded=true;
+        else this.endConversation();
+      }
       if(item.type==='tts_error'){this.endConversation();}
       if(item.type==='tts_error')this.state('error',window.GoBotClient.explain(data.code));
       if(['error','cancelled'].includes(item.type)){this.endConversation();}
@@ -87,16 +92,17 @@
     }
     checkFollowup(audio){
       const policy=this.profile.conversation;
-      if(!this.enabled||!policy?.followup_enabled||!this.sessionActive||!this.serverAudioEnded||audio.playing||this.followupPending)return;
+      if(!this.enabled||!policy?.followup_enabled||!this.sessionActive||!this.serverAudioEnded||!this.answerPlaybackStarted||audio.playing||audio.feedback_playing||this.followupPending)return;
       this.followupPending=true;const epoch=this.sessionEpoch,turn=this.turn;
       this.followupTimer=setTimeout(async()=>{
         if(!this.enabled||!this.sessionActive||epoch!==this.sessionEpoch||turn!==this.turn||document.hidden)return;
-        if(window.GoBotClient.audioSnapshot().playing){this.followupPending=false;return;}
+        const snapshot=window.GoBotClient.audioSnapshot();if(snapshot.playing||snapshot.feedback_playing){this.followupPending=false;return;}
         this.captureAbort=new AbortController();
         window.GoBotHooks.captureOptions={signal:this.captureAbort.signal,minDurationMs:400,minSpeechMs:policy.min_speech_ms,
           vad:{windowMs:policy.followup_seconds*1000,silenceMs:policy.silence_ms,minSpeechMs:policy.min_speech_ms}};
         this.serverAudioEnded=false;
         this.state('listening','Жду продолжение разговора · '+policy.followup_seconds+' секунд');this.conversationState='FOLLOWUP_LISTENING';
+        window.GoBotClient.trace?.()?.mark('followup_opened');
         const result=await window.GoBotClient.startRecording({followup:true});
         if(result===false)this.endConversation();
       },policy.echo_guard_ms);

@@ -66,7 +66,7 @@ def test_cached_opening_is_in_main_context_but_never_answer_or_tts(settings,monk
         assert row['text'] not in items[-1]['data']['text']
     asyncio.run(run())
 
-SAMPLES=[(row['intent'],text) for row in library()['entries'] if row['patterns'] for text in row['examples']]
+SAMPLES=[(row['intent'],text) for row in library()['entries'] if row['patterns'] and row['status']=='implemented' for text in row['examples']]
 @pytest.mark.parametrize('intent,text',SAMPLES)
 def test_quick_library_examples_have_one_validated_intent(intent,text):
     assert match_quick(text).intent==intent

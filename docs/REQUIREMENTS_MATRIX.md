@@ -2,7 +2,7 @@
 
 Источник требований: [GOBOT_HOME_TARGET_SYSTEM.md](GOBOT_HOME_TARGET_SYSTEM.md), commit `96e0f3d`.
 До синхронизации: чистая master `bd487ff`; после docs-only fast-forward `96e0f3d`.
-Это evidence, не новая спецификация. Текущий проход по последнему OWNER DIRECT ограничен M1.
+Это evidence, не новая спецификация. Обновление стабилизации 10 ноября: baseline 2f0eefc; прежние строки без новых проверок не считаются повторно принятыми.
 Пути к Python-модулям ниже относительно services/brain/gobot; tests — относительно tests/.
 
 | ID | Требование | Фактический статус | Код | Проверка | Пробел |
@@ -24,21 +24,21 @@
 | R-015 | Финальная транскрипция фиксируется один раз | fixture | capture.js / browser.js / device.js / pipeline.py | test_browser_regressions.py / test_live_audio.py | Нужна проверка на физическом iPhone |
 | R-016 | Частичный STT не запускает опасное действие | fixture | capture.js / browser.js / device.js / pipeline.py | test_browser_regressions.py / test_live_audio.py | Нужна проверка на физическом iPhone |
 | R-017 | Speech Formatter сохраняет факты и убирает дубли | fixture + обратная связь владельца | speech_formatter.py SpeechFormatter / providers.py SentenceBuffer | test_speech_formatting.py | Универсальная смысловая редактура не реализована |
-| R-018 | Потоковое воспроизведение без повторного final | fixture | capture.js / browser.js / device.js / pipeline.py | test_browser_regressions.py / test_live_audio.py | Нужна проверка на физическом iPhone |
-| R-019 | Сквозная отмена и очистка аудио | fixture | capture.js / browser.js / device.js / pipeline.py | test_browser_regressions.py / test_live_audio.py | Нужна проверка на физическом iPhone |
+| R-018 | Потоковое воспроизведение без повторного final | fixture + desktop Web Audio | browser.js / turn-trace.js / pipeline.py | test_dialogue_stabilization.py / opening_connection.cjs / dialogue-stabilization-checks.json | Вызов настоящего BufferSource.start проверен; iPhone не принят |
+| R-019 | Сквозная отмена и очистка аудио | fixture + desktop Web Audio | browser.js / device.js / turn-trace.js | opening_connection.cjs / device_ui.cjs | Отмена, voice/mute/epoch и скрытие; физический телефон не проверен |
 | R-020 | Права не определяются только голосом | частично | family.py Family / speaker.py SpeakerIdentity / browser.py subject | test_family_stt.py | ECAPA локально есть; калибровка семьи отсутствует, independent auth UX неполон |
 | R-021 | Голосовые шаблоны локальны и удаляемы | частично | family.py Family / speaker.py SpeakerIdentity / browser.py subject | test_family_stt.py | ECAPA локально есть; калибровка семьи отсутствует, independent auth UX неполон |
 | R-022 | Unknown/ambiguous/insufficient_audio поддерживаются | частично | family.py Family / speaker.py SpeakerIdentity / browser.py subject | test_family_stt.py | ECAPA локально есть; калибровка семьи отсутствует, independent auth UX неполон |
 | R-023 | Speaker Identity не блокирует общий ответ | частично | family.py Family / speaker.py SpeakerIdentity / browser.py subject | test_family_stt.py | ECAPA локально есть; калибровка семьи отсутствует, independent auth UX неполон |
 | R-024 | Router различает сложность, факты и последствия | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
-| R-025 | Нет обязательной LLM-классификации каждой реплики | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
+| R-025 | Нет обязательной LLM-классификации каждой реплики | детерминированная полная цепочка | quick_intents.py / routing.py / local_tools.py | test_dialogue_stabilization.py | Проверены параметры, запрет legacy обхода и локальная unavailable; не универсальное NLU |
 | R-026 | Автоматическая дорогая эскалация ограничена | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
 | R-027 | Проверка по источникам/инструментам, не самооценке | частично | quality.py SelectiveVerifier / local_tools.py | test_quality_router.py | Общего web verifier нет; безопасный отказ |
 | R-028 | Обязательные проверки завершаются до TTS утверждения | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
 | R-029 | История, память и ContextPacket разделены | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
 | R-030 | ContextPacket имеет явный токен-бюджет | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
 | R-031 | Скрытая CLI-история не растёт бесконечно | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
-| R-032 | Темы поддерживают продолжение и возвращение | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
+| R-032 | Темы поддерживают продолжение и возвращение | fixture + SQLite/RAM | brain.py text_done / memory.py | test_completed_text_survives_cancel_of_optional_visual | Завершённый текст переживает поздний optional visual; качество summaries отдельно |
 | R-033 | Факты и summaries имеют происхождение | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
 | R-034 | Удаление распространяется на производные данные | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
 | R-035 | Mock/test изолированы от личной памяти | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
@@ -51,16 +51,16 @@
 | R-042 | Источник/тип изображения и атрибуция сохраняются | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-043 | Генерация не имитируется локальным SVG | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-044 | Ассеты проверяются и кэш ограничен | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
-| R-045 | Tool Executor отделён от текста LLM | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
-| R-046 | Таймеры и напоминания персистентны | частично | local_tools.py timers / memory.py | test_timer_duration.py | Таймер есть; полноценный reminder scheduler отсутствует |
+| R-045 | Tool Executor отделён от текста LLM | fixture, fail-closed | quick_intents.py / routing.py / local_tools.py | test_dialogue_stabilization.py | HA/Music не подключены; action slots проверены до executor |
+| R-046 | Таймеры и напоминания персистентны | fixture + локальное серверное состояние | local_tools.py / memory.py | test_dialogue_stabilization.py / test_timer_duration.py | Целевая отмена проверена на отдельной БД; scheduler напоминаний отсутствует |
 | R-047 | Результат действия подтверждается инструментом | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
 | R-048 | Музыка может воспроизводиться внешним плеером | отсутствует реальная интеграция | integrations.py / visual.py music fallback | test_additional.py | Нужен разрешённый реальный Music Assistant/player |
 | R-049 | Умный дом ограничен whitelist и правами | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
 | R-050 | Host Bridge не является сетевым shell | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
 | R-051 | Реальные model/executable/usage видны в диагностике | частично | brain.py final / browser.js / telemetry.py | test_latency_v02.py / test_agents.py | Usage только доступный от CLI; полного биллинга STT/TTS нет |
-| R-052 | API/события версионированы и идемпотентны | частично | brain.py final / browser.js / telemetry.py | test_latency_v02.py / test_agents.py | Usage только доступный от CLI; полного биллинга STT/TTS нет |
+| R-052 | API/события версионированы и идемпотентны | fixture, идемпотентность действия | memory.py / brain.py | test_duplicate_delivery_does_not_repeat_tool | Повтор request_id не создаёт второй таймер; намеренный новый request_id допускается |
 | R-053 | Ключи и биометрия не попадают в Git/логи/клиент | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
-| R-054 | Временный режим не индексируется постоянно | fixture + локальная персистентность | context_manager.py ContextManager / archive.py / memory.py | test_context_archive.py / context-evaluation.json | FTS ограничен, semantic retrieval не подключён; качество summaries не принято |
+| R-054 | Временный режим не индексируется постоянно | fixture, RAM pending | memory.py transient_pending / conversation_control.py | test_pending_decline_is_scoped_and_does_not_close_session | Pending с TTL и owner/epoch работает без архива; не переживает restart |
 | R-055 | Восстановление не повторяет опасные действия | fixture + прежний restart test | memory.py recover / scripts/manage.py | test_brain.py / reliability-results.json | Нет нового soak/hardware restart |
 | R-056 | Прошивка только после backup и проверки профиля | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
 | R-057 | Совместимость XiaoZhi проверяется по версии | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
@@ -102,3 +102,13 @@
 | AC-36 | Docs-only Git diff проверен тестом |
 
 M2/M3 сохраняются в очереди; отсутствие child lock означает, что безопасный семейный child-mode продукт ещё не принят.
+
+
+## Стабилизация после 2f0eefc
+
+Подтверждены исправления контрактов вступлений, неоднозначных длительностей,
+целевой отмены таймеров и локального decline/end. Проверка включает реальные
+функции browser.js, desktop Web Audio с готовым WAV и изолированные SQLite/RAM.
+Следует читать вместе с [CURRENT_STATUS.md](CURRENT_STATUS.md), раздел 11,
+и [обезличенным отчётом](dialogue-stabilization-checks.json).
+Новый бюджет API/CLI не расходован; ACP/useful TTFA/iPhone не приняты этими тестами.

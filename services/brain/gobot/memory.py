@@ -31,7 +31,28 @@ class Memory:
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(3,?)',(time.time(),))
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(6,?)',(time.time(),))
         from .archive import Archive
-        self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock();self.visual_cancelled={}
+        self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock();self.visual_cancelled={};self.transient_pending={}
+    def set_pending(self,req,kind,payload=None):
+        from uuid import uuid4
+        action={'id':str(uuid4()),'kind':kind,'payload':payload or {},'expires':time.time()+120}
+        if not req.remember:
+            with self.transient_lock:
+                now=time.time();self.transient_pending={k:v for k,v in self.transient_pending.items() if v['expires']>now}
+                if len(self.transient_pending)>=256:raise Conflict('pending_capacity')
+                self.transient_pending[(req.device_id,req.conversation_id,req.profile_epoch)]=action
+        else:
+            with self.connect() as c:
+                c.execute("UPDATE pending_actions SET status='superseded' WHERE owner=? AND conversation_id=? AND status='pending'",(req.device_id,req.conversation_id))
+                c.execute("INSERT INTO pending_actions VALUES(?,?,?,?,?,?,'pending')",(action['id'],req.device_id,req.conversation_id,kind,json.dumps(action['payload']),action['expires']))
+        return action
+    def settle_pending(self,req,status,ident=None):
+        if not req.remember:
+            with self.transient_lock:
+                key=(req.device_id,req.conversation_id,req.profile_epoch);pending=self.transient_pending.get(key)
+                if pending and (ident is None or pending['id']==ident):self.transient_pending.pop(key,None)
+        else:
+            with self.connect() as c:
+                c.execute("UPDATE pending_actions SET status=? WHERE owner=? AND conversation_id=? AND status='pending' AND expires>? AND (? IS NULL OR id=?)",(status,req.device_id,req.conversation_id,time.time(),ident,ident))
     @contextmanager
     def connect(self):
         c=sqlite3.connect(self.path, timeout=5);c.row_factory=sqlite3.Row
@@ -86,6 +107,11 @@ class Memory:
         if not req.remember:
             with self.transient_lock:
                 row=self.transient.get(req.turn_id)
+                if row and row['status']=='completed':
+                    if status=='completed':
+                        from .visual_memory import confirmed
+                        row.update(trace=json.dumps(trace),updated=time.time(),visual=confirmed(trace) if req.turn_id not in self.visual_cancelled else None)
+                    return
                 if row and row['status']=='running':
                     from .visual_memory import confirmed
                     row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time(),visual=confirmed(trace) if status=='completed' and req.turn_id not in self.visual_cancelled else None)
@@ -96,6 +122,12 @@ class Memory:
         with self.connect() as c:
             c.execute("BEGIN IMMEDIATE")
             row=c.execute("SELECT status FROM turns WHERE id=?",(req.turn_id,)).fetchone()
+            if row and row[0]=='completed':
+                if status=='completed':
+                    c.execute('UPDATE turns SET trace=?,updated=? WHERE id=?',(json.dumps(trace),time.time(),req.turn_id))
+                    from .visual_memory import finish as finish_visual
+                    finish_visual(self,c,req,status,provider,trace)
+                return
             if not row or row[0]!='running': return
             c.execute("UPDATE turns SET status=?,result=?,provider=?,trace=?,updated=? WHERE id=?",(status,text,provider,json.dumps(trace),time.time(),req.turn_id))
             c.execute("UPDATE sessions SET active=0,last_seen=? WHERE conversation_id=?",(time.time(),req.conversation_id))
@@ -122,7 +154,9 @@ class Memory:
             with self.transient_lock:
                 rows=[v for key,v in self.transient.items() if key!=req.turn_id and v['owner']==req.device_id and v['conversation']==req.conversation_id and v['status']=='completed' and time.time()-v['updated']<3600][-6:]
                 messages=[item for row in rows for item in ({'role':'user','content':row['text'],'provider':'input'},{'role':'assistant','content':row['result'],'provider':row['provider']})]
-                return {'messages':messages,'summary':'','facts':[],'original_question':''}
+                pending=self.transient_pending.get((req.device_id,req.conversation_id,req.profile_epoch))
+                if pending and pending['expires']<=time.time():pending=None
+                return {'messages':messages,'summary':'','facts':[],'original_question':'','pending_action':dict(pending) if pending else None}
         if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:return self.archive.topic_context(req)
         with self.connect() as c:
             owner=c.execute('SELECT device_id FROM conversations WHERE id=?',(req.conversation_id,)).fetchone()

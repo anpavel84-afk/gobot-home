@@ -11,7 +11,7 @@ class Audio{
 }
 storage.set('gobot.voice-settings',JSON.stringify({model:'mock',stt:'mock',tts:'openai',voice:'marin',speak:true,paid:false,paid_stt:false,quota:false,volume:'.8'}));
 const sandbox={console,performance,Date,Math,Map,Set,JSON,Promise,Error,AbortController,TextDecoder,Uint8Array,Float32Array,DataView,URLSearchParams,atob,crypto:require('node:crypto').webcrypto,setTimeout,clearTimeout,
- document:{getElementById:el,createElement:()=>new E()},window:{addEventListener(){},AudioContext:Audio,GoBotHooks:{clientKind:'device'}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
+ document:{addEventListener(){},getElementById:el,createElement:()=>new E()},window:{addEventListener(){},AudioContext:Audio,GoBotHooks:{clientKind:'device'}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
  fetch:async(url,options={})=>{
   if(url.startsWith('/api/telemetry/')){posted.push(JSON.parse(options.body));return {ok:true,json:async()=>({})};}
   if(url==='/api/chat/stream'){
