@@ -82,6 +82,22 @@ def test_recipe_context_rejects_person_with_the_same_name():
     asyncio.run(run())
 
 
+def test_source_redirect_resolves_synonym_without_dictionary_exception():
+    class RedirectClient(Client):
+        async def get(self,url,*,params=None,api=False):
+            if 'wikipedia.org' in url:
+                assert params.get('redirects')==1 and params['titles']=='северное сияние'
+                return json.dumps({'query':{'normalized':[{'from':'северное сияние','to':'Северное сияние'}],
+                    'redirects':[{'from':'Северное сияние','to':'Полярное сияние'}],
+                    'pages':{'1':{'ns':0,'title':'Полярное сияние','pageimage':'aurora.jpg'}}}}).encode(),'application/json'
+            return await super().get(url,params=params,api=api)
+    async def run():
+        rows=await CommonsImages(RedirectClient({})).page_images('северное сияние')
+        assert rows[0].entity_title=='Полярное сияние' and rows[0].entity_exact
+        assert rows[0].matched_query=='северное сияние'
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('page',[
     {'ns':0,'title':'Белый медведь','pageimage':'bear.jpg'},
     {'ns':0,'title':'Гриб','pageimage':'generic.jpg'},

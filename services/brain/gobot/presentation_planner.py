@@ -23,7 +23,8 @@ class ResponsePresentationPlan(BaseModel):
     speech_policy:Literal['follow_answer','brief_visual','silent']='follow_answer'
     origin:Literal['explicit','implicit','structured','none']='none'
     reason:str='no_helpful_visual'
-    subject_source:Literal['request','answer']='request'
+    subject_source:Literal['request','answer','context']='request'
+    subject_resolution_method:str='unresolved'
     subject_label:str=Field(default='',max_length=160)
     labels:list[str]=Field(default_factory=list,max_length=3)
 

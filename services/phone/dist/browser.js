@@ -186,7 +186,7 @@ async function send(options={}) {
           if(data.status==='guest_context'){conversation=data.conversation_id;localStorage.setItem('gobot.conversation',conversation);$('speaker-status').textContent='Личность не подтверждена: используем гостевой контекст, личная история закрыта.';}
         }
         else if(item.type==='visual_response'){visuals?.render(data.presentation);visuals?.syncDisplay(answer);}
-        else if(item.type==='screen_scene'&&data.phase==='answer_complete'&&!data.scene?.preserve_visual&&['icon','info_card'].includes(data.scene?.scene_type)){
+        else if(item.type==='screen_scene'&&!data.scene?.preserve_visual&&['icon','info_card'].includes(data.scene?.scene_type)){
           const payload=data.scene.visual_payload||{};
           visuals?.render({namespace:'gobot.ui',version:2,id:'scene-'+currentTurn,type:'info_card',title:payload.title||data.scene.visual_subject,
             text:data.scene.scene_type==='info_card'?payload.text||'':'',images:[],metadata:{state:payload.data_status==='unverified'?'unavailable':'ready',icon:payload.icon}});visuals?.syncDisplay(answer);
@@ -197,7 +197,7 @@ async function send(options={}) {
         else if (item.type === 'tts_error') {feedback?.cancel();turnTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
         else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
-          terminal = true; if(turnTrace){window.gobotLastTrace={client:turnTrace.snapshot(),stt:turnTrace.stt,gateway_stt:turnTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry};turnTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
+          terminal = true; if(turnTrace){window.gobotLastTrace={client:turnTrace.snapshot(),stt:turnTrace.stt,gateway_stt:turnTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry,visual:data.trace?.find(entry=>entry.visual_decision)?.visual_decision};turnTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
           const usage=data.usage?Object.entries(data.usage).map(([key,value])=>key+': '+value).join(', '):'Исполнитель не сообщил счётчики токенов';
           $('route-statistics').textContent='Модель: '+(data.model||'локально / диагностика')+' · первый текст после отправки в Brain: '+Math.round(firstDeltaAt||0)+' мс · маршрутизация: '+(data.router_ms==null?'—':data.router_ms.toFixed(2)+' мс')+' · '+(data.billing_kind==='cli_subscription'?'Квота CLI-подписки, без пересчёта в доллары':data.billing_kind==='api_tokens'?'Оплачиваемые API-токены':'Локальная обработка')+' · '+usage;
           if(data.quality)$('route-statistics').textContent+=' · Проверка: '+data.quality.method+' · обязательна: '+(data.quality.verification_required?'да':'нет')+' · сложность / фактическая неопределённость / последствия: '+data.quality.complexity+' / '+data.quality.factual_uncertainty+' / '+data.quality.consequence_risk+' (внутренние уровни, не вероятности)';

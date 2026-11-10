@@ -75,7 +75,7 @@
       if(item.type==='tts_error')this.state('error',window.GoBotClient.explain(data.code));
       if(['error','cancelled'].includes(item.type)){this.endConversation();}
       if(['error','cancelled'].includes(item.type))this.state('error','Ответ прерван. Нажми и задай вопрос снова.');
-      if(item.type==='final'){this.manager.finish(item.turn_id);if(this.manager.state!=='error')this.status('Удерживай круг для следующего вопроса.');}
+      if(item.type==='final'){this.diagnostics.visual=data.trace?.find(entry=>entry.visual_decision)?.visual_decision||null;document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);this.manager.finish(item.turn_id);if(this.manager.state!=='error')this.status('Удерживай круг для следующего вопроса.');}
     }
     endConversation(){
       this.sessionEpoch++;this.sessionActive=false;this.serverAudioEnded=false;this.followupPending=false;

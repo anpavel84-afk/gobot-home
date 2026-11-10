@@ -177,16 +177,19 @@ class Service:
                 if decision:yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan).model_dump(exclude={'display_text','speech_text'}),phase='planning')
                 if decision:trace.append({'presentation_plan':presentation_plan.model_dump()})
                 if decision and not visual_frame and self.composer.answer_visual_eligible(req,decision,ctx,presentation_plan):
-                    entity=await asyncio.to_thread(planned_entity,req.text,presentation_plan)
+                    entity=await asyncio.to_thread(planned_entity,req.text,presentation_plan,ctx)
                     if CHARACTER_TOPIC.search(req.text) and decision.provider in {'antigravity','codex'}:
                         character_images=CharacterImages(req,self.visual.attachment,self.presentation_planner.policy.helpful_timeout_seconds)
                         visual_task=character_images
-                    elif entity and decision.provider in {'antigravity','codex'}:
-                        presentation_plan=entity.plan()
+                    elif decision.provider in {'antigravity','codex'}:
+                        if entity:presentation_plan=entity.plan()
                         warmed=self.claim_warm(req)
                         prefetch=SpeculativePhoto(req,entity,self.visual.attachment,self.presentation_planner.policy.helpful_timeout_seconds,warmed)
                         visual_task=prefetch.task
-                        trace.append({'speculative_prefetch':entity.label,'started_at':'stt_final' if warmed else 'chat_admission'})
+                        trace.append({'speculative_prefetch':entity.label if entity else None,'started_at':'stt_final' if warmed else 'chat_admission'})
+                        trace.append({'visual_decision':prefetch.diagnostics})
+                        if entity:
+                            yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=entity.plan()).model_dump(exclude={'display_text','speech_text'}),phase='subject_resolved')
                 elif decision and not visual_frame and presentation_plan.origin=='implicit' and presentation_plan.visual_strategy=='generate':
                     visual_task=asyncio.create_task(self.visual.attachment(req,presentation_plan,timeout=self.presentation_planner.policy.helpful_timeout_seconds))
                     yield event(req,'tool_status',status='preparing_visual_attachment',presentation_plan=presentation_plan.model_dump())
@@ -202,8 +205,15 @@ class Service:
                             if delta is None:continue
                             if delta.frame.metadata.state=='unavailable':
                                 trace.append({'optional_visual_error':delta.frame.metadata.reason})
+                                if prefetch and prefetch.selected:
+                                    presentation_plan=prefetch.selected.plan()
+                                    yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan,has_visual=False).model_dump(exclude={'display_text','speech_text'}),phase='visual_fallback')
+                                    prefetch.diagnostics['scene_sent']=True
                                 continue
-                            if prefetch and prefetch.selected:presentation_plan=prefetch.selected.plan()
+                            if prefetch and prefetch.selected:
+                                presentation_plan=prefetch.selected.plan()
+                                prefetch.diagnostics['scene_sent']=True
+                            mark('visual_scene_sent')
                             yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
                             trace.append({'presentation':delta.frame.model_dump()});continue
                         if kind=='text_done':
@@ -263,6 +273,8 @@ class Service:
                     yield event(req,'widget_command',command={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':300000}},mock=True)
                 if decision:trace.append({'usage':ctx.get('_provider_usage'),'billing_kind':decision.billing_kind,'model':decision.model})
                 if decision:
+                    if prefetch:
+                        presentation_plan=prefetch.selected.plan() if prefetch.selected else ResponsePresentationPlan(reason='subject_not_confirmed')
                     scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan,answer=text.strip(),has_visual=any('presentation' in item for item in trace))
                     yield event(req,'screen_scene',scene=scene.model_dump(exclude={'display_text','speech_text'}),phase='answer_complete');trace.append({'screen_scene':scene.model_dump(exclude={'display_text','speech_text'})})
                 state='completed'
@@ -495,6 +507,7 @@ def create_app(settings=None):
         return result
     @app.post('/api/v1/turns/{turn_id}/cancel',dependencies=[Depends(auth)])
     async def cancel(turn_id:str):
+        await asyncio.to_thread(service.memory.clear_visual_turn,turn_id)
         if turn_id in service.running:service.running[turn_id].set()
         return {'turn_id':turn_id,'cancel_requested':True}
     @app.post('/api/v1/chat/stream',dependencies=[Depends(auth)])

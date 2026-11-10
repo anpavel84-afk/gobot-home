@@ -1,0 +1,120 @@
+{
+  "checked_date": "2026-11-10",
+  "base_commit": "8d9c93cc387e36107c19e0d4a3ed394dd54e0a4f",
+  "cli_version": "1.5.3",
+  "new_model_turns": 0,
+  "new_paid_api_requests": 0,
+  "historical_client_ms": {
+    "input_closed_to_first_text": [
+      8342,
+      8613
+    ],
+    "input_closed_to_answer_playback": [
+      9707,
+      9658
+    ],
+    "earcon": [
+      3,
+      1
+    ]
+  },
+  "historical_bridge_ms": {
+    "prompt_to_init": [
+      2779.078,
+      3136.193
+    ],
+    "init_to_first_delta": [
+      3012.503,
+      3149.087
+    ]
+  },
+  "historical_usage": {
+    "context_packet_estimate_cl100k": [
+      2226,
+      2315
+    ],
+    "provider_input_tokens": [
+      10027,
+      10077
+    ],
+    "provider_output_tokens": [
+      177,
+      114
+    ]
+  },
+  "interpretation": {
+    "fresh_process_per_turn": true,
+    "resume_flags": false,
+    "hidden_thread_reuse": false,
+    "raw_cli_steps_before_delta": "not recorded in old traces",
+    "provider_inference_network_split": "unavailable",
+    "provider_overhead_exact_tokens": null,
+    "system_tools_and_prompt": "provider built-in overhead expected; deny does not remove schemas; exact allocation unmeasured"
+  },
+  "acp_initialize_probe": {
+    "method": "initialize_only",
+    "model_turns": 0,
+    "elapsed_ms": 452.0,
+    "protocolVersion": 1,
+    "agentInfo": {
+      "name": "Antigravity ACP Server",
+      "version": "1.5.3"
+    },
+    "agentCapabilities": {
+      "loadSession": true,
+      "load_session": true,
+      "promptCapabilities": {
+        "image": true,
+        "audio": false,
+        "embeddedContext": true
+      },
+      "sessionCapabilities": {
+        "resume": {},
+        "close": {},
+        "load": {},
+        "list": {},
+        "additionalDirectories": {}
+      },
+      "session_capabilities": {
+        "resume": {},
+        "close": {},
+        "load": {},
+        "list": {},
+        "additionalDirectories": {}
+      },
+      "auth": {
+        "logout": {}
+      },
+      "_meta": {
+        "antigravity": {
+          "tier": true,
+          "systemPrompt": {
+            "append": true
+          }
+        }
+      }
+    },
+    "error_code": null
+  },
+  "runtime_reuse": {
+    "stream_json": "documented cumulative conversation, not independent request context",
+    "acp": "supported persistent stdio server; fresh isolated sessions require policy and usage audit before admission",
+    "production_transport_changed": false
+  },
+  "after_real_useful_answer_latency_ms": null,
+  "after_real_iphone_image_vs_voice_ms": null,
+  "instrumentation_added": [
+    "cli_prompt_prepared with tokenizer estimate",
+    "provider_step_agent_response",
+    "provider_step_thinking",
+    "provider_step_planning",
+    "provider_step_tool_call",
+    "provider_other_step"
+  ],
+  "sources": [
+    "https://antigravity.google/docs/cli/headless/",
+    "https://antigravity.google/docs/cli/commands/context/",
+    "https://antigravity.google/docs/cli/acp",
+    "https://antigravity.google/docs/cli/reference/"
+  ]
+}

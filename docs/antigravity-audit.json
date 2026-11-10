@@ -11,11 +11,11 @@
   ],
   "policy_sha256": "cfeaadf0874f4a9bde4d52427bc531fb963968f76047e13525841153df26a916",
   "binary_sha256": "47b1bec8c4a6d4afa1587177530e329cee4f5c6e76573a12ac9ab47b846e50e6",
-  "adapter_sha256": "3becdcfc4f3a03b87fbf9eb1f8daa2bde6e42a67de96152e4ec9d9b8e1caa79c",
+  "adapter_sha256": "fc16fc412bfad665d642dcf584f71e86310b4880e11eaa8f0da1cd61b2afce5d",
   "read_only_command": "/permissions",
   "model_turns": 0,
   "model_tokens": 0,
-  "checked": 1794312335.708802,
+  "checked": 1794333176.8542624,
   "live_response_verified": false,
   "notes": "Effective native permission report; not an adversarial model/tool execution test."
 }

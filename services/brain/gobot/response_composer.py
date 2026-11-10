@@ -23,11 +23,13 @@ class VisualResponseComposer:
     def __init__(self,planner=None):self.planner=planner or MultimodalResponsePlanner()
     def answer_visual_eligible(self,req,route=None,context=None,plan=None):
         from .visual_subject import PRIVATE_QUERY
+        from .visual_prefetch import PRIVATE
         pref=req.screen_preferences or ScreenPreferences()
         quality=getattr(route,'quality',None) or {}
         return (pref.automatic_illustrations and pref.style!='minimal' and pref.prefer_real_photos
                 and self.planner.policy.auto_visual_for_helpful_topics
-                and not PRIVATE_QUERY.search(req.text)
+                and not PRIVATE_QUERY.search(req.text) and not PRIVATE.search(req.text) and not social(req.text)
+                and not re.search(r'анекдот|шутк',req.text,re.I)
                 and (plan is None or plan.origin in {'none','implicit'})
                 and (plan is None or plan.visual_strategy=='retrieve' or plan.reason=='no_helpful_visual')
                 and not getattr(route,'tool',None) and not quality.get('verification_required')
@@ -77,6 +79,9 @@ class VisualResponseComposer:
         quality=getattr(route,'quality',None) or {}
         if quality.get('consequence_risk',0)>=2 or quality.get('verification_required'):return plan
         if not pref.prefer_real_photos:return plan
+        from .visual_prefetch import PRIVATE
+        from .visual_subject import PRIVATE_QUERY
+        if PRIVATE_QUERY.search(req.text) or PRIVATE.search(req.text) or social(req.text):return plan
         lower=req.text.casefold()
         recipe=re.search(r'как приготовить\s+(.+?)[?.!]*$',lower)
         if recipe:
@@ -93,21 +98,43 @@ class VisualResponseComposer:
             subject=re.search(r'^(?:что такое|расскажи (?:про|о)|где находится)\s+(.+?)[?.!]*$',lower)
             if subject:return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='image_card',
                 visual_strategy='retrieve',visual_query=subject[1].rstrip('?.!')[:180],origin='implicit',reason='rich_style_public_subject')
+        # Illustration eligibility is independent of successful entity lookup.
+        # Unknown phrases proceed to scoped context / early answer resolution.
+        if self.answer_visual_eligible(req,route,context,plan):
+            from .visual_prefetch import planned_entity
+            entity=planned_entity(req.text,plan,context)
+            return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='image_card',
+                visual_strategy='retrieve',visual_query=entity.query if entity else '',
+                subject_label=entity.label if entity else '',subject_resolution_method=entity.method if entity else 'awaiting_early_answer',
+                subject_source='context' if entity and entity.method=='active_visual_subject' else 'request',
+                origin='implicit',reason='semantic_subject' if entity else 'visual_subject_pending')
         return plan
     def compose(self,req,*,route=None,context=None,answer='',plan=None,has_visual=None,capabilities=None):
         plan=plan or self.plan(req,route,context);pref=req.screen_preferences or ScreenPreferences()
         scene=ResponseScene(display_text=answer,speech_policy=plan.speech_policy,scene_duration=pref.hold_after_response_seconds,
             preserve_visual=bool(has_visual),source_metadata={'basis':'response_content_and_route','verification':'not_implied_by_visual'})
         if plan.reason in {'model_selected_avatar','user_disabled_visual'}:return scene
-        if plan.origin=='implicit' and has_visual is False:return scene
+        if plan.origin=='implicit' and has_visual is False:
+            if plan.subject_label and plan.reason=='speculative_entity_photo':
+                scene.scene_type='icon';scene.visual_strategy='show_emoji_or_icon'
+                scene.visual_subject=plan.subject_label
+                scene.visual_payload={'title':plan.subject_label,'icon':'✦','decorative':True}
+                scene.source_metadata['fallback_reason']='image_unavailable_for_confirmed_subject'
+            return scene
         if plan.visual_needed:
+            if has_visual is None and plan.visual_strategy=='retrieve' and (plan.subject_label or plan.visual_query):
+                scene.scene_type='icon';scene.visual_strategy='show_emoji_or_icon'
+                scene.visual_subject=plan.subject_label or plan.visual_query
+                scene.visual_payload={'title':scene.visual_subject,'icon':'✦','decorative':True,'loading':True}
+                scene.source_metadata['planned_strategy']='retrieve_photo'
+                return scene
             strategy={'retrieve':'retrieve_photo','generate':'generate_illustration','render_local':'render_widget','mixed':'render_widget'}[plan.visual_strategy]
             if plan.template in {'lunar_crater','earth_moon','solar_eclipse','volcano','tomato_plant'}:strategy='render_diagram'
             scene.scene_type='image' if plan.visual_strategy=='retrieve' else 'diagram' if plan.visual_strategy=='generate' else 'widget'
             if plan.reason=='answer_map':scene.scene_type='diagram';strategy='render_diagram'
             scene.visual_strategy=strategy;scene.visual_subject=plan.visual_query or plan.template or plan.visual_type
             scene.visual_payload={'plan':plan.model_dump(),'loading':not has_visual};return scene
-        lower=(req.text+' '+answer[:1200]).casefold();tool=getattr(route,'tool',None)
+        lower=req.text.casefold();tool=getattr(route,'tool',None)
         icon,title=None,None
         if tool=='memory':icon,title='◷','Память разговора'
         elif tool=='calculator':icon,title='=','Результат'
@@ -115,8 +142,8 @@ class VisualResponseComposer:
         elif re.search(r'праздник|выходной',lower):icon,title='✦','Календарь'
         elif re.search(r'анекдот|шутк',lower):scene.visual_payload={'mood':'smile','decorative':True};return scene
         elif re.search(r'\bпопуга\w*',req.text,re.I):icon,title='🦜','Попугаи'
-        elif re.search(r'пингвин',answer,re.I):icon,title='🐧','Пингвины'
-        elif re.search(r'\b(?:растени\w*|цвет(?:ок|ка|ки|ков|ами|ах|ку|ком|ке)|дерев\w*)\b',answer,re.I):icon,title='❧','Растения'
+        elif re.search(r'пингвин',lower,re.I):icon,title='🐧','Пингвины'
+        elif re.search(r'\b(?:растени\w*|цвет(?:ок|ка|ки|ков|ами|ах|ку|ком|ке)|дерев\w*)\b',lower,re.I):icon,title='❧','Растения'
         elif re.search(r'географ|страна|бразили|столиц|находится',lower):icon,title='◎','География'
         elif re.search(r'истори|древн',lower):icon,title='◴','История'
         elif re.search(r'техническ|архитектур|программ',lower):icon,title='⚙','Объяснение'

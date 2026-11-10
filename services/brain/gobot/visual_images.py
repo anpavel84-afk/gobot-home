@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=3
-FETCH_POLICY_VERSION=9
+FETCH_POLICY_VERSION=10
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -152,11 +152,28 @@ class CommonsImages:
         """
         language='ru' if re.search('[а-яё]',query,re.I) else 'en'
         endpoint='https://'+language+'.wikipedia.org/w/api.php'
-        data,_=await self.client.get(endpoint,api=True,params={'action':'query','format':'json','generator':'search',
-            'gsrsearch':canonical_subject(query)[:180],'gsrnamespace':0,'gsrlimit':3,'prop':'pageimages|pageprops',
+        # Resolve a real article/redirect before lexical search. A canonical
+        # synonym is vouched for by Wikipedia's redirect graph, not our glossary.
+        data,_=await self.client.get(endpoint,api=True,params={'action':'query','format':'json',
+            'titles':canonical_subject(query)[:180],'redirects':1,'prop':'pageimages|pageprops',
             'piprop':'name','ppprop':'disambiguation'})
-        try:pages=json.loads(data).get('query',{}).get('pages',{})
+        try:
+            resolved=json.loads(data).get('query',{})
+            pages=resolved.get('pages',{})
         except ValueError:raise ImageUnavailable('invalid_entity_metadata') from None
+        from .image_query import normal
+        aliases={normal(canonical_subject(query))}
+        for edge in [*resolved.get('normalized',[]),*resolved.get('redirects',[])]:
+            if normal(edge.get('from','')) in aliases:aliases.add(normal(edge.get('to','')))
+        # A direct-title response is only trusted along the explicit alias chain.
+        canonical_titles={p.get('title','') for p in pages.values() if normal(p.get('title','')) in aliases and 'missing' not in p}
+        if not any(p.get('pageimage') for p in pages.values()):
+            data,_=await self.client.get(endpoint,api=True,params={'action':'query','format':'json','generator':'search',
+                'gsrsearch':canonical_subject(query)[:180],'gsrnamespace':0,'gsrlimit':3,'prop':'pageimages|pageprops',
+                'piprop':'name','ppprop':'disambiguation'})
+            try:pages=json.loads(data).get('query',{}).get('pages',{})
+            except ValueError:raise ImageUnavailable('invalid_entity_metadata') from None
+            canonical_titles=set()
         requested=await asyncio.to_thread(entity_words,query)
         for page in sorted(pages.values(),key=lambda p:p.get('index',999)):
             title=page.get('title','');filename=page.get('pageimage','')
@@ -165,14 +182,15 @@ class CommonsImages:
             culinary={'салат','блюдо','суп','десерт','кушанье'}
             dish_match=('блюдо' in requested and bool(named&culinary)
                         and bool(named-culinary) and named-culinary<=requested-{'блюдо'})
-            if not dish_match and (not named or not named<=requested or (named!=requested and len(named)<2)):continue
+            alias_match=title in canonical_titles
+            if not alias_match and not dish_match and (not named or not named<=requested or (named!=requested and len(named)<2)):continue
             metadata,_=await self.client.get(API,api=True,params={'action':'query','format':'json','titles':'File:'+filename,
                 'prop':'imageinfo','iiprop':'url|extmetadata|size|mime','iiurlwidth':960,'iiextmetadatafilter':'Artist|LicenseShortName|LicenseUrl|ImageDescription'})
             candidates=self.candidates(metadata,limit)
             if candidates:
                 return [replace(item,matched_query=query,entity_title=title,
                     entity_source='https://'+language+'.wikipedia.org/wiki/'+quote(title.replace(' ','_')),
-                    entity_exact=named==requested) for item in candidates]
+                    entity_exact=alias_match or named==requested) for item in candidates]
         return []
 
     @staticmethod

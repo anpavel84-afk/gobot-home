@@ -1,0 +1,422 @@
+{
+  "kind": "synthetic_local_noun_phrase_decisions_not_real_image_accuracy",
+  "cases": 40,
+  "new_llm_calls": 0,
+  "results": [],
+  "before": {
+    "correct": 23,
+    "percent": 57.5,
+    "p50_ms": 0.213,
+    "p95_ms": 0.544,
+    "details": [
+      {
+        "question": "Что такое чёрная дыра?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Что такое солнечная система?",
+        "subject": "солнечная система",
+        "correct": true
+      },
+      {
+        "question": "Как устроена нервная система человека?",
+        "subject": "нервная система",
+        "correct": false
+      },
+      {
+        "question": "Как приготовить греческий салат?",
+        "subject": "греческий салат",
+        "correct": true
+      },
+      {
+        "question": "Что такое бычье сердце?",
+        "subject": "бычье сердце",
+        "correct": true
+      },
+      {
+        "question": "Что такое машинное обучение?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Что такое северное сияние?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Расскажи про коралловые рифы",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Как работает электрический двигатель?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Как устроен двигатель внутреннего сгорания?",
+        "subject": "внутреннее сгорание",
+        "correct": false
+      },
+      {
+        "question": "Что такое квантовая запутанность?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Расскажи про голубого кита",
+        "subject": "голубой кит",
+        "correct": true
+      },
+      {
+        "question": "Что такое полярная ночь?",
+        "subject": "полярная ночь",
+        "correct": true
+      },
+      {
+        "question": "Расскажи о тихом океане",
+        "subject": "тихий океан",
+        "correct": true
+      },
+      {
+        "question": "Как образуется водяной пар?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Что такое шаровая молния?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Как работает тепловой насос?",
+        "subject": "тепловой насос",
+        "correct": true
+      },
+      {
+        "question": "Что такое магнитное поле?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Где находится Бразилия?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Как растет сахарный тростник?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Расскажи про кольца Сатурна",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Как устроена эндокринная система?",
+        "subject": "эндокринная система",
+        "correct": true
+      },
+      {
+        "question": "Сколько весит слон?",
+        "subject": "слон",
+        "correct": true
+      },
+      {
+        "question": "Где живут белые медведи?",
+        "subject": "белый медведь",
+        "correct": true
+      },
+      {
+        "question": "Сколько лет живут курицы?",
+        "subject": "курица",
+        "correct": true
+      },
+      {
+        "question": "Как устроен телескоп?",
+        "subject": "телескоп",
+        "correct": true
+      },
+      {
+        "question": "Как приготовить оливье?",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи про оранжевых попугаев",
+        "subject": "Попугаеобразные",
+        "correct": true
+      },
+      {
+        "question": "В Бразилии растут грибы-лисички?",
+        "subject": "Лисичка (род грибов)",
+        "correct": true
+      },
+      {
+        "question": "Покажи Raspberry Pi",
+        "subject": "Raspberry Pi",
+        "correct": true
+      },
+      {
+        "question": "Привет, ГоБот!",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Спасибо!",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи ещё что-нибудь",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи про мою теплицу",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Покажи пароль аккаунта",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи о моих пауках",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Что такое глубокое обучение?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Что такое каменный уголь?",
+        "subject": null,
+        "correct": false
+      },
+      {
+        "question": "Расскажи о красном карлике",
+        "subject": "красный карлик",
+        "correct": true
+      },
+      {
+        "question": "Как устроена печатная плата?",
+        "subject": null,
+        "correct": false
+      }
+    ]
+  },
+  "after": {
+    "correct": 40,
+    "percent": 100.0,
+    "p50_ms": 0.289,
+    "p95_ms": 0.646,
+    "details": [
+      {
+        "question": "Что такое чёрная дыра?",
+        "subject": "черная дыра",
+        "correct": true
+      },
+      {
+        "question": "Что такое солнечная система?",
+        "subject": "солнечная система",
+        "correct": true
+      },
+      {
+        "question": "Как устроена нервная система человека?",
+        "subject": "нервная система человека",
+        "correct": true
+      },
+      {
+        "question": "Как приготовить греческий салат?",
+        "subject": "греческий салат",
+        "correct": true
+      },
+      {
+        "question": "Что такое бычье сердце?",
+        "subject": "бычье сердце",
+        "correct": true
+      },
+      {
+        "question": "Что такое машинное обучение?",
+        "subject": "машинное обучение",
+        "correct": true
+      },
+      {
+        "question": "Что такое северное сияние?",
+        "subject": "северное сияние",
+        "correct": true
+      },
+      {
+        "question": "Расскажи про коралловые рифы",
+        "subject": "коралловый риф",
+        "correct": true
+      },
+      {
+        "question": "Как работает электрический двигатель?",
+        "subject": "электрический двигатель",
+        "correct": true
+      },
+      {
+        "question": "Как устроен двигатель внутреннего сгорания?",
+        "subject": "двигатель внутреннего сгорания",
+        "correct": true
+      },
+      {
+        "question": "Что такое квантовая запутанность?",
+        "subject": "квантовая запутанность",
+        "correct": true
+      },
+      {
+        "question": "Расскажи про голубого кита",
+        "subject": "голубой кит",
+        "correct": true
+      },
+      {
+        "question": "Что такое полярная ночь?",
+        "subject": "полярная ночь",
+        "correct": true
+      },
+      {
+        "question": "Расскажи о тихом океане",
+        "subject": "тихий океан",
+        "correct": true
+      },
+      {
+        "question": "Как образуется водяной пар?",
+        "subject": "водяной пар",
+        "correct": true
+      },
+      {
+        "question": "Что такое шаровая молния?",
+        "subject": "шаровая молния",
+        "correct": true
+      },
+      {
+        "question": "Как работает тепловой насос?",
+        "subject": "тепловой насос",
+        "correct": true
+      },
+      {
+        "question": "Что такое магнитное поле?",
+        "subject": "магнитное поле",
+        "correct": true
+      },
+      {
+        "question": "Где находится Бразилия?",
+        "subject": "бразилия",
+        "correct": true
+      },
+      {
+        "question": "Как растет сахарный тростник?",
+        "subject": "сахарный тростник",
+        "correct": true
+      },
+      {
+        "question": "Расскажи про кольца Сатурна",
+        "subject": "кольцо сатурна",
+        "correct": true
+      },
+      {
+        "question": "Как устроена эндокринная система?",
+        "subject": "эндокринная система",
+        "correct": true
+      },
+      {
+        "question": "Сколько весит слон?",
+        "subject": "слон",
+        "correct": true
+      },
+      {
+        "question": "Где живут белые медведи?",
+        "subject": "белый медведь",
+        "correct": true
+      },
+      {
+        "question": "Сколько лет живут курицы?",
+        "subject": "курица",
+        "correct": true
+      },
+      {
+        "question": "Как устроен телескоп?",
+        "subject": "телескоп",
+        "correct": true
+      },
+      {
+        "question": "Как приготовить оливье?",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи про оранжевых попугаев",
+        "subject": "Попугаеобразные",
+        "correct": true
+      },
+      {
+        "question": "В Бразилии растут грибы-лисички?",
+        "subject": "Лисичка (род грибов)",
+        "correct": true
+      },
+      {
+        "question": "Покажи Raspberry Pi",
+        "subject": "Raspberry Pi",
+        "correct": true
+      },
+      {
+        "question": "Привет, ГоБот!",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Спасибо!",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи ещё что-нибудь",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи про мою теплицу",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Покажи пароль аккаунта",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Расскажи о моих пауках",
+        "subject": null,
+        "correct": true
+      },
+      {
+        "question": "Что такое глубокое обучение?",
+        "subject": "глубокое обучение",
+        "correct": true
+      },
+      {
+        "question": "Что такое каменный уголь?",
+        "subject": "каменный уголь",
+        "correct": true
+      },
+      {
+        "question": "Расскажи о красном карлике",
+        "subject": "красный карлик",
+        "correct": true
+      },
+      {
+        "question": "Как устроена печатная плата?",
+        "subject": "печатная плата",
+        "correct": true
+      }
+    ]
+  }
+}

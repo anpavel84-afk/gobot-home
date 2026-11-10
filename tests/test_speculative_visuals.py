@@ -92,7 +92,7 @@ def test_unconfirmed_picture_keeps_avatar(settings,monkeypatch,text):
         assert frames==[]
     asyncio.run(run())
 
-def test_failed_search_keeps_avatar(settings,monkeypatch):
+def test_failed_search_keeps_confirmed_subject_card(settings,monkeypatch):
     async def run():
         service=brain.Service(settings)
         async def lookup(req,plan,**kwargs):
@@ -107,7 +107,8 @@ def test_failed_search_keeps_avatar(settings,monkeypatch):
         events=[item async for item in service.events(req)]
         assert not any(e.type=='visual_response' for e in events)
         scene=next(e.data['scene'] for e in events if e.type=='screen_scene' and e.data['phase']=='answer_complete')
-        assert scene['scene_type']=='avatar'
+        assert scene['scene_type']=='icon' and scene['visual_subject']=='эндокринная система человека'
+        assert scene['source_metadata']['fallback_reason']=='image_unavailable_for_confirmed_subject'
         assert events[-1].type=='final'
     asyncio.run(run())
 

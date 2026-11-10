@@ -55,6 +55,12 @@ class AntigravityEvents:
             return []
         if kind=='step_update':
             step=item.get('step_update',{})
+            # Fixed, content-free stages. Do not log raw events, thoughts,
+            # arguments, paths or the provider's hidden prompt.
+            stage=step.get('step_type')
+            if stage in {'thinking','tool_call','agent_response','planning'}:
+                mark('provider_step_'+stage)
+            else:mark('provider_other_step')
             if step.get('step_type')!='agent_response':return []
             delta=step.get('text_delta','')
             if not isinstance(delta,str):return []
@@ -87,8 +93,11 @@ class AntigravityAdapter:
     async def stream(self,text,context,model_id=None):
         from .live_agents import context_prompt
         parser=AntigravityEvents();mark("argv_policy_start")
+        prompt=context_prompt(text,context)
+        from .context_manager import tokens
+        mark('cli_prompt_prepared',context_tokens=tokens(prompt))
         async with native_process(argv(model_id=model_id),WORK,environment()) as process:
-            process.stdin.write(json.dumps({'event':'user','message':{'content':context_prompt(text,context)}},ensure_ascii=False).encode()+b'\n')
+            process.stdin.write(json.dumps({'event':'user','message':{'content':prompt}},ensure_ascii=False).encode()+b'\n')
             await process.stdin.drain();mark("prompt_sent")
             try:
                 async with asyncio.timeout(95):

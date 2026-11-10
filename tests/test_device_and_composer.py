@@ -53,9 +53,9 @@ CASES=[
  ('Сколько лет живут собаки?','Это зависит от породы.','retrieve_photo',None),
  ('Что такое орхидея?','Орхидея — растение.','retrieve_photo',None),
  ('Как устроен томатный куст?','У куста есть корни и стебель.','render_diagram',None),
- ('Где находится Бразилия?','Это страна Южной Америки.','show_emoji_or_icon',None),
- ('Назови столицу Франции','Столица — Париж.','show_emoji_or_icon',None),
- ('Расскажи об истории Рима','Это рассказ о древней истории.','show_emoji_or_icon',None),
+ ('Где находится Бразилия?','Это страна Южной Америки.','retrieve_photo',None),
+ ('Назови столицу Франции','Столица — Париж.','retrieve_photo',None),
+ ('Расскажи об истории Рима','Это рассказ о древней истории.','retrieve_photo',None),
  ('Что такое кратер Луны?','Это углубление.','render_diagram',None),
  ('Какое расстояние до Луны?','Оно меняется.','render_diagram',None),
  ('Что такое солнечное затмение?','Луна между Солнцем и Землёй.','render_diagram',None),
@@ -66,9 +66,9 @@ CASES=[
  ('Что сейчас играет?','Источник не подключён.','render_widget',None),
  ('Сколько будет 127 × 43?','Получается 5461.','render_widget','calculator'),
  ('Что мы вчера обсуждали?','Для истории нужен PIN.','render_widget','memory'),
- ('Сравни технические архитектуры','Это техническое объяснение.','show_emoji_or_icon',None),
- ('Объясни программирование','Программы выполняют инструкции.','show_emoji_or_icon',None),
- ('Расскажи интересное','Пингвины живут в разных местах.','show_emoji_or_icon',None),
+ ('Сравни технические архитектуры','Это техническое объяснение.','retrieve_photo',None),
+ ('Объясни программирование','Программы выполняют инструкции.','retrieve_photo',None),
+ ('Расскажи интересное','Пингвины живут в разных местах.','retrieve_photo',None),
  ('Чем отличается бычье сердце от обычных помидоров?','Сравним форму.','generate_illustration',None),
  ('Покажи Raspberry Pi','Подготовил фото.','retrieve_photo',None),
  ('Как выглядит пончик?','Подготовил фото.','retrieve_photo',None),
@@ -77,7 +77,7 @@ CASES=[
 @pytest.mark.parametrize('query,answer,strategy,tool',CASES)
 def test_thirty_two_synthetic_content_aware_scenes(query,answer,strategy,tool):
     req=ChatRequest(text=query,mode='mock',screen_preferences=ScreenPreferences(style='balanced'));route=SimpleNamespace(tool=tool,quality={})
-    scene=VisualResponseComposer().compose(req,route=route,answer=answer)
+    scene=VisualResponseComposer().compose(req,route=route,answer=answer,has_visual=True)
     assert scene.visual_strategy==strategy and scene.display_text==answer
     assert scene.speech_text is None # Existing Speech Formatter remains the sole default speech renderer.
     assert 'verified' not in scene.source_metadata or not scene.source_metadata['verified']

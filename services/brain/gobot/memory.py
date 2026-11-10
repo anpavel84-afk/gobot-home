@@ -19,8 +19,17 @@ class Memory:
     def __init__(self,path):
         self.path=path; Path(path).parent.mkdir(parents=True,exist_ok=True)
         with self.connect() as c:
-            c.executescript(SCHEMA);c.execute("INSERT OR IGNORE INTO schema_migrations VALUES(1,?)",(time.time(),))
+            from .visual_memory import SCHEMA as VISUAL_SCHEMA
+            if (c.execute("SELECT 1 FROM sqlite_master WHERE name='messages'").fetchone()
+                    and not c.execute("SELECT 1 FROM sqlite_master WHERE name='active_visual_subjects'").fetchone()
+                    and c.execute('SELECT count(*) FROM messages').fetchone()[0]):
+                directory=Path(path).parent/'backups';directory.mkdir(exist_ok=True)
+                with sqlite3.connect(directory/('before-visual-memory-'+str(time.time_ns())+'.sqlite')) as backup:
+                    c.backup(backup)
+                    if backup.execute('PRAGMA integrity_check').fetchone()[0]!='ok':raise RuntimeError('visual_memory_backup_failed')
+            c.executescript(SCHEMA+VISUAL_SCHEMA);c.execute("INSERT OR IGNORE INTO schema_migrations VALUES(1,?)",(time.time(),))
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(3,?)',(time.time(),))
+            c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(6,?)',(time.time(),))
         from .archive import Archive
         self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock()
     @contextmanager
@@ -48,7 +57,7 @@ class Memory:
                         if row['request_hash']!=digest or row['status']=='running':raise Conflict('temporary request conflict or active')
                         return {k:v for k,v in row.items() if k not in {'keys','owner'}}
                 if len(self.transient)>=256:raise Conflict('temporary memory capacity reached')
-                self.transient[req.turn_id]={'owner':req.device_id,'conversation':req.conversation_id,'text':req.text,'keys':keys,'request_hash':digest,'status':'running','result':'','provider':'','updated':now}
+                self.transient[req.turn_id]={'owner':req.device_id,'conversation':req.conversation_id,'epoch':req.profile_epoch,'text':req.text,'keys':keys,'request_hash':digest,'status':'running','result':'','provider':'','updated':now}
                 return
         with self.connect() as c:
             c.execute("BEGIN IMMEDIATE")
@@ -77,7 +86,12 @@ class Memory:
         if not req.remember:
             with self.transient_lock:
                 row=self.transient.get(req.turn_id)
-                if row and row['status']=='running':row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time())
+                if row and row['status']=='running':
+                    from .visual_memory import confirmed
+                    row.update(status=status,result=text,provider=provider,trace=json.dumps(trace),updated=time.time(),visual=confirmed(trace) if status=='completed' else None)
+                    if status!='completed' or req.new_topic:
+                        for other in self.transient.values():
+                            if other is not row and other['owner']==req.device_id and other['conversation']==req.conversation_id:other.pop('visual',None)
             return
         with self.connect() as c:
             c.execute("BEGIN IMMEDIATE")
@@ -94,7 +108,16 @@ class Memory:
             elif text:
                 c.execute("INSERT INTO messages(conversation_id,role,content,provider,turn_id,created) VALUES(?,'assistant',?,?,?,?)",(req.conversation_id,text,provider,req.turn_id,time.time()))
             self.archive.finish(c,req,status,provider)
+            from .visual_memory import finish as finish_visual
+            finish_visual(self,c,req,status,provider,trace)
     def context(self,req):
+        context=self._context(req)
+        from .visual_memory import active
+        if req.remember:context['active_visual_subject']=active(self,req,context)
+        else:
+            with self.transient_lock:context['active_visual_subject']=active(self,req,context)
+        return context
+    def _context(self,req):
         if not req.remember:
             with self.transient_lock:
                 rows=[v for key,v in self.transient.items() if key!=req.turn_id and v['owner']==req.device_id and v['conversation']==req.conversation_id and v['status']=='completed' and time.time()-v['updated']<3600][-6:]
@@ -134,6 +157,14 @@ class Memory:
                 except (ValueError,TypeError,AttributeError):pass
             messages.append(message)
         return {'messages':messages}
+    def clear_visual_turn(self,turn):
+        with self.transient_lock:
+            row=self.transient.get(turn)
+            if row:
+                for other in self.transient.values():
+                    if other['owner']==row['owner'] and other['conversation']==row['conversation']:other.pop('visual',None)
+        with self.connect() as c:
+            c.execute('DELETE FROM active_visual_subjects WHERE conversation_id IN (SELECT conversation_id FROM turns WHERE id=?)',(turn,))
     def status(self,turn):
         with self.connect() as c:
             r=c.execute("SELECT id,status,provider,updated FROM turns WHERE id=?",(turn,)).fetchone();return dict(r) if r else None
