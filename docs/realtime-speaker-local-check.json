@@ -1,0 +1,21 @@
+{
+  "test": "same existing cached synthetic marin clip; one ECAPA worker process",
+  "runs": [
+    {
+      "condition": "cold",
+      "audio_seconds": 3.1,
+      "milliseconds": 2845.02,
+      "embedding_dimensions": 192
+    },
+    {
+      "condition": "warm",
+      "audio_seconds": 3.1,
+      "milliseconds": 69.73,
+      "embedding_dimensions": 192
+    }
+  ],
+  "new_api_calls": 0,
+  "voice_enrollment_saved": false,
+  "real_household_voice_accuracy_verified": false,
+  "samples_per_condition": 1
+}

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from .device_contract import ScreenPreferences
 
 ID = r"^[A-Za-z0-9_.:-]{1,100}$"
-ExecutorModel=Literal['gemini-3.8-flash-low','gemini-3.8-flash-medium','gemini-4-argon-medium','gpt-6.1-sol']
+ExecutorModel=Literal['gemini-3.8-flash-low','gemini-3.8-flash-medium','gemini-4-argon-medium','gpt-6.1-sol','gpt-6-astra']
 def uid(): return str(uuid4())
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")

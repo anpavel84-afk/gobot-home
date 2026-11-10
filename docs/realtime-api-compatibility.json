@@ -1,0 +1,14 @@
+{
+  "model": "gpt-realtime-2.1-mini",
+  "key_configured": true,
+  "model_metadata_status": 200,
+  "native_call_verified": false,
+  "sdk": "not installed; fixed REST and websockets transport",
+  "model_generation_requests": 0,
+  "exact_model_advertised": true,
+  "libraries": {
+    "httpx": "0.28.1",
+    "websockets": "16.0",
+    "fastapi": "0.136.3"
+  }
+}

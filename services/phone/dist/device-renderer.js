@@ -95,6 +95,9 @@
         const seconds=Math.max(0,Math.ceil(frame.metadata.deadline-Date.now()/1000)),hours=Math.floor(seconds/3600);
         const digits=hours?`${hours}:${String(Math.floor(seconds/60)%60).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
         this.text('Таймер',120,77,15);this.text(digits,120,135,hours?30:43,175,p.skin.face_color);this.text(seconds?'Идёт отсчёт':'Время вышло',120,174,12);
+      }else if(frame?.type==='weather_card'&&frame.metadata?.state==='ready'&&Number.isFinite(Number(frame.metadata?.facts?.temperature))){
+        this.text('Погода',120,62,14,145);this.text(frame.metadata.facts.temperature+' °C',120,116,36,170,p.skin.face_color);
+        this.text(frame.subtitle,120,155,12,160);this.text('Open-Meteo',120,181,11,145);
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
       else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
         if(this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}

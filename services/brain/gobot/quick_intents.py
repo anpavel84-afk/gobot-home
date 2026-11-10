@@ -25,6 +25,9 @@ def normalize(text):
 def resolve_quick(text,context=None):
     if len(text)>200:return None
     value=normalize(text)
+    from .settings_tools import settings_intent
+    setting=settings_intent(value,context)
+    if setting:return QuickIntent('settings','settings',setting)
     # A polite refusal followed by an explicit new question is not a session end.
     value=re.sub(r'^нет[, ]+спасибо[, ]+(?:а\s+)?','',value)
     pending=(context or {}).get('pending_action')

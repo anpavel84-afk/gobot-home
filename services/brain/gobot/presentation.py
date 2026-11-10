@@ -22,7 +22,7 @@ class VisualSource(Strict):
         if self.url:
             from urllib.parse import urlsplit
             u=urlsplit(self.url)
-            if u.scheme!='https' or u.hostname not in {'commons.wikimedia.org','creativecommons.org','openverse.org','www.openverse.org','api.openverse.org','flickr.com','www.flickr.com'} or u.username or u.password or u.port not in {None,443}:raise ValueError('Untrusted source link')
+            if u.scheme!='https' or u.hostname not in {'commons.wikimedia.org','creativecommons.org','openverse.org','www.openverse.org','api.openverse.org','flickr.com','www.flickr.com','open-meteo.com'} or u.username or u.password or u.port not in {None,443}:raise ValueError('Untrusted source link')
         return self
 
 class VisualImage(Strict):

@@ -2,11 +2,131 @@
   "schema_version": 1,
   "quality_evaluation": "No real comparative model-quality evaluation has been performed",
   "models": [
-    {"provider":"antigravity","model":"gemini-3.8-flash-low","capabilities":["text","structured_cli_stream"],"average_latency_ms":null,"usage_kind":"cli_subscription","tested_task_categories":[],"quality_proven":false,"availability":"advertised_by_authenticated_agy","restrictions":["provisional_fast_dialogue","mandatory_source_checks_are_gated"],"known_limitations":["CLI harness overhead","no external tools","no quality benchmark yet"]},
-    {"provider":"antigravity","model":"gemini-3.8-flash-medium","capabilities":["text","reasoning","structured_cli_stream"],"average_latency_ms":null,"usage_kind":"cli_subscription","tested_task_categories":[],"quality_proven":false,"availability":"advertised_by_authenticated_agy","restrictions":["reasoning","mandatory_source_checks_are_gated"],"known_limitations":["No real correctness benchmark yet"]},
-    {"provider":"antigravity","model":"gemini-4-argon-medium","capabilities":["text","reasoning","structured_cli_stream"],"average_latency_ms":null,"usage_kind":"cli_subscription","tested_task_categories":[],"quality_proven":false,"availability":"owner_browser_response_verified","restrictions":["explicit_selection_only"],"known_limitations":["Tools denied","One successful response does not prove factual quality"]},
-    {"provider":"codex","model":"gpt-6.1-sol","capabilities":["text","app_server_stream"],"average_latency_ms":null,"usage_kind":"cli_subscription","tested_task_categories":[],"quality_proven":false,"availability":"minimal_real_response_verified","restrictions":["explicit_selection_only","file_actions_require_separate_permission"],"known_limitations":["Tools absent","No factual-quality benchmark yet"]}
+    {
+      "provider": "antigravity",
+      "model": "gemini-3.8-flash-low",
+      "capabilities": [
+        "text",
+        "structured_cli_stream"
+      ],
+      "average_latency_ms": null,
+      "usage_kind": "cli_subscription",
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "advertised_by_authenticated_agy",
+      "restrictions": [
+        "provisional_fast_dialogue",
+        "mandatory_source_checks_are_gated"
+      ],
+      "known_limitations": [
+        "CLI harness overhead",
+        "no external tools",
+        "no quality benchmark yet"
+      ]
+    },
+    {
+      "provider": "antigravity",
+      "model": "gemini-3.8-flash-medium",
+      "capabilities": [
+        "text",
+        "reasoning",
+        "structured_cli_stream"
+      ],
+      "average_latency_ms": null,
+      "usage_kind": "cli_subscription",
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "advertised_by_authenticated_agy",
+      "restrictions": [
+        "reasoning",
+        "mandatory_source_checks_are_gated"
+      ],
+      "known_limitations": [
+        "No real correctness benchmark yet"
+      ]
+    },
+    {
+      "provider": "antigravity",
+      "model": "gemini-4-argon-medium",
+      "capabilities": [
+        "text",
+        "reasoning",
+        "structured_cli_stream"
+      ],
+      "average_latency_ms": null,
+      "usage_kind": "cli_subscription",
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "owner_browser_response_verified",
+      "restrictions": [
+        "explicit_selection_only"
+      ],
+      "known_limitations": [
+        "Tools denied",
+        "One successful response does not prove factual quality"
+      ]
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "capabilities": [
+        "text",
+        "app_server_stream"
+      ],
+      "average_latency_ms": null,
+      "usage_kind": "cli_subscription",
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "minimal_real_response_verified",
+      "restrictions": [
+        "explicit_selection_only",
+        "file_actions_require_separate_permission"
+      ],
+      "known_limitations": [
+        "Tools absent",
+        "No factual-quality benchmark yet"
+      ]
+    },
+    {
+      "provider": "codex",
+      "model": "gpt-6-astra",
+      "capabilities": [
+        "text",
+        "app_server_stream",
+        "reasoning"
+      ],
+      "average_latency_ms": null,
+      "usage_kind": "cli_subscription",
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "model_list_metadata_confirmed",
+      "restrictions": [
+        "explicit_selection_only",
+        "confirmed_expert_profile_required"
+      ],
+      "known_limitations": [
+        "high effort is a separate parameter",
+        "No real expert trial in this migration"
+      ]
+    }
   ],
   "lite_approved_categories": [],
-  "lite_available_through_configured_providers": false
+  "lite_available_through_configured_providers": false,
+  "expert_profiles": {
+    "ARGON_DEEP": {
+      "provider": "antigravity",
+      "model": "gemini-4-argon-medium",
+      "effort": "medium"
+    },
+    "ASTRA_HIGH": {
+      "provider": "codex",
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    "SOL_XHIGH": {
+      "provider": "codex",
+      "model": "gpt-6.1-sol",
+      "effort": "xhigh"
+    }
+  }
 }

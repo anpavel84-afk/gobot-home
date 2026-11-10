@@ -54,6 +54,28 @@ class ConversationPolicy(Strict):
     min_speech_ms:int=Field(default=300,ge=200,le=1000)
     echo_guard_ms:int=Field(default=350,ge=200,le=1500)
 
+class WeatherPreferences(Strict):
+    enabled:bool=False
+    location_name:str=Field(default='',max_length=160)
+    latitude:float|None=Field(default=None,ge=-90,le=90,allow_inf_nan=False)
+    longitude:float|None=Field(default=None,ge=-180,le=180,allow_inf_nan=False)
+    provider:Literal['open_meteo']='open_meteo'
+    @model_validator(mode='after')
+    def configured(self):
+        if self.enabled and (not self.location_name or self.latitude is None or self.longitude is None):raise ValueError('Weather needs a confirmed location')
+        return self
+
+class VoicePreferences(Strict):
+    engine:Literal['legacy','realtime']='legacy'
+    realtime_consent:bool=False
+    personalization_mode:Literal['guest','confirmed_profile']='guest'
+    speaker_identity_enabled:bool=True
+    # None preserves existing client choices until explicitly set.
+    voice:Literal['marin','cedar','alloy','ash','ballad','coral','echo','sage','shimmer','verse']|None=None
+    volume:float|None=Field(default=None,ge=0,le=1,allow_inf_nan=False)
+    speak:bool|None=None
+    mode:Literal['auto','fast','reasoning','codex','google']|None=None
+
 class DeviceProfile(Strict):
     version:Literal[1]=1
     client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^browser-device-[a-f0-9-]{36}$')
@@ -63,6 +85,8 @@ class DeviceProfile(Strict):
     screen:ScreenPreferences=Field(default_factory=ScreenPreferences)
     feedback:FeedbackPreferences=Field(default_factory=FeedbackPreferences)
     conversation:ConversationPolicy=Field(default_factory=ConversationPolicy)
+    weather:WeatherPreferences=Field(default_factory=WeatherPreferences)
+    voice:VoicePreferences=Field(default_factory=VoicePreferences)
     interaction_mode:Literal['hold','toggle','wake']='hold'
     keep_screen_awake:bool=False
     has_screensaver:bool=False
@@ -70,7 +94,7 @@ class DeviceProfile(Strict):
     def capabilities(self):
         return {'client_id':self.client_id,'kind':'browser_device','physical_device_connected':False,
                 'display':self.display.model_dump(),'ui_version':2,'input':['push_to_talk','tap_to_toggle'],
-                'audio':['browser_capture','server_stt','server_tts'],'wake_word':'not_configured',
+                'audio':['browser_capture','server_stt','server_tts','realtime_webrtc_candidate'],'wake_word':'not_configured',
                 'states':['idle','listening','recognizing','thinking','speaking','error','muted','offline'],
                 'face_primitives':['ellipse','line','arc'],'skin':self.skin.model_dump(),
                 'animation':{'speaking_input':'actual_local_playback_rms','phoneme_sync':False,'blink_period_ms':11938,'listening_pulse_period_ms':1571},

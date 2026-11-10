@@ -30,8 +30,10 @@ async def fast_stream(settings,req,context):
                 delta=(obj.get('choices') or [{}])[0].get('delta',{}).get('content')
                 if isinstance(delta,str):yield delta
 
-async def bridge_stream(settings,req,context):
-    body=canonical({'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id,'usage_consent':req.usage_consent,'model_id':req.model_id,'trace_id':req.trace_id or req.utterance_id or req.turn_id})
+async def bridge_stream(settings,req,context,*,expert_profile=None):
+    task={'text':req.text,'provider':req.provider,'context':context,'turn_id':req.turn_id,'usage_consent':req.usage_consent,'model_id':req.model_id,'trace_id':req.trace_id or req.utterance_id or req.turn_id}
+    if expert_profile:task['expert_profile']=expert_profile
+    body=canonical(task)
     headers=signed_request(settings.bridge_secret,body);seq=0
     async with httpx.AsyncClient(timeout=httpx.Timeout(settings.timeout,connect=2),trust_env=False) as client:
         async with client.stream('POST',settings.bridge_url+'/v1/stream',content=body,headers={**headers,'Content-Type':'application/json'}) as response:

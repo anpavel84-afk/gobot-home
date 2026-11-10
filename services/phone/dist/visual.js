@@ -5,7 +5,7 @@
   const imagePath=/^\/api\/visual\/assets\/[a-f0-9]{64}\/(browser|preview|device)\.jpg$/;
   const icons={image_card:'↗',image_gallery:'▧',info_card:'✦',timer_widget:'◷',weather_card:'☁',status_card:'◉',music_card:'♫',rich_answer:'◇'};
   const node=(tag,text,className)=>{const value=document.createElement(tag);if(text!==undefined)value.textContent=String(text);if(className)value.className=className;return value;};
-  function sourceURL(value){try{const url=new URL(value);return url.protocol==='https:'&&['commons.wikimedia.org','creativecommons.org','openverse.org','www.openverse.org','api.openverse.org','flickr.com','www.flickr.com'].includes(url.hostname)&&!url.username&&!url.password&&!url.port?url.href:null;}catch(_){return null;}}
+  function sourceURL(value){try{const url=new URL(value);return url.protocol==='https:'&&['commons.wikimedia.org','creativecommons.org','openverse.org','www.openverse.org','api.openverse.org','flickr.com','www.flickr.com','open-meteo.com'].includes(url.hostname)&&!url.username&&!url.password&&!url.port?url.href:null;}catch(_){return null;}}
   class BrowserVisualRenderer {
     constructor(root,timerRoot=null){this.root=root;this.timerRoot=timerRoot||root;this.intervals=new Set();this.frames=new Map();this.timerCards=new Map();this.currentTimer=null;}
     begin(){if(this.timerRoot===this.root){for(const timer of this.intervals)clearInterval(timer);this.intervals.clear();this.timerCards.clear();this.currentTimer=null;}this.frames.clear();this.root.replaceChildren();this.root.hidden=true;}

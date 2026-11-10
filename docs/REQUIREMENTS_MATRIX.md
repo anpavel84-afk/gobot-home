@@ -1,6 +1,6 @@
-# Матрица фактического состояния — v0.2
+# Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
-Источник требований: [GOBOT_HOME_TARGET_SYSTEM.md](GOBOT_HOME_TARGET_SYSTEM.md), commit `96e0f3d`.
+Источник требований: [GOBOT_HOME_TARGET_SYSTEM.md](GOBOT_HOME_TARGET_SYSTEM.md), v0.2 `96e0f3d` и новые решения владельца §36–40.
 До синхронизации: чистая master `bd487ff`; после docs-only fast-forward `96e0f3d`.
 Это evidence, не новая спецификация. Обновление стабилизации 10 ноября: baseline 2f0eefc; прежние строки без новых проверок не считаются повторно принятыми.
 Пути к Python-модулям ниже относительно services/brain/gobot; tests — относительно tests/.
@@ -8,10 +8,10 @@
 | ID | Требование | Фактический статус | Код | Проверка | Пробел |
 |---|---|---|---|---|---|
 | R-001 | Единый Brain для браузера и ESP32 | частично | brain.py Service / voice_mock.py | test_security_ui_protocol.py | ESP32/upstream только fixtures |
-| R-002 | Только Antigravity/Codex для текущих LLM-маршрутов | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
+| R-002 | Заменено §36: Realtime Mini — целевой обычный разговор; CLI — legacy и подтверждаемые эксперты | native candidate fixtures + model metadata HTTP 200; default legacy до приёмки | realtime.py / realtime_provider.py / expert_jobs.py / routing.py | test_realtime_native.py / test_realtime_experts.py | Реальные native audio/iPhone и допуск default не проверены |
 | R-003 | Gemini CLI/API не используются | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
-| R-004 | OpenAI STT основной, Whisper только вручную | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
-| R-005 | OpenAI TTS основной, локальный голос только явно | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
+| R-004 | Native Realtime input; OpenAI STT основной в legacy, Whisper только вручную | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
+| R-005 | Native Realtime output; OpenAI TTS основной в legacy, локальный голос только явно | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
 | R-006 | Отдельные согласия на расходы и доступ | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
 | R-007 | Админка отделена от режима устройства | fixture, HTTP проверка | device.js DeviceApp / device-renderer.js / device_store.py | test_device_and_composer.py / device-e2e.json | Реальная читаемость/касание Safari не приняты |
 | R-008 | Круглый логический дисплей и safe area | fixture, HTTP проверка | device.js DeviceApp / device-renderer.js / device_store.py | test_device_and_composer.py / device-e2e.json | Реальная читаемость/касание Safari не приняты |
@@ -131,3 +131,22 @@ ACP выключен и fail-closed; новая скорость inference не 
 
 Фактические результаты и лимиты — [CURRENT_STATUS.md](CURRENT_STATUS.md), раздел 14.
 Незавершённые голосовые настройки сохранены в рабочем дереве и в этот этап не включены.
+
+
+## Новые дополнения владельца §36–40: Realtime, Identity, Speech и A/B
+
+| Область / критерии | Реализация и проверки | Фактический статус / блокер |
+| --- | --- | --- |
+| R-001/002/004/005/071, native ordinary path | realtime_contract/provider/api.py, realtime.js; test_realtime_native.py, test_realtime_browser.py | Protocol/component fixtures; exact model metadata HTTP200. Нет live native audio/iPhone, default legacy |
+| Нативные consent/budget/cleanup/usage | realtime_budget.py; persistent cancellation/call ledger, one owner; native tests | Free fixtures; новый paid бюджет отсутствует, dollar hard cap не обещается |
+| Expert proposal/actual effort/one call/cancel | expert_profiles/jobs.py, Bridge; test_realtime_experts.py | Metadata model/list, offline Codex tools=[]; реальные эксперты и faithful voice пересказ не приняты |
+| Visual native parallel/old turn rejection | прежние Composer/SpeculativePhoto + native transcript events | Реальная native задержка показа относительно голоса не измерена; source/fact gate ещё blocker |
+| FI-02/03/04/06/08/11, память без биометрических полномочий | family_access.py, existing Family/Memory; native and family preference tests | Native guest RAM-only, PIN/false match не загружают private archive. FI-01 private retrieval ещё закрыт |
+| FI-05/12, speaker смена и поздние результаты | realtime_speaker.py, nonce/revision, expert job ownership | Mock segment/job tests; реальные смены людей/iPhone не приняты |
+| SpeakerIdentity WebRTC | existing ECAPA + local PCM16 mirror; test_realtime_speaker.py, realtime-speaker-local-check.json | Модель реально запускается, 192 components. 0 семейных профилей и нет calibration, точность неизвестна |
+| Family personality/voice/CAS/privacy | family_preferences.py, existing family API/UI; test_family_preferences.py | Хранение/ручной PIN UX/reset/delete проверены fixtures. Auto voice rotation и parental edit grant не готовы |
+| Russian Speech Quality | realtime_russian.py, 100 curated examples; test_realtime_russian.py | 90 deterministic cases + prompt/schema checks. 10 stress cases ждут реального звука; acoustic claim=false |
+| Рабочая legacy версия и A/B | private source/SQLite/config/audio backup; demo2.py; test_demo2.py | Backup создан до restart, Formatter/audio совпадают с a71; A/B разделяют общий Brain |
+
+Исторические строки выше остаются evidence соответствующего этапа; они не доказывают
+приёмку новых native путей. Актуальный runtime и итог полного набора — CURRENT_STATUS.md.

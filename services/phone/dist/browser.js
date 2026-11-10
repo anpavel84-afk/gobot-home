@@ -8,6 +8,27 @@ let lastSpeakerJob=null,transcriptPending=false;
 let outputAnalyser=null,transcriptionAbort=null;
 let requestTrace=null,earconBuffer=null,feedbackGain=null;const feedbackSources=new Set();
 const openingDecoded=new Map();let openingFetchAbort=null;
+let serverSettingsReady=Promise.resolve();
+function applyServerProfile(profile){
+  if(!profile)return;
+  for(const [key,value] of Object.entries(profile.voice||{})){
+    if(value===null||value===undefined)continue;
+    const node=$(key==='mode'?'model':key==='engine'?'conversation-engine':key==='realtime_consent'?'realtime-consent':key);
+    if(!node)continue;
+    if(key==='engine'&&document.body.dataset.conversationEngine){node.value=document.body.dataset.conversationEngine;continue;}
+    if(key==='realtime_consent'){node.checked=value;continue;}
+    if(key==='speak')node.checked=value;
+    else {if(key==='voice'&&!Array.from(node.options).some(o=>o.value===value)){const option=document.createElement('option');option.value=option.textContent=value;node.append(option);}node.value=String(value);}
+  }
+  if(gain)gain.gain.value=Number($('volume').value);
+  if(profile.feedback)feedback?.configure(profile.feedback);
+  window.GoBotClient?.saveSettings();window.GoBotHooks?.onSettingsApplied?.(profile);
+}
+async function refreshServerSettings(){
+  const expected=epoch,abort=new AbortController(),timer=setTimeout(()=>abort.abort(),3000);
+  try{const response=await fetch('/api/device/profile',{signal:abort.signal});if(response.ok){const data=await response.json();if(epoch===expected)applyServerProfile(data.profile);}}catch(_){}
+  finally{clearTimeout(timer);}
+}
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
@@ -167,6 +188,7 @@ async function play(data, runEpoch) {
   nextAt += buffer.duration;
 }
 function stop(preserveWaiting=false) {
+  if(preserveWaiting!==true&&window.GoBotRealtime?.id)void window.GoBotRealtime.close().catch(()=>{});
   if(preserveWaiting!==true){feedback?.cancel();if(requestTrace&&!requestTrace.complete){requestTrace.mark("cancelled");requestTrace.flush();}}
   if (active) active.abort(); active = null; clearAudio();
   transcriptionAbort?.abort();transcriptionAbort=null;window.GoBotHooks?.onStopped?.();
@@ -174,7 +196,9 @@ function stop(preserveWaiting=false) {
   $('send').disabled = false; $('orb').classList.remove('busy'); $('result-badge').textContent = 'Остановлено';
 }
 async function send(options={}) {
+  if(window.GoBotRealtime?.selected()){try{return await window.GoBotRealtime.sendText($('question').value);}catch(e){$('voice-status').textContent=e.message;return;}}
   if(transcriptPending)return;
+  await serverSettingsReady;
   const text = $('question').value.trim(); if (!text) return;
   stop(true);if(!requestTrace||requestTrace.complete){requestTrace=window.GoBotTiming?new window.GoBotTiming.TurnTrace(uuid()).inputClosed():null;}requestTrace?.mark("chat_submit");visuals?.begin();$('timer').hidden=true; const runEpoch = epoch;
   const controller = new AbortController(); active = controller;
@@ -207,6 +231,7 @@ async function send(options={}) {
         else if (item.type === 'tool_status') {
           if(['conversation_ended','pending_declined','output_stopped'].includes(data.status)){feedback?.cancel();$('voice-status').textContent=data.status==='conversation_ended'?'Разговор завершён.':data.status==='pending_declined'?'Действие отменено.':'Остановлено.';}
           if(data.status==='speech_opening_ready')void offerOpening(data.opening,turnTrace,runEpoch);
+          if(data.status==='settings_applied')applyServerProfile(data.profile);
           if(data.status==='loading_visual')visuals?.loading();
           if(data.status==='preparing_visual_attachment')visuals?.loading();
           if(data.presentation_plan)$('route-statistics').textContent='Визуальный план: '+data.presentation_plan.visual_strategy+' · '+data.presentation_plan.visual_priority+' · '+data.presentation_plan.reason;
@@ -261,6 +286,7 @@ async function showSpeaker(job,initial){
   }
 }
 async function startRecording({followup=false}={}) {
+  if(window.GoBotRealtime?.selected())return window.GoBotRealtime.pttStart();
   if (recording || micPending) return; micPending = true;
   window.GoBotHooks?.onCapturePending?.();
   $('record').textContent='Запрашиваем микрофон…';$('mic-status').textContent='Запрашиваем доступ к микрофону…';
@@ -329,12 +355,12 @@ async function startRecording({followup=false}={}) {
   }
   finally { micPending = false; }
 }
-function endRecording() { recording?.stop();$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording'); }
+function endRecording() { if(window.GoBotRealtime?.selected()){void window.GoBotRealtime.pttEnd().catch(e=>$('mic-status').textContent=e.message);return;}recording?.stop();$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording'); }
 let held = false;
 $('hold').onpointerdown = async event => { event.preventDefault(); held = true;try{$('hold').setPointerCapture?.(event.pointerId);}catch(_){} await startRecording(); if (!held) endRecording(); };
 $('hold').onpointerup = $('hold').onpointercancel = event => { event.preventDefault(); held = false; endRecording(); };
 $('hold').oncontextmenu = event => event.preventDefault();
-$('record').onclick = () => recording ? endRecording() : startRecording();
+$('record').onclick = () => recording||window.GoBotRealtime?.recording ? endRecording() : startRecording();
 $('send').onclick = send; $('stop').onclick = stop;
 $('volume').oninput = () => { if (gain) gain.gain.value = Number($('volume').value);if(Number($('volume').value)<=0)feedback?.cancel(); };
 $('speak').onchange = () => { if (!$('speak').checked) stop(); };
@@ -410,14 +436,32 @@ $('rename-topic').onclick=()=>{if(currentTopic&&$('topic-name').value.trim())cha
 $('forget-conversation').onclick=()=>{if(window.confirm('Удалить сообщения и производные данные этого разговора из рабочей базы GoBot?'))changeMemory('forget_conversation',conversation);};
 window.addEventListener('storage', event=>{if(event.key==='gobot.conversation'){stop();recording?.cancel();recording=null;liveSocket?.close();$('answer').textContent='';$('history').replaceChildren();conversation=localStorage.getItem('gobot.conversation')||uuid();window.GoBotHooks?.onScopeChanged?.();}});
 window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSocket?.close(); });
-window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,unlockAudio,startRecording,endRecording,explain,
+window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,unlockAudio,startRecording,endRecording,explain,applyServerProfile,refreshServerSettings,
+  conversationId:()=>conversation,
+  applyNativeEvent(item){
+    const data=item.data||{};
+    if(item.type==='turn_started'){currentTurn=item.turn_id;$('answer').textContent='';visuals?.begin();}
+    if(item.type==='text_delta'){$('answer').textContent+=data.text;visuals?.syncDisplay($('answer').textContent);}
+    if(item.type==='input_transcript')$('question').value=data.text;
+    if(item.type==='turn_complete')window.GoBotHooks?.onStreamEnd?.({turn_id:item.turn_id});
+    if(item.type==='visual_response')visuals?.render(data.presentation);
+    if(item.type==='ready'){$('route-meta').textContent='OpenAI Realtime · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent='Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
+    if(item.type==='tool_status'&&data.status==='settings_applied')applyServerProfile(data.profile);
+    window.GoBotHooks?.onEvent?.(item);
+  },
   cancelRecording(){recording?.cancel();recording=null;liveSocket?.close();transcriptPending=false;stop();},
-  isRecording:()=>!!recording||micPending,
-  audioSnapshot(){let level=0;if(outputAnalyser){const data=new Uint8Array(outputAnalyser.fftSize);outputAnalyser.getByteTimeDomainData(data);level=Math.sqrt(data.reduce((sum,value)=>sum+((value-128)/128)**2,0)/data.length);}return {level,feedback_playing:feedbackSources.size>0,playing:sources.size>0&&(!audio.state||audio.state==='running'),state:audio?.state||'closed'};},
+  isRecording:()=>!!recording||micPending||!!window.GoBotRealtime?.recording,
+  audioSnapshot(){if(window.GoBotRealtime?.selected())return window.GoBotRealtime.snapshot();let level=0;if(outputAnalyser){const data=new Uint8Array(outputAnalyser.fftSize);outputAnalyser.getByteTimeDomainData(data);level=Math.sqrt(data.reduce((sum,value)=>sum+((value-128)/128)**2,0)/data.length);}return {level,feedback_playing:feedbackSources.size>0,playing:sources.size>0&&(!audio.state||audio.state==='running'),state:audio?.state||'closed'};},
   getSettings:()=>({model:$('model').value,tts:$('tts').value,voice:$('voice').value||'marin',stt:$('stt').value,speak:$('speak').checked,paid:$('paid').checked,paid_stt:$('paid-stt').checked,quota:$('quota').checked,remember:$('remember').checked,volume:$('volume').value}),
   saveSettings(){localStorage.setItem('gobot.voice-settings',JSON.stringify(this.getSettings()));},
   restoreSettings(){try{const value=JSON.parse(localStorage.getItem('gobot.voice-settings')||'{}');for(const key of ['model','tts','stt','volume'])if(value[key]!=null)$(key).value=value[key];for(const key of ['speak','paid','quota','remember'])if(typeof value[key]==='boolean')$(key).checked=value[key];if(typeof value.paid_stt==='boolean')$('paid-stt').checked=value.paid_stt;if(value.voice&&$('voice').options.length)$('voice').value=value.voice;}catch(_){}}
 };
 window.GoBotClient.restoreSettings();
+serverSettingsReady=refreshServerSettings();
 for(const key of ['model','tts','voice','stt','speak','paid','paid-stt','quota','volume','remember'])$(key).addEventListener?.('change',()=>window.GoBotClient.saveSettings());
+for(const key of ['model','voice','volume','speak'])$(key).addEventListener?.('change',()=>{
+  const voice={mode:$('model').value,voice:$('voice').value||'marin',volume:Number($('volume').value),speak:$('speak').checked};
+  if(voice.mode==='mock')delete voice.mode;
+  fetch('/api/device/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice})}).catch(()=>{});
+});
 refresh(); loadHistory();refreshMemory();loadVisualSettings();

@@ -29,6 +29,7 @@ from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
 from .conversation_control import closing_intent
 from .speech_openings import OpeningCache
 from .quick_intents import resolve_quick
+from .settings_tools import SettingsTools
 
 class Service:
     def __init__(self,settings):
@@ -39,6 +40,7 @@ class Service:
         self.openings=OpeningCache()
         self.traces=Traces(Path(settings.db).parent)
         self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
+        self.configuration=SettingsTools(self.memory,Path(settings.db).resolve().parent/'browser-devices')
     async def prepare(self,req):
         try:return await asyncio.to_thread(self.memory.start,req)
         except Conflict as e:raise HTTPException(409,str(e))
@@ -168,7 +170,13 @@ class Service:
                         finally:
                             work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
-                        tool_result=await asyncio.to_thread(self.tools.execute,decision.tool,req,decision.slots);widget=tool_result.widget
+                        tool_result=await self.configuration.execute(req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,req,decision.slots)
+                        widget=tool_result.widget
+                        if decision.tool=='settings':
+                            if decision.quality.get('verification_required') and not tool_result.evidence:tool_result.evidence={'abstained':True}
+                            if tool_result.profile:yield event(req,'tool_status',status='settings_applied',profile=tool_result.profile)
+                            if tool_result.frame:visual_frame=tool_result.frame
+                            if tool_result.silent:spoken_override=''
                         if decision.tool in {'dialogue_end','pending_decline','stop_output'}:
                             spoken_override=''
                             yield event(req,'tool_status',status={'dialogue_end':'conversation_ended','pending_decline':'pending_declined','stop_output':'output_stopped'}[decision.tool],reason=decision.reason)
@@ -336,6 +344,10 @@ def create_app(settings=None):
         from .config import load
         settings=load()
     settings.validate();service=Service(settings);speech=Speech();family=Family(service.memory);identity=SpeakerIdentity(family)
+    from .realtime import RealtimeManager
+    from .realtime_api import attach_brain_realtime
+    from .family_access import IdentityAccessManager
+    realtime=RealtimeManager(service,identity=IdentityAccessManager(family,identity))
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)
@@ -347,11 +359,14 @@ def create_app(settings=None):
         await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)
         service.warm_photos.clear()
         for flag in service.running.values():flag.set()
+        await realtime.shutdown()
         await identity.close()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
     async def auth(request:Request):
         if not hmac.compare_digest(request.headers.get('authorization',''),'Bearer '+settings.api_token):raise HTTPException(401,'Authentication required')
-    attach_family(app,family,identity,speech,auth)
+    app.state.realtime=realtime
+    attach_brain_realtime(app,realtime,auth)
+    attach_family(app,family,identity,speech,auth,on_preferences_changed=realtime.invalidate_principal,openings=service.openings)
     @app.get('/healthz')
     async def health():return {'status':'ok','service':'gobot-brain'}
     @app.get('/readyz')
@@ -372,14 +387,27 @@ def create_app(settings=None):
     async def cancel_visual_timer(request:Request):
         body=await request.json();owner=body.get('device_id');ident=body.get('timer_id')
         if not isinstance(owner,str) or not isinstance(ident,str) or not re.fullmatch(r'[a-f0-9-]{36}',ident):raise HTTPException(422)
+        owners=[owner]
+        if body.get('client_id'):
+            from .device_store import DeviceStore
+            try:await asyncio.to_thread(DeviceStore(Path(settings.db).resolve().parent/'browser-devices').scoped_owner,owner,body['client_id'])
+            except ValueError:raise HTTPException(403,'device_scope_denied')
+            owners.append('realtime-device:'+body['client_id'])
         def update():
-            with service.memory.connect() as c:return c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=?",(ident,owner)).rowcount
+            with service.memory.connect() as c:return sum(c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=?",(ident,scope)).rowcount for scope in owners)
         if not await asyncio.to_thread(update):raise HTTPException(404,'timer_not_found_or_not_owned')
         return {'cancelled':True,'timer_id':ident}
     @app.get('/api/v1/timers',dependencies=[Depends(auth)])
-    async def active_timers(device_id:str):
+    async def active_timers(device_id:str,client_id:str|None=None):
         if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,100}',device_id):raise HTTPException(422)
-        with service.memory.connect() as c:rows=c.execute("SELECT id,deadline,status FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline LIMIT 16",(device_id,time.time())).fetchall()
+        owners=[device_id]
+        if client_id:
+            from .device_store import DeviceStore
+            try:await asyncio.to_thread(DeviceStore(Path(settings.db).resolve().parent/'browser-devices').scoped_owner,device_id,client_id)
+            except ValueError:raise HTTPException(403,'device_scope_denied')
+            owners.append('realtime-device:'+client_id)
+        with service.memory.connect() as c:
+            rows=[row for owner in owners for row in c.execute("SELECT id,deadline,status FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline LIMIT 16",(owner,time.time())).fetchall()]
         return {'timers':[dict(row) for row in rows]}
     @app.get('/api/v1/history/{conversation_id}',dependencies=[Depends(auth)])
     async def history(conversation_id:str,device_id:str):

@@ -1,0 +1,910 @@
+{
+  "version": 1,
+  "curation": "Independent Russian reference phrases; not model audio validation",
+  "cases": [
+    {
+      "id": "ru-dates-01",
+      "category": "dates",
+      "display_text": "Сегодня 10 ноября.",
+      "expected_spoken": "Сегодня десятое ноября.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-02",
+      "category": "dates",
+      "display_text": "Праздник 15 ноября.",
+      "expected_spoken": "Праздник пятнадцатого ноября.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-03",
+      "category": "dates",
+      "display_text": "К 1 января.",
+      "expected_spoken": "К первому января.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-04",
+      "category": "dates",
+      "display_text": "До 2 февраля.",
+      "expected_spoken": "До второго февраля.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-05",
+      "category": "dates",
+      "display_text": "После 3 марта.",
+      "expected_spoken": "После третьего марта.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-06",
+      "category": "dates",
+      "display_text": "На 4 апреля назначена встреча.",
+      "expected_spoken": "На четвёртое апреля назначена встреча.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-07",
+      "category": "dates",
+      "display_text": "Перед 5 мая.",
+      "expected_spoken": "Перед пятым мая.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-08",
+      "category": "dates",
+      "display_text": "С 6 по 9 июня.",
+      "expected_spoken": "С шестого по девятое июня.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-09",
+      "category": "dates",
+      "display_text": "Между 7 и 8 июля.",
+      "expected_spoken": "Между седьмым и восьмым июля.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-dates-10",
+      "category": "dates",
+      "display_text": "Сегодня 31 декабря.",
+      "expected_spoken": "Сегодня тридцать первое декабря.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-01",
+      "category": "years",
+      "display_text": "В 2026 году.",
+      "expected_spoken": "В две тысячи двадцать шестом году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-02",
+      "category": "years",
+      "display_text": "До 2025 года.",
+      "expected_spoken": "До две тысячи двадцать пятого года.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-03",
+      "category": "years",
+      "display_text": "После 2000 года.",
+      "expected_spoken": "После двухтысячного года.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-04",
+      "category": "years",
+      "display_text": "К 2030 году.",
+      "expected_spoken": "К две тысячи тридцатому году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-05",
+      "category": "years",
+      "display_text": "В 1999 году.",
+      "expected_spoken": "В тысяча девятьсот девяносто девятом году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-06",
+      "category": "years",
+      "display_text": "В 1945 году.",
+      "expected_spoken": "В тысяча девятьсот сорок пятом году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-07",
+      "category": "years",
+      "display_text": "В 1961 году.",
+      "expected_spoken": "В тысяча девятьсот шестьдесят первом году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-08",
+      "category": "years",
+      "display_text": "В 2001 году.",
+      "expected_spoken": "В две тысячи первом году.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-09",
+      "category": "years",
+      "display_text": "С 2010 года.",
+      "expected_spoken": "С две тысячи десятого года.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-years-10",
+      "category": "years",
+      "display_text": "От 1984 года.",
+      "expected_spoken": "От тысяча девятьсот восемьдесят четвёртого года.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-01",
+      "category": "numbers",
+      "display_text": "0",
+      "expected_spoken": "ноль",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-02",
+      "category": "numbers",
+      "display_text": "11",
+      "expected_spoken": "одиннадцать",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-03",
+      "category": "numbers",
+      "display_text": "21",
+      "expected_spoken": "двадцать один",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-04",
+      "category": "numbers",
+      "display_text": "105",
+      "expected_spoken": "сто пять",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-05",
+      "category": "numbers",
+      "display_text": "1001",
+      "expected_spoken": "одна тысяча один",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-06",
+      "category": "numbers",
+      "display_text": "12345",
+      "expected_spoken": "двенадцать тысяч триста сорок пять",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-07",
+      "category": "numbers",
+      "display_text": "1000000",
+      "expected_spoken": "один миллион",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-08",
+      "category": "numbers",
+      "display_text": "2000001",
+      "expected_spoken": "два миллиона один",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-09",
+      "category": "numbers",
+      "display_text": "-42",
+      "expected_spoken": "минус сорок два",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-numbers-10",
+      "category": "numbers",
+      "display_text": "3,14",
+      "expected_spoken": "три целых четырнадцать сотых",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-01",
+      "category": "time",
+      "display_text": "00:00",
+      "expected_spoken": "ноль часов ровно",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-02",
+      "category": "time",
+      "display_text": "01:01",
+      "expected_spoken": "один час одна минута",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-03",
+      "category": "time",
+      "display_text": "02:02",
+      "expected_spoken": "два часа две минуты",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-04",
+      "category": "time",
+      "display_text": "03:05",
+      "expected_spoken": "три часа пять минут",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-05",
+      "category": "time",
+      "display_text": "04:11",
+      "expected_spoken": "четыре часа одиннадцать минут",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-06",
+      "category": "time",
+      "display_text": "09:21",
+      "expected_spoken": "девять часов двадцать одна минута",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-07",
+      "category": "time",
+      "display_text": "12:30",
+      "expected_spoken": "двенадцать часов тридцать минут",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-08",
+      "category": "time",
+      "display_text": "15:45",
+      "expected_spoken": "пятнадцать часов сорок пять минут",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-09",
+      "category": "time",
+      "display_text": "21:22",
+      "expected_spoken": "двадцать один час двадцать две минуты",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-time-10",
+      "category": "time",
+      "display_text": "23:59",
+      "expected_spoken": "двадцать три часа пятьдесят девять минут",
+      "kind": "time",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-01",
+      "category": "percent",
+      "display_text": "1%",
+      "expected_spoken": "один процент",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-02",
+      "category": "percent",
+      "display_text": "2%",
+      "expected_spoken": "два процента",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-03",
+      "category": "percent",
+      "display_text": "5%",
+      "expected_spoken": "пять процентов",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-04",
+      "category": "percent",
+      "display_text": "11%",
+      "expected_spoken": "одиннадцать процентов",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-05",
+      "category": "percent",
+      "display_text": "21%",
+      "expected_spoken": "двадцать один процент",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-06",
+      "category": "percent",
+      "display_text": "22%",
+      "expected_spoken": "двадцать два процента",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-07",
+      "category": "percent",
+      "display_text": "100%",
+      "expected_spoken": "сто процентов",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-08",
+      "category": "percent",
+      "display_text": "0,5%",
+      "expected_spoken": "ноль целых пять десятых процента",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-09",
+      "category": "percent",
+      "display_text": "До 3%.",
+      "expected_spoken": "До трёх процентов.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-percent-10",
+      "category": "percent",
+      "display_text": "Около 20%.",
+      "expected_spoken": "Около двадцати процентов.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-01",
+      "category": "currency",
+      "display_text": "1 ₽",
+      "expected_spoken": "один рубль",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-02",
+      "category": "currency",
+      "display_text": "2 ₽",
+      "expected_spoken": "два рубля",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-03",
+      "category": "currency",
+      "display_text": "5 ₽",
+      "expected_spoken": "пять рублей",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-04",
+      "category": "currency",
+      "display_text": "11 ₽",
+      "expected_spoken": "одиннадцать рублей",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-05",
+      "category": "currency",
+      "display_text": "21 ₽",
+      "expected_spoken": "двадцать один рубль",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-06",
+      "category": "currency",
+      "display_text": "22 ₽",
+      "expected_spoken": "двадцать два рубля",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-07",
+      "category": "currency",
+      "display_text": "1 $",
+      "expected_spoken": "один доллар",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-08",
+      "category": "currency",
+      "display_text": "2 $",
+      "expected_spoken": "два доллара",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-09",
+      "category": "currency",
+      "display_text": "5 €",
+      "expected_spoken": "пять евро",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-currency-10",
+      "category": "currency",
+      "display_text": "До 100 ₽.",
+      "expected_spoken": "До ста рублей.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-01",
+      "category": "units",
+      "display_text": "1 кг",
+      "expected_spoken": "один килограмм",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-02",
+      "category": "units",
+      "display_text": "2 кг",
+      "expected_spoken": "два килограмма",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-03",
+      "category": "units",
+      "display_text": "5 км",
+      "expected_spoken": "пять километров",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-04",
+      "category": "units",
+      "display_text": "21 см",
+      "expected_spoken": "двадцать один сантиметр",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-05",
+      "category": "units",
+      "display_text": "22 мм",
+      "expected_spoken": "двадцать два миллиметра",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-06",
+      "category": "units",
+      "display_text": "1 мс",
+      "expected_spoken": "одна миллисекунда",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-07",
+      "category": "units",
+      "display_text": "2 мс",
+      "expected_spoken": "две миллисекунды",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-08",
+      "category": "units",
+      "display_text": "3 л",
+      "expected_spoken": "три литра",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-09",
+      "category": "units",
+      "display_text": "-5 °C",
+      "expected_spoken": "минус пять градусов Цельсия",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-units-10",
+      "category": "units",
+      "display_text": "0,5 л",
+      "expected_spoken": "ноль целых пять десятых литра",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-01",
+      "category": "declensions",
+      "display_text": "До 3 дней.",
+      "expected_spoken": "До трёх дней.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-02",
+      "category": "declensions",
+      "display_text": "К 5 дням.",
+      "expected_spoken": "К пяти дням.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-03",
+      "category": "declensions",
+      "display_text": "Между 2 домами.",
+      "expected_spoken": "Между двумя домами.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-04",
+      "category": "declensions",
+      "display_text": "Без 4 человек.",
+      "expected_spoken": "Без четырёх человек.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-05",
+      "category": "declensions",
+      "display_text": "Перед 3 домами.",
+      "expected_spoken": "Перед тремя домами.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-06",
+      "category": "declensions",
+      "display_text": "Около 21 км.",
+      "expected_spoken": "Около двадцати одного километра.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-07",
+      "category": "declensions",
+      "display_text": "Более 100 кг.",
+      "expected_spoken": "Более ста килограммов.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false,
+      "accepted_spoken": [
+        "Более ста килограммов.",
+        "Более ста килограмм."
+      ]
+    },
+    {
+      "id": "ru-declensions-08",
+      "category": "declensions",
+      "display_text": "К 2 часам.",
+      "expected_spoken": "К двум часам.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-09",
+      "category": "declensions",
+      "display_text": "После 10 минут.",
+      "expected_spoken": "После десяти минут.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-declensions-10",
+      "category": "declensions",
+      "display_text": "Свыше 50 рублей.",
+      "expected_spoken": "Свыше пятидесяти рублей.",
+      "kind": "natural",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-01",
+      "category": "identifiers",
+      "display_text": "007",
+      "expected_spoken": "ноль ноль семь",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-02",
+      "category": "identifiers",
+      "display_text": "0101",
+      "expected_spoken": "ноль один ноль один",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-03",
+      "category": "identifiers",
+      "display_text": "1234",
+      "expected_spoken": "один два три четыре",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-04",
+      "category": "identifiers",
+      "display_text": "0000",
+      "expected_spoken": "ноль ноль ноль ноль",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-05",
+      "category": "identifiers",
+      "display_text": "987654",
+      "expected_spoken": "девять восемь семь шесть пять четыре",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-06",
+      "category": "identifiers",
+      "display_text": "8 800 555 35 35",
+      "expected_spoken": "восемь восемь ноль ноль пять пять пять три пять три пять",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-07",
+      "category": "identifiers",
+      "display_text": "240240",
+      "expected_spoken": "два четыре ноль два четыре ноль",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-08",
+      "category": "identifiers",
+      "display_text": "12-34-56",
+      "expected_spoken": "один два три четыре пять шесть",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-09",
+      "category": "identifiers",
+      "display_text": "1000001",
+      "expected_spoken": "один ноль ноль ноль ноль ноль один",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-identifiers-10",
+      "category": "identifiers",
+      "display_text": "2026",
+      "expected_spoken": "два ноль два шесть",
+      "kind": "identifier",
+      "check": "deterministic_and_acoustic",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-01",
+      "category": "stress",
+      "display_text": "Он звонит завтра.",
+      "expected_spoken": "Он звони́т завтра.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-02",
+      "category": "stress",
+      "display_text": "Открой каталог.",
+      "expected_spoken": "Открой катало́г.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-03",
+      "category": "stress",
+      "display_text": "Следующий квартал.",
+      "expected_spoken": "Следующий кварта́л.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-04",
+      "category": "stress",
+      "display_text": "Подписан договор.",
+      "expected_spoken": "Подписан догово́р.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-05",
+      "category": "stress",
+      "display_text": "Свёкла готова.",
+      "expected_spoken": "Свёкла готова.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-06",
+      "category": "stress",
+      "display_text": "Нужно облегчить задачу.",
+      "expected_spoken": "Нужно облегчи́ть задачу.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-07",
+      "category": "stress",
+      "display_text": "Старинный замок на холме.",
+      "expected_spoken": "Старинный за́мок на холме.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-08",
+      "category": "stress",
+      "display_text": "Дверной замок закрыт.",
+      "expected_spoken": "Дверной замо́к закрыт.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-09",
+      "category": "stress",
+      "display_text": "Пшеничная мука.",
+      "expected_spoken": "Пшеничная мука́.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    },
+    {
+      "id": "ru-stress-10",
+      "category": "stress",
+      "display_text": "Это тяжёлая мука.",
+      "expected_spoken": "Это тяжёлая му́ка.",
+      "kind": "natural",
+      "check": "acoustic_only",
+      "acoustic_verified": false
+    }
+  ]
+}

@@ -37,6 +37,9 @@ class SpeakerEngine:
                     except Exception:
                         if not future.done():future.set_exception(AgentError('speaker_embedding_unavailable'))
                         raise
+                    finally:
+                        # A warm worker must not retain the preceding household PCM between jobs.
+                        pcm=b'';line=b'';obj=None;future=None
         except asyncio.CancelledError:raise
         except Exception:pass
         finally:

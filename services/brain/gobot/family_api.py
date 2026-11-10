@@ -9,7 +9,7 @@ async def bounded(request,limit=8192):
         if len(raw)>limit:raise HTTPException(413,'request_too_large')
     return bytes(raw)
 
-def attach_family(app,family,identity,speech,auth):
+def attach_family(app,family,identity,speech,auth,*,on_preferences_changed=None,openings=None):
     async def body(request):
         try:
             obj=json.loads(await bounded(request))
@@ -34,6 +34,29 @@ def attach_family(app,family,identity,speech,auth):
     async def valid(request:Request):
         data=await body(request)
         return {'valid':await asyncio.to_thread(family.session_valid,data.get('id'),data.get('epoch',''))}
+    @app.get('/api/v1/family/voices',dependencies=[Depends(auth)])
+    async def voices():
+        from .family_preferences import voice_catalog
+        return {'voices':await asyncio.to_thread(voice_catalog,openings),'custom_voice_creation':False,'preview_paid_synthesis':False}
+    @app.post('/api/v1/family/{ident}/preferences',dependencies=[Depends(auth)])
+    async def preferences(ident:str,request:Request):
+        data=await body(request)
+        if set(data)-{'operation','actor_id','actor_epoch','preferences','expected_revision'}:raise HTTPException(422,'unknown_preference_field')
+        actor,epoch=data.get('actor_id'),data.get('actor_epoch');operation=data.get('operation')
+        try:
+            await asyncio.to_thread(family.preferences.authorize,ident,actor,epoch,write=operation in {'update','reset'})
+            if operation in {'read','inspect'}:
+                value=await asyncio.to_thread(family.preferences.get,ident)
+                value.update(speaker_status='unknown_until_local_observation',private_voice_access=False,selection='manual_pin_confirmed',applies='next_eligible_realtime_session')
+                return value
+            if operation=='update':value=await asyncio.to_thread(family.preferences.update,ident,data.get('preferences'),data.get('expected_revision'),actor,epoch)
+            elif operation=='reset':value=await asyncio.to_thread(family.preferences.reset,ident,data.get('expected_revision'),actor,epoch)
+            else:raise ValueError('invalid_preference_operation')
+            if on_preferences_changed:await on_preferences_changed('personal:'+ident,'preferences_changed')
+            return value
+        except PermissionError as error:raise HTTPException(403,str(error))
+        except KeyError:raise HTTPException(404,'family_profile_not_found')
+        except ValueError:raise HTTPException(409,'invalid_preferences_or_revision_conflict')
     @app.post('/api/v1/family/calibrate',dependencies=[Depends(auth)])
     async def calibrate():
         try:return await asyncio.to_thread(family.calibrate)
@@ -58,6 +81,7 @@ def attach_family(app,family,identity,speech,auth):
         await asyncio.to_thread(family.reset_voice,ident);return {'biometrics_deleted':True}
     @app.delete('/api/v1/family/{ident}',dependencies=[Depends(auth)])
     async def delete(ident:str):
+        if on_preferences_changed:await on_preferences_changed('personal:'+ident,'profile_deleted')
         await asyncio.to_thread(family.delete,ident);return {'profile_and_personal_memory_deleted':True}
     @app.post('/api/v1/family/{ident}/sample',dependencies=[Depends(auth)])
     async def sample(ident:str,request:Request,kind:str='enroll'):

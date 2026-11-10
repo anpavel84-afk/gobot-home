@@ -32,12 +32,15 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 ('correlation_id','device_id','conversation_id','turn_id')}}
 
     async def produce_text():
-        nonlocal text_final
+        nonlocal text_final,tts_voice
         sentences_closed=False
         voice=tts_voice if speak and paid_tts_consent and tts_provider=='openai' and not replay else None
         iterator = service.events(request,replay,opening_voice=voice) if voice else service.events(request,replay)
         try:
             async for item in iterator:
+                if item.type=='tool_status' and item.data.get('status')=='settings_applied':
+                    chosen=item.data.get('profile',{}).get('voice',{}).get('voice')
+                    if chosen:tts_voice=chosen
                 if item.type=='tool_status' and item.data.get('status')=='speech_input_complete':
                     if not sentences_closed:await sentences.put(None);sentences_closed=True
                     continue

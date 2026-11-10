@@ -62,6 +62,11 @@ def create_browser_app(settings=None):
             return 'personal:'+obj['id']
         except Exception:return device(request)
 
+    from .realtime_api import attach_gateway_realtime
+    attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_epoch)
+    from .demo2 import attach_demo2
+    attach_demo2(app)
+
     @app.post('/api/chat/stream')
     async def chat(request:Request):
         timing=Trace('pending','gateway-chat');timing.mark('request_received')
@@ -89,7 +94,7 @@ def create_browser_app(settings=None):
             profile=await asyncio.to_thread(devices.profile,device_scope(request,body['device_id']))
             body['profile_epoch']=profile_epoch(request,body['device_id'])
             body['screen_preferences']=profile.screen.model_dump()
-            if body.get('client_kind')=='device':body['client_id']=profile.client_id
+            body['client_id']=profile.client_id # Trusted scope for conversational settings in both clients.
             body.setdefault('mode','auto')
             req=VoiceRequest.model_validate(body)
         except (ValueError,TypeError,AttributeError):raise HTTPException(422,'invalid_chat_request')
@@ -194,6 +199,7 @@ def create_browser_app(settings=None):
         body=await request.json()
         if not isinstance(body,dict) or set(body)-{'timer_id'}:raise HTTPException(422)
         body['device_id']=await subject(request)
+        profile=await asyncio.to_thread(devices.profile,device_scope(request,body['device_id']));body['client_id']=profile.client_id
         async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
             response=await client.post('http://127.0.0.1:18781/api/v1/visual/timer/cancel',headers=auth,json=body)
         return JSONResponse(response.json(),status_code=response.status_code)
@@ -282,9 +288,10 @@ def create_browser_app(settings=None):
     attempts={}
     @app.api_route('/api/family/{action:path}',methods=['GET','POST','DELETE'])
     async def family_proxy(action:str,request:Request):
-        fixed={'','login','logout','calibrate','unknown','fact'}
-        if action not in fixed and not re.fullmatch(r'[a-f0-9-]{36}(?:/(?:enable|voice|sample))?',action):raise HTTPException(404)
+        fixed={'','login','logout','calibrate','unknown','fact','voices'}
+        if action not in fixed and not re.fullmatch(r'[a-f0-9-]{36}(?:/(?:enable|voice|sample|preferences))?',action):raise HTTPException(404)
         if action=='logout':
+            await app.state.close_realtime_identity(request)
             response=JSONResponse({'logged_out':True});response.delete_cookie('gobot_profile');return response
         if action=='login' and request.method=='POST':
             now=time.monotonic();recent=[t for t in attempts.get(request.client.host,[]) if now-t<300]
@@ -292,6 +299,17 @@ def create_browser_app(settings=None):
             attempts[request.client.host]=recent+[now]
         from .family_api import bounded
         raw=await bounded(request,8*1024*1024 if action.endswith('/sample') else 8192)
+        if action.endswith('/preferences'):
+            if request.method!='POST':raise HTTPException(405)
+            owner=await subject(request)
+            if not owner.startswith('personal:') or owner!='personal:'+action.split('/')[0]:raise HTTPException(403,'confirmed_own_profile_required')
+            try:
+                data=json.loads(raw)
+                if not isinstance(data,dict) or set(data)-{'operation','preferences','expected_revision'}:raise ValueError()
+                payload=request.cookies['gobot_profile'].rsplit('.',1)[0]
+                confirmed=json.loads(base64.urlsafe_b64decode(payload+'='*(-len(payload)%4)))
+                data.update(actor_id=confirmed['id'],actor_epoch=confirmed['epoch']);raw=json.dumps(data).encode()
+            except (ValueError,KeyError,TypeError):raise HTTPException(422,'invalid_preference_request')
         if action=='fact':
             try:
                 data=json.loads(raw)
@@ -306,6 +324,7 @@ def create_browser_app(settings=None):
                 params={'kind':request.query_params.get('kind','enroll'),'sample_consent':request.query_params.get('sample_consent','false')} if action.endswith('/sample') else None,
                 content=raw,headers={**auth,'Content-Type':request.headers.get('content-type','application/json')})
         if action=='login' and result.status_code==200:
+            await app.state.close_realtime_identity(request)
             data=result.json();data.update({'peer':request.client.host,'expires':time.time()+86400})
             payload=base64.urlsafe_b64encode(json.dumps(data).encode()).decode().rstrip('=')
             signature=hmac.new(settings.api_token.encode(),('profile:'+payload).encode(),hashlib.sha256).hexdigest()
@@ -483,13 +502,14 @@ def create_browser_app(settings=None):
 
     @app.get('/api/device/timers')
     async def device_timers(request:Request):
+        owner=await subject(request);profile=await asyncio.to_thread(devices.profile,device_scope(request,owner))
         async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
-            result=await client.get('http://127.0.0.1:18781/api/v1/timers',headers=auth,params={'device_id':await subject(request)})
+            result=await client.get('http://127.0.0.1:18781/api/v1/timers',headers=auth,params={'device_id':owner,'client_id':profile.client_id})
             return JSONResponse(result.json(),status_code=result.status_code)
 
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','realtime-speaker.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'

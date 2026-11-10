@@ -20,7 +20,9 @@ def embed(pcm):
                 overrides={'pretrained_path':str(location)},run_opts={'device':'cpu'},
                 local_strategy=LocalStrategy.COPY,fetch_config=FetchConfig(allow_network=False,token=False))
         signal=torch.from_numpy(np.frombuffer(pcm,dtype='<i2').astype(np.float32)/32768).unsqueeze(0)
-        with torch.inference_mode():return model.encode_batch(signal).reshape(-1).tolist()
+        try:
+            with torch.inference_mode():return model.encode_batch(signal).reshape(-1).tolist()
+        finally:signal.zero_()
 for raw in sys.stdin.buffer:
     try:
         if len(raw)>4000000:raise ValueError('request limit')
@@ -31,3 +33,5 @@ for raw in sys.stdin.buffer:
     except Exception:
         result={'error':'speaker_embedding_unavailable'}
     print(json.dumps(result),flush=True)
+    # Keep model weights warm, release per-request audio and vector references.
+    raw=b'';pcm=b'';item=None;vector=None;result=None

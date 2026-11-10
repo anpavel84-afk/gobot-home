@@ -15,7 +15,7 @@
   Последующие документационные коммиты не требуют перезапуска служб.
   Результаты проверки развёртывания приведены в разделе 10.
 
-## 2. Карта пути запроса
+## 2. Карта legacy-пути запроса (native candidate — раздел 15)
 
 ```mermaid
 flowchart LR
@@ -456,3 +456,203 @@ spawn + Windows job — 17,68 мс; initialize RPC — 162,27 мс. Полный
 (4 независимых вызова, без автоматических повторов и без TTS). При отсутствии
 преимущества сохраняется stream-json. Речь проверяется отдельным следующим
 лимитом. Сейчас оснований для переключения транспорта нет.
+
+
+## 15. Realtime Mini, Family Identity и русская речь: кандидат миграции
+
+База прохода — master@b09f2f369eb183f22b47fa72b4018324b1aa8c0d. Сохранены и интегрированы
+17 прежних WIP-файлов голосовых настроек. Ни reset, ни stash, ни откат базы не выполнялись.
+Новая архитектура и заменённые правила внесены в единую спецификацию, §36–39.
+На момент подготовки этого раздела runtime ещё a71b71e; развёртывание и итог проверок
+фиксируются ниже после выполнения. Описанный кандидат не является принятой миграцией default.
+
+### 15.1. Что реализовано
+
+- `realtime_contract.py`, `realtime_provider.py`, `realtime.py`, `realtime_api.py`:
+  audio-only WebRTC SDP через прежний HTTPS/FastAPI, серверный sideband `/v1/realtime`,
+  ровно одна active audio media section, запрет provider data channel/video, подтверждение
+  effective session.updated, один native разговор на несколько реплик, владение клиентом,
+  запрет позднего setup после Cancel, cleanup/hangup и content-free persistent ledger для
+  незакрытых calls. Известный результат не повторяется автоматически.
+- `realtime.js`: отдельный native adapter общего GoBotClient, а не новый Brain. PTT,
+  автоматический commit после отпускания, отказ короткой/тихой записи, server VAD только
+  для followup, Stop/pagehide/offline/track-ended cleanup. Звук идёт напрямую по WebRTC;
+  обычный turn не вызывает старые STT, CLI, Speech Formatter или отдельный TTS.
+  Текст админки передаётся как input_text; text-only output поддерживается конфигурацией.
+- Воспроизведение: generation done отделено от output buffer drained и клиентского
+  фактического ненулевого audio signal. Только совместные подтверждения допускают followup
+  и сохранение полного услышанного ответа. После прерывания полный непрослушанный хвост
+  не записывается как услышанный. Точная граница услышанного в Safari пока не принята.
+- `realtime_budget.py`: отдельные local owner policies для Realtime и expert jobs,
+  ограничение attempts/sessions/responses/time/output tokens/наблюдаемого usage,
+  дедупликация usage по response ID. Ошибки не возвращают лимит автоматически.
+  Это не гарантированный абсолютный dollar cap: usage приходит после обработки.
+- Visual Composer подключён к финальному input transcript и ранним output transcript
+  fragments через существующий SpeculativePhoto/ImageCache; локальные схемы и widgets
+  остаются прежними. Иллюстрация не блокирует голос, старый turn не меняет новую сцену.
+  Отвергнутый answer_map не используется как обязательная заглушка.
+- Подключены существующие typed clocks/timers/settings/weather/memory-denial tools.
+  Таймеры имеют устойчивый device scope и не зависят от provider session; гостевой scope
+  не открывает личную историю. Семантическая достоверность нативной речи до проверки
+  обязательного текущего источника ещё не доказана серверным gate: default не допускается.
+- `expert_jobs.py`: proposal/expiry/context revision, реальное пользовательское согласие,
+  один активный эксперт, отдельный бюджет, pending function call с единственным output
+  для настоящего call_id. Старый результат не перебивает новый turn; отказ не запускает
+  CLI. Native эксперт требует PIN-подтверждённого взрослого и отдельного лимита.
+  Реальные экспертные пробы этой миграции не проводились.
+
+### 15.2. Модель, параметры, расходы
+
+`gpt-realtime-2.1-mini` подтверждена официальной модельной страницей и отдельным бесплатным
+GET metadata с текущим серверным ключом: HTTP 200, точный model ID совпал.
+Это не успешное создание Realtime call и не проверка акустики.
+SDK openai в окружении отсутствует; используются имеющиеся httpx 0.28.1/websockets 16.0.
+Транспорт — Realtime API, не GPT-Live. См. `realtime-api-compatibility.json`.
+Долговременный ключ остаётся в DPAPI; клиент получает только app session ID и SDP answer.
+
+Целевой голос marin; сохранённый выбор пользователя и явно выбранный семейный голос
+применяются при создании сессии. После первого audio output voice не меняется через
+session.update. Записанные сто вступлений в native-turn не проигрываются.
+
+Проверка штатным Codex model/list (0 модельных запросов) подтвердила:
+ASTRA_HIGH = gpt-6-astra + high, SOL_XHIGH = gpt-6.1-sol + xhigh.
+ARGON_DEEP использует уже разрешённый gemini-4-argon-medium, effort medium в model ID.
+Каталог/валидаторы и Bridge передают фактический профиль без молчаливой подмены effort.
+Повторный Codex offline audit: tools=[], 1 mock HTTP request, real_model_requests=0,
+проверка изоляции пройдена. Это не проверка качества экспертных выводов.
+ACP остаётся OFF, и больше не блокирует бытовой native путь.
+
+Для расчётной оценки Mini используются официальные token rates на 10.11.2026:
+text input/output $0.60/$2.40 за миллион, cached text $0.06;
+audio input/output $10/$20, cached audio $0.30. Это не реальный счёт;
+асинхронная input transcription учитывается отдельно. Новые paid Realtime/CLI/ImageGen
+пробы не выполнялись, новая test authorization отсутствует.
+Ранее разрешённый телефонный ledger завершён: 3 STT attempts / 11.3945625 s,
+2 Flash reservations, 800 TTS characters reserved. Reservation не означает фактическое
+озвучивание 800 символов; физическая приёмка по этому счётчику не заявляется.
+
+### 15.3. Family Identity и SpeakerIdentity через WebRTC
+
+Существующие Family/PIN/epoch, SQLite Memory/ContextManager, SpeechBrain ECAPA в
+.venv-speaker переиспользованы. Новых пользователей или альтернативной family DB нет.
+`family_access.py` отделяет principal, client device, предполагаемого speaker,
+подтверждённый профиль, conversation и native/provider sessions.
+
+`realtime-speaker.js` + `realtime_speaker.py` копируют активное микрофонное аудио в
+локальный PCM16 16 kHz mirror. До 6 секунд / 192000 bytes на segment и до 1 секунды
+кольцевого RAM-буфера. PTT и server-VAD followup имеют server-generated segment nonce,
+однократную отправку и проверку актуальной сессии. Это не второй STT. Embeddings
+не отправляются OpenAI. Нет фоновых API-вызовов из SpeakerIdentity; raw PCM не пишется
+на диск и освобождается после обработки. Тёплый worker освобождает предыдущие audio
+references и входной tensor, сохраняя веса модели.
+
+До согласий/образцов/калибровки показан unknown, а не «Узнал вас». На фактическом ПК
+при аудите: модель установлена, family profiles=0, enrolled profiles=0, calibration=false.
+Поэтому обработчик подключён, но семейная идентификация пока не готова к узнаванию.
+Для регистрации используются прежние добровольные образцы и held-out calibration.
+
+Локальная реальная проверка worker на уже разрешённом синтетическом marin-клипе
+3.1 s дала embedding 192 components. Первое отдельное наблюдение холодного загрузчика —
+12169 ms. Повторный свежий процесс с уже прогретым файловым кэшем — 2845.02 ms;
+следующая обработка в том же worker — 69.73 ms. По одному наблюдению на условие,
+не p95, не benchmark реальной семьи и не скорость Realtime ответа.
+`realtime-speaker-local-check.json` содержит только обезличенные размеры/времена.
+
+Native candidate преднамеренно не загружает личный архив даже при PIN cookie.
+Сейчас native память — guest RAM-only; настройка remember=false не ослабляется,
+а remember=true пока не включает долговременную native историю. Это видно в UI.
+Смена распознанного говорящего либо несоответствие manual UX профилю закрывает старую
+provider session. Старый результат распознавания не меняет новый turn. Автоматическое
+распознавание/смена голоса без паузы ещё не приняты на реальных людях.
+
+### 15.4. Характеры и голоса семьи
+
+`family_assistant_preferences` — связанная таблица по существующему family_profiles.id,
+миграция 7, ON DELETE CASCADE, schema version и atomic revision/CAS. При существующих
+профилях перед новой миграцией выполняется SQLite backup. Prompt/preferences хранятся
+в игнорируемой приватной БД, не в публичных JSON или GitHub.
+
+В прежней семейной карточке добавлены ты/вы, имя/обращение, частота имени, язык,
+семь character presets, длина, глубина, сложность языка, поле до 1500 символов,
+выбор встроенного голоса, reset, проверка выбранного UX и готовый cached preview.
+Свой prompt можно читать/менять только с собственным действующим PIN/epoch.
+Чужой профиль не изменяется, stale revision отклоняется.
+Удаление биометрии сохраняет характер; удаление человека удаляет оба вида данных.
+Custom voice creation/клонирование не реализованы. Нет автоматического платного preview;
+marin может использовать уже готовый клип, отсутствие cedar-клипа честно показывается.
+
+Native manual PIN UX применяет голос и structured style при старте, проверяет effective
+instructions. Произвольный prompt/имя/обращение передаются как отдельные низкоприоритетные
+user data, не вставляются в системный слой. Это не открывает private-memory ACL.
+Обновление prefs закрывает старую native сессию; новая конфигурация — на следующем Start.
+Безопасное полноценное сохранение личной темы через rotation ещё не реализовано.
+Изменение детских prefs закрыто до настройки настоящего серверного parental edit grant;
+флажок биометрического согласия не выдаётся за такое разрешение.
+
+### 15.5. Русский Speech Formatter и проверки
+
+Legacy SpeechFormatter и audio.py канонически совпадают с a71b71e; код чтения цифр
+не заменён. В native system instructions есть компактный Russian Pronunciation &
+Number Grammar. `realtime_russian.py` использует прежний детерминированный нормализатор
+только для точных tool data: display_text, spoken_text/spoken_date, explicit identifier
+semantics и часы/минуты. Native audio не проходит postprocessing и повторный TTS.
+
+`tests/data/realtime-russian-evaluation.json`: 100 независимо составленных примеров,
+10 категорий; 90 normalizer/data cases и 10 акустических stress cases. Текстовые
+проверки не доказывают ударения или произношение в реальном звуке. Нового синтеза нет.
+
+Бесплатные проверки: native protocol/SDP/ownership/cancel/cleanup/usage, guest/PIN ACL,
+семейные prefs/CAS/delete/reset, expert proposal/refusal/one-call/stale result,
+существующий worker boundary и production browser client с fake media/network.
+Полный набор и развёртывание — после финальной проверки ниже. Live native/iPhone/ESP32
+этими fixtures не заменяются.
+
+### 15.6. Ограничения допуска
+
+Нет разрешённого нового live Realtime test budget, нативного cold setup/TTFA,
+подтверждённых acoustic чисел/ударений или фактического iPhone. Не завершён строгий
+mandatory-current-fact audio gate. Не включён private native retrieval, не принят
+speaker-driven voice rotation/handoff, parental editing и physical speaker accuracy.
+Основной engine остаётся legacy до отдельной приёмки; скрытого fallback нет.
+
+Голосовые typed настройки из прежнего WIP теперь интегрированы: валидированные
+voice/device preferences, readback, подтверждение найденного weather location и
+Open-Meteo current card с TTL/rate caps. Точная исходная геопозиция владельца в
+этом проходе автоматически не менялась; сервис не обещает автономное подключение
+датчиков. Бесплатные weather tests используют MockTransport.
+
+## 16. До деплоя сохранена рабочая версия; Демо 2 A/B
+
+До перезапуска сохранён локальный ignored backup `data/backups/legacy-before-realtime-20261110T220200Z`:
+архив source a71b71e, bundle опубликованной истории master@b09f2f3, онлайн backups
+обеих SQLite (integrity_check=ok), проектные настройки и DPAPI-конфигурация,
+100 готовых marin-клипов и их metadata (200 файлов, 11485006 bytes).
+CLI credentials/home не копировались. Приватный архив не отправляется GitHub.
+Указатель находится в `run/legacy-preservation-pointer.json`; source/backup hashes
+и отсутствие провайдерских вызовов — `legacy-preservation-check.json`.
+
+Нормализованные LF исходники `speech_formatter.py` и `audio.py` совпадают с a71b71e;
+CRLF рабочей копии audio.py не считается изменением алгоритма. Старое произношение
+и клипы доступны для сравнения. Записи последних домашних разговоров ради диагностики
+не создавались; отдельного сохранённого файла каждого прошлого TTS-ответа нет.
+
+`/demo2` — общий вход. `/demo2/a` и `/demo2/a/device` используют 25 hash-verified
+legacy static assets a71b71e и старый голосовой путь. `/demo2/b` и
+`/demo2/b/device` выбирают native-кандидат без автоматического запуска оплаченной
+сессии. Это два клиента **одного обновляемого Brain**, не два независимых frozen
+сервера. Полный старый source/config/data snapshot хранится отдельно для настоящего
+отката, а не выдаётся за два одновременно неизменяемых backend deployment.
+
+Быстрый откат — выбрать legacy/A, без изменения Git и удаления данных. Полное
+восстановление старых баз из backup не выполняется автоматически: сначала сохранить
+новые изменения и отдельно согласовать восстановление, чтобы не потерять свежую историю.
+
+
+### 16.1. Бесплатная проверка перед развёртыванием
+
+Полный regression suite: **1111 passed, 26.21 s**. Все 7 изменённых production JS
+файлов прошли node --check. Demo A/B проверяет immutable asset hashes и запрет
+подменённого baseline; native client tests выполняют настоящий production JS с
+fake WebRTC/media/network, без API/микрофона. Это не проверка Safari или реального
+WebRTC media с OpenAI. После последней настройки сохранённого голоса отдельно
+повторяются native/browser fixtures до публикации.

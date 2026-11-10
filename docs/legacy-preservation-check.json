@@ -1,0 +1,33 @@
+{
+  "baseline_code": "a71b71e987efdfe01884e34de10712782c0e36ac",
+  "preserved_before_restart": true,
+  "sqlite_backups": [
+    {
+      "integrity": "ok",
+      "bytes": 1286144
+    },
+    {
+      "integrity": "ok",
+      "bytes": 12288
+    }
+  ],
+  "cached_opening_files": 200,
+  "cached_opening_bytes": 11485006,
+  "voice_components": [
+    {
+      "path": "services/brain/gobot/speech_formatter.py",
+      "equals_baseline_ignoring_checkout_line_endings": true,
+      "canonical_sha256": "5016129d1d86b24e01c7695c52e2099b50eaaaf88a72a937233ba758cda50554"
+    },
+    {
+      "path": "services/brain/gobot/audio.py",
+      "equals_baseline_ignoring_checkout_line_endings": true,
+      "canonical_sha256": "79bd6d564ac3f76666cf87c38b6d782b2a274c1d7aa3138e7bc1f6e6ce6ad7da"
+    }
+  ],
+  "private_backup_published": false,
+  "cli_credentials_copied": false,
+  "ab_runtime": "one shared Brain; A frozen a71 UI + legacy voice path, B native Realtime candidate",
+  "full_source_and_configuration_backup": "local ignored data/backups only",
+  "provider_calls_for_preservation": 0
+}

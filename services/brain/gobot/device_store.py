@@ -8,23 +8,34 @@ from .visual_images import normalize
 class DeviceStore:
     def __init__(self,root):
         self.root=Path(root).resolve();self.root.mkdir(parents=True,exist_ok=True);self.db=self.root/'profiles.sqlite';self.lock=threading.RLock()
-        with sqlite3.connect(self.db) as c:c.execute('CREATE TABLE IF NOT EXISTS profiles(owner TEXT PRIMARY KEY,profile TEXT NOT NULL)')
+        with sqlite3.connect(self.db) as c:
+            c.execute('CREATE TABLE IF NOT EXISTS profiles(owner TEXT PRIMARY KEY,profile TEXT NOT NULL)')
     def profile(self,owner):
         with self.lock,sqlite3.connect(self.db) as c:
             row=c.execute('SELECT profile FROM profiles WHERE owner=?',(owner,)).fetchone()
             if row:return DeviceProfile.model_validate_json(row[0])
             profile=DeviceProfile();c.execute('INSERT INTO profiles VALUES(?,?)',(owner,profile.model_dump_json()));return profile
     def update(self,owner,body):
-        allowed={'skin','screen','feedback','conversation','display','interaction_mode','keep_screen_awake'}
+        allowed={'skin','screen','feedback','conversation','display','interaction_mode','keep_screen_awake','weather','voice'}
         if not isinstance(body,dict) or not set(body)<=allowed:raise ValueError('Unknown device setting')
-        with self.lock:
-            current=self.profile(owner).model_dump()
+        with self.lock,sqlite3.connect(self.db) as c:
+            c.execute('BEGIN IMMEDIATE')
+            row=c.execute('SELECT profile FROM profiles WHERE owner=?',(owner,)).fetchone()
+            current=DeviceProfile.model_validate_json(row[0]).model_dump() if row else DeviceProfile().model_dump()
             for key,value in body.items():
                 if isinstance(current.get(key),dict) and isinstance(value,dict):current[key]={**current[key],**value}
                 else:current[key]=value
             profile=DeviceProfile.model_validate(current)
-            with sqlite3.connect(self.db) as c:c.execute('UPDATE profiles SET profile=? WHERE owner=?',(profile.model_dump_json(),owner))
+            c.execute('INSERT INTO profiles VALUES(?,?) ON CONFLICT(owner) DO UPDATE SET profile=excluded.profile',(owner,profile.model_dump_json()))
             return profile
+    def scoped_owner(self,owner,client_id):
+        if not client_id:raise ValueError('Device profile unavailable')
+        prefix=owner+'@'
+        with self.lock,sqlite3.connect(self.db) as c:
+            rows=c.execute('SELECT owner,profile FROM profiles WHERE substr(owner,1,?)=?',(len(prefix),prefix)).fetchall()
+        matches=[key for key,raw in rows if DeviceProfile.model_validate_json(raw).client_id==client_id]
+        if len(matches)!=1:raise ValueError('Device profile unavailable')
+        return matches[0]
     def asset_path(self,profile):
         path=self.root/(profile.client_id+'.jpg')
         if path.is_symlink() or not path.resolve().is_relative_to(self.root):raise ValueError('Invalid device asset')

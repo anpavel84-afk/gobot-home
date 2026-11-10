@@ -168,7 +168,10 @@ class Archive:
             nearby=[] if route['reason']=='explicit_new_topic' else c.execute("SELECT m.id,m.turn_id,m.role,m.content,m.provider FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE m.conversation_id=? AND a.owner=? AND a.namespace='production' AND a.status='completed' AND m.turn_id!=? AND m.id>=? ORDER BY m.id DESC LIMIT 6",(req.conversation_id,req.device_id,req.turn_id,boundary)).fetchall()
             summary=c.execute('SELECT * FROM topic_summaries WHERE topic_id=? ORDER BY version DESC LIMIT 1',(route['topic_id'],)).fetchone()
             facts=[dict(r) for r in c.execute("SELECT id,content,scope,provenance,confirmation,valid_from,supersedes FROM memory_facts WHERE owner IN (?, 'family:home') AND deleted=0 AND confirmation='explicit_consent' AND (valid_until IS NULL OR valid_until>?) ORDER BY id DESC LIMIT 20",(req.device_id,time.time()))]
-            pending=c.execute("SELECT id,kind,expires FROM pending_actions WHERE owner=? AND conversation_id=? AND status='pending' AND expires>? ORDER BY expires DESC LIMIT 1",(req.device_id,req.conversation_id,time.time())).fetchone()
+            pending=c.execute("SELECT id,kind,expires,payload FROM pending_actions WHERE owner=? AND conversation_id=? AND status='pending' AND expires>? ORDER BY expires DESC LIMIT 1",(req.device_id,req.conversation_id,time.time())).fetchone()
+            if pending:
+                pending=dict(pending);pending['payload']=json.loads(pending['payload'])
+                if pending['payload'].get('_profile_epoch')!=req.profile_epoch:pending=None
         retrieved=self.search(req.device_id,req.text,5)
         return {'messages':[dict(r) for r in reversed(rows)],'recent_dialogue':[dict(r) for r in reversed(nearby)],'summary':summary['content'] if summary else '',
                 'summary_sources':json.loads(summary['source_message_ids']) if summary else [],'facts':facts,

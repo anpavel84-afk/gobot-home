@@ -31,6 +31,8 @@ class Family:
         with memory.connect() as c:
             c.executescript(SCHEMA)
             c.execute('INSERT OR IGNORE INTO schema_migrations VALUES(2,?)',(time.time(),))
+        from .family_preferences import FamilyPreferences
+        self.preferences=FamilyPreferences(self)
     def profiles(self):
         with self.memory.connect() as c:
             return [dict(row) for row in c.execute('''SELECT p.id,p.name,p.age,p.avatar,p.consent,p.parent_consent,p.enabled,

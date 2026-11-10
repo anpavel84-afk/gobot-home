@@ -34,7 +34,7 @@ class Memory:
         self.archive=Archive(self);self.transient={};self.transient_lock=threading.Lock();self.visual_cancelled={};self.transient_pending={}
     def set_pending(self,req,kind,payload=None):
         from uuid import uuid4
-        action={'id':str(uuid4()),'kind':kind,'payload':payload or {},'expires':time.time()+120}
+        action={'id':str(uuid4()),'kind':kind,'payload':{**(payload or {}),'_profile_epoch':req.profile_epoch},'expires':time.time()+120}
         if not req.remember:
             with self.transient_lock:
                 now=time.time();self.transient_pending={k:v for k,v in self.transient_pending.items() if v['expires']>now}

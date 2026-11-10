@@ -26,6 +26,7 @@ def _cached_digest(path,size,modified):return hashlib.sha256(Path(path).read_byt
 
 def policy_digest():
     paths = [Path(__file__), ROOT / 'services/brain/gobot/agents.py',
+             ROOT / 'services/brain/gobot/expert_profiles.py',
              ROOT / 'services/brain/gobot/processes.py', ROOT / 'services/brain/gobot/telemetry.py', POLICIES / 'gemini-settings.json',
              POLICIES / 'gemini-deny.toml']
     return hashlib.sha256(''.join(digest(p) for p in paths).encode()).hexdigest()
@@ -204,13 +205,19 @@ def agent_status(usage_consent=False):
     statuses['antigravity']=antigravity_status(usage_consent)
     return statuses
 
-async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None,antigravity_transport='stream_json'):
+async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None,antigravity_transport='stream_json',expert_profile=None):
     mark("bridge_admission_start")
     state = await asyncio.to_thread(agent_status,usage_consent)
     state = state.get(provider)
     mark("bridge_admission_end")
     if not state or not state["available"]:
         raise AgentError(state["reason"] if state else "unknown_provider")
+    extra=None
+    if expert_profile:
+        from .expert_profiles import resolve_profile
+        profile=resolve_profile(expert_profile)
+        if not profile['metadata_verified'] or profile['provider']!=provider or profile['model']!=model_id:raise AgentError('expert_model_effort_unavailable')
+        if provider=='codex':extra={'model_reasoning_effort':profile['effort']}
     if provider=='codex':adapter=CodexLiveAdapter()
     elif provider=='antigravity':
         if antigravity_transport=='acp_experimental':
@@ -222,6 +229,7 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         else:raise AgentError('unsupported_antigravity_transport')
     else:raise AgentError('gemini_cli_retired' if provider=='gemini' else 'unknown_provider')
     async with asyncio.timeout(90):
-        async for delta in adapter.stream(text, context,model_id=model_id):
+        stream=adapter.stream(text,context,model_id=model_id,extra_config=extra) if extra else adapter.stream(text,context,model_id=model_id)
+        async for delta in stream:
             yield delta
         if usage is not None and getattr(adapter,'usage',None):usage.update(adapter.usage)

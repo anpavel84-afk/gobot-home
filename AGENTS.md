@@ -5,15 +5,35 @@ Brain, Bridge, voice and image services use 127.0.0.1. The owner's iPhone testin
 Tests use mocks; preserve upstream SHAs and regression-test every patch. Do not claim mock audio is speech.
 Gemini CLI live execution is retired. Google routing uses official project-local Antigravity (agy),
 strict per-session deny rules for files/commands/web/MCP, project child home and matching native audit.
-AUTO/FAST use registered Antigravity Flash only. Unavailability must not trigger a
+OWNER DIRECT 2026-11-10 supersedes the CLI-only everyday conversation rule:
+native gpt-realtime-2.1-mini is the target primary conversation engine (marin unless configured otherwise).
+Browser uses audio-only WebRTC and authenticated server sideband controls. Brain owns ACL, tools,
+context, visual scenes, budgets and confirmed expert jobs. No provider credentials/data channel in browser.
+Do not enable it by default before acceptance; keep explicit legacy STT/CLI/TTS rollback.
+Antigravity/Codex remain optional confirmed experts. Ordinary Realtime turns must not invoke legacy
+STT, Speech Formatter, separate TTS or CLI. No GPT-Live migration or silent model/voice fallback.
+Legacy AUTO/FAST use registered Antigravity Flash only. Unavailability must not trigger a
 heavy agent or mock. Expensive fallback requires explicit per-request approval.
-OpenAI STT and TTS are primary. Whisper and Denis are explicit manual offline choices only.
+OpenAI STT and TTS remain primary for legacy. Whisper and Denis are explicit manual offline choices only.
 OpenAI paid speech tests require separate owner permission; CLI quota consent does not cover API charges.
+Realtime developer trials require a new scoped budget; old speech/phone/opening budgets cannot be reused.
+Keep all 100 cached openings for legacy; disable them for native Realtime conversation.
 Speaker embeddings stay local, encrypted with Windows DPAPI; no raw enrollment recordings on disk.
 Product source: docs/GOBOT_HOME_TARGET_SYSTEM.md v0.2 (96e0f3d), still a draft beyond owner-approved corrections.
 Current priority is M1 telemetry and measured latency. Feedback never counts as useful-answer TTFA.
 Real profiling requires explicit remaining owner budget; historical latency evidence stays unchanged.
 Family/personal/guest scopes must not cross. Voice identity alone cannot grant personal-history access;
 uncertain voice/pending recognition downgrades to guest, except a short utterance in a PIN-confirmed session.
+OWNER DIRECT Family Identity amendment: a PIN phone session is not proof of the speaker on each turn.
+Native WebRTC does not yet pass local SpeakerIdentity; keep candidate context guest/RAM only, including
+followup. Never preload a PIN owner's private archive as a latency optimization. Voice matches alone do
+not authorize private retrieval. Profile/epoch/speaker-rights changes invalidate provider history and jobs;
+recreate the session rather than editing user_id in the prompt. No second family-profile database.
+Native SpeakerIdentity uses a bounded local PCM mirror into the existing opt-in ECAPA worker.
+No embeddings to providers, raw recordings to disk, or guessed enrollment/calibration. Known voice
+does not authorize memory. Family preferences are versioned against existing profile_id; free-form
+personalization stays user-level data, not a privileged instruction. Child editing is denied without
+an established parental grant. Preserve legacy SpeechFormatter/audio and demo A before deployment;
+demo2 A/B shares one Brain, and the local full backup is never published.
 
 After every meaningful implementation, update docs/CURRENT_STATUS.md as the single factual project passport. Link changed code and evidence, record limitations and deployment state, and distinguish planned/mock/provider/browser/iPhone/hardware validation. Keep GOBOT_HOME_TARGET_SYSTEM.md as the requirements authority; do not create another competing status document.

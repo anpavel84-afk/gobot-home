@@ -1,4 +1,5 @@
 import asyncio,json
+from typing import Literal
 from contextlib import asynccontextmanager
 from fastapi import FastAPI,Request,HTTPException
 from fastapi.responses import StreamingResponse
@@ -17,6 +18,7 @@ class Task(BaseModel):
     turn_id:str=Field(max_length=100)
     usage_consent:bool=False
     model_id:ExecutorModel|None=None
+    expert_profile:Literal['ARGON_DEEP','ASTRA_HIGH','SOL_XHIGH']|None=None
     trace_id:str|None=Field(default=None,max_length=100)
 
 def create_app(settings=None):
@@ -52,7 +54,7 @@ def create_app(settings=None):
             try:
                 async with asyncio.timeout(settings.timeout):
                     usage={}
-                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage,antigravity_transport=settings.router.antigravity_transport)
+                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage,antigravity_transport=settings.router.antigravity_transport,expert_profile=task.expert_profile)
                     async for delta in source:
                         yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{'type':'text_delta','text':delta}),ensure_ascii=False)+'\n';seq+=1
                     yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{"type":"telemetry","trace":trace.snapshot()}))+"\n";seq+=1

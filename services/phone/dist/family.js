@@ -14,6 +14,7 @@ async function refresh(){
       card.append(button(profile.enabled?'Выключить распознавание':'Включить распознавание',()=>api(profile.id+'/enable','POST',{enabled:!profile.enabled})));
       card.append(button('Удалить голосовые шаблоны',async()=>{if(confirm('Удалить голосовые шаблоны '+profile.name+'? История останется.'))await api(profile.id+'/voice','DELETE');}));
       card.append(button('Удалить профиль и его историю',async()=>{if(confirm('Удалить профиль '+profile.name+', биометрию и персональную историю?'))await api(profile.id,'DELETE');}));
+      if(window.GoBotFamilyPreferences)card.append(window.GoBotFamilyPreferences(profile,api));
       $('profiles').append(card);
     }
     if([...$('sample-profile').options].some(o=>o.value===selected))$('sample-profile').value=selected;
