@@ -32,7 +32,7 @@ class OpenAIImageGenerationAdapter:
         async with httpx.AsyncClient(trust_env=False,transport=self.transport,timeout=120) as client:
             async with client.stream('POST','https://api.openai.com/v1/images/generations',
                 headers={'Authorization':'Bearer '+key},
-                json={'model':MODEL,'prompt':prompt,'n':1,'size':'1024x1024','quality':'low','output_format':'jpeg'}) as response:
+                json={'model':MODEL,'prompt':prompt,'n':1,'size':'1024x1024','quality':'low','complexity':'low','output_format':'jpeg'}) as response:
                 if response.status_code!=200:raise ImageUnavailable('openai_image_request_failed')
                 raw=bytearray()
                 async for chunk in response.aiter_bytes():

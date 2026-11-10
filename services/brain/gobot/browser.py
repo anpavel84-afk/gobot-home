@@ -211,8 +211,10 @@ def create_browser_app(settings=None):
         return {'configured':bool(config),'contact':config.get('contact',''),'provider':config.get('provider','disabled'),'private_history_sent':False}
     @app.get('/api/visual/generation/usage')
     async def generation_usage(request:Request):
+        owner=await subject(request)
+        profile=await asyncio.to_thread(devices.profile,device_scope(request,owner))
         async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
-            response=await client.get('http://127.0.0.1:18781/api/v1/visual/generation/usage',params={'device_id':await subject(request)},headers=auth)
+            response=await client.get('http://127.0.0.1:18781/api/v1/visual/generation/usage',params={'device_id':'visual-device:'+profile.client_id},headers=auth)
             return JSONResponse(response.json(),status_code=response.status_code)
 
     @app.post('/api/settings/visual')

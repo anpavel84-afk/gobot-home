@@ -55,7 +55,7 @@ class VisualResponseComposer:
         if plan.reason=='user_disabled_visual':return plan
         if (pref.automatic_illustrations and pref.style!='minimal'
                 and re.search(r'придумай|сказочн|фантастическ',req.text,re.I)
-                and re.search(r'планет|город|пейзаж|мир',req.text,re.I)):
+                and re.search(r'планет|город|пейзаж|мир|дракон',req.text,re.I)):
             from .visual_subject import PRIVATE_QUERY
             if not PRIVATE_QUERY.search(req.text):
                 ai=pref.generation_allowed and pref.generation_mode!='off' and pref.generation_consent and pref.generation_daily_limit>0
@@ -68,11 +68,8 @@ class VisualResponseComposer:
             return ResponsePresentationPlan(reason='user_prefers_avatar_or_minimal')
         if plan.origin=='implicit' and plan.visual_strategy=='retrieve' and not pref.prefer_real_photos:
             return ResponsePresentationPlan(reason='user_prefers_local_or_avatar')
-        if (plan.visual_strategy=='retrieve' and plan.visual_needed and pref.source_preference=='illustrations'
-                and pref.generation_mode=='helpful' and pref.generation_allowed and pref.generation_consent
-                and pref.generation_daily_limit>0):
-            return plan.model_copy(update={'visual_strategy':'generate','template':None,'subject_label':plan.visual_query,
-                                          'reason':'ai_illustration'})
+        # Documentary subjects keep retrieval first even when illustration styling is preferred.
+        # Only the explicitly creative branch above may bypass retrieval.
         if plan.visual_needed:return plan
         if not pref.automatic_illustrations or pref.style=='minimal':return plan
         if getattr(route,'tool',None) in {'verification','memory','file_permission','control','home'}:return plan

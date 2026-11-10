@@ -99,7 +99,7 @@
         this.text('Погода',120,62,14,145);this.text(frame.metadata.facts.temperature+' °C',120,116,36,170,p.skin.face_color);
         this.text(frame.subtitle,120,155,12,160);this.text('Open-Meteo',120,181,11,145);
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
-      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
+      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(frame.metadata?.generation_provider?'ИИ-иллюстрация':overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
         if(this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
       else if(frame&&!frame.images?.length){this.text(frame.title,120,83,15,165);this.text(frame.metadata?.state==='unavailable'?(frame.metadata?.visual_strategy==='retrieve'?'Фото недоступно':'Нет данных'):frame.metadata?.state==='cancelled'?'Остановлен':'Готово',120,126,18,165);}
       else if(manager.scene&&['icon','info_card'].includes(manager.scene.scene_type)){

@@ -5,7 +5,7 @@ import io
 import json
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 from pathlib import Path
 
 from PIL import Image,ImageDraw,ImageFont
@@ -46,7 +46,8 @@ class VisualService:
 
     def available(self):
         from .image_generation import generation_status
-        return {'generation':generation_status(),'image_source':self.config_loader().get('provider','disabled'),'configured':bool(self.config_loader()),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
+        config=self.config_loader()
+        return {'generation':generation_status(),'image_source':'wikimedia' if config else 'disabled','allowed_secondary_source':'openverse' if config.get('provider')=='openverse' else None,'default_source_policy':'wikimedia_generate','configured':bool(config),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
 
     def fallback(self,req,title,code,kind='info_card',text=None):
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
@@ -58,7 +59,9 @@ class VisualService:
         with self.cache.connect() as c:
             exists=c.execute("SELECT 1 FROM sqlite_master WHERE name='generation_attempts' AND type='table'").fetchone()
             rows=c.execute('SELECT provider,count FROM generation_attempts WHERE owner=? AND day=?',(digest,int(time.time()//86400))).fetchall() if exists else []
-        return {'day_basis':'UTC','attempts':dict(rows),'includes_failed_attempts':True,'dollar_cost':None}
+            events=c.execute("SELECT 1 FROM sqlite_master WHERE name='generation_lineage'").fetchone()
+            statuses=dict(c.execute('SELECT status,count(*) FROM generation_lineage WHERE owner=? AND day=? GROUP BY status',(digest,int(time.time()//86400))).fetchall()) if events else {}
+        return {'day_basis':'UTC','attempts':dict(rows),'statuses':statuses,'includes_failed_attempts':True,'dollar_cost':None}
 
     async def speculative_sources(self,query,commons,openverse):
         """Give the article resolver a head start; overlap slow sources on cache misses."""
@@ -83,15 +86,59 @@ class VisualService:
             for task in tasks:task.cancel()
             await asyncio.gather(*tasks,return_exceptions=True)
 
+    async def wiki_candidates(self,provider,query):
+        """RU/title first, then whole-phrase EN/scientific aliases; never drop modifiers."""
+        plan=await asyncio.to_thread(ImageQueryPlanner().plan,query)
+        for term in dict.fromkeys([query,*plan.terms]):
+            for method in ('page_images','search'):
+                if not hasattr(provider,method):continue
+                try:candidates=await getattr(provider,method)(term,3)
+                except ImageUnavailable as e:
+                    if e.code in {'image_request_budget_exceeded','image_source_rate_limited'}:raise
+                    continue
+                for candidate in candidates:
+                    if method=='page_images' and candidate.matched_query==term:
+                        candidate=replace(candidate,matched_query=query)
+                    yield candidate
+
+    @staticmethod
+    def suitable_candidate(candidate,query):
+        if candidate.license not in {'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}:return False
+        if not re.search(r'логотип|logo|иконк|icon',query,re.I) and re.search(r'\b(?:logo|icon|placeholder|spacer|no.image)\b',candidate.caption,re.I):return False
+        return candidate.matched_query==query or caption_names_subject(query,candidate.caption) or subject_matches_caption(query,candidate.caption)
+
     async def images(self,req,intent,*,cache_only=False):
+        """Source policy around the existing downloader/cache, not a second image pipeline."""
+        from .device_contract import ScreenPreferences
+        cfg=self.config_loader();pref=req.screen_preferences or ScreenPreferences()
+        if not cfg or cfg.get('provider') not in {'wikimedia','openverse'}:
+            return await self._images(req,intent,cache_only=cache_only)
+        wiki={'provider':'wikimedia','contact':cfg.get('contact',''),
+              'user_agent':cfg.get('user_agent') if cfg.get('provider')=='wikimedia' else 'GoBotHomeVisual/0.4 (https://github.com/anpavel84-afk/gobot-home)'}
+        # A previously checked asset can satisfy the turn without any new external request.
+        cached=await self._images(req,intent,cache_only=True,_config=wiki,_quality=True)
+        if cached.frame.images:return cached
+        if pref.visual_source_policy=='wikimedia_first' and cfg.get('provider')=='openverse':
+            cached=await self._images(req,intent,cache_only=True,_config=cfg,_quality=True)
+            if cached.frame.images:return cached
+        if cache_only:return cached
+        provider=self.answer_fallback() if cfg.get('provider')=='openverse' and self.answer_fallback else self.provider_factory(wiki)
+        result=await self._images(req,intent,_config=wiki,_provider=provider,_quality=True)
+        if not result.frame.images and pref.visual_source_policy=='wikimedia_first' and cfg.get('provider')=='openverse':
+            result=await self._images(req,intent,_config=cfg,_quality=True)
+        result.frame.metadata.facts['source_policy']=pref.visual_source_policy
+        return result
+
+    async def _images(self,req,intent,*,cache_only=False,_config=None,_provider=None,_quality=False):
         if not intent.query:return self.fallback(req,'Какое изображение показать?','image_query_required')
         if re.search(r'https?://|file:|localhost',intent.query,re.I):return self.fallback(req,'Источник изображения','direct_image_url_not_supported',text='Прямые ссылки не загружаются этим инструментом. Опиши объект: поиск работает только через разрешённый источник изображений.')
         if intent.catalog_id is None and re.search(r'raspberry\s*pi\s*[1-9]|рас[пб]ерри\s*пи\s*[1-9]',intent.query,re.I):return self.fallback(req,'Нужен референс конкретной платы','board_revision_not_reviewed',text='Для указанной модели платы ещё нет проверенного изображения в каталоге. Фотографию другой ревизии вместо неё я не подставляю.')
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
-        config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
+        config=_config if _config is not None else self.config_loader();catalog=self.catalog.get(intent.catalog_id)
         base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
         if intent.strict_subject:base+=['answer_subject_v5_grammatical_names']
         if intent.speculative:base+=['prefetch_subject_title_v1']
+        if _quality:base+=['wikimedia_first_quality_v1']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
@@ -110,13 +157,15 @@ class VisualService:
                 records=[];reason=None
                 if not config:reason='image_sources_disabled'
                 else:
-                    provider=self.provider_factory(config)
+                    provider=_provider or self.provider_factory(config)
                     try:
                         async with self.slots,asyncio.timeout(18):
                             curated=(catalog.get('openverse_images') if config.get('provider')=='openverse' else catalog.get('images')) if catalog else None
                             sent=not bool(curated)
-                            hybrid=config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
-                            if intent.speculative and not curated and isinstance(provider,CommonsImages):
+                            hybrid=not _quality and config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
+                            if _quality and config.get('provider')=='wikimedia' and not curated:
+                                candidates=[]
+                            elif intent.speculative and not curated and isinstance(provider,CommonsImages):
                                 candidates=await provider.page_images(intent.query,3)
                                 if not candidates:candidates=await provider.search(intent.query,3)
                             elif hybrid and intent.speculative:
@@ -148,7 +197,12 @@ class VisualService:
                                     if intent.strict_subject:candidates=[item for item in candidates if subject_matches_caption(intent.query,item.caption)]
                                     if not candidates and not resolved and hasattr(common,'page_images'):candidates=await common.page_images(intent.query,3)
                             else:candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
-                            for candidate in candidates[:3]:
+                            async def static_candidates():
+                                for candidate in candidates[:3]:yield candidate
+                            stream=self.wiki_candidates(provider,intent.query) if _quality and config.get('provider')=='wikimedia' and not curated else static_candidates()
+                            async for candidate in stream:
+                                if _quality and not curated and not self.suitable_candidate(candidate,intent.query):
+                                    reason='image_candidate_irrelevant';continue
                                 if intent.speculative and candidate.matched_query!=intent.query and not caption_names_subject(intent.query,candidate.caption):continue
                                 if intent.strict_subject and candidate.matched_query!=intent.query and not subject_matches_caption(intent.query,candidate.caption):continue
                                 try:
@@ -157,6 +211,8 @@ class VisualService:
                                     if record is None:
                                         raw,_=await provider.client.get(candidate.url)
                                         record=await asyncio.to_thread(self.cache.put,candidate,raw)
+                                    if _quality and (min(record['width'],record['height'])<96 or max(record['width'],record['height'])<240):
+                                        reason='image_candidate_too_small';continue
                                     if candidate.matched_query:
                                         record={**record,**{key:getattr(candidate,key) for key in ('matched_query','entity_title','entity_source','entity_exact')}}
                                     if record['asset_id'] not in {r['asset_id'] for r in records}:records.append(record)
@@ -196,7 +252,10 @@ class VisualService:
     async def handle(self,req,*,active_turns=0):
         intent=self.intent.detect(req.text)
         if not intent:return self.fallback(req,'Визуальный ответ','image_query_required')
-        if intent.kind=='image':return await self.images(req,intent)
+        if intent.kind=='image':
+            from .presentation_planner import ResponsePresentationPlan
+            result=await self.images(req,intent)
+            return await self.generate_if_missing(req,ResponsePresentationPlan(visual_needed=True,visual_strategy='retrieve',visual_query=intent.query or '',subject_label=(intent.query or '')[:160]),result)
         if intent.kind=='weather':return self.fallback(req,'Погода','weather_not_configured','weather_card','Погодный источник и место ещё не настроены. Текущую температуру не подставляю.')
         if intent.kind=='music':return self.fallback(req,'Сейчас играет','music_not_configured','music_card','Музыкальный источник не подключён. Сейчас GoBot не получает данные о текущем треке и не управляет плеером.')
         if intent.kind=='status':
@@ -221,16 +280,24 @@ class VisualService:
         from .visual_subject import PRIVATE_QUERY
         from .visual_prefetch import PRIVATE
         pref=req.screen_preferences or ScreenPreferences()
+        if pref.visual_source_policy=='wikimedia_only':return self.fallback(req,'Иллюстрация','image_generation_policy_denied')
         if not pref.generation_allowed or pref.generation_mode=='off' or not pref.generation_consent or pref.generation_daily_limit<1:
             return self.fallback(req,'Иллюстрация','image_generation_consent_required')
-        if PRIVATE_QUERY.search(req.text) or PRIVATE.search(req.text) or re.search(r'анатоми|эндокрин|лекарств|сердц|диагноз',req.text,re.I):
+        subject=plan.subject_label or plan.visual_query
+        public_text=req.text+' '+subject
+        if PRIVATE_QUERY.search(public_text) or PRIVATE.search(public_text) or re.search(r'анатоми|эндокрин|лекарств|сердц|диагноз|anatom|endocrin|human heart',public_text,re.I):
             return self.fallback(req,'Иллюстрация','verified_diagram_required')
         adapter=CodexImageGenerationAdapter() if pref.generation_provider=='codex' else OpenAIImageGenerationAdapter()
         if pref.generation_provider=='codex':return self.fallback(req,'Иллюстрация',adapter.status()['reason'])
-        subject=plan.subject_label or plan.visual_query
         if not subject:return self.fallback(req,'Иллюстрация','public_subject_required')
-        owner=hashlib.sha256(req.device_id.encode()).hexdigest()
+        generation_day=int(time.time()//86400)
+        # Native guest memory rotates per session; spending must not reset with that RAM scope.
+        budget_owner='visual-device:'+req.client_id if req.client_id else req.device_id
+        owner=hashlib.sha256(budget_owner.encode()).hexdigest()
         key='local:ai:'+hashlib.sha256(json.dumps([owner,subject,MODEL,'1024x1024','low',pref.style],ensure_ascii=False).encode()).hexdigest()
+        prompt=('Create a clearly illustrative picture of '+subject+
+                '. Center the subject in the middle 65 percent for a circular screen. No labels or text. '+
+                'This is a conceptual illustration, not documentary evidence. No anatomical or medical diagrams.')
         if len(self.locks)>=128:self.locks={k:v for k,v in self.locks.items() if v.locked()}
         async with self.locks.setdefault(key,asyncio.Lock()),self.slots:
             record=await asyncio.to_thread(self.cache.source,key)
@@ -239,25 +306,53 @@ class VisualService:
                 def reserve():
                     with self.cache.connect() as c:
                         c.execute('CREATE TABLE IF NOT EXISTS generation_attempts(owner TEXT,day INTEGER,provider TEXT,count INTEGER,PRIMARY KEY(owner,day,provider))')
+                        c.execute('CREATE TABLE IF NOT EXISTS generation_lineage(cache_key TEXT,owner TEXT,day INTEGER,provider TEXT,model TEXT,prompt TEXT,style TEXT,status TEXT,usage TEXT,asset_id TEXT,PRIMARY KEY(cache_key,day))')
+                        if 'consent_snapshot' not in {row[1] for row in c.execute('PRAGMA table_info(generation_lineage)')}:
+                            c.execute("ALTER TABLE generation_lineage ADD COLUMN consent_snapshot TEXT NOT NULL DEFAULT '{}'")
                         c.execute('BEGIN IMMEDIATE')
-                        day=int(time.time()//86400)
+                        day=generation_day
+                        previous=c.execute('SELECT status FROM generation_lineage WHERE cache_key=? AND day=?',(key,day)).fetchone()
+                        if previous:return False # Unknown/cancelled outcomes are not silently paid twice.
                         row=c.execute('SELECT count FROM generation_attempts WHERE owner=? AND day=? AND provider=?',(owner,day,pref.generation_provider)).fetchone()
                         if row and row[0]>=pref.generation_daily_limit:return False
                         c.execute('INSERT INTO generation_attempts VALUES(?,?,?,1) ON CONFLICT(owner,day,provider) DO UPDATE SET count=count+1',(owner,day,pref.generation_provider))
+                        consent=json.dumps({'generation_consent':True,'generation_allowed':True,'daily_limit':pref.generation_daily_limit,'generation_mode':pref.generation_mode,'visual_source_policy':pref.visual_source_policy})
+                        c.execute('INSERT INTO generation_lineage(cache_key,owner,day,provider,model,prompt,style,status,usage,asset_id,consent_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(key,owner,day,'openai',MODEL,prompt,pref.style,'reserved','{}',None,consent))
                         return True
                 if not await asyncio.to_thread(reserve):return self.fallback(req,'Иллюстрация','image_generation_daily_limit')
-                prompt=('Create a clearly illustrative picture of '+subject+
-                        '. Center the subject in the middle 65 percent for a circular screen. No labels or text. '+
-                        'This is a conceptual illustration, not documentary evidence. No anatomical or medical diagrams.')
-                data,usage=await adapter.generate(prompt,consent=True)
-                candidate=ImageCandidate(key,'ИИ-иллюстрация: '+subject,None,'OpenAI · '+MODEL,'AI-generated',None,'GoBot · ИИ-иллюстрация')
-                record=await asyncio.to_thread(self.cache.put,candidate,data)
+                def settle(status,usage=None,asset=None):
+                    with self.cache.connect() as c:c.execute('UPDATE generation_lineage SET status=?,usage=?,asset_id=? WHERE cache_key=? AND day=? AND status=?',(status,json.dumps(usage or {}),asset,key,generation_day,'reserved'))
+                try:
+                    data,usage=await adapter.generate(prompt,consent=True)
+                    candidate=ImageCandidate(key,'ИИ-иллюстрация: '+subject,None,'OpenAI · '+MODEL,'AI-generated',None,'GoBot · ИИ-иллюстрация')
+                    record=await asyncio.to_thread(self.cache.put,candidate,data)
+                except asyncio.CancelledError:
+                    await asyncio.to_thread(settle,'cancelled_unknown');raise
+                except Exception:
+                    await asyncio.to_thread(settle,'failed_unknown');raise
+                await asyncio.to_thread(settle,'completed',usage,record['asset_id'])
             frame=Presentation(id=frame_id(req.turn_id,'generated'),type='image_card',title=subject+' · ИИ',
                 text='Сгенерированная иллюстрация. Достоверность деталей не подтверждена.',images=[self.cache.public(record)],
                 metadata=VisualMetadata(synthetic=True,visual_strategy='generate',backend='openai_image_api',cache_hit=hit,
                     generation_provider='openai',generation_model=MODEL,billing_kind='api',generation_usage=usage),
                 cache_key=record['asset_id'],expires_at=record['expires_at'])
             return VisualResult(frame,frame.text,'')
+
+    async def generate_if_missing(self,req,plan,result,*,cache_only=False):
+        pref=req.screen_preferences
+        denied={'image_sources_disabled','private_image_not_available','direct_image_url_not_supported','board_revision_not_reviewed','image_query_required'}
+        if (not result.frame.images and not cache_only and req.mode!='mock' and pref and pref.visual_source_policy!='wikimedia_only'
+                and pref.generation_mode in {'missing','helpful'} and result.frame.metadata.reason not in denied):
+            try:generated=await self.generated(req,plan)
+            except asyncio.CancelledError:raise
+            except Exception:
+                result.frame.metadata.facts['generation_fallback_reason']='generation_provider_unavailable'
+                return result
+            if generated.frame.images:
+                generated.frame.metadata.facts['retrieval_fallback_reason']=result.frame.metadata.reason or 'image_not_found'
+                return generated
+            result.frame.metadata.facts['generation_fallback_reason']=generated.frame.metadata.reason or 'generation_unavailable'
+        return result
 
     async def attachment(self,req,plan,*,timeout=8,cache_only=False):
         """Optional accompaniment never replaces the model answer or adds TTS captions."""
@@ -287,9 +382,8 @@ class VisualService:
                             strict_subject=plan.subject_source=='answer' or speculative,speculative=speculative),cache_only=cache_only)
                 except TimeoutError:result=self.fallback(req,'Иллюстрация','image_lookup_timeout')
                 pref=req.screen_preferences
-                if (not result.frame.images and not cache_only and pref and pref.generation_mode in {'missing','helpful'}):
-                    generated=await self.generated(req,plan)
-                    if generated.frame.images:return generated
+                generated=await self.generate_if_missing(req,plan,result,cache_only=cache_only)
+                if generated is not result:return generated
                 result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve'
                 if result.frame.images:result.frame.metadata.backend='wikimedia' if result.frame.images[0].source.label.startswith('Wikimedia') else 'openverse'
                 if plan.subject_source=='answer':

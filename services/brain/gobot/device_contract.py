@@ -11,10 +11,11 @@ class ScreenPreferences(Strict):
     prefer_real_photos:bool=True
     generation_allowed:bool=False
     generation_mode:Literal['off','missing','helpful']='off'
-    generation_provider:Literal['codex','openai']='codex'
+    generation_provider:Literal['codex','openai']='openai'
     generation_consent:bool=False
     generation_daily_limit:int=Field(default=0,ge=0,le=20)
     source_preference:Literal['auto','photos','illustrations']='auto'
+    visual_source_policy:Literal['wikimedia_first','wikimedia_only','wikimedia_generate']='wikimedia_generate'
     thematic_icons:bool=True
     hold_after_response_seconds:int=Field(default=12,ge=0,le=120)
     return_to_idle:bool=True

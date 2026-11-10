@@ -158,3 +158,19 @@ ACP выключен и fail-closed; новая скорость inference не 
 ## Первый iPhone native trial и исправление остановки
 
 R-018/019/068–070/082: реальная одна сессия/3 responses зафиксирована в realtime-phone-first-trial.json; первые два ответа достигли output cap 384. Обработка incomplete/followup/close reason исправлена и проверена fixtures; точная старая terminal reason неизвестна, акустика и повторный iPhone не приняты. Старый бюджет не переоткрывается. Подробности — паспорт §17.
+
+
+## Owner §41 — Wikimedia-first → Generate-if-missing
+
+| Критерий | Код / evidence | Статус |
+| --- | --- | --- |
+| 1–3 Encyclopedia/plant/space | VisualService.images/wiki_candidates; test_visual_source_policy.py; visual-wikimedia-first-check.json | 3 synthetic subject cases; 2 реальные бесплатные Wikimedia изображения, device JPEG decoded |
+| 4 Missing/weak → generation | generate_if_missing/generated, metadata gate | Empty/irrelevant/logo/tiny/corrupt fixtures; paid Image API probe не разрешён/не выполнен |
+| 5 Budget denied → response survives | ScreenPreferences + generation_attempts/lineage | Policy/consent/limit/medical denial fixtures; native trial ImageGen OFF |
+| 6 Cache | прежний ImageCache, style/model generation key | Mock generated cache; реальный повтор Wiki без HTTP, 22.51 ms |
+| 7 Late/cancelled turn | SpeculativePhoto + NativeSession turn guards | Прежние stale-turn fixtures; новое cancel_unknown без автоматического повторного расхода |
+| 8–9 Synthetic provenance | VisualMetadata, browser/device renderer, private lineage | AI label, источник/лицензия/consent snapshot; анатомическая генерация закрыта |
+| 10 Parallel voice | прежний speculative worker, native transcript events | Fixtures; на физическом iPhone новый visual timing ещё не принят |
+| 11–12 Display/shared contract | ImageCache variants, Presentation v2, esp32_projection | JPEG 240×240 реально декодирован; работа LVGL/платы не заявляется |
+
+Актуальное развертывание/лимиты — CURRENT_STATUS.md §§17–18. Новый документ-паспорт не создаётся.

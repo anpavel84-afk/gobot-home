@@ -772,3 +772,72 @@ incomplete cases, целевой набор 83 passed / 6.72 s. Desktop browser:
 без активной оплаченной сессии оставляет нормальную muted-сцену, mic closed; это не
 повторение iPhone audio bug. Исправленный живой iPhone-прогон ещё не выполнен.
 Новый визуальный OWNER DIRECT Wikimedia-first принят в текущую работу; scope не заменён.
+
+
+## 18. Wikimedia-first и controlled Image API fallback
+
+Новое owner правило реализовано внутри прежних `VisualService.images/_images`,
+`attachment`, `VisualResponseComposer`, ImageCache и SceneManager; отдельного pipeline
+нет. `ScreenPreferences.visual_source_policy` сохраняется в прежнем профиле устройства:
+`wikimedia_generate` по умолчанию, `wikimedia_only` и `wikimedia_first` с опциональной
+Openverse. Cached qualified asset проверяется до нового поиска. PageImages/Commons
+проверяются до secondary/generation; сначала RU исходная смысловая группа, потом
+целые нормализованные aliases. Изображения не задерживают native голос.
+
+Критерии: явная article/entity связь либо caption match; допустимая лицензия;
+отказ placeholder/logo, если не запрошены; безопасный HTTP/MIME/PIL decode;
+long side >=240 и short side >=96. Это metadata-based gate, не VLM-проверка пикселей.
+Уровень exact/overview и source/license сохраняются. Dictionary failure не исключает
+поиск неизвестной составной темы. Ранее проверенные локальные diagrams/widgets остаются
+доступны и не называются нейросетевой генерацией.
+
+Генерация: прежний официальный `OpenAIImageGenerationAdapter`, gpt-image-2.6-flare,
+1024×1024, JPEG, low quality/complexity; модель/параметры сверены с официальным Image API
+reference. Это не реальная оплаченная проверка доступа/качества. Существующий Codex
+image-only isolation blocker сохранён; согласие на Codex не переносится на API.
+Default provider новых prefs — openai, но generation OFF/consent=false/limit=0.
+Сохранённый старый provider не переписывается. Для фактических предметов предпочтение
+illustrations больше не обходит retrieval. Творческий дракон/планета могут использовать
+прямую разрешённую генерацию. Медицинский anatomy synthesis без валидации запрещён,
+включая followup с медицинским subject и нейтральным текущим вопросом.
+
+`generation_attempts` атомарно резервирует дневной лимит до вызова; `generation_lineage`
+в том же приватном cache SQLite хранит модель, public visual subject prompt, style,
+consent snapshot, outcome, usage, asset ID. Failed/cancelled attempt не возвращается;
+неизвестный outcome того же cache key не запускается повторно автоматически в этот день.
+Успешный asset повторно используется без синтеза; browser rendition сохраняет 1024,
+device rendition 240×240. Доступный API usage сохраняется, итоговая денежная стоимость
+пока null. При ошибке API ответ продолжается. Чувствительные запросы в этот путь закрыты.
+
+В существующих «Устройство → Экран и внешний вид → Генерация изображений» появился
+source policy select; прежние Auto visual, лимит и consent сохранены. Browser rich card
+и круглый renderer помечают AI-generated. В нативной тестовой policy ImageGen по-прежнему
+запрещён, новый бюджет на изображения не выдавался. Выбор источника сам ничего не генерирует.
+
+Новые fixture cases (`test_visual_source_policy.py`): Wikimedia success/cache для
+Moon/Oxheart/Falcon 9; empty/irrelevant/logo/tiny/corrupt → разрешённый mock generator;
+policy/budget denial; optional secondary after Wiki; illustration preference без bypass;
+cancellation/unknown outcome без повторной оплаты; medical followup gate. Прежние tests
+подтверждают concurrent voice/visual, stale turn rejection и единый 240×240 contract.
+Full suite до последней локальной доработки ledger: **1136 passed / 34.03 s**;
+после consent snapshot/provider failure handling целевые ImageGen/policy: 18 passed.
+
+Бесплатные реальные проверки `visual-wikimedia-first-check.json`:
+- Чёрная дыра: Wikimedia Commons / M87, CC BY 4.0, 1179.19 ms, готовый decoded JPEG 240×240.
+- Эндокринная система: Commons Endocrine English.svg через raster thumbnail,
+  CC BY-SA 4.0, 929.89 ms, decoded device JPEG. Это не акустическая/медицинская экспертиза.
+- Повтор чёрной дыры: cache_hit=true, 22.51 ms, source request counter не изменился.
+Платных генераций/LLM для этих проверок 0. Фактический показ этих новых сцен во время
+голоса на физическом iPhone и hardware ESP32 не подтверждён.
+
+
+Дополнительно проверены provider outage без падения голоса/автоповтора и творческий
+дракон. Дневной счётчик привязан к устойчивому server-injected client_id, а не
+realtime-guest RAM scope: новая native сессия не обнуляет лимит и переиспользует
+тот же разрешённый cached asset. API отображения usage использует такой же scope.
+Это отдельный бюджет изображений, не разрешение на личную память.
+После failure/creative cases full suite: 1138 passed / 32.61 s; затем stable-budget
+регрессия и browser checks: 67 passed / 2.70 s. Перед развёртыванием выполняется
+финальный полный набор.
+
+Финальный полный набор после всех изменений: **1139 passed / 31.88 s**. Production JS syntax checks пройдены. Реальных оплаченных Image API/новых Realtime вызовов в этом исправлении не выполнялось.

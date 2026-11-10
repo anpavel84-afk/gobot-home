@@ -5,7 +5,7 @@
     return {...profile,skin:{...profile.skin,skin_id:byId('skin-id').value,face_color:byId('skin-color').value,background:byId('skin-background').value,
       eyes:byId('skin-eyes').value,mouth:byId('skin-mouth').value,animation_intensity:Number(byId('skin-intensity').value),reduced_motion:byId('skin-reduced').checked,idle_screen:byId('skin-idle').value},
       screen:{automatic_illustrations:byId('screen-auto').checked,style:byId('screen-style').value,prefer_real_photos:byId('screen-photos').checked,
-        generation_allowed:byId('screen-generation').checked,generation_mode:byId('image-generation-mode').value,generation_provider:byId('image-generator').value,source_preference:byId('screen-source-preference').value,generation_consent:byId('image-generation-consent').checked,generation_daily_limit:Number(byId('image-generation-limit').value),thematic_icons:byId('screen-icons').checked,hold_after_response_seconds:Number(byId('screen-hold').value),return_to_idle:byId('screen-return').checked},
+        generation_allowed:byId('screen-generation').checked,generation_mode:byId('image-generation-mode').value,generation_provider:byId('image-generator').value,source_preference:byId('screen-source-preference').value,visual_source_policy:byId('screen-source-policy').value,generation_consent:byId('image-generation-consent').checked,generation_daily_limit:Number(byId('image-generation-limit').value),thematic_icons:byId('screen-icons').checked,hold_after_response_seconds:Number(byId('screen-hold').value),return_to_idle:byId('screen-return').checked},
       feedback:{enabled:byId('feedback-enabled').checked,filler_enabled:byId('feedback-filler').checked,quiet:byId('feedback-quiet').checked,threshold_ms:Number(byId('feedback-delay').value),volume:Number(byId('feedback-volume').value)},
       conversation:{...profile.conversation,followup_enabled:byId('followup-enabled').checked,followup_seconds:Number(byId('followup-seconds').value)},
       interaction_mode:byId('device-input').value,keep_screen_awake:byId('device-wake-lock').checked};
@@ -14,7 +14,7 @@
   async function load(){
     const response=await fetch('/api/device/profile');if(!response.ok)throw Error();const data=await response.json();profile=data.profile;
     byId('followup-enabled').checked=profile.conversation.followup_enabled;byId('followup-seconds').value=profile.conversation.followup_seconds;
-    byId('image-generation-mode').value=profile.screen.generation_mode;byId('image-generator').value=profile.screen.generation_provider;
+    byId('screen-source-policy').value=profile.screen.visual_source_policy||'wikimedia_generate';byId('image-generation-mode').value=profile.screen.generation_mode;byId('image-generator').value=profile.screen.generation_provider;
     byId('image-generation-consent').checked=profile.screen.generation_consent;byId('image-generation-limit').value=profile.screen.generation_daily_limit;byId('screen-source-preference').value=profile.screen.source_preference;
     const capabilities=(await(await fetch('/api/status')).json()).backend?.visual?.generation;
     byId('image-generation-status').textContent=capabilities?'Codex: возможность обнаружена, изоляция генерации ещё не проверена. OpenAI Image API: '+(capabilities.openai?.available?'ключ сохранён; реальные пробы ещё не выполнены.':'нужен API-ключ.'):'Диагностика генератора временно недоступна.';

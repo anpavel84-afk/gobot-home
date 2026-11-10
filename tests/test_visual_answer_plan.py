@@ -102,7 +102,7 @@ def test_strict_subject_metadata_gate_and_cache(tmp_path):
     assert not subject_matches_caption('солнечные аратинги','Orange plant')
 
 
-def test_existing_commons_fallback_after_primary_failure(tmp_path):
+def test_commons_is_now_first_and_success_skips_previous_primary(tmp_path):
     from gobot.visual_images import ImageUnavailable
     calls=[];raw=io.BytesIO();Image.new('RGB',(240,240),'orange').save(raw,'JPEG')
     class Primary:
@@ -120,7 +120,7 @@ def test_existing_commons_fallback_after_primary_failure(tmp_path):
         plan=VisualResponseComposer().plan_from_answer(ChatRequest(text=QUESTION,mode='auto'),FIRST,directive=VisualDirective(**PLAN))
         result=await service.attachment(ChatRequest(text=QUESTION,mode='auto',remember=False),plan)
         assert result.frame.images and result.frame.metadata.backend=='wikimedia'
-    asyncio.run(run());assert calls==['primary','sun conure']
+    asyncio.run(run());assert calls==['солнечные аратинги']
 
 
 @pytest.mark.parametrize('suffix,expected',[

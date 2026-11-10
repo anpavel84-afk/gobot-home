@@ -1,0 +1,52 @@
+{
+  "kind": "real_free_wikimedia_requests_or_existing_cache",
+  "paid_generation_calls": 0,
+  "llm_calls": 0,
+  "iphone_display_verified": false,
+  "checks": [
+    {
+      "query": "Чёрная дыра",
+      "elapsed_ms": 1179.19,
+      "image_ready": true,
+      "backend": "wikimedia",
+      "reason": null,
+      "cache_hit": false,
+      "source_policy": "wikimedia_generate",
+      "sources": [
+        {
+          "url": "https://commons.wikimedia.org/wiki/File:Black_hole_-_Messier_87_crop_max_res.jpg",
+          "label": "Wikimedia Commons",
+          "license": "CC BY 4.0",
+          "width": 960,
+          "height": 960,
+          "device_jpeg_decoded": true
+        }
+      ]
+    },
+    {
+      "query": "Эндокринная система",
+      "elapsed_ms": 929.89,
+      "image_ready": true,
+      "backend": "wikimedia",
+      "reason": null,
+      "cache_hit": false,
+      "source_policy": "wikimedia_generate",
+      "sources": [
+        {
+          "url": "https://commons.wikimedia.org/wiki/File:Endocrine_English.svg",
+          "label": "Wikimedia Commons",
+          "license": "CC BY-SA 4.0",
+          "width": 960,
+          "height": 946,
+          "device_jpeg_decoded": true
+        }
+      ]
+    }
+  ],
+  "repeat_check": {
+    "image_ready": true,
+    "cache_hit": true,
+    "source_request_count_unchanged": true,
+    "elapsed_ms": 22.51
+  }
+}
