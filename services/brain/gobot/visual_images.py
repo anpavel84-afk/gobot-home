@@ -10,11 +10,11 @@ import sqlite3
 import threading
 import time
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass,replace
 from contextlib import contextmanager
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlsplit,urlunsplit,parse_qsl
+from urllib.parse import urlsplit,urlunsplit,parse_qsl,quote
 
 import httpx
 from PIL import Image,ImageOps
@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=2
-FETCH_POLICY_VERSION=3
+FETCH_POLICY_VERSION=4
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -73,7 +73,7 @@ class SafeImageHTTP:
         self.user_agent=user_agent;self.transport=transport;self.resolver=resolver;self.budget=budget;self.on_limit=on_limit
     async def get(self,url,*,api=False,params=None):
         u=urlsplit(url)
-        allowed={'commons.wikimedia.org','api.openverse.org'} if api else IMAGE_HOSTS|{'api.openverse.org'}
+        allowed={'commons.wikimedia.org','ru.wikipedia.org','en.wikipedia.org','api.openverse.org'} if api else IMAGE_HOSTS|{'api.openverse.org'}
         if u.scheme!='https' or u.hostname not in allowed or u.username or u.password or u.port not in {None,443} or u.fragment:raise ImageUnavailable('image_origin_denied')
         if u.hostname=='api.openverse.org':
             if api and u.path!='/v1/images/':raise ImageUnavailable('image_api_path_denied')
@@ -126,6 +126,14 @@ class ImageCandidate:
     license_url:str|None
     source_label:str='Wikimedia Commons'
     sha256:str|None=None
+    matched_query:str|None=None
+    entity_title:str|None=None
+    entity_source:str|None=None
+    entity_exact:bool=True
+
+def entity_words(value):
+    from .speech_formatter import morphology
+    return {morphology().parse(word)[0].normal_form for word in re.findall(r'[а-яёa-z0-9-]+',value.casefold())}
 
 class CommonsImages:
     def __init__(self,client):self.client=client
@@ -134,6 +142,38 @@ class CommonsImages:
         clean=re.sub(r'[^\w\sА-Яа-яЁё-]',' ',query)[:180].strip()
         if not clean:return []
         data,_=await self.client.get(API,api=True,params={'action':'query','format':'json','generator':'search','gsrnamespace':6,'gsrlimit':min(limit+2,6),'gsrsearch':clean+' filetype:bitmap','prop':'imageinfo','iiprop':'url|extmetadata|size|mime','iiurlwidth':960,'iiextmetadatafilter':'Artist|LicenseShortName|LicenseUrl|ImageDescription'})
+        return self.candidates(data,limit)
+
+    async def page_images(self,query,limit=3):
+        """Resolve an article, then license-check its named image on Commons.
+
+        A broader article is an explicitly labelled overview, never an exact
+        match to a dropped qualifier. Unrelated search hits are rejected.
+        """
+        language='ru' if re.search('[а-яё]',query,re.I) else 'en'
+        endpoint='https://'+language+'.wikipedia.org/w/api.php'
+        data,_=await self.client.get(endpoint,api=True,params={'action':'query','format':'json','generator':'search',
+            'gsrsearch':query[:180],'gsrnamespace':0,'gsrlimit':3,'prop':'pageimages|pageprops',
+            'piprop':'name','ppprop':'disambiguation'})
+        try:pages=json.loads(data).get('query',{}).get('pages',{})
+        except ValueError:raise ImageUnavailable('invalid_entity_metadata') from None
+        requested=await asyncio.to_thread(entity_words,query)
+        for page in sorted(pages.values(),key=lambda p:p.get('index',999)):
+            title=page.get('title','');filename=page.get('pageimage','')
+            if page.get('ns')!=0 or 'disambiguation' in page.get('pageprops',{}) or not filename or '|' in filename or len(filename)>240:continue
+            named=await asyncio.to_thread(entity_words,title)
+            if not named or not named<=requested or (named!=requested and len(named)<2):continue
+            metadata,_=await self.client.get(API,api=True,params={'action':'query','format':'json','titles':'File:'+filename,
+                'prop':'imageinfo','iiprop':'url|extmetadata|size|mime','iiurlwidth':960,'iiextmetadatafilter':'Artist|LicenseShortName|LicenseUrl|ImageDescription'})
+            candidates=self.candidates(metadata,limit)
+            if candidates:
+                return [replace(item,matched_query=query,entity_title=title,
+                    entity_source='https://'+language+'.wikipedia.org/wiki/'+quote(title.replace(' ','_')),
+                    entity_exact=named==requested) for item in candidates]
+        return []
+
+    @staticmethod
+    def candidates(data,limit=3):
         try:pages=json.loads(data).get('query',{}).get('pages',{})
         except ValueError:raise ImageUnavailable('invalid_image_metadata') from None
         candidates=[]
@@ -279,12 +319,17 @@ CREATE TABLE IF NOT EXISTS source_backoff(provider TEXT PRIMARY KEY,until REAL);
     def query(self,key):
         with self.connect() as c:row=c.execute('SELECT * FROM queries WHERE id=? AND expires>?',(key,self.clock())).fetchone()
         if not row:return None
-        records=[self.get(asset) for asset in json.loads(row['assets'])]
+        records=[]
+        for reference in json.loads(row['assets']):
+            record=self.get(reference if isinstance(reference,str) else reference['asset_id'])
+            if record is not None and isinstance(reference,dict):record={**record,**{k:reference[k] for k in ('matched_query','entity_title','entity_source','entity_exact') if k in reference}}
+            records.append(record)
         if any(record is None for record in records):return None
         return records,row['reason']
     def save_query(self,key,records,reason=None):
         with self.connect() as c:
-            c.execute('INSERT OR REPLACE INTO queries VALUES(?,?,?,?)',(key,json.dumps([r['asset_id'] for r in records]),reason,self.clock()+(86400 if records else 600)))
+            references=[{k:r[k] for k in ('asset_id','matched_query','entity_title','entity_source','entity_exact') if k in r} if r.get('matched_query') else r['asset_id'] for r in records]
+            c.execute('INSERT OR REPLACE INTO queries VALUES(?,?,?,?)',(key,json.dumps(references),reason,self.clock()+(86400 if records else 600)))
             c.execute('DELETE FROM queries WHERE id IN (SELECT id FROM queries ORDER BY expires DESC LIMIT -1 OFFSET 256)')
     def prune(self,reserve_bytes=0,reserve_entries=0):
         with self.lock,self.connect() as c:

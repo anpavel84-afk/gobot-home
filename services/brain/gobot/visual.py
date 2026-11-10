@@ -59,7 +59,7 @@ class VisualService:
         if re.search(r'\b(?:мо(?:й|я|ё|е|ю|его|ей|их|им|ими|ему|ем|ём)|наш\w*|мам[ауы]|пап[ауы]|доч[ьи]|сын[ауы]?|жен[аыу]|муж[а]?)\b',intent.query,re.I):return self.fallback(req,'Личное изображение','private_image_not_available')
         config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
         base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
-        if intent.strict_subject:base+=['answer_subject_v3_canonical_commons']
+        if intent.strict_subject:base+=['answer_subject_v4_entity_resolution']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
@@ -82,25 +82,37 @@ class VisualService:
                         async with self.slots,asyncio.timeout(18):
                             curated=(catalog.get('openverse_images') if config.get('provider')=='openverse' else catalog.get('images')) if catalog else None
                             sent=not bool(curated)
-                            hybrid=intent.strict_subject and config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
+                            hybrid=config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
                             if hybrid:
-                                try:
-                                    async with asyncio.timeout(3):candidates=await provider.search(intent.query,3)
-                                except (ImageUnavailable,TimeoutError):candidates=[]
-                                candidates=[item for item in candidates if subject_matches_caption(intent.query,item.caption)]
+                                common=self.answer_fallback();candidates=[];resolved=False
+                                if re.search('[а-яё]',intent.query,re.I) and hasattr(common,'page_images'):
+                                    try:
+                                        async with asyncio.timeout(3):candidates=await common.page_images(intent.query,3)
+                                    except (ImageUnavailable,TimeoutError):pass
+                                    resolved=True
+                                    if candidates:provider=common
                                 if not candidates:
-                                    provider=self.answer_fallback()
+                                    try:
+                                        async with asyncio.timeout(3):candidates=await provider.search(intent.query,3)
+                                    except (ImageUnavailable,TimeoutError):candidates=[]
+                                    if intent.strict_subject:candidates=[item for item in candidates if item.matched_query==intent.query or subject_matches_caption(intent.query,item.caption)]
+                                if not candidates:
+                                    provider=common
                                     query_plan=await asyncio.to_thread(ImageQueryPlanner().plan,intent.query)
                                     candidates=await provider.search(query_plan.terms[0],3)
+                                    if intent.strict_subject:candidates=[item for item in candidates if subject_matches_caption(intent.query,item.caption)]
+                                    if not candidates and not resolved and hasattr(common,'page_images'):candidates=await common.page_images(intent.query,3)
                             else:candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
                             for candidate in candidates[:3]:
-                                if intent.strict_subject and not subject_matches_caption(intent.query,candidate.caption):continue
+                                if intent.strict_subject and candidate.matched_query!=intent.query and not subject_matches_caption(intent.query,candidate.caption):continue
                                 try:
                                     record=await asyncio.to_thread(self.cache.source,candidate.url)
                                     if record and candidate.sha256 and record.get('source_sha256')!=candidate.sha256:record=None
                                     if record is None:
                                         raw,_=await provider.client.get(candidate.url)
                                         record=await asyncio.to_thread(self.cache.put,candidate,raw)
+                                    if candidate.matched_query:
+                                        record={**record,**{key:getattr(candidate,key) for key in ('matched_query','entity_title','entity_source','entity_exact')}}
                                     if record['asset_id'] not in {r['asset_id'] for r in records}:records.append(record)
                                     if len(records)>=(3 if intent.gallery else 1):break
                                 except ImageUnavailable as e:
@@ -125,6 +137,14 @@ class VisualService:
         text=catalog['text'] if catalog else 'Найдены изображения по запросу. Подписи и ссылки ведут к первоисточникам; совпадение конкретной разновидности по одной фотографии не гарантируется.'
         speech=catalog['speech'] if catalog else 'Нашёл изображения по твоему запросу. Ссылки на источники сохранены.'
         frame=Presentation(id=frame_id(req.turn_id,'images'),type='image_gallery' if len(images)>1 else 'image_card',title=title,text=text,images=images,actions=[VisualAction(type='open_image',label='Открыть крупнее',asset_id=images[0].asset_id)],metadata=VisualMetadata(visual_strategy='retrieve',backend=config.get('provider'),cache_hit=hit,query_sent_to_source=sent,approximate_match=catalog.get('approximate_match',False) if catalog else True,selection_basis='curated_visual_review' if catalog else 'source_metadata_search_unverified',reason=reason),source=VisualSource(label=images[0].source.label),expires_at=min(r['expires_at'] for r in records),cache_key=key)
+        frame.metadata.backend='wikimedia' if images[0].source.label.startswith('Wikimedia') else 'openverse'
+        if records[0].get('entity_title'):
+            record=records[0];exact=record['entity_exact']
+            frame.metadata.selection_basis='wikimedia_article_image';frame.metadata.approximate_match=not exact
+            frame.metadata.facts.update({'entity_title':record['entity_title'],'entity_source':record['entity_source'],'entity_match':'exact_name' if exact else 'topic_overview'})
+            frame.title=title+('' if exact else ' · обзор')
+            frame.text='Фото к статье «'+record['entity_title']+'».'+('' if exact else ' Конкретная разновидность по этому снимку не подтверждена.')
+            text=frame.text
         return VisualResult(frame,text,speech)
 
     async def handle(self,req,*,active_turns=0):
@@ -168,8 +188,8 @@ class VisualService:
                 if plan.subject_source=='answer':
                     result.frame.metadata.facts.update({'subject':plan.subject_label,'query_basis':'answer_entity','identification':'illustrative_example_not_confirmed_identification'})
                     if result.frame.images:
-                        result.frame.title=plan.subject_label
-                        result.frame.text='Пример вида, упомянутого в ответе. Подбор по метаданным источника; это не идентификация конкретной птицы.'
+                        result.frame.title=plan.subject_label+(' · обзор' if result.frame.metadata.facts.get('entity_match')=='topic_overview' else '')
+                        if not result.frame.metadata.facts.get('entity_source'):result.frame.text='Пример объекта, упомянутого в ответе. Подбор по метаданным источника; это не идентификация конкретного экземпляра.'
                 return result
         except asyncio.CancelledError:raise
         except Exception:

@@ -57,7 +57,7 @@ class VisualMetadata(Strict):
     cache_hit:bool=False
     query_sent_to_source:bool=False
     approximate_match:bool=False
-    selection_basis:Literal['local_state','curated_visual_review','source_metadata_search_unverified']='local_state'
+    selection_basis:Literal['local_state','curated_visual_review','source_metadata_search_unverified','wikimedia_article_image']='local_state'
     visual_priority:Literal['required','helpful','optional']='required'
     visual_strategy:Literal['retrieve','generate','render_local','mixed']='render_local'
     synthetic:bool=False
