@@ -38,6 +38,7 @@ class VoiceRequest(ChatRequest):
     tts_provider: Literal["openai", "denis"] = "openai"
     tts_voice: str = Field(default="marin", max_length=30)
     paid_tts_consent: bool = False
+    tts_character_limit: int | None = Field(default=None,ge=0,le=32000,strict=True)
 
 class Event(BaseModel):
     type: Literal["text_delta","sentence_ready","tool_status","widget_command","visual_response","screen_scene","final","error","cancelled"]

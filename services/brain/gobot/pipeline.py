@@ -9,7 +9,9 @@ from .speech_formatter import SpeechFormatter
 from .telemetry import scope,mark
 
 async def voiced_events(service, speech, request, *, speak=True, tts_provider="openai",
-                        tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False):
+                        tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False,tts_character_limit=None):
+    if tts_character_limit is not None and (type(tts_character_limit) is not int or not 0<=tts_character_limit<=32000):
+        raise ValueError('invalid_tts_character_limit')
     if not prepared:replay = await service.prepare(request)
     output = asyncio.Queue(maxsize=16)
     sentences = asyncio.Queue(maxsize=4)
@@ -53,12 +55,12 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
 
     async def consume_audio(synthesizer):
         nonlocal seq, tts_failed
-        first = True;segment_sequence=0
+        first = True;segment_sequence=0;characters=0;budget_exhausted=False
         while True:
             text = await sentences.get()
             if text is None:
                 break
-            if tts_failed or audio_cancel.is_set():
+            if tts_failed or audio_cancel.is_set() or budget_exhausted:
                 continue
             segment_id=None
             try:
@@ -66,6 +68,13 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 text=formatter.format(text)
                 mark("formatter_end")
                 if not text:continue
+                if tts_character_limit is not None and characters+len(text)>tts_character_limit:
+                    budget_exhausted=True
+                    measurements['tts_character_limit_reached']=True
+                    await output.put(audio_event('tts_status',status='character_limit_reached',limit=tts_character_limit,characters_submitted=characters))
+                    continue
+                characters+=len(text)
+                measurements['tts_characters_submitted']=characters
                 segment_id=audio_id+':'+str(segment_sequence);segment_sequence+=1
                 service.memory.archive.speech(request,segment_id,segment_sequence,text,'submitted_to_tts')
                 synthesis_started=time.perf_counter();mark("tts_segment_submit",voice=tts_voice,transport="realtime_ws",audio_role="answer")
@@ -104,7 +113,7 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
             # Handshake only: no response.create, no placeholder speech, no retries.
             # It is allowed solely for this owner's explicit per-request speech consent.
             prepare=None
-            if speak and paid_tts_consent and not replay and tts_provider=='openai':
+            if speak and paid_tts_consent and not replay and tts_provider=='openai' and tts_character_limit!=0:
                 prepare=asyncio.create_task(synthesizer.prepare(tts_provider,tts_voice,paid_consent=True))
             try:await consume_audio(synthesizer)
             finally:

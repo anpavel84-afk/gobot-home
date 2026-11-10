@@ -17,6 +17,28 @@ from gobot.models import ChatRequest
 from gobot.pipeline import voiced_events
 from gobot.live_agents import context_prompt
 
+@pytest.mark.parametrize('limit',[0,1,70])
+def test_speech_budget_counts_formatted_text_and_never_sends_partial_sentence(settings,limit):
+    from gobot.models import event,VoiceRequest
+    from gobot.speech_formatter import SpeechFormatter
+    submitted=[]
+    class Voice:
+        async def synthesize(self,text,*args,**kwargs):submitted.append(text);yield b'\x01\0'*20,24000
+    async def run():
+        service=Service(settings);req=ChatRequest(text='Проверка',mode='mock',remember=False)
+        async def source(*args):
+            for text in ['Наступило 15 ноября.','Это следующая фраза.']:
+                yield event(req,'sentence_ready',text=text)
+            yield event(req,'final',text='Полный ответ остаётся на экране.')
+        service.events=source
+        events=[e async for e in voiced_events(service,Voice(),req,tts_character_limit=limit)]
+        assert sum(map(len,submitted))<=limit
+        assert all(text in [SpeechFormatter().format(t) for t in ['Наступило 15 ноября.','Это следующая фраза.']] for text in submitted)
+        assert events[-1]['data']['text']=='Полный ответ остаётся на экране.'
+        assert events[-1]['data']['speech_metrics'].get('tts_characters_submitted',0)==sum(map(len,submitted))
+    asyncio.run(run())
+    with pytest.raises(ValueError):VoiceRequest(text='test',tts_character_limit=-1)
+
 def test_dpapi_roundtrip_without_touching_owner_secret(tmp_path, monkeypatch):
     if os.name != 'nt':pytest.skip('Windows DPAPI')
     import gobot.secrets_store as secrets

@@ -161,7 +161,7 @@ async function send(options={}) {
   try {
     const response = await fetch('/api/chat/stream', {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
       body: JSON.stringify({text, mode: $('model').value, conversation_id: conversation, turn_id: currentTurn, request_id:currentTurn,utterance_id:utterance,remember:$('remember').checked,context_detail:$('detailed-context').checked?'detailed':'standard', correlation_id: uuid(),
-        trace_id:turnTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
+        trace_id:turnTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,tts_character_limit:options.tts_character_limit??null,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
     if (!response.ok) throw new Error('http_' + response.status);
     const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
     while (true) {
@@ -191,7 +191,7 @@ async function send(options={}) {
           visuals?.render({namespace:'gobot.ui',version:2,id:'scene-'+currentTurn,type:'info_card',title:payload.title||data.scene.visual_subject,
             text:data.scene.scene_type==='info_card'?payload.text||'':'',images:[],metadata:{transient_scene:true,state:payload.data_status==='unverified'?'unavailable':'ready',icon:payload.icon}});visuals?.syncDisplay(answer);
         }
-        else if(item.type==='tts_status')$('voice-status').textContent='Готовлю серверный голос…';
+        else if(item.type==='tts_status')$('voice-status').textContent=data.status==='character_limit_reached'?'Лимит озвучивания достигнут. Полный ответ доступен текстом.':'Готовлю серверный голос…';
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
         else if (item.type === 'tts_error') {feedback?.cancel();turnTrace?.mark('error');$('voice-status').textContent = explain(data.code);}

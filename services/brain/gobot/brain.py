@@ -487,12 +487,12 @@ def create_app(settings=None):
             with __import__('contextlib').suppress(Exception):await ws.close()
     @app.post('/api/v1/chat/voice/stream',dependencies=[Depends(auth)])
     async def voice_stream(req:VoiceRequest,request:Request):
-        chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id'}))
+        chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id','tts_character_limit'}))
         trace=service.traces.get(chat_req.device_id,chat_req.trace_id or chat_req.utterance_id or chat_req.turn_id);trace.mark("memory_prepare_start")
         replay=await service.prepare(chat_req)
         trace.mark("memory_prepare_end")
         async def generate():
-            iterator=voiced_events(service,speech,chat_req,speak=req.speak,tts_provider=req.tts_provider,tts_voice=req.tts_voice,paid_tts_consent=req.paid_tts_consent,replay=replay,prepared=True)
+            iterator=voiced_events(service,speech,chat_req,speak=req.speak,tts_provider=req.tts_provider,tts_voice=req.tts_voice,paid_tts_consent=req.paid_tts_consent,replay=replay,prepared=True,tts_character_limit=req.tts_character_limit)
             try:
                 async for item in iterator:
                     if item['type']=='audio_chunk':trace.mark('audio_transport_send')
