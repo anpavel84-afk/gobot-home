@@ -11,8 +11,9 @@
 * Локально: `C:\Users\PLAN\gobot\GoBotHome`.
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
-* Последнее подтверждённое развёртывание до текущего пакета — `9c087ce`.
-  Текущий пакет проходит проверку; факт развёртывания фиксируется в разделе 10.
+* Проверенный runtime — `6f936b4b60a1945d4aca476a2630d460e0f9ee46`.
+  Последующие документационные коммиты не требуют перезапуска служб.
+  Результаты проверки развёртывания приведены в разделе 10.
 
 ## 2. Карта пути запроса
 
@@ -45,26 +46,26 @@ flowchart LR
 
 | Компонент | Фактическое поведение | Основной код | Граница проверки |
 | --- | --- | --- | --- |
-| AUTO / FAST | Antigravity Flash Low; автоматического дорогого fallback нет | `routing.py`, `antigravity.py` | Реальные ограниченные CLI-пробы выполнены |
-| REASONING / ручной выбор | Flash Medium; Argon и Codex доступны явно | `routing.py`, `live_agents.py` | Пригодность к любым сложным задачам не доказана |
-| Оценка качества | Раздельные сложность, фактическая неопределённость, последствия и проверка | `quality.py` | Детерминированные правила; не точные вероятности |
-| Быстрые команды | Каталог 30 сценариев; 13 отмечены реализованными, остальные требуют интеграций/прав | `quick-intents.json`, `quick_intents.py`, `local_tools.py` | 228 синтетических формулировок; не исследование живой речи |
-| Завершение беседы | «Нет, спасибо» локально завершает активный сеанс без CLI/TTS; новое прослушивание не включается | `conversation_control.py`, `device.js` | Автоматические тесты; новый iPhone-прогон отсутствует |
-| STT | OpenAI основной; Whisper только вручную | `stt.py`, `audio.py`, `capture.js` | Русские короткие фразы/домашний шум требуют дальнейшей проверки |
-| TTS | OpenAI, выбранный голос; PCM streaming; необязательный лимит символов после форматтера | `audio.py`, `pipeline.py` | Реальные пробы и клиентские события; не акустическая лаборатория |
-| Speech Formatter | Отдельный speech_text; Markdown, дубли имён, числа, даты, падежи, словарь | `speech_formatter.py` | Правила не дают полной гарантии русской морфологии |
-| Вступления | 100 готовых OpenAI marin клипов, 2886 символов; случайный подходящий вариант по категории | `speech_openings.py`, `speech-openings.json`, `turn-trace.js` | Реальное создание 100/100; сочетаемость каждого вступления с живым ответом не проверена |
-| Старый звук ожидания | Denis «Секунду…» исключён; старый URL возвращает 410 | `browser.py`, `browser.js` | Резервный ручной голос Denis для ответа отдельно сохранён |
-| Контекст | SQLite-архив в GoBot, бюджетный пакет, последние обмены, темы/эпизоды, FTS5 | `memory.py`, `archive.py`, `context_manager.py` | Семантический retrieval и качественные summaries не доказаны |
-| Визуальная тема | Составные именные группы, active_visual_subject, нормализация ё/е и падежей | `semantic_visual.py`, `visual_memory.py`, `image_query.py` | Эвристика, не универсальное семантическое понимание |
-| Визуальный поиск | Prefetch параллельно ответу; Wikimedia и Openverse; source/license checks, TTL/LRU кэш | `visual.py`, `visual_images.py`, `visual_prefetch.py` | Проверка metadata не равна полной проверке содержимого фото |
-| Визуальные сцены | Фото/галереи, локальные схемы, карточки/таймер, лицо; поздние старые события отсекаются | `response_composer.py`, `device-renderer.js`, `visual.js` | Реальные изображения проверены в Browser и Device Renderer |
-| Генерация картинок | API-адаптер и согласие/лимиты подготовлены; Codex capability обнаружена | `image_generation.py` | Codex image-only изоляция не проверена; генерация не включается молча |
-| Семья / Speaker Identity | Профили, PIN, локальные биометрические компоненты и guest downgrade | `family.py`, `speaker.py`, `family_api.py` | Биометрия не является авторизацией и не объявлена надёжной |
-| Device Mode | PTT, автоматическая отправка, скины Classic/Soft/Minimal, серверное сохранение настроек | `device.js`, `device_contract.py`, `device_store.py` | Телефонный круг не доказывает совместимость платы ESP32 |
-| Continuous Conversation | Локальное окно после фактического playback, экспериментальный VAD, timeout и отмена | `capture.js`, `device.js` | TV/шум/реальный iPhone не приняты |
-| Wake word | Контракт/статус есть | `activation.py` | Русское «ГоБот» рабочей моделью не подтверждено |
-| Наблюдаемость | Раздельные часы Brain/Bridge/клиента, usage либо unavailable, actual playback counter | `telemetry.py`, `turn-trace.js` | Клиентский counter не является акустическим измерением |
+| AUTO / FAST | Antigravity Flash Low; автоматического дорогого fallback нет | [routing.py](../services/brain/gobot/routing.py), [antigravity.py](../services/brain/gobot/antigravity.py) | Реальные ограниченные CLI-пробы выполнены |
+| REASONING / ручной выбор | Flash Medium; Argon и Codex доступны явно | [routing.py](../services/brain/gobot/routing.py), [live_agents.py](../services/brain/gobot/live_agents.py) | Пригодность к любым сложным задачам не доказана |
+| Оценка качества | Раздельные сложность, фактическая неопределённость, последствия и проверка | [quality.py](../services/brain/gobot/quality.py) | Детерминированные правила; не точные вероятности |
+| Быстрые команды | Каталог 30 сценариев; 13 отмечены реализованными, остальные требуют интеграций/прав | [quick-intents.json](../services/brain/quick-intents.json), [quick_intents.py](../services/brain/gobot/quick_intents.py), [local_tools.py](../services/brain/gobot/local_tools.py) | 228 синтетических формулировок; не исследование живой речи |
+| Завершение беседы | «Нет, спасибо» локально завершает активный сеанс без CLI/TTS; новое прослушивание не включается | [conversation_control.py](../services/brain/gobot/conversation_control.py), [device.js](../services/phone/dist/device.js) | Автоматические тесты; новый iPhone-прогон отсутствует |
+| STT | OpenAI основной; Whisper только вручную | [stt.py](../services/brain/gobot/stt.py), [audio.py](../services/brain/gobot/audio.py), [capture.js](../services/phone/dist/capture.js) | Русские короткие фразы/домашний шум требуют дальнейшей проверки |
+| TTS | OpenAI, выбранный голос; PCM streaming; необязательный лимит символов после форматтера | [audio.py](../services/brain/gobot/audio.py), [pipeline.py](../services/brain/gobot/pipeline.py) | Реальные пробы и клиентские события; не акустическая лаборатория |
+| Speech Formatter | Отдельный speech_text; Markdown, дубли имён, числа, даты, падежи, словарь | [speech_formatter.py](../services/brain/gobot/speech_formatter.py) | Правила не дают полной гарантии русской морфологии |
+| Вступления | 100 готовых OpenAI marin клипов, 2886 символов; случайный подходящий вариант по категории | [speech_openings.py](../services/brain/gobot/speech_openings.py), [speech-openings.json](../services/brain/speech-openings.json), [turn-trace.js](../services/phone/dist/turn-trace.js) | Реальное создание 100/100; сочетаемость каждого вступления с живым ответом не проверена |
+| Старый звук ожидания | Denis «Секунду…» исключён; старый URL возвращает 410 | [browser.py](../services/brain/gobot/browser.py), [browser.js](../services/phone/dist/browser.js) | Резервный ручной голос Denis для ответа отдельно сохранён |
+| Контекст | SQLite-архив в GoBot, бюджетный пакет, последние обмены, темы/эпизоды, FTS5 | [memory.py](../services/brain/gobot/memory.py), [archive.py](../services/brain/gobot/archive.py), [context_manager.py](../services/brain/gobot/context_manager.py) | Семантический retrieval и качественные summaries не доказаны |
+| Визуальная тема | Составные именные группы, active_visual_subject, нормализация ё/е и падежей | [semantic_visual.py](../services/brain/gobot/semantic_visual.py), [visual_memory.py](../services/brain/gobot/visual_memory.py), [image_query.py](../services/brain/gobot/image_query.py) | Эвристика, не универсальное семантическое понимание |
+| Визуальный поиск | Prefetch параллельно ответу; Wikimedia и Openverse; source/license checks, TTL/LRU кэш | [visual.py](../services/brain/gobot/visual.py), [visual_images.py](../services/brain/gobot/visual_images.py), [visual_prefetch.py](../services/brain/gobot/visual_prefetch.py) | Проверка metadata не равна полной проверке содержимого фото |
+| Визуальные сцены | Фото/галереи, локальные схемы, карточки/таймер, лицо; поздние старые события отсекаются | [response_composer.py](../services/brain/gobot/response_composer.py), [device-renderer.js](../services/phone/dist/device-renderer.js), [visual.js](../services/phone/dist/visual.js) | Реальные изображения проверены в Browser и Device Renderer |
+| Генерация картинок | API-адаптер и согласие/лимиты подготовлены; Codex capability обнаружена | [image_generation.py](../services/brain/gobot/image_generation.py) | Codex image-only изоляция не проверена; генерация не включается молча |
+| Семья / Speaker Identity | Профили, PIN, локальные биометрические компоненты и guest downgrade | [family.py](../services/brain/gobot/family.py), [speaker.py](../services/brain/gobot/speaker.py), [family_api.py](../services/brain/gobot/family_api.py) | Биометрия не является авторизацией и не объявлена надёжной |
+| Device Mode | PTT, автоматическая отправка, скины Classic/Soft/Minimal, серверное сохранение настроек | [device.js](../services/phone/dist/device.js), [device_contract.py](../services/brain/gobot/device_contract.py), [device_store.py](../services/brain/gobot/device_store.py) | Телефонный круг не доказывает совместимость платы ESP32 |
+| Continuous Conversation | Локальное окно после фактического playback, экспериментальный VAD, timeout и отмена | [capture.js](../services/phone/dist/capture.js), [device.js](../services/phone/dist/device.js) | TV/шум/реальный iPhone не приняты |
+| Wake word | Контракт/статус есть | [activation.py](../services/brain/gobot/activation.py) | Русское «ГоБот» рабочей моделью не подтверждено |
+| Наблюдаемость | Раздельные часы Brain/Bridge/клиента, usage либо unavailable, actual playback counter | [telemetry.py](../services/brain/gobot/telemetry.py), [turn-trace.js](../services/phone/dist/turn-trace.js) | Клиентский counter не является акустическим измерением |
 
 Пути Python в таблице относительны к `services/brain/gobot`, JSON — к
 `services/brain`, клиентские JS — к `services/phone/dist`.
@@ -120,11 +121,13 @@ flowchart LR
 | ACP без prompt | Первая новая сессия 1723 мс; вторая в том же runtime 16 мс | Не измерение inference/ответа, изоляция ещё не допущена |
 | 100 вступлений | 100 completed, 2886 символов, 0 повторов | Денежная стоимость API не сообщена адаптером |
 | Визуальный synthetic eval | 40/40 предметов на собственном наборе | Не независимое доказательство качества любых фото |
-| Регрессия | Финальное число после сборки фиксируется в разделе 10 | Mocks отдельно от реальных устройств |
+| Регрессия | 930 passed за 19,60 с на коде `6f936b4` | Mocks отдельно от реальных устройств |
+| Локальный HTTPS без моделей | «Нет, спасибо» — 469,58 мс; часы/дата/справка — 211–214 мс | Полное HTTP-обращение, не время слышимого ответа; 4 пробы |
 
 Доказательства: [real latency probes](real-latency-probes-20261110.json),
 [Antigravity audit](antigravity-latency-audit.json), [opening build](speech-openings-build.json), [quick intents research](quick-intents-research.json),
-[visual source checks](semantic-visual-source-checks.json), [context evaluation](CONTEXT_EVALUATION.md).
+[visual source checks](semantic-visual-source-checks.json), [context evaluation](CONTEXT_EVALUATION.md),
+[проверка локальных команд и кэша через HTTPS](quick-openings-https-check.json).
 Исторические замеры не переименовываются в текущие результаты.
 
 ## 7. Что остаётся открытым
@@ -153,7 +156,7 @@ flowchart LR
 | `6d7811a` | Настройки визуала, gated generation и followup | CONTINUOUS_CONVERSATION.md |
 | `c079771`, `574de9a` | Общие именные группы, visual subject, placeholder и отмена | semantic-visual-evaluation.json |
 | `a0e46f8`, `9c087ce` | Лимит TTS, две реальные пробы, ё/е и падежи | real-latency-probes-20261110.json |
-| Текущий пакет | Локальный конец беседы, 100 OpenAI-вступлений, quick intents и этот паспорт | Код и новые бесплатные tests; deployment ниже |
+| `6f936b4` | Локальный конец беседы, 100 OpenAI-вступлений, quick intents и этот паспорт | 930 tests; создание клипов; HTTPS-проверка и deployment ниже |
 
 Полная история действий хранится в Git. Эта таблица сохраняет смысл этапов;
 старые неактуальные выводы доступны по commit, а не перемешаны с текущим статусом.
@@ -162,13 +165,39 @@ flowchart LR
 
 Каждое значимое внедрение сопровождается обновлением этого файла: поведение,
 файлы, проверки, ограничения, расходы/разрешения и изменения runtime.
+В записи указываются дата, commit реализации, ссылки на изменённые компоненты
+и доказательства проверки. До коммита допустима пометка «в работе»; после
+проверки она заменяется фактическим результатом. Опубликованный код и запущенная
+версия учитываются отдельно. Полные технические отчёты остаются по ссылкам,
+а сводное состояние — здесь. Ссылка на паспорт находится в README, обязательность
+его обновления закреплена в AGENTS.md.
 Незавершённая функция отмечается явно. Статусы «код», «mock», «реальный
 провайдер», «браузер», «iPhone», «ESP32» не подменяют друг друга.
 Целевая спецификация определяет требования; этот паспорт — их фактическую реализацию.
 
 ## 10. Последняя проверка и развёртывание
 
-Текущий пакет ещё не развёрнут. До него runtime `9c087ce`; завершены
-создание 100 клипов, полный прогон 930 тестов, включая проверки параметров таймера и Node-клиента. После полного прогона,
-публикации и deployment сюда заносится фактический commit и результат health.
+10 ноября 2026 года развёрнут код `6f936b4b60a1945d4aca476a2630d460e0f9ee46`.
+Полный прогон: **930 passed за 19,60 с**, включая параметры таймера,
+локальные завершения, идемпотентность и Node-проверки клиентской очереди.
+Проверка индекса и всей Git-истории Gitleaks 8.30.1 перед коммитом: 0 находок.
+
+После перезапуска проверены приватный HTTPS и `/device` (HTTP 200), health
+Brain/Bridge/голосового стенда/изображений. Активных turns и голосовых потоков — 0.
+Метаданные native isolation для Antigravity/Codex подтверждены; без согласия
+на квоту они остаются недоступными. Gemini CLI отмечен retired и недоступен.
+
+Через настоящий HTTPS выполнены четыре временных обращения с remember=false,
+speak=false и без разрешения CLI-квот. Все ответили локально: завершение
+«Нет, спасибо!», часы, дата и справка. Завершение содержит conversation_ended;
+ни один запрос не создал аудиочанков, CLI-вызова или синтеза TTS.
+
+Кэш marin сообщает 100/100 готовых клипов. Один клип получен через HTTPS и
+декодирован как WAV 24 кГц длительностью 2,0 с. Старый URL Denis возвращает 410.
+Это проверка доставки и декодирования, **не подтверждение слышимого
+воспроизведения нового вступления на iPhone**. Платные вызовы в этой проверке — 0.
+Реальное создание всех клипов ранее израсходовало одобренный лимит:
+100 запросов / 2886 символов / 0 повторов. Денежная стоимость недоступна.
+
+Документационные изменения после этого развёртывания служб не перезапускают.
 Ключи, приватный контекст и содержимое семейных разговоров сюда не добавляются.

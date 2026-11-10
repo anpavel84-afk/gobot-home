@@ -1,0 +1,48 @@
+{
+  "kind": "real private HTTPS, local tools and existing cached audio only",
+  "paid_requests": 0,
+  "cli_requests": 0,
+  "tts_synthesis_requests": 0,
+  "clock_source": "home server local timezone; not inferred phone location",
+  "rows": [
+    {
+      "text": "Нет, спасибо!",
+      "http_total_ms": 469.58,
+      "provider": "local",
+      "reply": "Хорошо.",
+      "conversation_ended": true
+    },
+    {
+      "text": "Сколько сейчас времени?",
+      "http_total_ms": 213.71,
+      "provider": "local",
+      "reply": "По времени домашнего сервера сейчас 16:03.",
+      "conversation_ended": false
+    },
+    {
+      "text": "Какая сегодня дата?",
+      "http_total_ms": 211.16,
+      "provider": "local",
+      "reply": "Сегодня 10.11.2026.",
+      "conversation_ended": false
+    },
+    {
+      "text": "Что ты умеешь?",
+      "http_total_ms": 212.87,
+      "provider": "local",
+      "reply": "Могу назвать время и дату, поставить таймер, проверить оставшееся время или посчитать выражение. Личная история доступна после подтверждения профиля.",
+      "conversation_ended": false
+    }
+  ],
+  "opening_status": {
+    "voice": "marin",
+    "catalog_count": 100,
+    "ready_count": 100,
+    "legacy_denis_filler": false,
+    "runtime_synthesis": false
+  },
+  "old_denis_asset_status": 410,
+  "cached_opening_http": 200,
+  "cached_opening_duration_seconds": 2.0,
+  "physical_iphone": false
+}
