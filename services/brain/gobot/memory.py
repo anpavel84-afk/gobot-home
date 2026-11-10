@@ -36,7 +36,9 @@ class Memory:
             c.execute("UPDATE sessions SET active=0")
             c.execute("UPDATE archive_messages SET status='cancelled' WHERE status='running'")
     def start(self,req):
-        payload=req.model_dump(exclude={"correlation_id","turn_id","request_id","utterance_id","event_id"});digest=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
+        payload=req.model_dump(exclude={"correlation_id","turn_id","request_id","utterance_id","event_id","trace_id"})
+        if payload.get('profile_epoch') is None:payload.pop('profile_epoch',None)
+        digest=hashlib.sha256(json.dumps(payload,sort_keys=True).encode()).hexdigest()
         if not req.remember:
             with self.transient_lock:
                 now=time.time();self.transient={k:v for k,v in self.transient.items() if now-v['updated']<3600}

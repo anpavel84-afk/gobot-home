@@ -63,7 +63,7 @@ Cancel/error/hidden/new recording/storage scope change очищают его. П
 
 ## Проверки и блокеры
 
-527 pytest, включая восемь M1-тестов. Node fixtures проверяют threshold/ready race,
+528 pytest, включая девять M1-тестов. Node fixtures проверяют threshold/ready race,
 preemption, quiet, silent first payload, отмену, bounded ACKs. Полный локальный
 transport fixture связывает file STT, gateway, Brain и TTS. Новый HTTPS smoke:
 [latency-fixture-v02.json](latency-fixture-v02.json), STT/LLM mock и TTS off;
@@ -87,3 +87,7 @@ private HTTPS /device, обновить страницу и включить GoB
 
 M2 child lock/profile ACL и M3 PageImages/prefetch/relevance остаются открытыми.
 Этот проход не выдаётся за выполнение AC-27…34 или всей спецификации v0.2.
+
+Идемпотентность: смена диагностического trace_id не меняет смысл request и не
+создаёт повторного вызова. Nullable profile_epoch не ломает прежний payload digest;
+содержательно другой запрос с тем же идентификатором по-прежнему отклоняется.

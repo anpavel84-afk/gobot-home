@@ -1,7 +1,7 @@
 # Фактический статус — 10 ноября 2026
 
 Последний проход M1 по v0.2: content-free traces, локальный earcon/один filler,
-startup priming metadata admission. 527 pytest; реальный useful TTFA и iPhone
+startup priming metadata admission. 528 pytest; реальный useful TTFA и iPhone
 не измерены. Новые платные пробы запрошены отдельно. См. LATENCY_V02.md и
 REQUIREMENTS_MATRIX.md. M2/M3 остаются в очереди; серверный child lock пока отсутствует.
 

@@ -60,6 +60,17 @@ def test_ac26_late_client_delivery_cannot_replace_newer_trace(tmp_path):
         store.save('owner',client_trace({'trace_id':'reorder','revision':revision,'events':events}))
     assert store.read('owner','reorder')[0]['revision']==2
 
+def test_trace_metadata_retry_keeps_request_idempotent(settings):
+    from gobot.memory import Memory,Conflict
+    memory=Memory(settings.db)
+    for remember in (True,False):
+        request=ChatRequest(text='Повторная доставка',mode='mock',remember=remember,trace_id='first-trace')
+        assert memory.start(request) is None
+        memory.finish(request,'completed','Ответ.','mock',[])
+        replay=memory.start(request.model_copy(update={'trace_id':'second-trace'}))
+        assert replay['result']=='Ответ.'
+        with pytest.raises(Conflict):memory.start(request.model_copy(update={'text':'Другой запрос'}))
+
 def test_ac36_docs_only_sync_preserves_code_base():
     root=Path(__file__).resolve().parents[1]
     result=subprocess.run(['git','diff','--name-only','bd487fff1e6cb88cdc34e3fc53ebd15dbde1cb11','96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4'],cwd=root,capture_output=True,text=True,check=True)

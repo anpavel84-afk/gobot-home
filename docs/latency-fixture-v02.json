@@ -1,10 +1,10 @@
 {
   "kind": "free HTTPS mock trace smoke, not speech performance",
   "client": "Python HTTP driver, no physical browser",
-  "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+  "trace_id": "latency-fixture-31577ae9-43c2-41d7-bb95-9dc696299252",
   "traces": [
     {
-      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "trace_id": "latency-fixture-31577ae9-43c2-41d7-bb95-9dc696299252",
       "clock_domain": "brain",
       "events": [
         {
@@ -14,7 +14,7 @@
         },
         {
           "name": "stt_upload_last",
-          "ms": 0.129,
+          "ms": 0.11,
           "metadata": {
             "input_bytes": 6444,
             "stt_mode": "mock"
@@ -22,62 +22,62 @@
         },
         {
           "name": "stt_final",
-          "ms": 0.2,
+          "ms": 0.176,
           "metadata": {}
         },
         {
           "name": "memory_prepare_start",
-          "ms": 315.654,
+          "ms": 295.141,
           "metadata": {}
         },
         {
           "name": "memory_prepare_end",
-          "ms": 315.897,
+          "ms": 295.384,
           "metadata": {}
         },
         {
           "name": "voice_stream_open",
-          "ms": 332.673,
+          "ms": 312.029,
           "metadata": {
             "utterance_id": null,
             "request_id": null,
-            "turn_id": "755680e0-562c-4751-b33e-f1469e968f60",
-            "conversation_id": "temporary-dc9547ae-cc1c-4952-9004-af31fd45ac80"
+            "turn_id": "597c4fe1-ebc6-40c6-b748-685a12a6c496",
+            "conversation_id": "temporary-2030e33e-0efe-4419-8033-0020e3c25929"
           }
         },
         {
           "name": "brain_queue_start",
-          "ms": 332.76,
+          "ms": 312.119,
           "metadata": {}
         },
         {
           "name": "brain_queue_end",
-          "ms": 332.794,
+          "ms": 312.149,
           "metadata": {}
         },
         {
           "name": "context_start",
-          "ms": 332.804,
+          "ms": 312.16,
           "metadata": {}
         },
         {
           "name": "context_end",
-          "ms": 332.992,
+          "ms": 312.342,
           "metadata": {}
         },
         {
           "name": "admission_start",
-          "ms": 333.0,
+          "ms": 312.35,
           "metadata": {}
         },
         {
           "name": "admission_end",
-          "ms": 340.477,
+          "ms": 320.313,
           "metadata": {}
         },
         {
           "name": "router_end",
-          "ms": 342.049,
+          "ms": 322.154,
           "metadata": {
             "route": "FAST_CHAT",
             "model": null,
@@ -86,29 +86,29 @@
         },
         {
           "name": "context_pack_end",
-          "ms": 440.36,
+          "ms": 422.779,
           "metadata": {
             "context_tokens": 378
           }
         },
         {
           "name": "first_assistant_delta",
-          "ms": 445.481,
+          "ms": 429.509,
           "metadata": {}
         },
         {
           "name": "chunker_sentence_ready",
-          "ms": 487.509,
+          "ms": 471.459,
           "metadata": {}
         },
         {
           "name": "sentence_ready",
-          "ms": 487.531,
+          "ms": 471.491,
           "metadata": {}
         },
         {
           "name": "voice_stream_closed",
-          "ms": 551.707,
+          "ms": 517.14,
           "metadata": {}
         }
       ],
@@ -117,15 +117,15 @@
         "stt_mode": "mock",
         "utterance_id": null,
         "request_id": null,
-        "turn_id": "755680e0-562c-4751-b33e-f1469e968f60",
-        "conversation_id": "temporary-dc9547ae-cc1c-4952-9004-af31fd45ac80",
+        "turn_id": "597c4fe1-ebc6-40c6-b748-685a12a6c496",
+        "conversation_id": "temporary-2030e33e-0efe-4419-8033-0020e3c25929",
         "route": "FAST_CHAT",
         "model": null,
         "concurrency": 1,
         "context_tokens": 378
       },
-      "code_config_fingerprint": "7446e8588813065c8dda",
-      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "code_config_fingerprint": "82e5421ff060a6709173",
+      "code_commit": "85e55d586e0d5c523b70b4101bbb55caf4880758",
       "unknown_stages": [
         "provider_internal_inference",
         "stt_tls_handshake",
@@ -134,9 +134,11 @@
       "contains_content": false
     },
     {
-      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "trace_id": "latency-fixture-31577ae9-43c2-41d7-bb95-9dc696299252",
       "clock_domain": "client_monotonic",
       "revision": 1,
+      "audio_seconds": null,
+      "stt_mode": "text",
       "events": [
         {
           "name": "input_closed",
@@ -144,67 +146,67 @@
         },
         {
           "name": "upload_start",
-          "ms": 343.207
+          "ms": 0.001
         },
         {
           "name": "stt_final_received",
-          "ms": 692.283
+          "ms": 323.534
         },
         {
           "name": "chat_submit",
-          "ms": 692.288
+          "ms": 323.539
         },
         {
           "name": "first_text",
-          "ms": 1012.042
+          "ms": 650.942
         }
       ],
       "source": "untrusted_client_estimated_output_not_acoustic_proof",
       "contains_content": false
     },
     {
-      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "trace_id": "latency-fixture-31577ae9-43c2-41d7-bb95-9dc696299252",
       "clock_domain": "gateway-chat",
       "events": [
         {
           "name": "request_received",
-          "ms": 0.003,
+          "ms": 0.005,
           "metadata": {}
         },
         {
           "name": "profile_start",
-          "ms": 0.21,
+          "ms": 0.271,
           "metadata": {}
         },
         {
           "name": "profile_end",
-          "ms": 0.222,
+          "ms": 0.285,
           "metadata": {}
         },
         {
           "name": "gateway_queue_start",
-          "ms": 1.217,
+          "ms": 2.035,
           "metadata": {}
         },
         {
           "name": "gateway_queue_end",
-          "ms": 1.254,
+          "ms": 2.093,
           "metadata": {}
         },
         {
           "name": "brain_first_bytes",
-          "ms": 314.376,
+          "ms": 319.818,
           "metadata": {}
         },
         {
           "name": "gateway_closed",
-          "ms": 432.188,
+          "ms": 418.205,
           "metadata": {}
         }
       ],
       "metadata": {},
-      "code_config_fingerprint": "7446e8588813065c8dda",
-      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "code_config_fingerprint": "82e5421ff060a6709173",
+      "code_commit": "85e55d586e0d5c523b70b4101bbb55caf4880758",
       "unknown_stages": [
         "provider_internal_inference",
         "stt_tls_handshake",
@@ -213,37 +215,37 @@
       "contains_content": false
     },
     {
-      "trace_id": "latency-fixture-571ef289-f9d6-4ba5-b6b2-bc9251450432",
+      "trace_id": "latency-fixture-31577ae9-43c2-41d7-bb95-9dc696299252",
       "clock_domain": "gateway-stt",
       "events": [
         {
           "name": "upload_first",
-          "ms": 0.004,
+          "ms": 0.005,
           "metadata": {}
         },
         {
           "name": "upload_last",
-          "ms": 0.174,
+          "ms": 0.201,
           "metadata": {
             "input_bytes": 6444
           }
         },
         {
           "name": "stt_gateway_queue_end",
-          "ms": 0.197,
+          "ms": 0.229,
           "metadata": {}
         },
         {
           "name": "stt_returned",
-          "ms": 327.808,
+          "ms": 314.872,
           "metadata": {}
         }
       ],
       "metadata": {
         "input_bytes": 6444
       },
-      "code_config_fingerprint": "7446e8588813065c8dda",
-      "code_commit": "96e0f3d19dfcf57b09f711dd8c5ce45f0ef580a4",
+      "code_config_fingerprint": "82e5421ff060a6709173",
+      "code_commit": "85e55d586e0d5c523b70b4101bbb55caf4880758",
       "unknown_stages": [
         "provider_internal_inference",
         "stt_tls_handshake",
