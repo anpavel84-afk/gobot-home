@@ -1,0 +1,61 @@
+--- a/main/xiaozhi-server/core/websocket_server.py
++++ b/main/xiaozhi-server/core/websocket_server.py
+@@ -208,24 +208,15 @@
+             return False
+ 
+     async def _handle_auth(self, websocket: websockets.ServerConnection):
+-        # 先认证，后建立连接
+-        if self.auth_enable:
+-            headers = dict(websocket.request.headers)
+-            device_id = headers.get("device-id", None)
+-            client_id = headers.get("client-id", None)
+-            if self.allowed_devices and device_id in self.allowed_devices:
+-                # 如果属于白名单内的设备，不校验token，直接放行
+-                return
+-            else:
+-                # 否则校验token
+-                token = headers.get("authorization", "")
+-                if token.startswith("Bearer "):
+-                    token = token[7:]  # 移除'Bearer '前缀
+-                else:
+-                    raise AuthenticationError("Missing or invalid Authorization header")
+-                # 进行认证
+-                auth_success = self.auth.verify_token(
+-                    token, client_id=client_id, username=device_id
+-                )
+-                if not auth_success:
+-                    raise AuthenticationError("Invalid token")
++        if not self.auth_enable:
++            raise AuthenticationError("GoBot requires authentication")
++        headers = dict(websocket.request.headers)
++        device_id = headers.get("device-id", "")
++        client_id = headers.get("client-id", "")
++        if not device_id or not client_id or device_id not in self.allowed_devices:
++            raise AuthenticationError("Device not provisioned")
++        value = headers.get("authorization", "")
++        if not value.startswith("Bearer "):
++            raise AuthenticationError("Missing device credential")
++        if not self.auth.verify_token(value[7:], client_id=client_id, username=device_id):
++            raise AuthenticationError("Invalid device credential")
+--- a/main/xiaozhi-server/core/auth.py
++++ b/main/xiaozhi-server/core/auth.py
+@@ -60,7 +60,7 @@
+         try:
+             sig_part, ts_str = token.split(".")
+             ts = int(ts_str)
+-            if int(time.time()) - ts > self.expire_seconds:
++            if ts > int(time.time()) + 30 or int(time.time()) - ts > self.expire_seconds:
+                 return False  # 过期
+ 
+             expected_sig = self._sign(f"{client_id}|{username}|{ts}")
+--- a/main/xiaozhi-server/core/connection.py
++++ b/main/xiaozhi-server/core/connection.py
+@@ -215,7 +215,7 @@
+             else:
+                 self.client_ip = ws.remote_address[0]
+             self.logger.bind(tag=TAG).info(
+-                f"{self.client_ip} conn - Headers: {self.headers}"
++                f"{self.client_ip} conn - device headers redacted"
+             )
+ 
+             self.device_id = self.headers.get("device-id", None)

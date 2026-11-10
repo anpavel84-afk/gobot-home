@@ -1,0 +1,61 @@
+{
+  "checked_utc": "2026-11-10T01:32:22.323992+00:00",
+  "processes": {
+    "supervisor": {
+      "pid": 16480,
+      "created": 1794274066.982768
+    },
+    "workers": {
+      "brain": {
+        "pid": 9844,
+        "created": 1794274067.1097324,
+        "port": 18781
+      },
+      "bridge": {
+        "pid": 9056,
+        "created": 1794274067.1153855,
+        "port": 18782
+      },
+      "voice": {
+        "pid": 18412,
+        "created": 1794274067.120726,
+        "port": 18783
+      },
+      "images": {
+        "pid": 21288,
+        "created": 1794274067.1271303,
+        "port": 18784
+      }
+    }
+  },
+  "health": {
+    "18781": {
+      "status_code": 200
+    },
+    "18782": {
+      "status_code": 200
+    },
+    "18783": {
+      "status_code": 200
+    },
+    "18784": {
+      "status_code": 200
+    }
+  },
+  "configured_bind": "127.0.0.1",
+  "docker": "not installed; zero GoBot containers",
+  "models_called": false,
+  "brain_status": {
+    "mode": "mock",
+    "active_turns": 0,
+    "voice": {
+      "runtime": "fixture-only",
+      "asr": "mock",
+      "tts": "mock",
+      "vad": "mock",
+      "real_speech_ready": false
+    },
+    "real_agents_enabled": false
+  },
+  "observed_process_connections": []
+}

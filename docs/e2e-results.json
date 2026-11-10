@@ -1,0 +1,61 @@
+{
+  "mode": "mock-only",
+  "metrics": {
+    "llm_first_delta_mock_ms": {
+      "p50": 22.146100000099977,
+      "p95": 23.833400000512484,
+      "n": 20
+    },
+    "text_e2e_mock_ms": {
+      "p50": 146.8102999997427,
+      "p95": 149.55269999882148,
+      "n": 20
+    }
+  },
+  "devices": [
+    {
+      "version": 1,
+      "audio_fixture_frames": 2,
+      "abort": false,
+      "mock": true,
+      "actual_playback_measured": false
+    },
+    {
+      "version": 2,
+      "audio_fixture_frames": 2,
+      "abort": false,
+      "mock": true,
+      "actual_playback_measured": false
+    },
+    {
+      "version": 3,
+      "audio_fixture_frames": 2,
+      "abort": false,
+      "mock": true,
+      "actual_playback_measured": false
+    }
+  ],
+  "passed": [
+    "health",
+    "authenticated JPEG HTTP delivery",
+    "authenticated SSE",
+    "SQLite persistence",
+    "signed host bridge",
+    "hello",
+    "device auth rejection",
+    "v1/v2/v3 fixture framing",
+    "listen",
+    "tts order",
+    "timer UI queue",
+    "abort",
+    "lost connection",
+    "reconnect"
+  ],
+  "unmeasured": [
+    "VAD",
+    "STT real speech",
+    "TTS first real chunk",
+    "first physical Opus playback",
+    "actual upstream interoperability"
+  ]
+}

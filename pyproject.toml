@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools==80.10.2"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "gobot-home"
+version = "0.1.0"
+requires-python = ">=3.11"
+[tool.setuptools.packages.find]
+where = ["services/brain"]
+[tool.pytest.ini_options]
+pythonpath = ["services/brain"]
+testpaths = ["tests"]

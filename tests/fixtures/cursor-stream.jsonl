@@ -1,0 +1,4 @@
+{"type": "system", "subtype": "init", "debug": "not spoken"}
+{"type": "assistant", "timestamp_ms": 1, "message": {"role": "assistant", "content": [{"type": "text", "text": "Привет"}]}}
+{"type": "assistant", "timestamp_ms": 2, "model_call_id": "duplicate", "message": {"role": "assistant", "content": [{"type": "text", "text": "Привет"}]}}
+{"type": "result", "subtype": "success", "is_error": false, "result": "Привет"}

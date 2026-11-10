@@ -1,0 +1,34 @@
+{
+  "host_worker_restart": "passed",
+  "sqlite_survives_process_restart": "passed",
+  "real_sse_disconnect_cleanup": "passed",
+  "docker_restart": "not tested: Docker absent",
+  "processes": {
+    "supervisor": {
+      "pid": 13360,
+      "created": 1794273902.1798208
+    },
+    "workers": {
+      "brain": {
+        "pid": 6796,
+        "created": 1794273909.3369436,
+        "port": 18781
+      },
+      "bridge": {
+        "pid": 5996,
+        "created": 1794273902.302147,
+        "port": 18782
+      },
+      "voice": {
+        "pid": 16604,
+        "created": 1794273902.3086,
+        "port": 18783
+      },
+      "images": {
+        "pid": 6268,
+        "created": 1794273902.3144665,
+        "port": 18784
+      }
+    }
+  }
+}

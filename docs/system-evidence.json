@@ -1,0 +1,50 @@
+{
+  "OS": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26300",
+    "OSArchitecture": "64-bit"
+  },
+  "CPU": {
+    "Name": "AMD Ryzen 7 7840HS w/ Radeon 780M Graphics     ",
+    "NumberOfCores": 8,
+    "NumberOfLogicalProcessors": 16
+  },
+  "GPU": [
+    {
+      "Name": "AMD Radeon 780M Graphics",
+      "AdapterRAM": 2147483648
+    }
+  ],
+  "Listeners": [
+    {
+      "LocalAddress": "::",
+      "LocalPort": 7070,
+      "OwningProcess": 5696
+    },
+    {
+      "LocalAddress": "192.168.3.15",
+      "LocalPort": 60970,
+      "OwningProcess": 0
+    },
+    {
+      "LocalAddress": "192.168.3.15",
+      "LocalPort": 60960,
+      "OwningProcess": 0
+    },
+    {
+      "LocalAddress": "192.168.3.15",
+      "LocalPort": 60956,
+      "OwningProcess": 0
+    },
+    {
+      "LocalAddress": "192.168.3.15",
+      "LocalPort": 60916,
+      "OwningProcess": 0
+    },
+    {
+      "LocalAddress": "0.0.0.0",
+      "LocalPort": 135,
+      "OwningProcess": 1824
+    }
+  ]
+}

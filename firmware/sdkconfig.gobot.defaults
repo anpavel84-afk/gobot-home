@@ -1,0 +1,4 @@
+# Candidate only. Verify exact physical revision before build/flash.
+CONFIG_BOARD_TYPE_SPOTPEAR_ESP32_S3_1_28_BOX=y
+CONFIG_RECEIVE_CUSTOM_MESSAGE=y
+CONFIG_LV_USE_SNAPSHOT=y

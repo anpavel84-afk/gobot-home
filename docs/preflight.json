@@ -1,0 +1,85 @@
+{
+  "os": "Windows-11-10.0.26300-SP0",
+  "architecture": "AMD64",
+  "cpu": "AMD64 Family 25 Model 116 Stepping 1, AuthenticAMD",
+  "cores": 8,
+  "threads": 16,
+  "ram_gb": 13.68,
+  "disk_free_gb": 81.09,
+  "ipv4": {
+    "Local Area Connection* 1": [
+      "169.254.157.166"
+    ],
+    "Local Area Connection* 2": [
+      "169.254.63.83"
+    ],
+    "Wi-Fi": [
+      "192.168.3.15"
+    ],
+    "outline-tap0": [
+      "169.254.150.149"
+    ],
+    "Bluetooth Network Connection": [
+      "169.254.165.106"
+    ],
+    "Tailscale": [
+      "100.90.228.125"
+    ],
+    "Loopback Pseudo-Interface 1": [
+      "127.0.0.1"
+    ]
+  },
+  "listeners": [
+    {
+      "address": "192.168.3.15",
+      "port": 53741,
+      "pid": 0
+    },
+    {
+      "address": "::",
+      "port": 135,
+      "pid": 1824
+    },
+    {
+      "address": "192.168.3.15",
+      "port": 53704,
+      "pid": 0
+    },
+    {
+      "address": "192.168.3.15",
+      "port": 53766,
+      "pid": 0
+    },
+    {
+      "address": "192.168.3.15",
+      "port": 53773,
+      "pid": 0
+    }
+  ],
+  "tools": {
+    "python": "C:\\Users\\PLAN\\AppData\\Local\\Microsoft\\WindowsApps\\python.EXE",
+    "uv": null,
+    "pip": "C:\\Users\\PLAN\\AppData\\Local\\Python\\bin\\pip.EXE",
+    "git": "C:\\Program Files\\Git\\cmd\\git.EXE",
+    "ffmpeg": "C:\\ffmpeg\\bin\\ffmpeg.EXE",
+    "node": "C:\\Program Files\\nodejs\\node.EXE",
+    "docker": null,
+    "gemini": null,
+    "idf.py": null,
+    "esptool": null,
+    "codex": "C:\\Users\\PLAN\\AppData\\Roaming\\npm\\codex.CMD",
+    "cursor-agent": "C:\\Users\\PLAN\\AppData\\Local\\cursor-agent\\cursor-agent.CMD",
+    "agent": "C:\\Users\\PLAN\\.grok\\bin\\agent.EXE"
+  },
+  "auth_presence_only": {
+    ".codex": true,
+    ".cursor": true,
+    ".gemini": false
+  },
+  "chosen_ports": {
+    "brain": 18781,
+    "bridge": 18782,
+    "voice_ws": 18783,
+    "voice_http": 18784
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "xiaozhi-server": {
+    "repo": "xinnan-tech/xiaozhi-esp32-server",
+    "sha": "4b1a54a41c28112bc06b1ab605d2ba723f678ad3",
+    "path": "vendor\\xiaozhi-server"
+  },
+  "xiaozhi-firmware": {
+    "repo": "78/xiaozhi-esp32",
+    "sha": "a73e9a7e266e3196d1368ba46c30bee0d81f0a64",
+    "path": "vendor\\xiaozhi-firmware"
+  },
+  "openai/codex": {
+    "repo": "openai/codex",
+    "sha": "caae161dd0c82f2e04e57e6f9d738fafbce503ba",
+    "inspected_only": true
+  },
+  "google-gemini/gemini-cli": {
+    "repo": "google-gemini/gemini-cli",
+    "sha": "1930f25394c4b6338b64ffdb43083fca41614798",
+    "inspected_only": true
+  },
+  "anyrobert/cursor-api-proxy": {
+    "repo": "anyrobert/cursor-api-proxy",
+    "sha": "38a5c91bca54947bc4df049d9b2a943f969a0c3c",
+    "inspected_only": true
+  },
+  "Adolanium/hermes-gadget-sdk": {
+    "repo": "Adolanium/hermes-gadget-sdk",
+    "sha": "56941f79cce112c3a05f2d93015b64f51f9a19e7",
+    "inspected_only": true
+  },
+  "BerriAI/litellm": {
+    "repo": "BerriAI/litellm",
+    "sha": "c76a95fc7e83f5e0a326ec9a60d138ca821711ff",
+    "inspected_only": true
+  },
+  "espressif/esp-iot-solution": {
+    "repo": "espressif/esp-iot-solution",
+    "sha": "90fcf2170c3ea1c7f8a19b49d58a8557781e5457",
+    "inspected_only": true
+  },
+  "bitbank2/JPEGDEC": {
+    "repo": "bitbank2/JPEGDEC",
+    "sha": "32132971bcc032b5b14f1e1e968c242d8d986854",
+    "inspected_only": true
+  }
+}

@@ -1,0 +1,63 @@
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -10,6 +10,7 @@
+ #include "settings.h"
+ #include "system_info.h"
+ #include "text_glyph_payload.h"
++#include "gobot_ui_contract.h"
+ #include "websocket_protocol.h"
+ 
+ #include <driver/gpio.h>
+@@ -735,7 +736,9 @@
+                 if (payload_json) {
+                     Schedule(
+                         [this, display, payload_str = std::string(payload_json.get())]() {
+-                            display->SetChatMessage("system", payload_str.c_str());
++                            if (!GoBotRenderCustom(display, payload_str)) {
++                                display->SetChatMessage("system", payload_str.c_str());
++                            }
+                         });
+                 }
+             } else {
+--- /dev/null
++++ b/main/gobot_ui_contract.h
+@@ -0,0 +1,39 @@
++#pragma once
++#include "display.h"
++#include <cJSON.h>
++#include <string>
++#include <cstring>
++#include <cstdio>
++// Candidate: call only from Application::Schedule. Not compiled on this host.
++inline bool GoBotRenderCustom(Display* display, const std::string& payload) {
++    auto root = cJSON_Parse(payload.c_str());
++    if (!root) return false;
++    auto ns = cJSON_GetObjectItem(root, "namespace");
++    auto version = cJSON_GetObjectItem(root, "version");
++    auto command = cJSON_GetObjectItem(root, "command");
++    bool handled = false;
++    if (cJSON_IsString(ns) && strcmp(ns->valuestring, "gobot.ui") == 0 &&
++        cJSON_IsNumber(version) && version->valuedouble == 1 && cJSON_IsString(command)) {
++        if (strcmp(command->valuestring, "timer.start") == 0) {
++            auto duration = cJSON_GetObjectItem(root, "duration_ms");
++            if (cJSON_IsNumber(duration) && duration->valuedouble >= 1 && duration->valuedouble <= 86400000) {
++                int seconds = duration->valueint / 1000;
++                char label[80];
++                snprintf(label, sizeof(label), "Таймер %d:%02d", seconds / 60, seconds % 60);
++                display->SetChatMessage("system", label);
++                handled = true;
++            }
++        } else if (strcmp(command->valuestring, "weather.show") == 0 ||
++                   strcmp(command->valuestring, "status.show") == 0 ||
++                   strcmp(command->valuestring, "music.now_playing") == 0 ||
++                   strcmp(command->valuestring, "notification.show") == 0) {
++            auto text = cJSON_GetObjectItem(root, "text");
++            if (cJSON_IsString(text) && strlen(text->valuestring) <= 400) {
++                display->SetChatMessage("system", text->valuestring);
++                handled = true;
++            }
++        }
++    }
++    cJSON_Delete(root);
++    return handled;
++}

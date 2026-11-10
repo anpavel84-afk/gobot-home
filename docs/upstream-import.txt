@@ -1,0 +1,5 @@
+
+Traceback (most recent call last):
+  File "C:\Users\PLAN\gobot\GoBotHome\vendor\xiaozhi-server\main\xiaozhi-server\app.py", line 5, in <module>
+    from aioconsole import ainput
+ModuleNotFoundError: No module named 'aioconsole'

@@ -1,0 +1,14 @@
+{
+  "codex": {
+    "exit_code": 0,
+    "state": "authenticated",
+    "credentials_copied": false,
+    "model_request_sent": false
+  },
+  "cursor": {
+    "exit_code": 0,
+    "state": "unconfirmed",
+    "credentials_copied": false,
+    "model_request_sent": false
+  }
+}

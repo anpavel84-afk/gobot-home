@@ -1,0 +1,27 @@
+name: gobothome
+# Optional Linux-container Brain-only mock profile. Docker is absent on this host.
+# No host Agent Bridge connection or auth-directory mounts.
+services:
+  brain:
+    profiles: ["mock-container"]
+    build:
+      context: .
+      dockerfile: services/brain/Dockerfile
+    command: ["python", "-m", "uvicorn", "gobot.brain:create_app", "--factory", "--host", "0.0.0.0", "--port", "18781", "--no-access-log"]
+    ports: ["127.0.0.1:18781:18781"]
+    environment:
+      GOBOT_DB: /app/data/gobot.sqlite
+      GOBOT_FAST_PROVIDER: mock
+    volumes:
+      - ./data/container:/app/data
+      - ./run/container-keys.json:/app/run/keys.json:ro
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:18781/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
