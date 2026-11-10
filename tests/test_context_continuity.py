@@ -32,8 +32,9 @@ def observation_packet(tmp_path):
     context = memory.context(req)
     assert context['topic']['outcome'] == 'continue'
     packet = ContextManager().pack(req.text, context, 'FAST_CHAT')
-    assert [m['role'] for m in packet['messages']] == ['user', 'assistant']
-    assert all('кратер' not in m['content'] for m in packet['messages'])
+    assert [m['role'] for m in packet['messages'][-2:]] == ['user', 'assistant']
+    assert 'яблоки' in packet['topic']['label']
+    assert len(packet['_context_meta']['recent_dialogue_source_ids']) == 4
     return memory, req, packet
 
 

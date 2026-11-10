@@ -105,7 +105,7 @@ class Archive:
 
     def begin(self,c,req,message_id):
         now=time.time();owner=req.device_id
-        current=c.execute('SELECT e.*,t.label FROM episodes e JOIN topics t ON t.id=e.topic_id WHERE e.conversation_id=? ORDER BY e.last_seen DESC LIMIT 1',(req.conversation_id,)).fetchone()
+        current=c.execute("SELECT e.*,t.label FROM episodes e JOIN topics t ON t.id=e.topic_id WHERE e.conversation_id=? AND EXISTS (SELECT 1 FROM archive_messages a WHERE a.episode_id=e.id AND a.owner=? AND a.namespace='production') ORDER BY e.last_seen DESC LIMIT 1",(req.conversation_id,owner)).fetchone()
         text=req.text.lower();outcome='continue' if current else 'new_topic';reason='active_topic' if current else 'first_turn';topic=current['topic_id'] if current else None
         explicit_new=bool(getattr(req,'new_topic',False) or re.search(r'новая тема|новый разговор|поговорим о другом',text))
         side=bool(re.match(r'^(?:гобот[,! ]+)?(?:поставь|запусти|отмени|останови)\s+таймер',text))
@@ -121,9 +121,18 @@ class Archive:
         elif re.fullmatch(r'(?:а )?(?:он|она|оно|они|это)(?:\?|\.)?',text.strip()) and not current:
             outcome='ambiguous';reason='reference_without_active_topic'
         elif current and len(terms(text))>=2:
-            recent=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.owner=? AND m.role='user' ORDER BY m.id DESC LIMIT 2",(topic,owner)).fetchall()
-            if recent and not set(terms(text))&set(terms(current['label']+' '+' '.join(r[0] for r in recent))) and not re.match(r'^(?:а |почему|как именно|подробнее|объясни|продолж|спроси|что думает)',text):
-                topic=None;outcome='new_topic';reason='topic_entities_changed'
+            recent=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.owner=? AND a.namespace='production' AND a.status='completed' ORDER BY m.id DESC LIMIT 4",(topic,owner)).fetchall()
+            recent_terms=set(terms(current['label']))
+            for row in recent:recent_terms.update(terms(row[0]))
+            if recent and not set(terms(text))&recent_terms:
+                # Missing lexical overlap is not evidence of a new subject: the
+                # user may refer to an entity introduced by the assistant.
+                reference=re.search(r'\b(?:он|она|оно|они|его|е[её]|их|это|этот|этом|тогда|такой)\b',text)
+                followup=re.match(r'^(?:а |но |почему|как именно|подробнее|объясни|продолж|спроси|что думает)',text)
+                standalone=re.match(r'^(?:(?:подскажи|скажи)(?:[, ]+пожалуйста)?[, ]+)?(?:что такое|кто |где |когда |сколько |в каком |како[йея] |как |расскажи (?:о |про )|обсудим |поговорим о )',text)
+                if standalone and not reference and not followup:
+                    topic=None;outcome='new_topic';reason='topic_entities_changed'
+                else:reason='uncertain_boundary_preserves_dialogue'
         if not topic:
             topic=str(uuid4());c.execute('INSERT INTO topics VALUES(?,?,?,?,?,0)',(topic,owner,req.text[:100],now,now))
         fresh=not current or current['topic_id']!=topic or now-current['last_seen']>self.idle_seconds or current['closed']
@@ -152,12 +161,16 @@ class Archive:
         with self.memory.connect() as c:
             route=c.execute('SELECT tt.*,t.label FROM turn_topics tt JOIN topics t ON t.id=tt.topic_id WHERE turn_id=?',(req.turn_id,)).fetchone()
             if not route:return {}
-            rows=c.execute("SELECT m.id,m.role,m.content,m.provider FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.owner=? AND a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.turn_id!=? ORDER BY m.id DESC LIMIT 12",(req.device_id,route['topic_id'],req.turn_id)).fetchall()
+            rows=c.execute("SELECT m.id,m.turn_id,m.role,m.content,m.provider FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.owner=? AND a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.turn_id!=? ORDER BY m.id DESC LIMIT 12",(req.device_id,route['topic_id'],req.turn_id)).fetchall()
+            # A small working dialogue belongs to the visible conversation, not
+            # the guessed topic. Exact owner and provenance checks happen here.
+            boundary=c.execute("SELECT MAX(m.id) FROM messages m JOIN turn_topics tt ON tt.turn_id=m.turn_id JOIN archive_messages a ON a.message_id=m.id WHERE m.conversation_id=? AND a.owner=? AND a.namespace='production' AND m.role='user' AND tt.reason='explicit_new_topic'",(req.conversation_id,req.device_id)).fetchone()[0] or 0
+            nearby=[] if route['reason']=='explicit_new_topic' else c.execute("SELECT m.id,m.turn_id,m.role,m.content,m.provider FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE m.conversation_id=? AND a.owner=? AND a.namespace='production' AND a.status='completed' AND m.turn_id!=? AND m.id>=? ORDER BY m.id DESC LIMIT 6",(req.conversation_id,req.device_id,req.turn_id,boundary)).fetchall()
             summary=c.execute('SELECT * FROM topic_summaries WHERE topic_id=? ORDER BY version DESC LIMIT 1',(route['topic_id'],)).fetchone()
             facts=[dict(r) for r in c.execute("SELECT id,content,scope,provenance,confirmation,valid_from,supersedes FROM memory_facts WHERE owner IN (?, 'family:home') AND deleted=0 AND confirmation='explicit_consent' AND (valid_until IS NULL OR valid_until>?) ORDER BY id DESC LIMIT 20",(req.device_id,time.time()))]
             pending=c.execute("SELECT id,kind,expires FROM pending_actions WHERE owner=? AND conversation_id=? AND status='pending' AND expires>? ORDER BY expires DESC LIMIT 1",(req.device_id,req.conversation_id,time.time())).fetchone()
         retrieved=self.search(req.device_id,req.text,5)
-        return {'messages':[dict(r) for r in reversed(rows)],'summary':summary['content'] if summary else '',
+        return {'messages':[dict(r) for r in reversed(rows)],'recent_dialogue':[dict(r) for r in reversed(nearby)],'summary':summary['content'] if summary else '',
                 'summary_sources':json.loads(summary['source_message_ids']) if summary else [],'facts':facts,
                 'fact_sources':[r['id'] for r in facts], 'original_question':'','retrieved':retrieved,'topic':dict(route),'pending_action':dict(pending) if pending else None}
 
@@ -173,11 +186,21 @@ class Archive:
             previous=c.execute('SELECT * FROM topic_summaries WHERE topic_id=? ORDER BY version DESC LIMIT 1',(job['topic_id'],)).fetchone()
             boundary=previous['boundary'] if previous else 0
             rows=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.id>? ORDER BY m.id LIMIT 16",(job['topic_id'],boundary)).fetchall()
-            if len(rows)<8:return
-            excerpts=[{'id':r['id'],'role':r['role'],'excerpt':r['content'][:180]} for r in rows]
+            if not rows or (not previous and len(rows)<8):return
+            excerpts=[{'id':r['id'],'role':r['role'],'excerpt':r['content'][:100]} for r in rows]
             prior=json.loads(previous['content']).get('source_excerpts',[]) if previous else []
-            selected=(prior+excerpts)[-8:]
-            content=json.dumps({'kind':'attributed_excerpts_not_inferred_decisions','source_excerpts':selected,'decisions':[],'open_questions':[]},ensure_ascii=False)
+            anchor=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.role='user' ORDER BY m.id LIMIT 1",(job['topic_id'],)).fetchone()
+            candidates={item['id']:dict(item,excerpt=item['excerpt'][:100]) for item in prior+excerpts}
+            anchor_id=anchor['id'] if anchor else None
+            selected=([{'id':anchor_id,'role':'user','excerpt':anchor['content'][:100]}] if anchor else [])+[item for ident,item in sorted(candidates.items()) if ident!=anchor_id][-5:]
+            # Bounded source notes, not a claim to understand every decision.
+            from .context_manager import ContextManager,tokens
+            limit=ContextManager.configured().limits['summary']
+            def encode():return json.dumps({'kind':'attributed_excerpts_not_inferred_decisions','source_excerpts':selected,'decisions':[],'open_questions':[],'coverage':'partial_source_notes_not_complete_semantic_summary'},ensure_ascii=False)
+            content=encode()
+            while tokens(content)>limit and len(selected)>1:
+                selected.pop(1);content=encode()
+            if tokens(content)>limit:return
             c.execute('INSERT INTO topic_summaries VALUES(?,?,?,?,?,?,?)',(job['topic_id'],(previous['version']+1) if previous else 1,content,json.dumps([r['id'] for r in selected]),rows[-1]['id'],job['generation'],time.time()))
 
     def record_context(self,req,packet,provider):

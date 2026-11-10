@@ -5,16 +5,16 @@
   "api_cost": 0,
   "cli_quota_used": 0,
   "packet_tokens": {
-    "start": 371,
-    "middle": 1914,
-    "end": 1914,
-    "maximum": 2109,
-    "p50": 1915.0,
-    "p95": 2093
+    "start": 866,
+    "middle": 2499,
+    "end": 2499,
+    "maximum": 2692,
+    "p50": 2499.0,
+    "p95": 2675
   },
   "context_build_ms": {
-    "p50": 5.040399999415968,
-    "p95": 5.8196999998472165
+    "p50": 6.901750002725748,
+    "p95": 8.660799998324364
   },
   "explicit_returns": {
     "passed": 10,
@@ -29,8 +29,8 @@
     "not_a_representative_recall_benchmark": true
   },
   "summary_source_checks": {
-    "valid_attributed_excerpts": 400,
-    "total": 400,
+    "valid_attributed_excerpts": 1182,
+    "total": 1182,
     "semantic_adequacy": "not measured"
   },
   "token_count_kind": "cl100k tokenizer estimate; not actual CLI input usage",
