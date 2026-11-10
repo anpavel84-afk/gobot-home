@@ -203,3 +203,5 @@ Owner manual admission включён на runtime 4f23908: limits/expiry=null, 
 | Privacy/cost | content-free alignment_counts, clearReview, uncapped owner policy unchanged | Full suite 1158 passed; no new paid developer calls; real iPhone retest pending |
 
 Подробности и границы достоверности — CURRENT_STATUS.md §20. Legacy A и первоначальный backup сохранены.
+
+Runtime 528c866 загружен; A/B HTTP200, owner manual uncapped сохранён. Deployment evidence: realtime-touch-alignment-deployment.json. Реальная речь после исправления на iPhone не принималась по fixtures.

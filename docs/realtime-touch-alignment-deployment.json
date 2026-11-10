@@ -1,0 +1,29 @@
+{
+  "code_commit": "528c866d2233f5b1e9f972be6bd7aec28792d033",
+  "http_checks": {
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/demo2/b": 200,
+    "/api/realtime/status": 200
+  },
+  "tests_passed": 1158,
+  "tests_seconds": 36.81,
+  "touch_guard_ms": 500,
+  "short_tap_does_not_cancel_audio": "production JS fixture verified",
+  "long_hold_intentionally_interrupts": true,
+  "explicit_stop_is_immediate": true,
+  "input_transcription": "gpt-transcribe async, distinct from native audio understanding",
+  "native_audio_path": "unchanged, no legacy STT/CLI/TTS",
+  "query_only_loading_label_replaced_with_avatar": true,
+  "subject_warning": "conservative grammatical heuristic, not universal semantic verification",
+  "correction_requires_explicit_click": true,
+  "correction_uses_existing_session_text_input": true,
+  "automatic_paid_repairs": 0,
+  "raw_audio_or_transcripts_added_to_diagnostic_storage": false,
+  "owner_manual_testing_uncapped": true,
+  "cli_and_image_generation_not_enabled": true,
+  "new_paid_developer_calls": 0,
+  "active_native_sessions_at_deploy": 0,
+  "pending_hangups": 0,
+  "physical_iphone_retest_verified": false
+}

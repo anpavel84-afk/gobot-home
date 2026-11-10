@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `4f239089a146d23b177810062e0d32bd74b7a0ef`.
+  Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `528c866d2233f5b1e9f972be6bd7aec28792d033`.
   Default по-прежнему legacy; B доступен по отдельному тестовому лимиту (§16.2).
   Исторические проверки стабилизации — раздел 10.
 
@@ -975,3 +975,14 @@ production DOM correction требует click, игнорирует стары�
 **Полный набор: 1158 passed / 36.81 s**; production JS syntax checks пройдены.
 Новых оплаченных developer вызовов нет; физический iPhone retest после deployment
 остаётся отдельной проверкой владельца, а не подтверждённым результатом fixtures.
+
+
+### 20.4. Развёртывание
+
+Runtime 528c866 опубликован и загружен после проверки active turns/voice/native=0.
+A/B и status HTTP200; pending hangups=0. Owner manual policy остаётся uncapped,
+CLI/ImageGen OFF; существующие consent, память, кэш и legacy A сохранены.
+Подтверждение: `realtime-touch-alignment-deployment.json`. После последней защиты
+от возврата старой gallery отдельно прошли 42 device/composer tests. Чтобы телефон
+загрузил новую защиту жеста и review controls, обновить страницу B. Это не новая
+запись звука и не выполненный акустический ретест iPhone.
