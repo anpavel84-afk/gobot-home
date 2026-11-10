@@ -23,7 +23,7 @@
       image.onload=()=>{if(token===this.loadToken&&isCurrent(turn)){this.image=image;this.imageId=frame.id;this.onImageReady?.(frame.id,turn);}};
       image.onerror=()=>{if(token===this.loadToken)this.onImageError?.();};image.src=path;
     }
-    clearImage(){this.loadToken++;this.image=null;this.imageId=null;}
+    clearImage(){this.loadToken++;this.image=null;this.imageId=null;this.presentedId=null;}
     loadWallpaper(){const image=new Image();image.onload=()=>{this.wallpaper=image;this.onWallpaperReady?.();};image.src='/api/device/screensaver';}
     text(value,x,y,size=13,max=168,color='#eef5f4'){
       const c=this.ctx;c.font=`${size}px system-ui, sans-serif`;c.textAlign='center';c.fillStyle=color;let text=String(value||'');
@@ -82,8 +82,18 @@
         const seconds=Math.max(0,Math.ceil(frame.metadata.deadline-Date.now()/1000)),hours=Math.floor(seconds/3600);
         const digits=hours?`${hours}:${String(Math.floor(seconds/60)%60).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
         this.text('Таймер',120,77,15);this.text(digits,120,135,hours?30:43,175,p.skin.face_color);this.text(seconds?'Идёт отсчёт':'Время вышло',120,174,12);
+      }else if(frame?.metadata?.diagram_labels?.length){
+        const labels=frame.metadata.diagram_labels.slice(0,3);
+        this.text('Карта ответа',120,64,14,145,p.skin.face_color);
+        for(const [i,label] of labels.entries()){
+          const y=99+i*34;
+          this.line([[52,y-5],[64,y-5]],p.skin.face_color);
+          if(i)this.line([[52,y-39],[52,y-5]],p.skin.face_color);
+          this.circle(64,y-5,3,p.skin.face_color);this.text(label,131,y,12,127);
+        }
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
-      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);}
+      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
+        if(this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
       else if(frame&&!frame.images?.length){this.text(frame.title,120,83,15,165);this.text(frame.metadata?.state==='unavailable'?(frame.metadata?.visual_strategy==='retrieve'?'Фото недоступно':'Нет данных'):frame.metadata?.state==='cancelled'?'Остановлен':'Готово',120,126,18,165);}
       else if(manager.scene&&['icon','info_card'].includes(manager.scene.scene_type)){
         const payload=manager.scene.visual_payload||{};this.text(payload.icon||'✦',120,107,42,100,p.skin.face_color);this.text(payload.title,120,149,14,170);

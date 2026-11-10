@@ -2,12 +2,14 @@
 import re
 import time
 from dataclasses import dataclass
-from typing import Literal
+from typing import Annotated,Literal
 from uuid import uuid5,NAMESPACE_URL
 from pydantic import BaseModel,ConfigDict,Field,model_validator
 
 VisualType=Literal['image_card','image_gallery','info_card','timer_widget','weather_card','status_card','music_card','rich_answer']
 ASSET=r'^/api/visual/assets/[a-f0-9]{64}/(?:browser|preview|device)\.jpg$'
+
+DiagramLabel=Annotated[str,Field(min_length=1,max_length=48)]
 
 class Strict(BaseModel):
     model_config=ConfigDict(extra='forbid')
@@ -68,6 +70,7 @@ class VisualMetadata(Strict):
     duration_ms:int|None=Field(default=None,ge=1,le=86400000)
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
     facts:dict[str,str]=Field(default_factory=dict,max_length=12)
+    diagram_labels:list[DiagramLabel]=Field(default_factory=list,max_length=3)
     device_width:Literal[240]=240
     device_height:Literal[240]=240
     device_max_bytes:Literal[65536]=65536
@@ -100,6 +103,7 @@ class VisualIntent:
     gallery:bool=False
     catalog_id:str|None=None
     strict_subject:bool=False
+    speculative:bool=False
 
 class PresentationDecision:
     def detect(self,text):
@@ -155,6 +159,7 @@ class ESP32Presentation(Strict):
     synthetic:bool=False
     visual_strategy:Literal['retrieve','generate','render_local','mixed']='render_local'
     template:str|None=Field(default=None,max_length=50)
+    diagram_labels:list[DiagramLabel]|None=Field(default=None,max_length=3)
     @model_validator(mode='after')
     def credit_required(self):
         if self.image and not self.credit:raise ValueError('Image credit must not be dropped')
@@ -171,6 +176,7 @@ def esp32_projection(frame:Presentation):
         payload['credit']={'author':image.attribution,'source':image.source.model_dump(),'license':image.license,'license_url':image.license_url,'changes':image.changes}
     if frame.metadata.deadline is not None:payload['deadline']=frame.metadata.deadline
     if frame.metadata.template is not None:payload['template']=frame.metadata.template
+    if frame.metadata.diagram_labels:payload['diagram_labels']=frame.metadata.diagram_labels
     import json
     payload=ESP32Presentation.model_validate(payload).model_dump(exclude_none=True)
     if len(json.dumps(payload,ensure_ascii=False).encode())>8192:raise ValueError('Device UI metadata limit')

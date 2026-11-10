@@ -25,6 +25,7 @@ class ResponsePresentationPlan(BaseModel):
     reason:str='no_helpful_visual'
     subject_source:Literal['request','answer']='request'
     subject_label:str=Field(default='',max_length=160)
+    labels:list[str]=Field(default_factory=list,max_length=3)
 
 class MultimodalResponsePlanner:
     def __init__(self,policy=None):

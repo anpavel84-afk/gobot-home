@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=2
-FETCH_POLICY_VERSION=5
+FETCH_POLICY_VERSION=6
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -188,9 +188,10 @@ class CommonsImages:
             url=info.get('thumburl') or info.get('url','')
             # imageinfo now appends analytics to thumb.wikimedia.org URLs. Strip
             # only these observed tracking fields; arbitrary queries stay denied.
-            parsed=urlsplit(url);tracking=dict(parse_qsl(parsed.query,keep_blank_values=True))
-            expected={'utm_source':'commons.wikimedia.org','utm_campaign':'imageinfo','utm_content':'thumbnail'}
-            if parsed.hostname in IMAGE_HOSTS and tracking and all(expected.get(k)==v for k,v in tracking.items()):
+            parsed=urlsplit(url);tracking=parse_qsl(parsed.query,keep_blank_values=True)
+            expected={'utm_source':{'commons.wikimedia.org'},'utm_campaign':{'imageinfo'},
+                      'utm_content':{'thumbnail','thumbnail_unscaled'}}
+            if parsed.hostname in IMAGE_HOSTS and tracking and all(v in expected.get(k,()) for k,v in tracking):
                 url=urlunsplit((parsed.scheme,parsed.netloc,parsed.path,'',parsed.fragment))
             candidates.append(ImageCandidate(url,plain(meta.get('ImageDescription',{}).get('value',page.get('title','')),300),info.get('descriptionurl',''),plain(meta.get('Artist',{}).get('value',''),400),license,license_url))
             if len(candidates)>=limit:break

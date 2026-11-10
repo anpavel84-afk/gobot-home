@@ -22,6 +22,8 @@ assert.equal(renderer.render(frame),true);assert.equal(all(root,'article').lengt
 renderer.render({...frame,id:'facts',metadata:{state:'ready',facts:{entity_source:'INTERNAL',query_basis:'INTERNAL',identification:'INTERNAL','Источник':'доступен'}}});
 assert(!root.textContent.includes('INTERNAL'));assert(root.textContent.includes('доступен'));
 renderer.begin();renderer.render(frame);
+renderer.render({...frame,id:'map',type:'rich_answer',images:[],metadata:{diagram_labels:['Первое понятие','Второе понятие']}});
+assert.deepEqual(all(root,'li').map(node=>node.textContent),['Первое понятие','Второе понятие']);
 renderer.syncDisplay('Пояснение');assert.equal(renderer.frames.get('one').body.hidden,true);
 all(root,'img')[0].onerror();assert.match(root.textContent,/недоступно/);
 renderer.begin();renderer.render({...frame,id:'gallery',type:'image_gallery',images:[image(),image('b'.repeat(64))]});assert.equal(all(root,'img').length,2);

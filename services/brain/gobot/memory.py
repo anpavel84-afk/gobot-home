@@ -113,7 +113,26 @@ class Memory:
         with self.connect() as c:
             owner=c.execute('SELECT device_id FROM conversations WHERE id=?',(conversation,)).fetchone()
             if not owner or owner[0]!=device:return {'messages':[]}
-            return {'messages':[dict(x) for x in c.execute('SELECT m.id,m.role,m.content,m.provider,a.status,a.namespace FROM messages m LEFT JOIN archive_messages a ON a.message_id=m.id WHERE m.conversation_id=? ORDER BY m.id DESC LIMIT 100',(conversation,))][::-1]}
+            rows=c.execute("""SELECT m.id,m.role,m.content,m.provider,m.turn_id,a.status,a.namespace,t.trace
+                FROM messages m LEFT JOIN archive_messages a ON a.message_id=m.id
+                LEFT JOIN turns t ON m.role='assistant' AND t.id=m.turn_id AND t.status='completed'
+                WHERE m.conversation_id=? ORDER BY m.id DESC LIMIT 100""",(conversation,)).fetchall()
+        messages=[]
+        from .presentation import Presentation
+        for row in reversed(rows):
+            message=dict(row)
+            raw=message.pop('trace')
+            if raw:
+                try:
+                    for entry in json.loads(raw):
+                        if entry.get('visual_plan_rejected'):message['recover_illustration']=True
+                        if 'presentation' in entry:
+                            frame=Presentation.model_validate(entry['presentation'])
+                            if frame.images or frame.metadata.diagram_labels:
+                                message['presentation']=frame.model_dump()
+                except (ValueError,TypeError,AttributeError):pass
+            messages.append(message)
+        return {'messages':messages}
     def status(self,turn):
         with self.connect() as c:
             r=c.execute("SELECT id,status,provider,updated FROM turns WHERE id=?",(turn,)).fetchone();return dict(r) if r else None

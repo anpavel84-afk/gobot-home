@@ -26,6 +26,9 @@ assert.equal(canvas.width,240);assert.equal(canvas.height,240);
 manager.visual={id:'overview',title:'Белый гриб еловый · обзор',images:[{}],metadata:{facts:{entity_match:'topic_overview',entity_title:'Белый гриб'}}};
 renderer.image={};renderer.imageId='overview';manager.state='thinking';renderer.draw(manager,0,1000);
 assert(texts.some(item=>item.text==='Белый гриб · обзор'));renderer.clearImage();manager.visual=null;
+manager.visual={id:'map',type:'rich_answer',metadata:{diagram_labels:['гриб','леса']},images:[]};
+renderer.draw(manager,0,1000);assert(texts.some(item=>item.text==='Карта ответа')&&texts.some(item=>item.text==='леса'));
+manager.visual=null;
 for(const text of texts){assert(text.y>=35&&text.y<=215);assert(text.max<=175);}
 manager.newTurn('first');renderer.load({id:'stale',images:[{device_variant:'/api/visual/assets/'+'a'.repeat(64)+'/device.jpg'}]},'first',id=>manager.turn===id);manager.newTurn('second');images[0].onload();assert.equal(renderer.image,null);
 const imageCount=images.length;renderer.load({id:'unsafe',images:[{device_variant:'http://127.0.0.1/private'}]},'second',()=>true);assert.equal(images.length,imageCount);

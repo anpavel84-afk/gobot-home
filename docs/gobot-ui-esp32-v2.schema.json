@@ -240,6 +240,24 @@
       ],
       "default": null,
       "title": "Template"
+    },
+    "diagram_labels": {
+      "anyOf": [
+        {
+          "items": {
+            "maxLength": 48,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Diagram Labels"
     }
   },
   "required": [

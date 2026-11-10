@@ -29,6 +29,7 @@
         if(!image||!imagePath.test(image.url||'')||!imagePath.test(image.preview_variant||''))continue;
         const figure=node('figure');const open=node('a');open.href=image.url;open.target='_blank';open.rel='noopener';open.setAttribute('aria-label','Открыть изображение крупнее');
         const img=node('img');img.src=image.preview_variant;img.alt=image.alt||image.caption||frame.title||'Изображение';img.loading='lazy';img.decoding='async';img.width=480;img.height=360;
+        img.onload=()=>{if(this.onImageReady && this.frames.has(frame.id))this.onImageReady(frame.id,img);};
         img.onerror=()=>{img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
         open.append(img);figure.append(open);if(image.caption)figure.append(node('figcaption',image.caption));
         const credit=node('p',undefined,'visual-credit');credit.append(node('span',(image.attribution||'')+' · '));
@@ -38,6 +39,12 @@
         credit.append(node('span','Размер изменён; метаданные удалены.'));figure.append(credit);gallery.append(figure);count++;
       }
       if(count)card.append(gallery);
+      const concepts=frame.metadata?.diagram_labels;
+      if(Array.isArray(concepts)&&concepts.length){
+        const map=node('ul',undefined,'answer-map');
+        for(const concept of concepts.slice(0,3))map.append(node('li',concept));
+        card.append(map);
+      }
       else if(['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
       if(state.synthetic)card.append(node('small','Условная иллюстрация · создана локально · не фотография','visual-state'));

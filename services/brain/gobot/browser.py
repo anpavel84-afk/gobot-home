@@ -39,6 +39,15 @@ def create_browser_app(settings=None):
     auth={'Authorization':'Bearer '+settings.api_token}
     def device(request):return 'browser-'+request.client.host.replace('.','-')
     def device_scope(request,owner):return owner+'@'+request.client.host
+    def profile_epoch(request,owner):
+        if owner.startswith('personal:'):
+            return hmac.new(settings.api_token.encode(),request.cookies.get('gobot_profile','').encode(),hashlib.sha256).hexdigest()[:24]
+        return None
+    async def allow_prefetch(request,owner,requested):
+        if not requested:return False
+        profile=await asyncio.to_thread(devices.profile,device_scope(request,owner))
+        screen=profile.screen
+        return screen.automatic_illustrations and screen.prefer_real_photos and screen.style!='minimal'
     async def subject(request):
         value=request.cookies.get('gobot_profile','')
         try:
@@ -78,6 +87,7 @@ def create_browser_app(settings=None):
                     body['conversation_id']=str(uuid5(NAMESPACE_URL,str(body.get('conversation_id',''))+':guest:'+device(request)))
                     downgraded=True
             profile=await asyncio.to_thread(devices.profile,device_scope(request,body['device_id']))
+            body['profile_epoch']=profile_epoch(request,body['device_id'])
             body['screen_preferences']=profile.screen.model_dump()
             if body.get('client_kind')=='device':body['client_id']=profile.client_id
             body.setdefault('mode','auto')
@@ -116,13 +126,15 @@ def create_browser_app(settings=None):
             raw.extend(chunk)
             if len(raw)>8*1024*1024:raise HTTPException(413,'audio_too_large')
         trace.mark('upload_last',input_bytes=len(raw));owner=await subject(request)
+        prefetch=await allow_prefetch(request,owner,request.query_params.get('visual_prefetch')=='true')
         async with slots:
             trace.mark('stt_gateway_queue_end')
             try:
                 async with httpx.AsyncClient(trust_env=False,timeout=120) as client:
                     response=await client.post('http://127.0.0.1:18781/api/v1/audio/transcribe',content=bytes(raw),params={
                         'provider':request.query_params.get('provider','openai'),'paid_consent':request.query_params.get('paid_consent','false'),
-                        'device_id':device(request),'trace_id':request.query_params.get('trace_id'),'trace_owner':owner},headers={**auth,'Content-Type':request.headers.get('content-type','')})
+                        'device_id':device(request),'trace_id':request.query_params.get('trace_id'),'trace_owner':owner,'visual_prefetch':prefetch,
+                        'visual_epoch':profile_epoch(request,owner) or ''},headers={**auth,'Content-Type':request.headers.get('content-type','')})
                 trace.mark('stt_returned');result=response.json();result['gateway_telemetry']=trace.snapshot();await asyncio.to_thread(traces.save,owner,trace)
                 return JSONResponse(result,status_code=response.status_code)
             except httpx.HTTPError:raise HTTPException(503,'stt_unavailable')
@@ -225,6 +237,9 @@ def create_browser_app(settings=None):
                     raw=await asyncio.wait_for(ws.receive_text(),5)
                     if len(raw)>4096:raise ValueError()
                     config=json.loads(raw);config['device_id']=device(ws)
+                    config['visual_owner']=await subject(ws)
+                    config['visual_epoch']=profile_epoch(ws,config['visual_owner'])
+                    config['visual_prefetch']=await allow_prefetch(ws,config['visual_owner'],config.get('visual_prefetch') is True)
                     async with connect('ws://127.0.0.1:18781/api/v1/audio/live',additional_headers=auth,proxy=None,max_size=1048576,max_queue=4) as remote:
                         await remote.send(json.dumps(config))
                         async def upload():

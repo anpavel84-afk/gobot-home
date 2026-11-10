@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image,ImageDraw,ImageFont
 from .presentation import Presentation,VisualMetadata,VisualAction,VisualSource,PresentationDecision,VisualIntent,frame_id
 from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImages,SafeImageHTTP,ImageUnavailable,source_config,ROOT,NORMALIZATION_VERSION,FETCH_POLICY_VERSION
-from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,ImageQueryPlanner,canonical_subject
+from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,caption_names_subject,ImageQueryPlanner,canonical_subject
 
 REASONS={
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
@@ -52,7 +52,30 @@ class VisualService:
         frame=Presentation(id=frame_id(req.turn_id,kind),type=kind,title=title,text=message,metadata=VisualMetadata(state='unavailable',reason=code))
         return VisualResult(frame,message,message)
 
-    async def images(self,req,intent):
+    async def speculative_sources(self,query,commons,openverse):
+        """Give the article resolver a head start; overlap slow sources on cache misses."""
+        async def article():
+            return commons,await commons.page_images(query,3)
+        async def photos():
+            candidates=await openverse.search(query,3)
+            return openverse,[item for item in candidates if caption_names_subject(query,item.caption)]
+        wiki=asyncio.create_task(article())
+        tasks={wiki}
+        try:
+            ready,_=await asyncio.wait(tasks,timeout=.35)
+            if ready and not wiki.exception() and wiki.result()[1]:return wiki.result()
+            tasks.add(asyncio.create_task(photos()))
+            pending=set(tasks)
+            while pending:
+                ready,pending=await asyncio.wait(pending,return_when=asyncio.FIRST_COMPLETED)
+                for task in sorted(ready,key=lambda t:t is not wiki):
+                    if not task.exception() and task.result()[1]:return task.result()
+            return commons,[]
+        finally:
+            for task in tasks:task.cancel()
+            await asyncio.gather(*tasks,return_exceptions=True)
+
+    async def images(self,req,intent,*,cache_only=False):
         if not intent.query:return self.fallback(req,'Какое изображение показать?','image_query_required')
         if re.search(r'https?://|file:|localhost',intent.query,re.I):return self.fallback(req,'Источник изображения','direct_image_url_not_supported',text='Прямые ссылки не загружаются этим инструментом. Опиши объект: поиск работает только через разрешённый источник изображений.')
         if intent.catalog_id is None and re.search(r'raspberry\s*pi\s*[1-9]|рас[пб]ерри\s*пи\s*[1-9]',intent.query,re.I):return self.fallback(req,'Нужен референс конкретной платы','board_revision_not_reviewed',text='Для указанной модели платы ещё нет проверенного изображения в каталоге. Фотографию другой ревизии вместо неё я не подставляю.')
@@ -60,6 +83,7 @@ class VisualService:
         config=self.config_loader();catalog=self.catalog.get(intent.catalog_id)
         base=[intent.query.casefold().strip(),intent.gallery,config.get('provider'),config.get('contact',''),catalog,NORMALIZATION_VERSION]
         if intent.strict_subject:base+=['answer_subject_v5_grammatical_names']
+        if intent.speculative:base+=['prefetch_subject_title_v1']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
         positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
         # Bound coordination state; active tasks remain protected by the global slots.
@@ -73,6 +97,7 @@ class VisualService:
                 cached=legacy if legacy and legacy[0] else await asyncio.to_thread(self.cache.query,key)
             hit=cached is not None;sent=False
             if cached:records,reason=cached
+            elif cache_only:return self.fallback(req,'Иллюстрация','image_not_found')
             else:
                 records=[];reason=None
                 if not config:reason='image_sources_disabled'
@@ -83,7 +108,19 @@ class VisualService:
                             curated=(catalog.get('openverse_images') if config.get('provider')=='openverse' else catalog.get('images')) if catalog else None
                             sent=not bool(curated)
                             hybrid=config.get('provider')=='openverse' and self.answer_fallback is not None and not curated
-                            if hybrid:
+                            if intent.speculative and not curated and isinstance(provider,CommonsImages):
+                                candidates=await provider.page_images(intent.query,3)
+                                if not candidates:candidates=await provider.search(intent.query,3)
+                            elif hybrid and intent.speculative:
+                                common=self.answer_fallback()
+                                if hasattr(common,'page_images'):
+                                    provider,candidates=await self.speculative_sources(intent.query,common,provider)
+                                else:candidates=await provider.search(intent.query,3)
+                                if not candidates:
+                                    provider=common
+                                    query_plan=await asyncio.to_thread(ImageQueryPlanner().plan,intent.query)
+                                    candidates=await common.search(query_plan.terms[0],3)
+                            elif hybrid:
                                 common=self.answer_fallback();candidates=[];resolved=False
                                 if re.search('[а-яё]',intent.query,re.I) and hasattr(common,'page_images'):
                                     try:
@@ -104,6 +141,7 @@ class VisualService:
                                     if not candidates and not resolved and hasattr(common,'page_images'):candidates=await common.page_images(intent.query,3)
                             else:candidates=[ImageCandidate(**item) for item in curated] if curated else await provider.search(catalog.get('search_query',intent.query) if catalog else intent.query,3)
                             for candidate in candidates[:3]:
+                                if intent.speculative and candidate.matched_query!=intent.query and not caption_names_subject(intent.query,candidate.caption):continue
                                 if intent.strict_subject and candidate.matched_query!=intent.query and not subject_matches_caption(intent.query,candidate.caption):continue
                                 try:
                                     record=await asyncio.to_thread(self.cache.source,candidate.url)
@@ -169,7 +207,7 @@ class VisualService:
             return self.fallback(req,'Карточка результата','result_not_specified',text='Уточни, какой результат нужно показать в карточке.')
         return self.fallback(req,'Схема' if intent.kind=='diagram' else 'Карточка ответа','diagram_source_required')
 
-    async def attachment(self,req,plan,*,timeout=8):
+    async def attachment(self,req,plan,*,timeout=8,cache_only=False):
         """Optional accompaniment never replaces the model answer or adds TTS captions."""
         try:
             async with asyncio.timeout(timeout):
@@ -182,7 +220,9 @@ class VisualService:
                         expires_at=record['expires_at'],cache_key=record['asset_id'])
                     return VisualResult(frame,frame.text,'Подготовил поясняющую иллюстрацию.')
                 if req.mode=='mock':return self.fallback(req,'Визуальное сопровождение','diagnostic_no_external_images',text='В диагностическом Mock-режиме внешний поиск не запускается.')
-                result=await self.images(req,VisualIntent('image',query=plan.visual_query,strict_subject=plan.subject_source=='answer'))
+                speculative=plan.reason=='speculative_entity_photo'
+                result=await self.images(req,VisualIntent('image',query=plan.visual_query,
+                    strict_subject=plan.subject_source=='answer' or speculative,speculative=speculative),cache_only=cache_only)
                 result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve'
                 if result.frame.images:result.frame.metadata.backend='wikimedia' if result.frame.images[0].source.label.startswith('Wikimedia') else 'openverse'
                 if plan.subject_source=='answer':
@@ -191,6 +231,14 @@ class VisualService:
                         result.frame.title=result.frame.metadata.facts.get('entity_title') or canonical_subject(plan.subject_label)
                         if result.frame.metadata.facts.get('entity_match')=='topic_overview':result.frame.title+=' · обзор'
                         if not result.frame.metadata.facts.get('entity_source'):result.frame.text='Пример объекта, упомянутого в ответе. Подбор по метаданным источника; это не идентификация конкретного экземпляра.'
+                if plan.reason=='speculative_entity_photo' and result.frame.images:
+                    result.frame.title=plan.subject_label
+                    result.frame.text='Иллюстрация к теме ответа. Снимок сам по себе не подтверждает вид или место наблюдения.'
+                    if result.frame.metadata.facts.get('entity_match')=='topic_overview':result.frame.title+=' · обзор'
+                if plan.visual_query=='Лисичка (род грибов)' and result.frame.images:
+                    result.frame.title=plan.subject_label+' · пример рода'
+                    result.frame.text='Иллюстрация рода. Место съёмки и местный вид этим снимком не подтверждены.'
+                    result.frame.metadata.approximate_match=True
                 return result
         except asyncio.CancelledError:raise
         except Exception:

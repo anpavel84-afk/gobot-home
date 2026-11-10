@@ -199,7 +199,8 @@
           "enum": [
             "local_state",
             "curated_visual_review",
-            "source_metadata_search_unverified"
+            "source_metadata_search_unverified",
+            "wikimedia_article_image"
           ],
           "title": "Selection Basis",
           "type": "string"
@@ -315,6 +316,16 @@
           "maxProperties": 12,
           "title": "Facts",
           "type": "object"
+        },
+        "diagram_labels": {
+          "items": {
+            "maxLength": 48,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Diagram Labels",
+          "type": "array"
         },
         "device_width": {
           "const": 240,

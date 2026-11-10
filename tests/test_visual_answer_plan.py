@@ -125,6 +125,7 @@ def test_existing_commons_fallback_after_primary_failure(tmp_path):
 
 @pytest.mark.parametrize('suffix,expected',[
     ('?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail',''),
+    ('?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled',''),
     ('?download=1','?download=1'),('?utm_campaign=unknown','?utm_campaign=unknown'),
 ])
 def test_only_known_commons_tracking_fields_canonicalized(suffix,expected):
@@ -142,7 +143,7 @@ def test_only_known_commons_tracking_fields_canonicalized(suffix,expected):
 
 
 @pytest.mark.parametrize('mode',['auto','codex'])
-def test_main_stream_plans_one_photo_without_blocking_voice(settings,monkeypatch,mode):
+def test_plain_stream_refines_one_prefetch_without_blocking_voice(settings,monkeypatch,mode):
     import gobot.brain as module
     from gobot.brain import Service
     from gobot.pipeline import voiced_events
@@ -163,7 +164,8 @@ def test_main_stream_plans_one_photo_without_blocking_voice(settings,monkeypatch
         events=await asyncio.wait_for(_collect(voiced_events(service,Voice(),req)),2)
         final=next(e for e in events if e['type']=='final')
         assert final['data']['text']==FIRST+TAIL
-        assert len(calls)==len(plans)==1 and plans[0].visual_query=='солнечные аратинги'
+        assert len(calls)==1 and [p.visual_query for p in plans]==['Попугаеобразные','солнечная аратинга']
+        assert sum(e['type']=='visual_response' for e in events)==1
         assert all('gobot_visual' not in part for part in spoken)
         assert ''.join(spoken).replace(' ','')==(FIRST+TAIL).replace(' ','')
         assert any(e['type']=='visual_response' for e in events)

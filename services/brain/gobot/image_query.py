@@ -10,7 +10,7 @@ VERSION='freedict-rus-eng-2025.11.23-v1'
 # Reviewed physical-object senses override polysemy or gaps in the source data.
 ALIASES={'кот':'cat','кошка':'cat','собака':'dog','пес':'dog','орхидея':'orchid',
  'подсолнух':'sunflower','роза':'rose','яблоко':'apple','тигр':'tiger','слон':'elephant',
- 'жираф':'giraffe','береза':'birch tree','лабрадор':'labrador retriever',
+ 'жираф':'giraffe','береза':'birch tree','лабрадор':'labrador retriever','курица':'chicken',
  'пончик':'doughnut','красный':'red','черный':'black',
  'белый':'white','синий':'blue','голубой':'light blue','зеленый':'green',
  'желтый':'yellow','шоколадный':'chocolate',
@@ -44,6 +44,15 @@ def subject_matches_caption(query,caption):
         required=set(re.findall(r'[a-zа-яё0-9]+',normal(name)))-{'the','a','of'}
         if required and required<=words:return True
     return False
+
+def caption_names_subject(query,caption):
+    """Automatic scenes need a subject label. An instrument named in a headline
+    can just be the instrument that took a picture of something else."""
+    names={normal(name) for name in ImageQueryPlanner().plan(query).terms}
+    title=normal(caption)
+    title=re.sub(r'^(?:dsc|img|pxl)[_ -]?\d+\s*[-:–—]?\s*','',title)
+    label=re.split(r'\s+[(]|\s+[·|]|\s+[-–—]\s+',title,maxsplit=1)[0].strip()
+    return label in names
 
 def normal(value):return unicodedata.normalize('NFC',value.replace('\u0301','')).casefold().replace('ё','е').strip()
 

@@ -10,6 +10,16 @@ let requestTrace=null,feedbackBuffer=null,earconBuffer=null,feedbackGain=null;co
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
+if(visuals&&window.GoBotHooks?.clientKind!=='device')visuals.onImageReady=(id,img)=>{
+  const trace=requestTrace,turn=currentTurn,expectedEpoch=epoch;
+  if(!img.naturalWidth||!trace||!turn)return;
+  trace.mark('visual_decoded');
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(turn===currentTurn&&expectedEpoch===epoch&&visuals.frames.has(id)&&img.isConnected&&!document.hidden){
+      trace.mark('visual_presented');trace.flush();
+    }
+  }));
+};
 const errors = {
   no_real_executor_available: 'Реальный исполнитель недоступен. Проверь квоту, авторизацию и состояние ниже. Mock можно выбрать отдельно.',
   openai_stt_consent_required: 'Для OpenAI STT нужно разрешить отправку аудио и платный API-запрос. Локальный Whisper выбирается отдельно.',
@@ -245,7 +255,7 @@ async function startRecording() {
         };
         socket.onclose=()=>{if(recording){recording.cancel();recording=null;} $('record').textContent='Начать запись';if(transcriptPending){transcriptPending=false;$('send').disabled=false;$('question').value='';$('mic-status').textContent='Распознавание прервано до финального текста.';}};
       });
-      socket.send(JSON.stringify({provider:'openai',paid_consent:consent,trace_id:requestTrace?.id||lastUtterance}));
+      socket.send(JSON.stringify({provider:'openai',paid_consent:consent,trace_id:requestTrace?.id||lastUtterance,visual_prefetch:$('model').value!=='mock'&&$('quota').checked}));
       await Promise.race([ready,new Promise((_,reject)=>setTimeout(()=>reject(new Error('OpenAI STT не подтвердил готовность')),10000))]);
       recording=await GoBotCapture.start({context:audio,onInputClosed:inputClosed,onChunk:chunk=>{
         if(socket.bufferedAmount>512000){recording?.cancel();socket.close();$('mic-status').textContent='Аудиосеть перегружена. Запись остановлена.';return;}
@@ -257,7 +267,7 @@ async function startRecording() {
         if(captureEpoch!==epoch)return;
         window.GoBotHooks?.onRecognizing?.();
         recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь…';
-        try{const query=new URLSearchParams({provider,paid_consent:String(consent),trace_id:requestTrace?.id||lastUtterance});
+        try{const query=new URLSearchParams({provider,paid_consent:String(consent),trace_id:requestTrace?.id||lastUtterance,visual_prefetch:String($('model').value!=='mock'&&$('quota').checked)});
           transcriptionAbort=new AbortController();
           requestTrace?.mark('upload_start');
           const response=await fetch('/api/audio/transcribe?'+query,{method:'POST',headers:{'Content-Type':blob.type},body:blob,signal:transcriptionAbort.signal});
@@ -294,9 +304,21 @@ $('send').onclick = send; $('stop').onclick = stop;
 $('volume').oninput = () => { if (gain) gain.gain.value = Number($('volume').value); };
 $('speak').onchange = () => { if (!$('speak').checked) stop(); };
 $('tts').onchange = () => { $('voice').disabled = $('tts').value !== 'openai'; };
+let historyVersion=0;
 async function loadHistory() {
-  try { const response = await fetch('/api/history/' + encodeURIComponent(conversation)); const data = await response.json(); $('history').replaceChildren();
-    for (const message of data.messages || []) { const p = document.createElement('p'); p.textContent = (message.role === 'user' ? 'Ты: ' : 'GoBot (' + message.provider + '): ') + message.content; $('history').append(p); }
+  const version=++historyVersion,requested=conversation;
+  if(window.GoBotHooks?.clientKind==='device')return;
+  try { const response = await fetch('/api/history/' + encodeURIComponent(requested),{cache:'no-store'}); const data = await response.json();
+    if(version!==historyVersion||requested!==conversation)return;
+    $('history').replaceChildren();
+    for (const message of data.messages || []) {
+      const p = document.createElement('p'); p.textContent = (message.role === 'user' ? 'Ты: ' : 'GoBot (' + message.provider + '): ') + message.content; $('history').append(p);
+      if(message.role==='assistant' && message.presentation && window.GoBotVisual){
+        const root=document.createElement('div');
+        new window.GoBotVisual.BrowserVisualRenderer(root).render(message.presentation);
+        $('history').append(root);
+      }
+    }
   } catch (_) { /* Status remains available separately. */ }
 }
 async function refresh() {

@@ -1,22 +1,11 @@
-"""Main-response visual decisions; bounded markup is stripped before display/TTS."""
+"""Grounded subject matching and a passive filter for the old inline wire format."""
 import re
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 OPEN='<gobot_visual_v1>'
 CLOSE='</gobot_visual_v1>'
-VISUAL_INSTRUCTIONS=(
-    'Выбери экранное сопровождение по смыслу вопроса И своего ответа в этом же ходе. '
-    'Для реального предмета/вида предпочитай photo, для объяснения процесса diagram, для беседы avatar. '
-    'Закончив предложение с первым упоминанием выбранного объекта, добавь ровно один служебный блок '
-    '<gobot_visual_v1>JSON</gobot_visual_v1>. JSON содержит kind, domain и subject. '
-    'subject — точное короткое название из уже написанного ответа, со значимыми определениями; не случайное слово. '
-    'domain: animal/plant/place/food/object/abstract/none; kind: photo/diagram/avatar. '
-    'Для diagram добавь template из lunar_crater/earth_moon/solar_eclipse/volcano/milky_way/tomato_plant/tomato_comparison/dog_comparison. '
-    'Не передавай личные данные, ссылки или HTML. Если подходящего публичного объекта нет, выбери avatar с пустым subject. '
-    'Блок не часть реплики; после него продолжай обычный ответ. Не обещай, что изображение уже показано.'
-)
-PRIVATE_QUERY=re.compile(r'\b(?:мо[йяеёю]|моего|моей|наш\w*|семь\w*|мам\w*|пап\w*|сын\w*|доч\w*)\b',re.I)
+PRIVATE_QUERY=re.compile(r'\b(?:мо(?:й|я|е|ё|ю|его|ей|и|их|им|ими|ему|ем|ём)|наш\w*|у меня|семь\w*|мам\w*|пап\w*|сын\w*|доч\w*)\b',re.I)
 ANIMAL_QUERY=re.compile(r'\b(?:попуга\w*|птиц\w*|животн\w*|кошк\w*|собак\w*|рыб\w*)\b',re.I)
 
 
@@ -26,7 +15,7 @@ def normalized(value):return ' '.join(value.casefold().replace('ё','е').split(
 class VisualDirective(BaseModel):
     model_config=ConfigDict(extra='forbid')
     kind:Literal['photo','diagram','avatar']
-    domain:Literal['animal','plant','place','food','object','abstract','none']
+    domain:Literal['animal','plant','fungus','place','food','object','abstract','none']
     subject:str=Field(default='',max_length=120)
     template:Literal['lunar_crater','earth_moon','solar_eclipse','volcano','milky_way','tomato_plant','tomato_comparison','dog_comparison']|None=None
 
@@ -39,16 +28,41 @@ class VisualDirective(BaseModel):
         return value.strip()
 
 
+def mentioned(subject,body):
+    """Match a complete phrase, including case inflections. Keep word order and negation."""
+    from .image_query import phrase_lemmas
+    subject=normalized(subject);body=normalized(body)
+    if not subject:return False
+    def affirmative(start):
+        return not re.search(r'\b(?:не|нет)\s+(?:это\s+)?$',body[max(0,start-30):start])
+    for match in re.finditer(r'(?<!\w)'+re.escape(subject)+r'(?!\w)',body):
+        if affirmative(match.start()):return True
+    words=list(re.finditer(r'\w+',body[:2400]))
+    from .speech_formatter import morphology
+    wanted=phrase_lemmas(subject)
+    if not wanted:return False
+    lemmas={}
+    def alternatives(word):
+        if word not in lemmas:
+            lemmas[word]={normalized(p.normal_form) for p in morphology().parse(word)[:4]} if re.search('[а-яё]',word) else {word}
+        return lemmas[word]
+    # Only contiguous phrases; punctuation cannot join two unrelated mentions.
+    for i in range(len(words)-len(wanted)+1):
+        if any(part not in alternatives(words[i+k].group()) for k,part in enumerate(wanted)):continue
+        first,last=words[i],words[i+len(wanted)-1]
+        phrase=body[first.start():last.end()]
+        if re.fullmatch(r'[\w\s-]+',phrase) and affirmative(first.start()):return True
+    return False
+
+
 def grounded(directive,query,answer):
     if PRIVATE_QUERY.search(query):return False
     if directive.kind=='avatar':return True
     subject=normalized(directive.subject);body=normalized(answer)
-    if not subject or not re.search(r'(?<!\w)'+re.escape(subject)+r'(?!\w)',body):return False
+    if not mentioned(subject,body):return False
     # A conspicuous cross-domain mismatch is rejected independently of the model.
     if ANIMAL_QUERY.search(query) and directive.domain!='animal':return False
-    if directive.kind=='photo' and directive.domain not in {'animal','plant','place','food','object'}:return False
-    position=body.find(subject)
-    if re.search(r'\b(?:не|нет)\s+(?:это\s+)?$',body[max(0,position-30):position]):return False
+    if directive.kind=='photo' and directive.domain not in {'animal','plant','fungus','place','food','object'}:return False
     return directive.kind!='diagram' or directive.template is not None
 
 
@@ -87,14 +101,15 @@ class VisualMarkupFilter:
         return events
 
 
-async def visual_plan_stream(source,on_plan):
+async def plain_answer_stream(source):
+    """Strip stray markup from older providers without using it to select anything."""
     parser=VisualMarkupFilter();iterator=source.__aiter__()
     try:
         async for delta in iterator:
             for kind,value in parser.feed(delta):
                 if kind=='text':yield value
-                else:on_plan(value)
+
         for kind,value in parser.feed('',final=True):
             if kind=='text':yield value
-            else:on_plan(value)
+
     finally:await iterator.aclose()
