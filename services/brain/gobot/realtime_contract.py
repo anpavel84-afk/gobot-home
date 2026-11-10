@@ -49,6 +49,9 @@ class RealtimePolicy(Strict):
     input_transcription: bool = False
     transcription_model: Literal['gpt-transcribe'] = 'gpt-transcribe'
     voice: Literal['marin','cedar','alloy','ash','ballad','coral','echo','sage','shimmer','verse'] = 'marin'
+    allowed_client_id: str|None = Field(default=None,pattern=ID)
+    expert_jobs_allowed: bool = False
+    image_generation_allowed: bool = False
 
 def audio_only_sdp(sdp):
     """Enforce the boundary on both offer and answer, not only browser JS."""

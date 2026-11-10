@@ -7,3 +7,7 @@ def test_production_browser_native_lifecycle_without_providers():
     evidence=json.loads(result.stdout)
     assert evidence['native_session_reused'] and evidence['local_mic_cleanup']
     assert evidence['provider_calls']==0 and not evidence['provider_data_channel']
+
+def test_device_mounts_native_controls_without_admin_footer():
+    result=subprocess.run(['node','tests/realtime_device_settings.cjs'],cwd=Path(__file__).parents[1],capture_output=True,text=True,timeout=20)
+    assert result.returncode==0,result.stderr

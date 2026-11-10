@@ -97,6 +97,17 @@ def test_budget_is_off_by_default_and_failed_attempts_not_refunded(tmp_path):
     assert budget.total_tokens('a')==21
     with budget.connect() as c:assert 'private' not in c.execute('SELECT usage FROM usage').fetchone()[0]
 
+def test_trial_budget_is_bound_to_one_client_and_excludes_other_spending(tmp_path):
+    budget=RealtimeBudget(tmp_path)
+    policy=RealtimePolicy(enabled=True,authorization='phone-trial-fixture',expires_at=time.time()+60,max_sessions=1,
+                          allowed_client_id='phone-only',max_session_seconds=90,max_responses_per_session=4,max_output_tokens=384)
+    budget.policy_path.write_text(policy.model_dump_json())
+    with pytest.raises(PermissionError):budget.reserve_session('desktop-attempt',True,'desktop')
+    assert budget.status()['sessions_reserved']==0
+    p=budget.reserve_session('phone-attempt',True,'phone-only')
+    assert p.input_transcription is False and not p.expert_jobs_allowed and not p.image_generation_allowed
+    assert p.max_session_seconds==90 and p.max_responses_per_session==4
+
 def test_token_cost_estimate_uses_reported_categories_not_seconds():
     assert estimate_usd({'input_token_details':{'text_tokens':1000000,'audio_tokens':1000000,'cached_tokens_details':{'text_tokens':100000,'audio_tokens':200000}},'output_token_details':{'text_tokens':1000000,'audio_tokens':1000000}})==pytest.approx(31.006)
 
@@ -254,5 +265,72 @@ def test_family_false_match_pin_and_other_profiles_never_preload_private_data(tm
             with m.brain.memory.connect() as c:assert c.execute('SELECT count(*) FROM messages').fetchone()[0]==0
             other=m.identity.native(request.model_copy(update={'session_id':'different'}))
             assert other.effective_scope!=access.effective_scope and IdentityAccessManager.invalidates(access,other)
+        finally:await m.shutdown()
+    asyncio.run(run())
+
+def test_native_timer_paraphrase_uses_same_validated_action_and_device_state(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        try:
+            s=await start(m);await command(s,'text',text='Поставь таймер на 5 минут');await tick()
+            await s.tool('timer-call','gobot_tool',json.dumps({'query':'Поставь таймер на пять минут'}),s.current)
+            with m.brain.memory.connect() as c:
+                row=c.execute('SELECT device_id,status FROM timers').fetchone()
+                assert row['device_id']=='realtime-device:client-1' and row['status']=='running'
+            assert any(x['type']=='visual_response' and x['data']['presentation']['type']=='timer_widget' for x in s.events)
+        finally:await m.shutdown()
+    asyncio.run(run())
+
+def test_native_report_retains_only_numeric_stage_times_and_usage(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        s=await start(m)
+        await command(s,'text',text='SYNTHETIC_PRIVATE_QUERY');await tick()
+        turn=s.current
+        await s.handle({'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'SYNTHETIC_PRIVATE_ANSWER'})
+        await s.handle({'type':'output_audio_buffer.started','response_id':'resp_1'})
+        await command(s,'playback_started',response_id='resp_1')
+        b.record(s.id,'resp_1',{'total_tokens':12,'input_tokens':8,'output_tokens':4,'private':'SECRET'})
+        turn.timings.update({'private':'SECRET','unknown_number':123})
+        await m.shutdown()
+        report=b.status()['latest_report']
+        assert report['reported_tokens']==12 and report['usage_responses_received']==1
+        assert report['response_attempts']==1
+        times=report['turns_ms'][0]
+        assert 0<=times['input_ended']<=times['response_created']<=times['client_playback']
+        assert 'PRIVATE' not in json.dumps(report) and 'SECRET' not in json.dumps(report)
+        assert 'unknown_number' not in times and report['contains_conversation_content'] is False
+    asyncio.run(run())
+
+def test_phone_trial_denies_other_clients_before_provider_and_clamps_generators(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        policy=b.policy().model_copy(update={'allowed_client_id':'client-1'})
+        b.policy_path.write_text(policy.model_dump_json())
+        profile=DeviceProfile()
+        profile.screen=profile.screen.model_copy(update={'generation_allowed':True,'generation_consent':True,'generation_mode':'helpful','generation_daily_limit':3})
+        async def load(_):return profile
+        m.profile_loader=load
+        try:
+            with pytest.raises(PermissionError):await m.start(offer().model_copy(update={'client_id':'other-client'}))
+            assert not p.creations and b.status()['sessions_reserved']==0
+            s=await start(m)
+            assert [t['name'] for t in s.config['tools']]==['gobot_tool']
+            assert not s.profile.screen.generation_allowed and s.profile.screen.generation_mode=='off'
+            assert profile.screen.generation_allowed and profile.screen.generation_daily_limit==3
+        finally:await m.shutdown()
+    asyncio.run(run())
+
+def test_no_thanks_declines_expert_proposal_without_closing_or_starting_cli(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        try:
+            s=await start(m);await command(s,'text',text='Сравни архитектуры');await tick()
+            proposal=s.experts.propose('Сравни архитектуры','ARGON_DEEP',s.current)
+            before=sum(x['type']=='response.create' for x in s.ws.sent)
+            await command(s,'text',text='Нет, спасибо');await tick()
+            assert not s.closed and s.experts.pending.state=='cancelled'
+            assert sum(x['type']=='response.create' for x in s.ws.sent)==before
+            assert any(x['type']=='tool_status' and x['data'].get('status')=='pending_declined' for x in s.events)
         finally:await m.shutdown()
     asyncio.run(run())

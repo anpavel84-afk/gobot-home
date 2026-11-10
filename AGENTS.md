@@ -25,7 +25,7 @@ Real profiling requires explicit remaining owner budget; historical latency evid
 Family/personal/guest scopes must not cross. Voice identity alone cannot grant personal-history access;
 uncertain voice/pending recognition downgrades to guest, except a short utterance in a PIN-confirmed session.
 OWNER DIRECT Family Identity amendment: a PIN phone session is not proof of the speaker on each turn.
-Native WebRTC does not yet pass local SpeakerIdentity; keep candidate context guest/RAM only, including
+Native WebRTC passes an opt-in local SpeakerIdentity mirror; keep candidate context guest/RAM only, including
 followup. Never preload a PIN owner's private archive as a latency optimization. Voice matches alone do
 not authorize private retrieval. Profile/epoch/speaker-rights changes invalidate provider history and jobs;
 recreate the session rather than editing user_id in the prompt. No second family-profile database.

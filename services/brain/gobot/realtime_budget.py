@@ -12,15 +12,17 @@ class RealtimeBudget:
             c.execute('CREATE TABLE IF NOT EXISTS usage(session TEXT,response TEXT,usage TEXT,PRIMARY KEY(session,response))')
             c.execute('CREATE TABLE IF NOT EXISTS cancelled(id TEXT PRIMARY KEY,scope TEXT)')
             c.execute('CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY,closed INTEGER DEFAULT 0)')
+            c.execute('CREATE TABLE IF NOT EXISTS reports(session TEXT PRIMARY KEY,created REAL,report TEXT)')
     def connect(self):return sqlite3.connect(self.path,timeout=5)
     def policy(self):
         if not self.policy_path.exists():return RealtimePolicy()
         return RealtimePolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8'))
     @staticmethod
     def key(ident):return hashlib.sha256(ident.encode()).hexdigest()
-    def reserve_session(self,ident,consent):
+    def reserve_session(self,ident,consent,client_id=None):
         p=self.policy()
         if not (p.enabled and p.authorization and p.expires_at>time.time() and consent):raise PermissionError('realtime_budget_or_consent_required')
+        if p.allowed_client_id and p.allowed_client_id!=client_id:raise PermissionError('realtime_trial_client_not_allowed')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(self.key(ident),)).fetchone():raise ValueError('realtime_session_cancelled')
@@ -62,6 +64,25 @@ class RealtimeBudget:
     def total_tokens(self,session):
         with self.connect() as c:rows=c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),)).fetchall()
         return sum(json.loads(row[0]).get('total_tokens',0) for row in rows)
+    def record_report(self,session,timings,turns):
+        # Explicit allowlist: captions, queries, speaker IDs and raw audio cannot enter this ledger.
+        setup_keys={'call_created','sideband_connected','settings_acknowledged'}
+        turn_keys={'input_ended','response_created','answer_transcript','output_buffer_started','client_playback','client_playback_stopped'}
+        def clean(values,keys):
+            import math
+            return {k:round(v,2) for k,v in values.items() if k in keys and type(v) in (int,float) and math.isfinite(v) and v>=0}
+        with self.connect() as c:
+            usage=[json.loads(r[0]) for r in c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),))]
+            row=c.execute('SELECT responses FROM sessions WHERE id=?',(self.key(session),)).fetchone()
+            report={'setup_ms':clean(timings,setup_keys),'turns_ms':[clean(t,turn_keys) for t in turns],
+                    'response_attempts':row[0] if row else 0,'usage_responses_received':len(usage),
+                    'reported_tokens':sum(u.get('total_tokens',0) for u in usage),
+                    'estimated_response_usd_excluding_transcription':sum(estimate_usd(u) for u in usage),
+                    'client_audio_signal_is_not_acoustic_acceptance':True,'contains_conversation_content':False}
+            c.execute('INSERT OR IGNORE INTO reports VALUES(?,?,?)',(self.key(session),time.time(),json.dumps(report)))
+    def latest_report(self):
+        with self.connect() as c:row=c.execute('SELECT report FROM reports ORDER BY created DESC LIMIT 1').fetchone()
+        return json.loads(row[0]) if row else None
     def status(self):
         p=self.policy()
         with self.connect() as c:
@@ -69,6 +90,9 @@ class RealtimeBudget:
         return {'enabled':p.enabled and p.expires_at>time.time(),'audience':p.audience,'sessions_reserved':count,
                 'max_sessions':p.max_sessions,'expires_at':p.expires_at,'accepted_as_default':p.accepted_as_default,
                 'input_transcription':p.input_transcription,'max_session_seconds':p.max_session_seconds,
+                'max_responses_per_session':p.max_responses_per_session,'max_output_tokens':p.max_output_tokens,
+                'client_bound':bool(p.allowed_client_id),'expert_jobs_allowed':p.expert_jobs_allowed,
+                'image_generation_allowed':p.image_generation_allowed,'latest_report':self.latest_report(),
                 'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False}
 
 def estimate_usd(usage):

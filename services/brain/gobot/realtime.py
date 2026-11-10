@@ -33,7 +33,9 @@ TOOLS=[{'type':'function','name':'gobot_tool','description':'Проверенн�
 TOOLS+=[{'type':'function','name':'expert_propose','description':'Предложить одного эксперта для действительно сложного разбора. Не запускать без серверного подтверждения. Сохрани исходный вопрос пользователя.',
          'parameters':{'type':'object','properties':{'task':{'type':'string','maxLength':8000},'profile':{'type':'string','enum':['ARGON_DEEP','ASTRA_HIGH','SOL_XHIGH']}},'required':['task','profile'],'additionalProperties':False}},
         {'type':'function','name':'expert_start','description':'Запустить актуальное предложение. Сервер отдельно проверяет реальную реплику согласия, квоту и лимит. Пока результат не вернулся, не придумывать его.',
-         'parameters':{'type':'object','properties':{'proposal_id':{'type':'string'}},'required':['proposal_id'],'additionalProperties':False}}]
+         'parameters':{'type':'object','properties':{'proposal_id':{'type':'string'}},'required':['proposal_id'],'additionalProperties':False}},
+        {'type':'function','name':'expert_cancel','description':'Отменить принадлежащий этой беседе экспертный разбор по просьбе пользователя.',
+         'parameters':{'type':'object','properties':{'job_id':{'type':'string'}},'required':['job_id'],'additionalProperties':False}}]
 
 @dataclass
 class NativeTurn:
@@ -53,10 +55,14 @@ class NativeTurn:
     photo:object=None
     visual_started:bool=False
     local_control:bool=False
+    input_ready:object=field(default_factory=asyncio.Event)
+    timings:dict=field(default_factory=dict)
 
 class NativeSession:
     def __init__(self,manager,offer,profile,policy):
-        self.manager=manager;self.offer=offer;self.profile=profile;self.policy=policy
+        self.manager=manager;self.offer=offer;self.profile=profile.model_copy(deep=True);self.policy=policy
+        if not policy.image_generation_allowed:
+            self.profile.screen=self.profile.screen.model_copy(update={'generation_allowed':False,'generation_consent':False,'generation_mode':'off','generation_daily_limit':0})
         self.id=offer.session_id;self.call_id=None;self.ws=None;self.reader=None;self.expiry=None
         self.closed=False;self.ready=False;self.state='connecting';self.started=time.monotonic()
         self.lock=asyncio.Lock();self.send_lock=asyncio.Lock();self.response_lock=asyncio.Lock()
@@ -78,8 +84,11 @@ class NativeSession:
         from .realtime_speaker import NativeSpeakerIdentity
         self.speaker=NativeSpeakerIdentity(self)
         self.ptt_committing=False
+        self.input_ended=None
 
     def mark(self,name):self.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
+    def mark_turn(self,turn,name):
+        if turn:turn.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def emit(self,kind,**data):
         if self.closed and kind!='closed':return
         self.event_serial+=1
@@ -122,7 +131,8 @@ class NativeSession:
             pref=self.personalization['preferences']
             instructions+='\n'+preference_instructions(pref,child=self.personalization['child_restrictions'])
             if pref['voice']:self.policy=self.policy.model_copy(update={'voice':pref['voice']})
-        self.config=session_config(self.policy,instructions,TOOLS,speak=self.offer.speak)
+        tools=TOOLS if self.policy.expert_jobs_allowed else [tool for tool in TOOLS if tool['name']=='gobot_tool']
+        self.config=session_config(self.policy,instructions,tools,speak=self.offer.speak)
         self.call_id,answer=await self.manager.provider.create(self.offer.sdp,self.config,self.offer.device_id)
         await asyncio.to_thread(self.manager.budget.register_call,self.call_id)
         self.mark('call_created');audio_only_sdp(answer)
@@ -185,6 +195,8 @@ class NativeSession:
         if self.current and not self.current.stored:
             await self.finish(self.current,False)
         turn=NativeTurn(str(uuid4()),input_id=item_id,query=query);self.current=turn;self.turns.append(turn)
+        turn.timings['input_ended']=self.input_ended if self.input_ended is not None else round((time.monotonic()-self.started)*1000,2)
+        self.input_ended=None
         self.pending_response=False;self.followup_deadline=None;self.last_activity=time.monotonic()
         self.emit('turn_started');self.emit('screen_scene',scene={'scene_type':'avatar','visual_strategy':'show_avatar','visual_subject':'GoBot','visual_payload':{},'scene_duration':12})
         if query:await self.input_text(turn,query)
@@ -193,6 +205,7 @@ class NativeSession:
     async def input_text(self,turn,text):
         if turn.query and turn.query!=text:return
         turn.query=text
+        turn.input_ready.set()
         if not turn.req:
             req=self.request(text,turn.id)
             try:
@@ -273,6 +286,7 @@ class NativeSession:
             if self.input_mode=='followup':self.followup_deadline=None
             self.last_activity=time.monotonic();self.emit('listening',active=True)
         elif kind=='input_audio_buffer.speech_stopped':
+            self.input_ended=round((time.monotonic()-self.started)*1000,2)
             self.emit('speaker_segment_end',segment_id=self.speaker.current)
         elif kind=='input_audio_buffer.committed':
             item_id=obj.get('item_id','')
@@ -292,6 +306,7 @@ class NativeSession:
             response_id=obj.get('response',{}).get('id')
             self.generating=True;self.response_requested=False;self.live_response=response_id
             if self.current:self.response_turn[response_id]=self.current;self.current.response_ids.add(response_id)
+            self.mark_turn(self.current,'response_created')
             self.mark('first_response_created');self.emit('processing',response_id=response_id)
         elif kind in {'response.output_audio_transcript.delta','response.output_text.delta'}:
             turn=self.response_turn.get(obj.get('response_id'))
@@ -299,6 +314,7 @@ class NativeSession:
                 delta=obj.get('delta','')
                 if len(turn.answer)+len(delta)>32000:raise RuntimeError('realtime_caption_limit')
                 turn.answer+=delta
+                self.mark_turn(turn,'answer_transcript')
                 if turn.photo:turn.photo.observe_partial(turn.answer)
                 elif not turn.visual_started and len(turn.answer)>40 and re.search(r'[.!?…]\s*$',turn.answer):self.spawn(self.visual(turn))
                 if turn is self.current:self.mark('first_answer_transcript');self.emit('text_delta',text=delta)
@@ -325,6 +341,7 @@ class NativeSession:
             # Not a playback completion. Wait for output_audio_buffer.stopped if speaking.
             if self.pending_response and not self.speaking:await self.response()
         elif kind=='output_audio_buffer.started':
+            self.mark_turn(self.response_turn.get(obj.get('response_id')),'output_buffer_started')
             self.speaking=True;self.audio_ever_started=True;self.mark('first_output_buffer_started')
             self.emit('playback_buffer_started',response_id=obj.get('response_id'))
         elif kind=='output_audio_buffer.stopped':
@@ -357,6 +374,11 @@ class NativeSession:
                 await self.experts.start(args['proposal_id'],call_id)
                 await self.response()
                 return # Pending async call: output exactly once on completion, not accepted-as-result.
+            if name=='expert_cancel':
+                if not isinstance(args,dict) or set(args)!={'job_id'}:raise ValueError()
+                output=await self.experts.cancel(args['job_id'])
+                await self.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,'output':json.dumps(output,ensure_ascii=False)}})
+                await self.response();return
             if name!='gobot_tool' or not isinstance(args,dict) or set(args)!={'query'} or not isinstance(args['query'],str) or not 1<=len(args['query'])<=8000:raise ValueError()
             if turn is not self.current or not turn or turn.cancelled:return
             req=self.request(args['query'],turn.id)
@@ -369,8 +391,16 @@ class NativeSession:
                 slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
                 # Model arguments are not permission to mutate settings or timers.
                 writes=quick.executor in {'settings','timer'} and quick.intent not in {'timer_status'}
-                if writes and (not turn.query or ' '.join(turn.query.casefold().split())!=' '.join(req.text.casefold().split())):
-                    raise ValueError('confirmed_user_command_required')
+                if writes:
+                    # Only an action waits for its supporting transcript; ordinary native speech does not.
+                    if not turn.query:await asyncio.wait_for(turn.input_ready.wait(),3)
+                    user_quick=resolve_quick(turn.query,context)
+                    def comparable(q):
+                        fields=dict(q.slots)
+                        if q.intent=='timer_start' and fields.get('seconds') is not None:fields.pop('duration',None)
+                        return q.executor,q.intent,q.status,fields
+                    if not user_quick or comparable(user_quick)!=comparable(quick):
+                        raise ValueError('confirmed_user_command_required')
                 if quick.executor=='settings':
                     if slots.get('operation') in {'weather_current','weather_status','help'} or self.expert_authorized:
                         settings_req=req.model_copy(update={'device_id':self.offer.device_id})
@@ -435,11 +465,13 @@ class NativeSession:
                 await self.interrupt();await self.update_input(None)
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='ptt';self.followup_deadline=None
                 self.ptt_committing=False
+                self.input_ended=None
                 self.emit('listening',active=True)
                 return {'accepted':True,'speaker_segment_id':self.speaker.begin()}
             elif action=='ptt_end':
                 if self.input_mode!='ptt' or self.ptt_committing:raise ValueError('ptt_not_active')
                 self.ptt_committing=True
+                self.input_ended=round((time.monotonic()-self.started)*1000,2)
                 await self.send({'type':'input_audio_buffer.commit'})
             elif action=='ptt_cancel':
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='idle';self.ptt_committing=False
@@ -455,6 +487,7 @@ class NativeSession:
                 if turn and turn is self.current and not turn.cancelled:
                     if action=='playback_started':turn.client_started=True;self.mark('first_client_playback')
                     else:turn.client_stopped=True
+                    self.mark_turn(turn,'client_playback' if action=='playback_started' else 'client_playback_stopped')
                     await self.maybe_finish(turn)
             return {'accepted':True}
 
@@ -487,7 +520,7 @@ class RealtimeManager:
             if len(self.tombstones)+len(self.sessions)>=1024:raise ValueError('realtime_lifecycle_capacity')
             if offer.session_id in self.sessions or offer.session_id in self.tombstones:raise ValueError('realtime_session_id_reused')
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in self.sessions.values()):raise ValueError('realtime_audio_session_already_active')
-            p=await asyncio.to_thread(self.budget.reserve_session,offer.session_id,offer.consent)
+            p=await asyncio.to_thread(self.budget.reserve_session,offer.session_id,offer.consent,offer.client_id)
             if self.profile_loader:profile=await self.profile_loader(offer)
             else:
                 from .device_store import DeviceStore
@@ -537,6 +570,7 @@ class RealtimeManager:
             if turn.req:await asyncio.to_thread(self.brain.memory.settle_pending,turn.req,'cancelled')
             turn.query='';turn.answer='';turn.req=None;turn.trace.clear()
         s.events=[item for item in s.events if item['type']=='closed']
+        await asyncio.to_thread(self.budget.record_report,s.id,s.timings,[t.timings for t in s.turns])
         return {'closed':True,'hangup_confirmed':s.call_id not in self.hangups}
 
     async def shutdown(self):

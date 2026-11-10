@@ -138,7 +138,7 @@ ACP выключен и fail-closed; новая скорость inference не 
 | Область / критерии | Реализация и проверки | Фактический статус / блокер |
 | --- | --- | --- |
 | R-001/002/004/005/071, native ordinary path | realtime_contract/provider/api.py, realtime.js; test_realtime_native.py, test_realtime_browser.py | Protocol/component fixtures; exact model metadata HTTP200. Нет live native audio/iPhone, default legacy |
-| Нативные consent/budget/cleanup/usage | realtime_budget.py; persistent cancellation/call ledger, one owner; native tests | Free fixtures; новый paid бюджет отсутствует, dollar hard cap не обещается |
+| Нативные consent/budget/cleanup/usage | realtime_budget.py; persistent cancellation/call ledger, one owner; native tests | Free fixtures; новая iPhone-проба отдельно разрешена (1 call/90s/4×384), client-bound, CLI/ImageGen OFF; живой результат ожидается, dollar hard cap не обещается |
 | Expert proposal/actual effort/one call/cancel | expert_profiles/jobs.py, Bridge; test_realtime_experts.py | Metadata model/list, offline Codex tools=[]; реальные эксперты и faithful voice пересказ не приняты |
 | Visual native parallel/old turn rejection | прежние Composer/SpeculativePhoto + native transcript events | Реальная native задержка показа относительно голоса не измерена; source/fact gate ещё blocker |
 | FI-02/03/04/06/08/11, память без биометрических полномочий | family_access.py, existing Family/Memory; native and family preference tests | Native guest RAM-only, PIN/false match не загружают private archive. FI-01 private retrieval ещё закрыт |
@@ -150,3 +150,5 @@ ACP выключен и fail-closed; новая скорость inference не 
 
 Исторические строки выше остаются evidence соответствующего этапа; они не доказывают
 приёмку новых native путей. Актуальный runtime и итог полного набора — CURRENT_STATUS.md.
+
+Допуск B и исправление DOM круглого экрана — CURRENT_STATUS.md §16.2. Полный suite: 1116 passed; native subset после отдельного client-bound test: 28 passed. Числовые stage/usage reports не сохраняют содержимое домашних разговоров. Физический iPhone ещё не принят.

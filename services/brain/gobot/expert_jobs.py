@@ -92,6 +92,7 @@ class ExpertJobs:
             if any(j.state in {'queued','running'} for j in self.jobs.values()):raise PermissionError('one_active_expert_job_only')
             if not self.session.offer.expert_quota_consent:raise PermissionError('expert_quota_consent_required')
             if not getattr(self.session,'expert_authorized',False):raise PermissionError('confirmed_adult_required_for_expert')
+            if not getattr(getattr(self.session,'policy',None),'expert_jobs_allowed',False):raise PermissionError('expert_not_in_session_budget')
             await asyncio.to_thread(self.budget.reserve_session,job.id,True)
             job.call_id=call_id;job.state='queued'
             job.worker=self.session.spawn(self.run(job))
@@ -137,11 +138,12 @@ class ExpertJobs:
         else:output['result_withheld']='Context changed or task unavailable; do not invent an expert conclusion.'
         import json
         await s.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':job.call_id,'output':json.dumps(output,ensure_ascii=False)}})
+        if current and job.result:s.emit('expert_result',result=job.result)
         if current:await s.response()
 
     async def cancel(self,job_id):
         job=self.jobs.get(job_id)
-        if not job:raise ValueError('expert_job_not_found')
+        if not job or job.owner!=self.session.access.effective_scope:raise ValueError('expert_job_not_found')
         job.state='cancelled'
         if job.worker:job.worker.cancel();await asyncio.gather(job.worker,return_exceptions=True)
         return self.public(job)

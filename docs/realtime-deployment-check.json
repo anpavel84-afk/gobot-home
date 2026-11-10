@@ -1,0 +1,60 @@
+{
+  "code_commit": "af35bfe",
+  "active_turns": 0,
+  "active_voice_streams": 0,
+  "default_engine": "legacy",
+  "model": "gpt-realtime-2.1-mini",
+  "budget_enabled": false,
+  "sessions_reserved": 0,
+  "speaker": {
+    "integration_enabled": true,
+    "model_installed": true,
+    "profile_count": 0,
+    "calibrated": false,
+    "external_stt_calls": 0,
+    "embeddings_external": false,
+    "per_turn_pcm_mirror": true,
+    "accuracy_verified": false
+  },
+  "real_provider_audio_verified": false,
+  "physical_iphone_verified": false,
+  "http_checks": {
+    "/demo2": 200,
+    "/demo2/a": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b": 200,
+    "/demo2/b/device": 200,
+    "/settings/family": 200,
+    "/api/realtime/status": 200
+  },
+  "desktop_browser": {
+    "selector": true,
+    "legacy_panel_and_round_screen": true,
+    "native_engine_selected_after_mount_fix": true,
+    "native_raster_240x240": true,
+    "mic_closed_without_consent": true,
+    "responsive_viewport": [
+      390,
+      844
+    ],
+    "physical_iphone": false
+  },
+  "unapproved_native_setup_status": 403,
+  "preserved_row_counts_equal": true,
+  "retention_counts": {
+    "backup": {
+      "messages": 459,
+      "facts": 0,
+      "family_profiles": 0,
+      "voice_vectors": 0,
+      "timers": 9
+    },
+    "current": {
+      "messages": 459,
+      "facts": 0,
+      "family_profiles": 0,
+      "voice_vectors": 0,
+      "timers": 9
+    }
+  }
+}

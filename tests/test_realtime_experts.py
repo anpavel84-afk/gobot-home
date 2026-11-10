@@ -7,7 +7,7 @@ from gobot.realtime_budget import RealtimeBudget
 import pytest
 
 def session():
-    s=SimpleNamespace(expert_authorized=True,turns=[1],current=SimpleNamespace(query='Сравни архитектуры',answer='',cancelled=False),
+    s=SimpleNamespace(policy=SimpleNamespace(expert_jobs_allowed=True),expert_authorized=True,turns=[1],current=SimpleNamespace(query='Сравни архитектуры',answer='',cancelled=False),
         offer=SimpleNamespace(conversation_id='conv',expert_quota_consent=True),access=SimpleNamespace(effective_scope='guest-fixture'),closed=False,sent=[],events=[],tasks=[],responses=0)
     async def send(item):s.sent.append(item)
     async def respond():s.responses+=1
