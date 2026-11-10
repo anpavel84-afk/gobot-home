@@ -152,3 +152,5 @@ ACP выключен и fail-closed; новая скорость inference не 
 приёмку новых native путей. Актуальный runtime и итог полного набора — CURRENT_STATUS.md.
 
 Допуск B и исправление DOM круглого экрана — CURRENT_STATUS.md §16.2. Полный suite: 1116 passed; native subset после отдельного client-bound test: 28 passed. Числовые stage/usage reports не сохраняют содержимое домашних разговоров. Физический iPhone ещё не принят.
+
+Код B загружен: 384c552; новая ограниченная phone policy включена, резервирований при допуске 0. Подтверждение: realtime-phone-trial-admission.json. Это admission, не результат акустической/iPhone приёмки.
