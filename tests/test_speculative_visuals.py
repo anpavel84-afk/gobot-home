@@ -79,7 +79,7 @@ def test_fetch_overlaps_model_confirmation_gates_display_and_history(settings,mo
     asyncio.run(run())
 
 @pytest.mark.parametrize('text', ['Речь идёт о лисятах.','Фотография не подтверждена.'])
-def test_unconfirmed_picture_replaced_by_local_diagram(settings,monkeypatch,text):
+def test_unconfirmed_picture_keeps_avatar(settings,monkeypatch,text):
     async def run():
         service=brain.Service(settings)
         async def lookup(req,plan,**kw):return photo(req,plan)
@@ -89,32 +89,26 @@ def test_unconfirmed_picture_replaced_by_local_diagram(settings,monkeypatch,text
         monkeypatch.setattr(service.visual,'attachment',lookup)
         req=ChatRequest(text=QUESTION,mode='auto',remember=False);await service.prepare(req)
         frames=[i.data['presentation'] async for i in service.events(req) if i.type=='visual_response']
-        assert len(frames)==1 and frames[0]['metadata']['diagram_labels'] and not frames[0]['images']
+        assert frames==[]
     asyncio.run(run())
 
-def test_failed_search_shows_map_before_long_answer_ends(settings,monkeypatch):
+def test_failed_search_keeps_avatar(settings,monkeypatch):
     async def run():
-        service=brain.Service(settings);illustrated=asyncio.Event()
+        service=brain.Service(settings)
         async def lookup(req,plan,**kwargs):
             return service.visual.fallback(req,'Иллюстрация','image_lookup_timeout')
         async def provider(*args):
             yield 'Эндокринная система состоит из желез внутренней секреции. '
-            await illustrated.wait()
             yield 'Гормоны поступают в кровь.'
         monkeypatch.setattr(brain,'bridge_stream',provider)
         monkeypatch.setattr(brain,'agent_status',lambda *_:{'antigravity':{'available':True}})
         monkeypatch.setattr(service.visual,'attachment',lookup)
         req=ChatRequest(text='Как устроена эндокринная система человека?',mode='auto',remember=False)
-        async with asyncio.timeout(2):
-            events=[]
-            async for item in service.events(req):
-                if item.type=='visual_response':
-                    assert item.data['presentation']['metadata']['diagram_labels']
-                    illustrated.set()
-                events.append(item)
-        assert illustrated.is_set()
+        events=[item async for item in service.events(req)]
+        assert not any(e.type=='visual_response' for e in events)
+        scene=next(e.data['scene'] for e in events if e.type=='screen_scene' and e.data['phase']=='answer_complete')
+        assert scene['scene_type']=='avatar'
         assert events[-1].type=='final'
-        assert sum(e.type=='visual_response' for e in events)==1
     asyncio.run(run())
 
 def test_history_can_restore_cached_diagram_after_failed_search(settings,monkeypatch):

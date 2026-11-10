@@ -49,6 +49,17 @@ def test_transparent_diagram_retains_dark_labels_on_light_background():
     assert min(result.getpixel((20,20)))>240
     assert max(result.getpixel((100,100)))<20
 
+def test_public_domain_film_frame_is_raster_only():
+    payload=metadata();info=payload['query']['pages']['1']['imageinfo'][0]
+    info['mime']='application/ogg'
+    info['thumburl']='https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/film.ogv/480px-film.ogv.jpg'
+    info['extmetadata']['LicenseShortName']['value']='Public domain'
+    del info['extmetadata']['LicenseUrl']
+    candidate=CommonsImages.candidates(json.dumps(payload).encode(),3)[0]
+    assert candidate.license=='Public domain' and candidate.url.endswith('.jpg')
+    info.pop('thumburl')
+    assert not CommonsImages.candidates(json.dumps(payload).encode(),3)
+
 
 def test_ru_article_to_licensed_latin_caption_and_overview():
     client=Client({'bad':{'ns':0,'index':1,'title':'Мухомор вонючий','pageimage':'Amanita.jpg'},

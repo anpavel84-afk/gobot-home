@@ -14,6 +14,7 @@
     syncDisplay(text){for(const entry of this.frames.values())entry.body.hidden=!!text&&text.trim()===(entry.frame.text||'').trim();}
     hasTimer(id){return this.timerCards.has(id)||this.currentTimer===id;}
     render(frame){
+      if(frame?.metadata?.backend==='answer_map')return false;
       if(!frame||frame.namespace!=='gobot.ui'||frame.version!==2||!kinds.has(frame.type)||typeof frame.id!=='string')return false;
       const existingTimer=frame.type==='timer_widget'&&this.timerCards.get(frame.metadata?.timer_id);
       if(existingTimer){if(frame.metadata.state==='cancelled'){clearInterval(existingTimer.ticker);this.intervals.delete(existingTimer.ticker);existingTimer.output.textContent='Таймер остановлен';existingTimer.frame.metadata.state='cancelled';}return true;}
@@ -39,13 +40,7 @@
         credit.append(node('span','Размер изменён; метаданные удалены.'));figure.append(credit);gallery.append(figure);count++;
       }
       if(count)card.append(gallery);
-      const concepts=frame.metadata?.diagram_labels;
-      if(Array.isArray(concepts)&&concepts.length){
-        const map=node('ul',undefined,'answer-map');
-        for(const concept of concepts.slice(0,3))map.append(node('li',concept));
-        card.append(map);
-      }
-      else if(['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
+      if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
       if(state.synthetic)card.append(node('small','Условная иллюстрация · создана локально · не фотография','visual-state'));
       if(state.selection_basis==='source_metadata_search_unverified')card.append(node('small','Результаты поиска по метаданным; точное соответствие объекту не подтверждено.','visual-state'));
@@ -60,7 +55,7 @@
         }
       }
       if(state.facts&&typeof state.facts==='object'){
-        const internal=new Set(['entity_title','entity_source','entity_match','subject','query_basis','identification']);
+        const internal=new Set(['presentation_group','entity_title','entity_source','entity_match','subject','query_basis','identification']);
         const entries=Object.entries(state.facts).filter(([key])=>!internal.has(key)).slice(0,12);
         if(entries.length){const facts=node('dl',undefined,'visual-facts');for(const [key,value] of entries)facts.append(node('dt',key),node('dd',String(value)));card.append(facts);}
       }

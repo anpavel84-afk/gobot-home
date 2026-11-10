@@ -128,7 +128,8 @@ class Memory:
                         if entry.get('visual_plan_rejected') or entry.get('optional_visual_error'):message['recover_illustration']=True
                         if 'presentation' in entry:
                             frame=Presentation.model_validate(entry['presentation'])
-                            if frame.images or frame.metadata.diagram_labels:
+                            if frame.images:
+                                message.setdefault('presentations',[]).append(frame.model_dump())
                                 message['presentation']=frame.model_dump()
                 except (ValueError,TypeError,AttributeError):pass
             messages.append(message)

@@ -16,13 +16,14 @@ from .routing import SmartRouter
 from .context_manager import ContextManager
 from .quality import Assessment,RiskAssessment,SelectiveVerifier
 from .local_tools import LocalTools,text_stream
+from .presentation import frame_id
 from .visual import VisualService
 from .visual_images import ImageCache
 from pathlib import Path
 from .presentation_planner import MultimodalResponsePlanner,ResponsePresentationPlan
 from .visual_subject import plain_answer_stream
 from .visual_prefetch import SpeculativePhoto,extract_entity
-from .answer_illustration import answer_map
+from .character_images import CharacterImages,CHARACTER_TOPIC,characters
 from .response_composer import VisualResponseComposer
 from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
 
@@ -46,6 +47,7 @@ class Service:
         async def lookup():
             req=ChatRequest(text=text,device_id=owner,turn_id=utterance,remember=False,mode='auto')
             plan=self.composer.plan(req)
+            if CHARACTER_TOPIC.search(text):return None
             if not self.composer.answer_visual_eligible(req,plan=plan) or RiskAssessment().assess(text,{}).verification_required:return None
             entity=await asyncio.to_thread(extract_entity,text)
             if not entity:return None
@@ -76,17 +78,28 @@ class Service:
         questions={m['turn_id']:m['content'] for m in archive['messages'] if m['role']=='user'}
         for message in archive['messages']:
             recover=message.pop('recover_illustration',False)
+            if message.get('presentation',{}).get('metadata',{}).get('backend')=='answer_map':message.pop('presentation')
             if not recover or message.get('presentation',{}).get('images'):continue
             question=questions.get(message['turn_id'])
             if not question:continue
+            if CHARACTER_TOPIC.search(question):
+                req=ChatRequest(text=question,turn_id=message['turn_id'])
+                frames=[]
+                for entity in list(characters(message['content']))[:3]:
+                    result=await self.visual.attachment(req,entity.plan(),cache_only=True)
+                    if result.frame.images:
+                        result.frame.title=entity.label
+                        result.frame.id=frame_id(req.turn_id,'character-'+entity.query)
+                        frames.append(result.frame.model_dump())
+                if frames:message['presentations']=frames;message['presentation']=frames[-1]
+                continue
             entity=await asyncio.to_thread(extract_entity,question)
             if entity and entity.confirm(message['content']):
                 req=ChatRequest(text=question,turn_id=message['turn_id'])
                 plan=entity.plan()
                 result=await self.visual.attachment(req,plan,cache_only=True)
                 if not result.frame.images and message.get('presentation'):continue
-                frame=result.frame if result.frame.images else await asyncio.to_thread(answer_map,req,message['content'])
-                message['presentation']=frame.model_dump()
+                if result.frame.images:message['presentation']=result.frame.model_dump()
         return archive
     async def events(self,req,replay=None):
         if replay:
@@ -94,13 +107,14 @@ class Service:
                 for entry in json.loads(replay.get('trace') or '[]'):
                     if entry.get('presentation'):
                         frame=self.visual.replay(entry['presentation'])
+                        if frame.metadata.backend=='answer_map':continue
                         if frame.type=='timer_widget' and frame.metadata.timer_id:
                             with self.memory.connect() as c:timer=c.execute('SELECT status FROM timers WHERE id=? AND device_id=?',(frame.metadata.timer_id,req.device_id)).fetchone()
                             if not timer or timer[0]=='cancelled':frame.metadata.state='cancelled';frame.metadata.deadline=None;frame.text='Таймер остановлен.';frame.actions=[]
                         yield event(req,'visual_response',presentation=frame.model_dump(),replayed=True)
             except (ValueError,TypeError):pass
             yield event(req,'final' if replay['status']=='completed' else replay['status'] if replay['status'] in {'cancelled','error'} else 'error',text=replay['result'],provider=replay['provider'],replayed=True);return
-        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None;prefetch=None
+        cancel=asyncio.Event();self.running[req.turn_id]=cancel;state='cancelled';text='';provider='unselected' if req.mode not in {None,'mock'} else 'mock';trace=[];started=time.perf_counter();first=None;buffer=SentenceBuffer();acquired=False;iterator=None;visual_task=None;prefetch=None;character_images=None
         try:
             mark("brain_queue_start")
             try:await asyncio.wait_for(self.limit.acquire(),0.1);acquired=True;mark("brain_queue_end")
@@ -164,7 +178,10 @@ class Service:
                 if decision:trace.append({'presentation_plan':presentation_plan.model_dump()})
                 if decision and not visual_frame and self.composer.answer_visual_eligible(req,decision,ctx,presentation_plan):
                     entity=await asyncio.to_thread(extract_entity,req.text)
-                    if entity and decision.provider in {'antigravity','codex'}:
+                    if CHARACTER_TOPIC.search(req.text) and decision.provider in {'antigravity','codex'}:
+                        character_images=CharacterImages(req,self.visual.attachment,self.presentation_planner.policy.helpful_timeout_seconds)
+                        visual_task=character_images
+                    elif entity and decision.provider in {'antigravity','codex'}:
                         presentation_plan=entity.plan()
                         warmed=self.claim_warm(req)
                         prefetch=SpeculativePhoto(req,entity,self.visual.attachment,self.presentation_planner.policy.helpful_timeout_seconds,warmed)
@@ -183,11 +200,8 @@ class Service:
                             trace.append({'optional_visual_error':'attachment_unavailable'});continue
                         if kind=='visual':
                             if delta is None:continue
-                            if delta.frame.metadata.state=='unavailable' and self.composer.allows_local_map(req,decision,ctx,presentation_plan):
+                            if delta.frame.metadata.state=='unavailable':
                                 trace.append({'optional_visual_error':delta.frame.metadata.reason})
-                                frame=await asyncio.to_thread(answer_map,req,text.strip())
-                                yield event(req,'visual_response',presentation=frame.model_dump(),attachment=True)
-                                trace.append({'presentation':frame.model_dump()})
                                 continue
                             if prefetch and prefetch.selected:presentation_plan=prefetch.selected.plan()
                             yield event(req,'visual_response',presentation=delta.frame.model_dump(),attachment=True)
@@ -196,6 +210,8 @@ class Service:
                             if not must_gate and spoken_override is None:
                                 for sentence in buffer.feed('',final=True):yield event(req,'sentence_ready',text=sentence)
                                 yield event(req,'tool_status',status='speech_input_complete')
+                            if character_images:
+                                character_images.observe(text[-4000:]);character_images.finish()
                             if prefetch:
                                 # The last sentence can end without punctuation.
                                 for fragment in re.split(r'(?<=[.!?…])\s+',text[-1200:]):
@@ -211,6 +227,7 @@ class Service:
                                 for sentence in buffer.feed(delta):
                                     yield event(req,'sentence_ready',text=sentence)
                                     if prefetch:prefetch.observe(sentence)
+                                    if character_images:character_images.observe(sentence)
                             if prefetch:prefetch.observe_partial(text)
                 except asyncio.CancelledError:raise
                 except Exception as error:
@@ -246,13 +263,6 @@ class Service:
                     yield event(req,'widget_command',command={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':300000}},mock=True)
                 if decision:trace.append({'usage':ctx.get('_provider_usage'),'billing_kind':decision.billing_kind,'model':decision.model})
                 if decision:
-                    if (text.strip() and not any('presentation' in item for item in trace)
-                            and self.composer.allows_local_map(req,decision,ctx,presentation_plan)):
-                        frame=await asyncio.to_thread(answer_map,req,text.strip())
-                        presentation_plan=ResponsePresentationPlan(origin='implicit',visual_needed=True,visual_priority='helpful',
-                            visual_type='diagram',visual_strategy='render_local',reason='answer_map',labels=frame.metadata.diagram_labels)
-                        yield event(req,'visual_response',presentation=frame.model_dump(),attachment=True)
-                        trace.append({'presentation':frame.model_dump()})
                     scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan,answer=text.strip(),has_visual=any('presentation' in item for item in trace))
                     yield event(req,'screen_scene',scene=scene.model_dump(exclude={'display_text','speech_text'}),phase='answer_complete');trace.append({'screen_scene':scene.model_dump(exclude={'display_text','speech_text'})})
                 state='completed'
@@ -274,6 +284,7 @@ class Service:
         finally:
             if iterator is not None:await iterator.aclose()
             if prefetch is not None:await prefetch.close()
+            elif character_images is not None:await character_images.aclose()
             elif visual_task is not None:
                 visual_task.cancel();await asyncio.gather(visual_task,return_exceptions=True)
             self.running.pop(req.turn_id,None)

@@ -84,6 +84,8 @@ async def cancellable(source,flag):
 async def merge_presentation(source,visual,flag):
     """One text lookahead, one visual task; neither can starve the other."""
     iterator=source.__aiter__();pending=None;stop=asyncio.create_task(flag.wait());text_done=False
+    visual_iterator=visual.__aiter__() if hasattr(visual,'__aiter__') else None
+    if visual_iterator:visual=asyncio.create_task(anext(visual_iterator))
     try:
         while not text_done or visual is not None:
             if not text_done and pending is None:pending=asyncio.create_task(anext(iterator))
@@ -94,8 +96,11 @@ async def merge_presentation(source,visual,flag):
             if stop in done:raise asyncio.CancelledError()
             if visual is not None and visual in done:
                 try:result=visual.result()
+                except StopAsyncIteration:visual=None
                 except Exception:visual=None;yield 'visual_failed',None
-                else:visual=None;yield 'visual',result
+                else:
+                    visual=asyncio.create_task(anext(visual_iterator)) if visual_iterator else None
+                    yield 'visual',result
             if pending is not None and pending in done:
                 try:value=pending.result()
                 except StopAsyncIteration:
@@ -109,3 +114,4 @@ async def merge_presentation(source,visual,flag):
             if task is not None:task.cancel()
         await asyncio.gather(*(task for task in (pending,visual,stop) if task is not None),return_exceptions=True)
         await iterator.aclose()
+        if visual_iterator:await visual_iterator.aclose()

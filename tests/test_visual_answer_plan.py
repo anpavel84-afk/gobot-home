@@ -165,10 +165,10 @@ def test_plain_stream_refines_one_prefetch_without_blocking_voice(settings,monke
         final=next(e for e in events if e['type']=='final')
         assert final['data']['text']==FIRST+TAIL
         assert len(calls)==1 and [p.visual_query for p in plans]==['Попугаеобразные','солнечная аратинга']
-        assert sum(e['type']=='visual_response' for e in events)==1
+        assert sum(e['type']=='visual_response' for e in events)==0
         assert all('gobot_visual' not in part for part in spoken)
         assert ''.join(spoken).replace(' ','')==(FIRST+TAIL).replace(' ','')
-        assert any(e['type']=='visual_response' for e in events)
+        assert not any(e['type']=='visual_response' for e in events)
     asyncio.run(run())
 
 

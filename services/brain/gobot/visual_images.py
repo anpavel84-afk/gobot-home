@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=3
-FETCH_POLICY_VERSION=7
+FETCH_POLICY_VERSION=9
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -183,9 +183,11 @@ class CommonsImages:
             info=infos[0];meta=info.get('extmetadata',{})
             license=plain(meta.get('LicenseShortName',{}).get('value',''),80)
             license_url=meta.get('LicenseUrl',{}).get('value','').replace('http://creativecommons.org','https://creativecommons.org')
+            if license=='Public domain' and not license_url:
+                license_url='https://creativecommons.org/publicdomain/mark/1.0/'
             if license not in LICENSES or not license_url.startswith('https://creativecommons.org/'):continue
             url=info.get('thumburl') or info.get('url','')
-            if info.get('mime')=='image/svg+xml':
+            if info.get('mime') in {'image/svg+xml','video/ogg','application/ogg','video/webm'}:
                 # Commons renders SVG on its own servers. Fetch only that raster
                 # thumbnail, subject to the same DNS, MIME, byte and decode checks.
                 thumb=urlsplit(info.get('thumburl',''))

@@ -47,14 +47,6 @@ class VisualResponseComposer:
         return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='image_card',
             visual_strategy='retrieve',visual_query=subject,subject_label=subject,subject_source='answer',
             origin='implicit',reason='main_response_visual_plan')
-    def allows_local_map(self,req,route,context,plan):
-        pref=req.screen_preferences or ScreenPreferences()
-        return (pref.automatic_illustrations and pref.style!='minimal' and not social(req.text)
-                and self.planner.policy.auto_visual_for_helpful_topics
-                and plan.reason not in {'user_disabled_visual','safety_or_source_gate','ambiguous_topic'}
-                and not getattr(route,'tool',None)
-                and not (getattr(route,'quality',{}) or {}).get('verification_required')
-                and (context or {}).get('topic',{}).get('outcome')!='ambiguous')
     def plan(self,req,route=None,context=None):
         plan=self.planner.plan(req.text,route=route,context=context)
         pref=req.screen_preferences or ScreenPreferences()
@@ -86,11 +78,12 @@ class VisualResponseComposer:
             if subject:return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='image_card',
                 visual_strategy='retrieve',visual_query=subject[1].rstrip('?.!')[:180],origin='implicit',reason='rich_style_public_subject')
         return plan
-    def compose(self,req,*,route=None,context=None,answer='',plan=None,has_visual=False,capabilities=None):
+    def compose(self,req,*,route=None,context=None,answer='',plan=None,has_visual=None,capabilities=None):
         plan=plan or self.plan(req,route,context);pref=req.screen_preferences or ScreenPreferences()
         scene=ResponseScene(display_text=answer,speech_policy=plan.speech_policy,scene_duration=pref.hold_after_response_seconds,
-            preserve_visual=has_visual,source_metadata={'basis':'response_content_and_route','verification':'not_implied_by_visual'})
+            preserve_visual=bool(has_visual),source_metadata={'basis':'response_content_and_route','verification':'not_implied_by_visual'})
         if plan.reason in {'model_selected_avatar','user_disabled_visual'}:return scene
+        if plan.origin=='implicit' and has_visual is False:return scene
         if plan.visual_needed:
             strategy={'retrieve':'retrieve_photo','generate':'generate_illustration','render_local':'render_widget','mixed':'render_widget'}[plan.visual_strategy]
             if plan.template in {'lunar_crater','earth_moon','solar_eclipse','volcano','tomato_plant'}:strategy='render_diagram'

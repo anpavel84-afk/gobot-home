@@ -313,10 +313,12 @@ async function loadHistory() {
     $('history').replaceChildren();
     for (const message of data.messages || []) {
       const p = document.createElement('p'); p.textContent = (message.role === 'user' ? 'Ты: ' : 'GoBot (' + message.provider + '): ') + message.content; $('history').append(p);
-      if(message.role==='assistant' && message.presentation && window.GoBotVisual){
+      if(message.role==='assistant' && window.GoBotVisual){
+        for(const frame of message.presentations||(message.presentation?[message.presentation]:[])){
         const root=document.createElement('div');
-        new window.GoBotVisual.BrowserVisualRenderer(root).render(message.presentation);
+        new window.GoBotVisual.BrowserVisualRenderer(root).render(frame);
         $('history').append(root);
+        }
       }
     }
   } catch (_) { /* Status remains available separately. */ }

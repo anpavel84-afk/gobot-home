@@ -16,6 +16,7 @@
       const response=await fetch('/api/device/profile');if(!response.ok)throw Error('Не удалось загрузить профиль устройства');const data=await response.json();this.profile=data.profile;
       const {DeviceRenderer,SceneManager}=window.GoBotDeviceRenderer;this.manager=new SceneManager(this.profile);this.renderer=new DeviceRenderer(document.getElementById('device-screen'),this.profile);
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
+      this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
       this.renderer.onImageError=()=>this.status('Изображение не загрузилось. Ответ продолжается.');
       this.renderer.onImageReady=(_,turn)=>{if(turn===this.turn&&this.enabled)window.GoBotClient.trace?.()?.mark('visual_decoded');};
       this.renderer.onImagePresented=(_,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();}};

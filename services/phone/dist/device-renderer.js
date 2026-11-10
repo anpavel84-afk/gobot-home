@@ -3,14 +3,24 @@
   'use strict';
   class SceneManager{
     constructor(profile,clock=()=>Date.now()){this.profile=profile;this.clock=clock;this.turn=null;this.visual=null;this.scene=null;this.state='idle';this.completed=false;this.returnAt=null;}
-    newTurn(turn){this.turn=turn;this.visual=null;this.scene=null;this.completed=false;this.returnAt=null;this.state='thinking';}
-    frame(frame,turn){if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;this.visual=frame;this.returnAt=null;return true;}
+    newTurn(turn){this.turn=turn;this.visual=null;this.scene=null;this.completed=false;this.returnAt=null;this.state='thinking';this.gallery=[];this.galleryAt=null;}
+    frame(frame,turn){if(frame?.metadata?.backend==='answer_map')return false;if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;this.visual=frame;this.returnAt=null;
+      if(frame.metadata?.facts?.presentation_group==='answer_characters'){
+        this.gallery=this.gallery||[];if(!this.gallery.some(item=>item.id===frame.id))this.gallery.push(frame);
+        this.galleryAt=this.clock()+5000;
+      }
+      return true;}
     compose(scene,turn){if(turn!==this.turn||!scene||typeof scene!=='object')return false;if(!scene.preserve_visual||!this.visual)this.scene=scene;return true;}
     finish(turn){if(turn===this.turn)this.completed=true;}
     tick(playing){
+      if(this.gallery?.length>1&&this.galleryAt!==null&&this.clock()>=this.galleryAt){
+        const index=this.gallery.findIndex(item=>item.id===this.visual?.id);
+        this.visual=this.gallery[(index+1)%this.gallery.length];this.galleryAt=this.clock()+5000;
+        this.onVisualChanged?.(this.visual,this.turn);
+      }
       if(this.visual?.type==='timer_widget'&&this.visual.metadata?.deadline>this.clock()/1000){this.returnAt=null;return;}
       if(this.completed&&!playing&&this.returnAt===null){this.returnAt=this.clock()+this.profile.screen.hold_after_response_seconds*1000;}
-      if(this.returnAt!==null&&this.clock()>=this.returnAt&&this.profile.screen.return_to_idle){this.visual=null;this.scene=null;this.returnAt=null;this.completed=false;}
+      if(this.returnAt!==null&&this.clock()>=this.returnAt&&this.profile.screen.return_to_idle){this.visual=null;this.scene=null;this.returnAt=null;this.completed=false;this.gallery=[];this.galleryAt=null;}
     }
   }
   const defaults={display:{width:240,height:240,safe_inset:35},skin:{skin_id:'classic',face_color:'#a3e5cd',background:'#0c141a',eyes:'default',mouth:'default',animation_intensity:.6,reduced_motion:false,idle_screen:'face'},screen:{hold_after_response_seconds:12,return_to_idle:true}};
@@ -82,15 +92,6 @@
         const seconds=Math.max(0,Math.ceil(frame.metadata.deadline-Date.now()/1000)),hours=Math.floor(seconds/3600);
         const digits=hours?`${hours}:${String(Math.floor(seconds/60)%60).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
         this.text('Таймер',120,77,15);this.text(digits,120,135,hours?30:43,175,p.skin.face_color);this.text(seconds?'Идёт отсчёт':'Время вышло',120,174,12);
-      }else if(frame?.metadata?.diagram_labels?.length){
-        const labels=frame.metadata.diagram_labels.slice(0,3);
-        this.text('Карта ответа',120,64,14,145,p.skin.face_color);
-        for(const [i,label] of labels.entries()){
-          const y=99+i*34;
-          this.line([[52,y-5],[64,y-5]],p.skin.face_color);
-          if(i)this.line([[52,y-39],[52,y-5]],p.skin.face_color);
-          this.circle(64,y-5,3,p.skin.face_color);this.text(label,131,y,12,127);
-        }
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
       else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
         if(this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
