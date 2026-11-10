@@ -76,5 +76,15 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   app.sessionActive=true;app.serverAudioEnded=true;app.answerPlaybackStarted=false;app.checkFollowup({playing:false});assert(!app.followupPending);
   app.answerPlaybackStarted=true;app.checkFollowup({playing:false,feedback_playing:true});assert(!app.followupPending);
   app.serverAudioEnded=false;app.event({type:'audio_stop',turn_id:'old',data:{reason:'finished',chunks:1}});assert(!app.serverAudioEnded);
+  // Native closure is synchronous and cannot be overwritten by legacy generic error handling.
+  sandbox.window.GoBotRealtime={selected:()=>true};app.enabled=true;app.sessionActive=true;
+  sandbox.window.GoBotHooks.onNativeClosed({reason:'server_closed',message:'Окно продолжения закрыто.',error:false});
+  assert(!app.enabled);assert(!app.sessionActive);assert.equal(app.manager.state,'muted');
+  app.event({type:'error',turn_id:app.turn,data:{code:'legacy_generic'}});
+  await app.press();assert.equal(el('device-status').textContent,'Окно продолжения закрыто.');
+  assert.equal(app.manager.state,'muted');
+  sandbox.window.GoBotHooks.onNativeClosed({reason:'provider_error',message:'Сбой сервиса; микрофон выключен.',error:true});
+  await app.press();assert.equal(el('device-status').textContent,'Сбой сервиса; микрофон выключен.');
+  assert.equal(app.manager.state,'error');
   console.log('Device units: raster, scenes, capture, followup playback gate, stop and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

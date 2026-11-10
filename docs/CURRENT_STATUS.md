@@ -728,3 +728,47 @@ active_native_sessions=0 и pending_hangups=0. HTTPS, Brain/Bridge и A/B мар
 показ остаются ожидаемыми. Допуск не означает включение Realtime по умолчанию или
 постоянный бюджет использования. Ошибка setup не запускает автоматическую вторую
 сессию. Для сравнения остаются A и полный локальный backup до обновления.
+
+
+## 17. Первый реальный iPhone-прогон B: обрыв речи и завершение
+
+Источник — сообщение/скриншот владельца и content-free ledger, а не desktop-подмена.
+`realtime-phone-first-trial.json`: одна разрешённая сессия, 3 response attempts,
+setup acknowledged 2214.12 ms; input end → client audio signal 1259.08 ms для первого
+и 1518.91 ms для третьего ответа. Второй ответ не имеет client playback acknowledgement.
+Это не время первого полезного слова и не акустическая проверка произношения.
+Владелец сообщил об обрывах речи, затем отключении после паузы.
+
+Первые два output_tokens — **384/384**, равны тестовому потолку; во втором из 384
+output tokens 345 обозначены provider reasoning_tokens (подмножество text tokens),
+audio_tokens=27. Ограничение было слишком низким для этой проверки и объясняет риск
+обрыва. Исходный response.done status_details не сохранялся, поэтому достижение
+потолка не выдаётся за сохранённый статус max_output_tokens. Повышение лимита требует
+нового согласия; прежняя policy не расширена и reservations не сброшены.
+
+От старта до сохранения cleanup report 58642.87 ms, не 90 секунд. Hangup подтверждён,
+active sessions=0. Точная причина закрытия не сохранена старым runtime; нельзя честно
+объявить её timeout, Safari error или provider error. Расчёт response usage $0.01188468
+не включает отдельно оплачиваемую входную транскрипцию и не является итоговым счётом.
+
+Исправлены воспроизводимые дефекты обработки:
+- Native close синхронно закрывает mic/меняет DeviceApp state; повторный close возвращает
+  тот же promise. Старый draw-loop/legacy error handler не затирают причину и не рисуют
+  error при нормальном end/timeout. Нажатие на выключенное лицо сохраняет последнее объяснение.
+- Safe enum причины закрытия, длительность lifecycle, allowlisted provider error codes
+  и completion counters сохраняются без transcript/PCM/raw error messages. Повторный cleanup
+  не меняет первую причину. Совпавший код ошибки без ссылки на наш cancel event не игнорируется.
+- Только correlated response_cancel_not_active после нашего response.cancel — warning,
+  а неизвестная ошибка остаётся fail-closed. API semantics: официальный Realtime client-events
+  reference допускает cancel без активного response, возвращая error без уничтожения сессии.
+- max_output_tokens incomplete больше не становится тупиком followup: после реального
+  окончания имеющегося аудио продолжение разрешено, а память помечается incomplete.
+  Reasoning-only результат без аудио не считается услышанным и не запускает retry/followup.
+- Исчерпанная одноразовая проба отклоняется клиентом до запроса микрофона/нового call.
+  Нет автоматического второго оплачиваемого запуска, старый лимит остаётся исчерпанным.
+
+Бесплатные проверки: full regression 1119 passed / 30.53 s, затем добавлены два
+incomplete cases, целевой набор 83 passed / 6.72 s. Desktop browser: ручной Stop
+без активной оплаченной сессии оставляет нормальную muted-сцену, mic closed; это не
+повторение iPhone audio bug. Исправленный живой iPhone-прогон ещё не выполнен.
+Новый визуальный OWNER DIRECT Wikimedia-first принят в текущую работу; scope не заменён.

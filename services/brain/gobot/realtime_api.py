@@ -51,7 +51,7 @@ def attach_brain_realtime(app,manager,auth):
         owner=body.pop('device_id',None);client=body.pop('client_id',None);epoch=body.pop('profile_epoch',None)
         try:
             cmd=RealtimeCommand.model_validate(body)
-            if cmd.action=='close':return await manager.close(ident,owner,client,epoch)
+            if cmd.action=='close':return await manager.close(ident,owner,client,epoch,cmd.close_reason or 'client_closed')
             s=owned(ident,owner,client,epoch)
             return await s.command(cmd)
         except KeyError:raise HTTPException(404,'realtime_session_not_found')

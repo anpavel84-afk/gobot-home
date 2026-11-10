@@ -1,0 +1,120 @@
+{
+  "runtime_code": "384c552",
+  "observation": "owner iPhone trial, screenshot and content-free server ledger",
+  "started_utc": "2026-11-10T22:37:03.348404+00:00",
+  "cleanup_report_utc": "2026-11-10T22:38:01.991270+00:00",
+  "lifecycle_ms": 58642.87,
+  "close_reason": "not_recorded_in_that_runtime",
+  "ninety_second_limit_was_not_reached": true,
+  "response_attempts": 3,
+  "native_report": {
+    "setup_ms": {
+      "call_created": 1408.43,
+      "sideband_connected": 2032.22,
+      "settings_acknowledged": 2214.12
+    },
+    "turns_ms": [
+      {
+        "input_ended": 13616.52,
+        "response_created": 14103.49,
+        "answer_transcript": 14460.32,
+        "output_buffer_started": 14503.86,
+        "client_playback": 14875.6
+      },
+      {
+        "input_ended": 34621.1,
+        "response_created": 34990.3,
+        "answer_transcript": 36792.37,
+        "output_buffer_started": 36920.92
+      },
+      {
+        "input_ended": 44041.59,
+        "response_created": 44492.52,
+        "answer_transcript": 45014.69,
+        "output_buffer_started": 45176.24,
+        "client_playback": 45560.5,
+        "client_playback_stopped": 50493.2
+      }
+    ],
+    "response_attempts": 3,
+    "usage_responses_received": 3,
+    "reported_tokens": 4955,
+    "estimated_response_usd_excluding_transcription": 0.011884680000000002,
+    "client_audio_signal_is_not_acoustic_acceptance": true,
+    "contains_conversation_content": false
+  },
+  "response_usage": [
+    {
+      "total_tokens": 1613,
+      "input_tokens": 1229,
+      "output_tokens": 384,
+      "input_token_details": {
+        "text_tokens": 1173,
+        "audio_tokens": 56,
+        "image_tokens": 0,
+        "cached_tokens": 0,
+        "cached_tokens_details": {
+          "text_tokens": 0,
+          "audio_tokens": 0,
+          "image_tokens": 0
+        }
+      },
+      "output_token_details": {
+        "text_tokens": 112,
+        "audio_tokens": 272,
+        "reasoning_tokens": 30
+      }
+    },
+    {
+      "total_tokens": 1741,
+      "input_tokens": 1357,
+      "output_tokens": 384,
+      "input_token_details": {
+        "text_tokens": 1247,
+        "audio_tokens": 110,
+        "image_tokens": 0,
+        "cached_tokens": 1216,
+        "cached_tokens_details": {
+          "text_tokens": 1152,
+          "audio_tokens": 64,
+          "image_tokens": 0
+        }
+      },
+      "output_token_details": {
+        "text_tokens": 357,
+        "audio_tokens": 27,
+        "reasoning_tokens": 345
+      }
+    },
+    {
+      "total_tokens": 1601,
+      "input_tokens": 1390,
+      "output_tokens": 211,
+      "input_token_details": {
+        "text_tokens": 1265,
+        "audio_tokens": 125,
+        "image_tokens": 0,
+        "cached_tokens": 1280,
+        "cached_tokens_details": {
+          "text_tokens": 1216,
+          "audio_tokens": 64,
+          "image_tokens": 0
+        }
+      },
+      "output_token_details": {
+        "text_tokens": 116,
+        "audio_tokens": 95,
+        "reasoning_tokens": 82
+      }
+    }
+  ],
+  "responses_at_approved_384_token_ceiling": 2,
+  "original_response_completion_status_not_recorded": true,
+  "first_end_to_client_audio_signal_ms": 1259.08,
+  "third_end_to_client_audio_signal_ms": 1518.91,
+  "acoustic_pronunciation_verified": false,
+  "exact_terminal_root_cause_verified": false,
+  "provider_hangup_confirmed": true,
+  "new_provider_calls_for_diagnosis": 0,
+  "contains_conversation_content": false
+}

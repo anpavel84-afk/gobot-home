@@ -1,7 +1,7 @@
 /* Executes the production client with fake media/network; no API or microphone. */
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const elements={'conversation-engine':{value:'realtime'},'realtime-consent':{checked:true},'realtime-speaker-enabled':{checked:true},'realtime-personalization':{value:'guest'}};
-const requests=[],tracks=[],peers=[],callbacks={};let uuid=0,raf=0;
+const requests=[],tracks=[],peers=[],callbacks={},closures=[];let uuid=0,raf=0,exhausted=false,mediaCalls=0;
 const track={enabled:true,onended:null,stop(){this.stopped=true;}};
 class Peer{
  constructor(){this.connectionState='connected';this.iceGatheringState='complete';peers.push(this);}
@@ -20,14 +20,14 @@ class Context{
 }
 const fetcher=async(url,options={})=>{
  requests.push({url,body:typeof options.body==='string'?JSON.parse(options.body):null});
- if(url.endsWith('/status'))return {ok:true,json:async()=>({budget:{enabled:true}})};
+ if(url.endsWith('/status'))return {ok:true,json:async()=>({budget:{enabled:true,sessions_remaining:exhausted?0:1}})};
  if(url.endsWith('/sessions'))return {ok:true,json:async()=>({configuration_confirmed:true,model:'gpt-realtime-2.1-mini',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n',speaker_readiness:{ready:false}})};
  return {ok:true,json:async()=>({accepted:true,closed:true,hangup_confirmed:true,speaker_segment_id:'segment-fixture'})};
 };
 const stream={active:true,getAudioTracks:()=>[track],getTracks:()=>[track]};
 const window={fetch:fetcher,RTCPeerConnection:Peer,addEventListener:(k,f)=>callbacks[k]=f,
- GoBotClient:{getSettings:()=>({remember:false,speak:true,quota:false,volume:.8}),conversationId:()=> 'same-conversation'},GoBotHooks:{clientKind:'device'}};
-const sandbox={window,navigator:{mediaDevices:{getUserMedia:async()=>stream},locks:{request:async(_,__,callback)=>callback({})}},
+ GoBotClient:{getSettings:()=>({remember:false,speak:true,quota:false,volume:.8}),conversationId:()=> 'same-conversation'},GoBotHooks:{clientKind:'device',onNativeClosed:value=>closures.push(value)}};
+const sandbox={window,navigator:{mediaDevices:{getUserMedia:async()=>{mediaCalls++;return stream;}},locks:{request:async(_,__,callback)=>callback({})}},
  document:{hidden:false,getElementById:id=>elements[id]||null,addEventListener:()=>{},createElement:tag=>({autoplay:false,volume:1,pause(){},play:async()=>{}})},
  AudioContext:Context,EventSource:class{close(){this.closed=true;}},crypto:{randomUUID:()=> 'fixture-'+(++uuid)},performance,AbortController,setTimeout,clearTimeout,requestAnimationFrame:()=>raf++,Uint8Array,console};
 vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/realtime.js','utf8'),sandbox);
@@ -41,7 +41,18 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
  await client.pttStart();client.startedAt=performance.now()-500;client.speechMs=0;await client.pttEnd();
  assert(requests.some(r=>r.body?.action==='ptt_cancel'));
  assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,1);
- await client.close();assert.equal(track.stopped,true);assert.equal(client.id,null);assert(peers.every(p=>p.closed));
+ const closing=client.close(),sameClosing=client.close();assert.equal(closing,sameClosing);await closing;
+ assert.equal(track.stopped,true);assert.equal(client.id,null);assert(peers.every(p=>p.closed));
+ assert.equal(requests.filter(r=>r.body?.action==='close').length,1);
+ assert.equal(closures.at(-1).reason,'user_stop');
+ assert.equal(client.termination('followup_timeout').error,false);
+ assert.equal(client.termination('session_time_limit').error,false);
+ assert.equal(client.termination('sideband_closed').error,true);
+ await client.start();client.event({session_id:client.id,type:'closed',data:{reason:'followup_timeout'}});await client.closing;
+ assert.equal(closures.at(-1).error,false);assert(closures.at(-1).message.includes('Окно продолжения'));
+ const sessionsBefore=requests.filter(r=>r.url.endsWith('/sessions')).length,micsBefore=mediaCalls;
+ exhausted=true;await assert.rejects(client.start(),/проба уже использована/);
+ assert.equal(mediaCalls,micsBefore);assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,sessionsBefore);
  assert(!requests.some(r=>/transcribe|tts|chat\/stream/.test(r.url)));
  assert(requests.every(r=>!r.url.includes('api.openai.com')));
  console.log(JSON.stringify({production_client:true,provider_calls:0,native_session_reused:true,ptt_auto_commit:true,silence_rejected:true,local_mic_cleanup:true,provider_data_channel:false,acoustic_verified:false}));

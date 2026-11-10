@@ -321,6 +321,75 @@ def test_phone_trial_denies_other_clients_before_provider_and_clamps_generators(
         finally:await m.shutdown()
     asyncio.run(run())
 
+def test_native_close_reason_and_provider_error_codes_survive_cleanup_without_raw_data(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        s=await start(m);await command(s,'text',text='Synthetic question');await tick()
+        await s.interrupt()
+        cancel=next(e for e in reversed(s.ws.sent) if e['type']=='response.cancel')
+        errors=lambda:[e for e in s.events if e['type']=='error']
+        await s.handle({'type':'error','error':{'code':'response_cancel_not_active','event_id':cancel['event_id'],'message':'SECRET_RAW_PROVIDER_MESSAGE'}})
+        assert not errors() and any(e['type']=='warning' for e in s.events)
+        # A matching code alone is insufficient: it must refer to our own cancel event.
+        await s.handle({'type':'error','error':{'code':'response_cancel_not_active','event_id':'unrelated-event','message':'SECRET_RAW_PROVIDER_MESSAGE'}})
+        assert errors()
+        await m.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'provider_error')
+        await m.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'client_closed')
+        report=b.latest_report()
+        assert report['close_reason']=='provider_error' and s.close_reason=='provider_error'
+        assert report['provider_errors']=={'response_cancel_not_active':2}
+        assert report['lifecycle_ms']['lifetime']>=0 and 'SECRET' not in json.dumps(report)
+        assert s.hangup_confirmed and len(p.hangups)==1
+    asyncio.run(run())
+
+def test_native_response_limit_closes_with_explicit_reason_and_no_extra_provider_call(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        b.policy_path.write_text(b.policy().model_copy(update={'max_responses_per_session':1}).model_dump_json())
+        s=await start(m);await command(s,'text',text='One response');await tick()
+        s.generating=False;s.response_requested=False;s.speaking=False
+        await s.response()
+        assert s.closed and s.close_reason=='response_budget_exhausted'
+        assert sum(e['type']=='response.create' for e in s.ws.sent)==1
+        assert b.latest_report()['close_reason']=='response_budget_exhausted'
+        assert b.status()['sessions_remaining']==4
+        await m.shutdown()
+    asyncio.run(run())
+
+def test_truncated_native_audio_allows_followup_only_after_playback_without_claiming_complete_history(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        s=await start(m);await command(s,'text',text='Synthetic question');await tick()
+        await s.handle({'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'Partial answer, cut by token budget'})
+        await s.handle({'type':'output_audio_buffer.started','response_id':'resp_1'})
+        await s.handle({'type':'response.done','response':{'id':'resp_1','status':'incomplete','status_details':{'reason':'max_output_tokens'}}})
+        assert not s.current.stored and not s.closed
+        await command(s,'playback_started',response_id='resp_1')
+        await s.handle({'type':'output_audio_buffer.stopped','response_id':'resp_1'})
+        await command(s,'playback_stopped',response_id='resp_1')
+        assert s.current.stored and s.current.truncated and not s.current.cancelled
+        assert m.brain.memory.transient[s.current.id]['status']=='incomplete'
+        assert any(e['type']=='turn_complete' and e['data']['incomplete'] for e in s.events)
+        creates=sum(e['type']=='response.create' for e in s.ws.sent)
+        await command(s,'followup')
+        assert sum(e['type']=='response.create' for e in s.ws.sent)==creates
+        await m.shutdown()
+        assert b.latest_report()['completion_counts']=={'max_output_tokens':1}
+    asyncio.run(run())
+
+def test_reasoning_only_limit_does_not_start_followup_or_retry(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        s=await start(m);await command(s,'text',text='Synthetic question');await tick()
+        await s.handle({'type':'response.done','response':{'id':'resp_1','status':'incomplete','status_details':{'reason':'max_output_tokens'}}})
+        assert not s.closed and s.current.cancelled
+        assert any(e['type']=='turn_incomplete' for e in s.events)
+        assert not any(e['type']=='turn_complete' for e in s.events)
+        assert sum(e['type']=='response.create' for e in s.ws.sent)==1
+        with pytest.raises(ValueError):await command(s,'followup')
+        await m.shutdown()
+    asyncio.run(run())
+
 def test_no_thanks_declines_expert_proposal_without_closing_or_starting_cli(tmp_path,settings):
     async def run():
         m,p,b=configured(tmp_path,settings)

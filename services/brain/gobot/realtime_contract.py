@@ -33,6 +33,7 @@ class RealtimeCommand(Strict):
     action: Literal['text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','close']
     text: str|None = Field(default=None,min_length=1,max_length=8000)
     response_id: str|None = Field(default=None,pattern=ID)
+    close_reason: Literal['user_stop','page_hidden','network_offline','webrtc_failed','webrtc_disconnected','audio_suspended','audio_play_denied','microphone_ended','events_disconnected','provider_error','server_closed','setup_failed','capture_cancelled','settings_changed']|None=None
 
 class RealtimePolicy(Strict):
     """Local owner-controlled admission file, not writable by model tools."""

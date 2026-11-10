@@ -21,6 +21,14 @@
       this.renderer.onImageReady=(_,turn)=>{if(turn===this.turn&&this.enabled)window.GoBotClient.trace?.()?.mark('visual_decoded');};
       this.renderer.onImagePresented=(_,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();}};
       const hooks=window.GoBotHooks;
+      hooks.onNativeClosed=({reason,message,error})=>{
+        this.generation++;this.enabled=false;this.held=false;this.endConversation();this.streamDone=true;
+        clearInterval(this.timerPoll);this.releaseLock?.();this.releaseLock=null;
+        this.wakeLock?.release().catch(()=>{});this.wakeLock=null;
+        this.lastNativeClosure=message;
+        this.diagnostics||={};this.diagnostics.native_close={reason,error};document.getElementById('device-diagnostics').textContent=JSON.stringify(this.diagnostics,null,2);
+        this.state(error?'error':'muted',message);document.getElementById('device-enable').textContent='Возобновить GoBot';
+      };
       hooks.onSettingsApplied=profile=>{this.profile=profile;this.manager.profile=profile;this.renderer.setProfile(profile);if(!profile.conversation.followup_enabled)this.endConversation();};
       hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
@@ -63,6 +71,7 @@
       let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=(audio.playing||audio.feedback_playing)&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
     }
     event(item){
+      if(window.GoBotRealtime?.selected()&&['closed','error','warning'].includes(item.type))return;
       if(item.turn_id!==this.turn)return;const data=item.data||{};
       if(item.type==='visual_response'){if(this.manager.frame(data.presentation,item.turn_id))this.renderer.load(data.presentation,item.turn_id,id=>id===this.turn);}
       if(item.type==='screen_scene')this.manager.compose(data.scene,item.turn_id);
@@ -137,7 +146,7 @@
       }catch(error){this.releaseLock?.();this.releaseLock=null;if(generation===this.generation)this.state('error',error.message);}finally{this.enabling=false;}
     }
     async press(){
-      if(!this.enabled){this.status('Сначала нажми «Включить GoBot».');return;}
+      if(!this.enabled){this.status(this.lastNativeClosure||'Сначала нажми «Включить GoBot».');return;}
       if(window.GoBotRealtime?.selected()){if(this.held)return;this.held=true;const started=await window.GoBotRealtime.pttStart();if(!started)this.held=false;return;}
       if(this.followupPending||window.GoBotClient.isRecording()&&!this.held){this.cancelCapture();}
       if(this.held||window.GoBotClient.isRecording())return;

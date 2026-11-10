@@ -57,6 +57,7 @@ class NativeTurn:
     local_control:bool=False
     input_ready:object=field(default_factory=asyncio.Event)
     timings:dict=field(default_factory=dict)
+    truncated:bool=False
 
 class NativeSession:
     def __init__(self,manager,offer,profile,policy):
@@ -85,6 +86,7 @@ class NativeSession:
         self.speaker=NativeSpeakerIdentity(self)
         self.ptt_committing=False
         self.input_ended=None
+        self.close_reason=None;self.provider_errors={};self.cancel_event_ids=set();self.completion_counts={}
 
     def mark(self,name):self.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def mark_turn(self,turn,name):
@@ -216,7 +218,7 @@ class NativeSession:
                 turn.cancelled=True;self.emit('error',code='realtime_context_conflict');return
         if turn is not self.current:return
         if turn.stored and turn.req:
-            await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'cancelled' if turn.cancelled else 'completed',turn.answer if not turn.cancelled else '',
+            await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'cancelled' if turn.cancelled else 'incomplete' if turn.truncated else 'completed',turn.answer if not turn.cancelled else '',
                                     'openai:'+MODEL,turn.trace)
         self.emit('input_transcript',text=text,final=True)
         proposal=self.experts.pending
@@ -256,7 +258,7 @@ class NativeSession:
             self.last_scene=result.frame
             self.emit('visual_response',presentation=result.frame.model_dump())
             turn.trace.append({'presentation':result.frame.model_dump()})
-            if turn.stored and turn.req:
+            if turn.stored and turn.req and not turn.truncated:
                 await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'completed',turn.answer,'openai:'+MODEL,turn.trace)
         except Exception:
             if turn is self.current:self.emit('visual_status',status='unavailable')
@@ -266,7 +268,10 @@ class NativeSession:
             if self.closed:return
             if self.generating or self.response_requested or self.speaking:
                 self.pending_response=True;return
-            await asyncio.to_thread(self.manager.budget.reserve_response,self.id,self.policy)
+            try:await asyncio.to_thread(self.manager.budget.reserve_response,self.id,self.policy)
+            except PermissionError:
+                await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'response_budget_exhausted')
+                return
             self.response_requested=True;self.pending_response=False
             await self.send({'type':'response.create','response':{'output_modalities':['audio'] if self.offer.speak else ['text']}})
 
@@ -279,7 +284,16 @@ class NativeSession:
         elif kind in {'conversation.item.added','conversation.item.created'}:
             if self.preference_ack and obj.get('item',{}).get('id')==self.preference_item:self.preference_ack.set()
         elif kind=='error':
-            self.emit('error',code='realtime_provider_error') # Raw provider payload is never exposed/logged.
+            error=obj.get('error',{})
+            code=error.get('code')
+            allowed={'response_cancel_not_active','input_audio_buffer_commit_empty','input_audio_buffer_commit_too_small','conversation_already_has_active_response','rate_limit_exceeded','insufficient_quota','invalid_api_key','server_error','invalid_request_error'}
+            safe_code=code if isinstance(code,str) and code in allowed else 'other'
+            self.provider_errors[safe_code]=min(1000,self.provider_errors.get(safe_code,0)+1)
+            # Only a matched cancellation of an already finished response is harmless.
+            # Model refusal, arbitrary invalid requests and unknown errors are not isolation evidence.
+            if code=='response_cancel_not_active' and error.get('event_id') in self.cancel_event_ids:
+                self.cancel_event_ids.discard(error['event_id']);self.emit('warning',code='response_already_finished');return
+            self.emit('error',code='realtime_provider_error') # No raw messages, values or transcripts.
             if not self.ready:self.config_ack.set()
         elif kind=='input_audio_buffer.speech_started':
             if self.input_mode=='followup':self.emit('speaker_segment',segment_id=self.speaker.begin())
@@ -332,11 +346,21 @@ class NativeSession:
             if ident==self.live_response:self.generating=False;self.response_requested=False
             turn=self.response_turn.get(ident)
             if turn:
-                turn.generation_done=r.get('status')=='completed'
+                details=r.get('status_details') or {}
+                turn.truncated=r.get('status')=='incomplete' and details.get('reason')=='max_output_tokens'
+                completion='max_output_tokens' if turn.truncated else r.get('status') if r.get('status') in {'completed','cancelled','failed','incomplete'} else 'other'
+                self.completion_counts[completion]=self.completion_counts.get(completion,0)+1
+                turn.generation_done=r.get('status')=='completed' or turn.truncated
+                if turn.truncated:
+                    self.emit('response_incomplete',reason='max_output_tokens',audio_started='output_buffer_started' in turn.timings)
                 if turn.photo and turn.answer:
                     turn.photo.observe(turn.answer,final=True);turn.photo.finish()
                 if not turn.generation_done:turn.cancelled=True
                 if not self.offer.speak:await self.finish(turn,turn.generation_done)
+                elif turn.truncated and 'output_buffer_started' not in turn.timings:
+                    # A reasoning-only response is not audible speech and must not open followup.
+                    await self.finish(turn,False)
+                    self.emit('turn_incomplete',reason='max_output_tokens',retry='manual_only')
             self.emit('generation_done',response_id=ident,status=r.get('status'))
             # Not a playback completion. Wait for output_audio_buffer.stopped if speaking.
             if self.pending_response and not self.speaking:await self.response()
@@ -436,13 +460,17 @@ class NativeSession:
         if not heard and turn.photo:await turn.photo.close()
         if turn.req:
             # Interrupted audio is not archived as if it was heard. User question remains scoped.
-            await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'completed' if heard else 'cancelled',turn.answer if heard else '',
+            await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'incomplete' if heard and turn.truncated else 'completed' if heard else 'cancelled',turn.answer if heard else '',
                                     'openai:'+MODEL,turn.trace)
-        if heard and turn is self.current:self.emit('turn_complete',heard=True)
+        if heard and turn is self.current:self.emit('turn_complete',heard=True,incomplete=turn.truncated)
 
     async def interrupt(self):
         self.pending_response=False
-        if self.generating or self.response_requested:await self.send({'type':'response.cancel'})
+        if self.generating or self.response_requested:
+            event_id='cancel_'+uuid4().hex
+            self.cancel_event_ids.add(event_id)
+            if len(self.cancel_event_ids)>64:self.cancel_event_ids.pop()
+            await self.send({'type':'response.cancel','event_id':event_id})
         await self.send({'type':'output_audio_buffer.clear'})
         self.speaking=False
         if self.current:await self.finish(self.current,False)
@@ -550,6 +578,7 @@ class RealtimeManager:
             if not s:return {'closed':True}
             already_closed=s.closed
             s.closed=True;s.ready=False
+            if not already_closed:s.close_reason=reason
             if not already_closed:s.emit('closed',reason=reason)
             s.config_ack.set();s.changed.set()
         for task in [s.reader,s.expiry,*s.tasks]:
@@ -570,7 +599,8 @@ class RealtimeManager:
             if turn.req:await asyncio.to_thread(self.brain.memory.settle_pending,turn.req,'cancelled')
             turn.query='';turn.answer='';turn.req=None;turn.trace.clear()
         s.events=[item for item in s.events if item['type']=='closed']
-        await asyncio.to_thread(self.budget.record_report,s.id,s.timings,[t.timings for t in s.turns])
+        await asyncio.to_thread(self.budget.record_report,s.id,s.timings,[t.timings for t in s.turns],
+                                close_reason=s.close_reason,lifetime_ms=(time.monotonic()-s.started)*1000,provider_errors=s.provider_errors,completion_counts=s.completion_counts)
         return {'closed':True,'hangup_confirmed':s.call_id not in self.hangups}
 
     async def shutdown(self):

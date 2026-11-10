@@ -13,6 +13,10 @@
       return r.json();
     }
     selected(){return document.getElementById('conversation-engine')?.value==='realtime';}
+    termination(reason){
+      const normal={session_time_limit:'Проба завершена: достигнут лимит времени этой сессии.',response_budget_exhausted:'Проба завершена: достигнут лимит ответов.',budget_expired:'Время разрешённой пробы истекло.',followup_timeout:'Окно продолжения закрыто. Микрофон выключен.',idle_timeout:'Разговор завершён после паузы. Микрофон выключен.',conversation_ended:'Хорошо. Разговор завершён, микрофон выключен.',user_stop:'Ответ остановлен. Микрофон выключен.'};
+      return {message:normal[reason]||'Соединение Realtime закрыто. Причина: '+(reason||'неизвестна')+'. Микрофон выключен.',error:!normal[reason]};
+    }
     async acquire(){
       if(!navigator.locks)throw Error('Безопасное владение микрофоном недоступно в этом браузере.');
       let ready;const granted=new Promise(r=>ready=r);
@@ -25,12 +29,13 @@
       if(this.id)throw Error('Предыдущая сессия ещё не закрыта. Нажми «Остановить ответ».');
       if(this.pending)throw Error('Соединение ещё подготавливается.');
       if(!document.getElementById('realtime-consent')?.checked)throw Error('Сначала разреши Realtime API в панели управления.');
-      this.pending=true;const epoch=++this.generation;this.id=uuid();const id=this.id;
+      this.pending=true;this.creationAttempted=false;const epoch=++this.generation;this.id=uuid();const id=this.id;
       this.abort=new AbortController();this.commands=Promise.resolve();
       this.status('Подключаю Realtime. Говори после сигнала готовности.');
       try{
         const admission=await (await this.fetcher('/api/realtime/status')).json();
         if(!admission.budget?.enabled)throw Error('Для Realtime ещё не задан отдельный серверный лимит.');
+        if(admission.budget.sessions_remaining===0||admission.budget.sessions_reserved>=admission.budget.max_sessions)throw Error('Разрешённая проба уже использована. Для следующей нужен новый серверный лимит.');
         await this.acquire();if(epoch!==this.generation)throw Error('Запуск отменён');
         this.context=new AudioContext();await this.context.resume();
         this.output=document.createElement('audio');this.output.autoplay=true;this.output.playsInline=true;
@@ -42,27 +47,28 @@
           if(epoch!==this.generation)return;
           this.output.srcObject=e.streams[0];this.analyser=this.context.createAnalyser();this.analyser.fftSize=256;
           this.context.createMediaStreamSource(e.streams[0]).connect(this.analyser);
-          this.output.play().catch(()=>{if(epoch===this.generation)void this.close('Нажми «Включить GoBot», чтобы разрешить звук.');});
+          this.output.play().catch(()=>{if(epoch===this.generation)void this.close('Нажми «Включить GoBot», чтобы разрешить звук.','audio_play_denied',true);});
         };
         pc.onconnectionstatechange=()=>{
           if(epoch!==this.generation)return;
           clearTimeout(this.disconnectTimer);
-          if(pc.connectionState==='failed'||pc.connectionState==='closed')void this.close('Соединение потеряно. Возобнови GoBot.');
-          else if(pc.connectionState==='disconnected')this.disconnectTimer=setTimeout(()=>void this.close('Соединение потеряно'),5000);
+          if(pc.connectionState==='failed'||pc.connectionState==='closed')void this.close('Аудиосоединение потеряно. Микрофон выключен.','webrtc_failed',true);
+          else if(pc.connectionState==='disconnected')this.disconnectTimer=setTimeout(()=>void this.close('Аудиосоединение прервалось. Микрофон выключен.','webrtc_disconnected',true),5000);
         };
         // Intentionally no createDataChannel(). SDP policy also rejects a modified client.
         await pc.setLocalDescription(await pc.createOffer());
         await this.gather(pc,this.abort.signal);
         const config=window.GoBotClient.getSettings();
+        this.creationAttempted=true;
         const answer=await this.api('sessions',{session_id:id,sdp:pc.localDescription.sdp,conversation_id:window.GoBotClient.conversationId(),consent:true,requested_voice:config.voice||'marin',expert_quota_consent:config.quota===true,speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',remember:config.remember,speak:config.speak,client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
         if(epoch!==this.generation)throw Error('Запуск отменён');
         if(!answer.configuration_confirmed||answer.model!=='gpt-realtime-2.1-mini')throw Error('Сервер не подтвердил выбранную модель');
         await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});if(this.speakerMirror)this.speakerMirror.ready=answer.speaker_readiness?.ready===true;
         this.events=new EventSource('/api/realtime/sessions/'+id+'/events');
         this.events.onmessage=e=>{if(epoch===this.generation)this.event(JSON.parse(e.data));};
-        this.events.onerror=()=>{if(epoch===this.generation)void this.close('Управляющее соединение потеряно');};
+        this.events.onerror=()=>{if(epoch===this.generation)void this.close('Управляющее соединение потеряно. Микрофон выключен.','events_disconnected',true);};
         this.ready=true;this.pending=false;this.status('Realtime готов. Удерживай круг и говори.');this.meter(epoch);
-      }catch(e){if(epoch===this.generation){this.pending=false;await this.close(e.message);}throw e;}
+      }catch(e){if(epoch===this.generation){this.pending=false;await this.close(e.message,'setup_failed',true);}throw e;}
     }
     async ensureMicrophone(epoch=this.generation){
       if(this.stream?.active)return;
@@ -70,7 +76,7 @@
       if(epoch!==this.generation){stream.getTracks().forEach(t=>t.stop());throw Error('Запуск отменён');}
       this.stream=stream;
       const track=stream.getAudioTracks()[0];track.enabled=false;
-      track.onended=()=>{if(epoch===this.generation)void this.close('Микрофон отключён браузером').catch(()=>{});};
+      track.onended=()=>{if(epoch===this.generation)void this.close('Микрофон отключён браузером.','microphone_ended',true).catch(()=>{});};
       await this.sender.replaceTrack(track);
       if(epoch!==this.generation){stream.getTracks().forEach(t=>t.stop());throw Error('Запуск отменён');}
       this.inputAnalyser=this.context.createAnalyser();this.inputAnalyser.fftSize=512;this.inputSource=this.context.createMediaStreamSource(stream);this.inputSource.connect(this.inputAnalyser);
@@ -136,8 +142,10 @@
       if(item.type==='playback_cleared'||item.type==='interrupted'){this.playing=false;this.level=0;this.heard=false;}
       if(item.type==='listening'){this.status('Слушаю…');}
       if(item.type==='turn_complete'){void this.followup();}
-      if(item.type==='closed'){void this.close('Разговор завершён. Нажми для нового обращения.');}
-      if(item.type==='error'){void this.close('Realtime остановлен. Старый режим можно выбрать в панели.');}
+      if(item.type==='response_incomplete')this.status('Ответ ограничен лимитом длины тестовой пробы.');
+      if(item.type==='turn_incomplete')this.status('Лимита не хватило для голосового ответа. Можно задать более короткий вопрос нажатием.');
+      if(item.type==='closed'){const end=this.termination(item.data.reason);void this.close(end.message,'server_closed',end.error);}
+      if(item.type==='error'){void this.close('Ошибка Realtime. Микрофон выключен; причина сохранена в диагностике.','provider_error',true);}
       this.emit(item);
     }
     speakerStatus(text){document.getElementById('speaker-status')?.replaceChildren(document.createTextNode(text));document.getElementById('realtime-speaker-status')?.replaceChildren(document.createTextNode(text));}
@@ -164,11 +172,11 @@
       if(this.playing&&this.drained&&this.heard&&performance.now()-this.quietAt>300){
         this.playing=false;void this.command('playback_stopped',{response_id:this.response});
       }
-      if(['interrupted','suspended','closed'].includes(this.context?.state)){void this.close('Аудио приостановлено. Возобнови GoBot.');return;}
+      if(['interrupted','suspended','closed'].includes(this.context?.state)){void this.close('Аудио приостановлено браузером. Микрофон выключен.','audio_suspended',true);return;}
       requestAnimationFrame(()=>this.meter(epoch));
     }
     snapshot(){return {level:this.level,playing:this.playing,feedback_playing:false,state:this.context?.state||'closed'};}
-    async close(message='GoBot выключен'){
+    close(message='GoBot выключен',reason='user_stop',error=false){
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
       this.abort?.abort();clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);this.mic(false);
@@ -177,20 +185,24 @@
       this.inputSource?.disconnect();this.inputSource=null;this.inputAnalyser=null;
       if(this.pc){this.pc.onconnectionstatechange=null;this.pc.close();this.pc=null;}
       if(this.output){this.output.pause();this.output.srcObject=null;this.output=null;}
-      await this.context?.close().catch(()=>{});this.context=null;this.playing=false;this.level=0;
+      const context=this.context;this.context=null;this.playing=false;this.level=0;
       this.releaseLock?.();this.releaseLock=null;this.status(message);
-      if(!id)return;
-      this.closing=this.api('sessions/'+id+'/command',{command_id:uuid(),action:'close'}).then(result=>{
-        if(!result.hangup_confirmed&&result.hangup_confirmed!==undefined)throw Error('Сервер ещё закрывает аудиосессию');
+      window.GoBotHooks?.onNativeClosed?.({reason,message,error});
+      this.closing=(async()=>{
+        await context?.close().catch(()=>{});
+        if(id&&this.creationAttempted){
+          const result=await this.api('sessions/'+id+'/command',{command_id:uuid(),action:'close',close_reason:reason});
+          if(!result.hangup_confirmed&&result.hangup_confirmed!==undefined)throw Error('Сервер ещё закрывает аудиосессию');
+        }
         this.id=null;
-      }).catch(e=>{this.status(e.message+' · повтори «Остановить ответ»');throw e;}).finally(()=>this.closing=null);
+      })().catch(e=>{this.status(e.message+' · повтори «Остановить ответ»');throw e;}).finally(()=>this.closing=null);
       return this.closing;
     }
   }
   window.GoBotNativeVoice=NativeVoice;
   const client=new NativeVoice({emit:item=>window.GoBotClient?.applyNativeEvent?.(item)});window.GoBotRealtime=client;
-  for(const event of ['pagehide','offline'])window.addEventListener(event,()=>void client.close('Прослушивание приостановлено').catch(()=>{}));
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)void client.close('Возобнови GoBot после возвращения').catch(()=>{});});
+  for(const event of ['pagehide','offline'])window.addEventListener(event,()=>void client.close('Прослушивание приостановлено',event==='offline'?'network_offline':'page_hidden').catch(()=>{}));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)void client.close('Возобнови GoBot после возвращения','page_hidden').catch(()=>{});});
   window.addEventListener('DOMContentLoaded',()=>{
     let select=document.getElementById('conversation-engine');
     if(!select){

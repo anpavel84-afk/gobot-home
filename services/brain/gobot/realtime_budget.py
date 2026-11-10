@@ -64,10 +64,12 @@ class RealtimeBudget:
     def total_tokens(self,session):
         with self.connect() as c:rows=c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),)).fetchall()
         return sum(json.loads(row[0]).get('total_tokens',0) for row in rows)
-    def record_report(self,session,timings,turns):
+    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None):
         # Explicit allowlist: captions, queries, speaker IDs and raw audio cannot enter this ledger.
         setup_keys={'call_created','sideband_connected','settings_acknowledged'}
         turn_keys={'input_ended','response_created','answer_transcript','output_buffer_started','client_playback','client_playback_stopped'}
+        reasons={'closed','unknown','client_closed','user_stop','page_hidden','network_offline','webrtc_failed','webrtc_disconnected','audio_suspended','audio_play_denied','microphone_ended','events_disconnected','provider_error','server_closed','setup_failed','capture_cancelled','settings_changed','session_time_limit','budget_expired','idle_timeout','followup_timeout','profile_authorization_revoked','sideband_closed','client_events_disconnected','command_failed','observed_token_limit','response_budget_exhausted','profile_changed','profile_or_device_changed','server_shutdown','conversation_ended','speaker_changed_or_uncertain','speaker_profile_mismatch'}
+        error_codes={'response_cancel_not_active','input_audio_buffer_commit_empty','input_audio_buffer_commit_too_small','conversation_already_has_active_response','rate_limit_exceeded','insufficient_quota','invalid_api_key','server_error','invalid_request_error','other'}
         def clean(values,keys):
             import math
             return {k:round(v,2) for k,v in values.items() if k in keys and type(v) in (int,float) and math.isfinite(v) and v>=0}
@@ -79,6 +81,10 @@ class RealtimeBudget:
                     'reported_tokens':sum(u.get('total_tokens',0) for u in usage),
                     'estimated_response_usd_excluding_transcription':sum(estimate_usd(u) for u in usage),
                     'client_audio_signal_is_not_acoustic_acceptance':True,'contains_conversation_content':False}
+            report['close_reason']=close_reason if close_reason in reasons else 'unknown'
+            report['lifecycle_ms']=clean({'lifetime':lifetime_ms},{'lifetime'})
+            report['provider_errors']={k:v for k,v in (provider_errors or {}).items() if k in error_codes and type(v) is int and 0<v<=1000}
+            report['completion_counts']={k:v for k,v in (completion_counts or {}).items() if k in {'max_output_tokens','completed','cancelled','failed','incomplete','other'} and type(v) is int and 0<v<=1000}
             c.execute('INSERT OR IGNORE INTO reports VALUES(?,?,?)',(self.key(session),time.time(),json.dumps(report)))
     def latest_report(self):
         with self.connect() as c:row=c.execute('SELECT report FROM reports ORDER BY created DESC LIMIT 1').fetchone()
@@ -89,6 +95,7 @@ class RealtimeBudget:
             count=c.execute('SELECT count(*) FROM sessions WHERE authorization=?',(p.authorization,)).fetchone()[0]
         return {'enabled':p.enabled and p.expires_at>time.time(),'audience':p.audience,'sessions_reserved':count,
                 'max_sessions':p.max_sessions,'expires_at':p.expires_at,'accepted_as_default':p.accepted_as_default,
+                'sessions_remaining':max(0,p.max_sessions-count),
                 'input_transcription':p.input_transcription,'max_session_seconds':p.max_session_seconds,
                 'max_responses_per_session':p.max_responses_per_session,'max_output_tokens':p.max_output_tokens,
                 'client_bound':bool(p.allowed_client_id),'expert_jobs_allowed':p.expert_jobs_allowed,
