@@ -118,3 +118,16 @@ M2/M3 сохраняются в очереди; отсутствие child lock 
 приватный HTTPS и desktop Web Audio проверены отдельно от iPhone.
 Подтверждение: [dialogue-stabilization-runtime.json](dialogue-stabilization-runtime.json).
 ACP выключен и fail-closed; новая скорость inference не измерялась.
+
+
+## Приёмка стабилизации / ACP после 6bf40d4
+
+| Требования | Дополнительная проверка | Статус |
+| --- | --- | --- |
+| R-018, R-019, R-068–070 | 350 целевых проверок из pinned a71b71e; phone_acceptance.py и 4 guard/report tests | Бесплатные проверки пройдены; физический iPhone ожидает владельца, не принят |
+| R-052, R-054 | One-time budget, no automatic retry/refund, enforced remember=false | Ограничитель проверен на временных ledgers; содержимое разговоров не используется в отчёте |
+| R-071 | audit_acp_worker.py: argv, parent/worker PID, wire/session metadata, supported config/commands | Вывод D: native behavioral deny ещё не доказан; отдельные 4 canary-пробы ожидают разрешения |
+| R-082 | Только metadata-время; исторические 16 мс не перенесены | Нового сопоставимого inference/useful TTFA нет; stream-json сохранён |
+
+Фактические результаты и лимиты — [CURRENT_STATUS.md](CURRENT_STATUS.md), раздел 14.
+Незавершённые голосовые настройки сохранены в рабочем дереве и в этот этап не включены.

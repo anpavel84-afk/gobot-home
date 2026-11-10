@@ -1,0 +1,263 @@
+{
+  "candidate_commit": "a71b71e987efdfe01884e34de10712782c0e36ac",
+  "candidate_adapter_sha256": "0bfb139ae5b75257122abebff45fb095a2f8e426000f05e7dda97ce01198e3b3",
+  "binary_sha256": "47b1bec8c4a6d4afa1587177530e329cee4f5c6e76573a12ac9ab47b846e50e6",
+  "stages": [
+    {
+      "stage": "argv_binary_policy_validation",
+      "ms": 331.71
+    },
+    {
+      "stage": "environment_preparation",
+      "ms": 0.57
+    },
+    {
+      "stage": "spawn_and_windows_job",
+      "ms": 17.68
+    },
+    {
+      "stage": "open_including_initialize",
+      "ms": 512.51
+    }
+  ],
+  "rpc_times": [
+    {
+      "method": "initialize",
+      "send_to_response_ms": 162.27
+    },
+    {
+      "method": "session/new",
+      "send_to_response_ms": 1878.39
+    },
+    {
+      "method": "session/close",
+      "send_to_response_ms": 0.55
+    },
+    {
+      "method": "session/new",
+      "send_to_response_ms": 1202.61
+    },
+    {
+      "method": "session/close",
+      "send_to_response_ms": 0.64
+    }
+  ],
+  "sessions": [
+    {
+      "index": 1,
+      "parent_condition": "cold",
+      "worker_condition": "fresh",
+      "request_at_ms": 512.56,
+      "roundtrip_ms": 1878.92,
+      "observed_new_descendants": 2,
+      "current_mode": "default",
+      "config_option_ids": [
+        "model",
+        "thought_level",
+        "mode"
+      ],
+      "effective_permission_report_in_response": false,
+      "close_ms": 0.65,
+      "request_to_worker_observation_ms": 27.93,
+      "worker_observed_to_response_ms": 1850.99
+    },
+    {
+      "index": 2,
+      "parent_condition": "warm",
+      "worker_condition": "fresh",
+      "request_at_ms": 2468.02,
+      "roundtrip_ms": 1202.95,
+      "observed_new_descendants": 2,
+      "current_mode": "default",
+      "config_option_ids": [
+        "model",
+        "thought_level",
+        "mode"
+      ],
+      "effective_permission_report_in_response": false,
+      "close_ms": 0.74,
+      "request_to_worker_observation_ms": 16.01,
+      "worker_observed_to_response_ms": 1186.94
+    }
+  ],
+  "descendant_observations": [
+    {
+      "first_observed_ms": 368.99,
+      "pid": 11352,
+      "parent_pid": 2000,
+      "flags": [],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 540.49,
+      "pid": 21056,
+      "parent_pid": 2000,
+      "flags": [
+        "--worker",
+        "--sandbox",
+        "--disable_telemetry"
+      ],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 2391.27,
+      "pid": 20796,
+      "parent_pid": 21056,
+      "flags": [],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 2419.55,
+      "pid": 10792,
+      "parent_pid": 21056,
+      "flags": [],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 2484.03,
+      "pid": 19156,
+      "parent_pid": 2000,
+      "flags": [
+        "--worker",
+        "--sandbox",
+        "--disable_telemetry"
+      ],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 3670.72,
+      "pid": 13872,
+      "parent_pid": 19156,
+      "flags": [],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    },
+    {
+      "first_observed_ms": 3699.71,
+      "pid": 16404,
+      "parent_pid": 19156,
+      "flags": [],
+      "policy_path_in_argv": false,
+      "cpu_seconds_at_first_observation": 0.0
+    }
+  ],
+  "worker_snapshots": [
+    {
+      "stage": "session_1_ready",
+      "at_ms": 2405.7,
+      "workers": [
+        {
+          "pid": 21056,
+          "created": 1794343789.634276,
+          "parent_pid": 2000
+        }
+      ]
+    },
+    {
+      "stage": "session_1_closed",
+      "at_ms": 2468.0,
+      "workers": [
+        {
+          "pid": 21056,
+          "created": 1794343789.634276,
+          "parent_pid": 2000
+        }
+      ]
+    },
+    {
+      "stage": "session_2_ready",
+      "at_ms": 3685.1,
+      "workers": [
+        {
+          "pid": 19156,
+          "created": 1794343791.5897217,
+          "parent_pid": 2000
+        }
+      ]
+    },
+    {
+      "stage": "session_2_closed",
+      "at_ms": 3739.58,
+      "workers": [
+        {
+          "pid": 19156,
+          "created": 1794343791.5897217,
+          "parent_pid": 2000
+        }
+      ]
+    }
+  ],
+  "timing_limits": "All durations use one Python monotonic clock. Worker times are first psutil observations sampled every 10ms, not exact creation/inference timestamps. Internal auth/network/runtime setup is not separately observable.",
+  "parent_process_count": 1,
+  "native_argv": [
+    "<pinned agy>",
+    "--settings",
+    "<tracked deny policy>",
+    "--log-file",
+    "NUL",
+    "acp",
+    "--sandbox",
+    "--process-per-session",
+    "--disable-telemetry"
+  ],
+  "available_commands": [
+    "agy-customizations",
+    "antigravity-guide",
+    "boost",
+    "browser",
+    "compact",
+    "goal",
+    "grill-me",
+    "learn",
+    "plan",
+    "schedule",
+    "teamwork"
+  ],
+  "permissions_command_advertised": false,
+  "configured_agent_mode": "plan",
+  "configured_deny_rules": [
+    "read_file(*)",
+    "write_file(*)",
+    "command(*)",
+    "read_url(*)",
+    "execute_url(*)",
+    "mcp(*)"
+  ],
+  "early_probe": {
+    "initialize_ms": 148.55,
+    "session_new_ms": [
+      1722.79,
+      15.63
+    ],
+    "argv_recorded": false,
+    "worker_pids_recorded": false,
+    "comparison_limit": "Historical artifact does not preserve argv/sandbox/process-per-session settings. Do not attribute the difference solely to one flag or reuse 16ms for this candidate."
+  },
+  "isolation_observation": {
+    "files": "no native tool attempted",
+    "commands": "no native tool attempted",
+    "web": "no native tool attempted",
+    "mcp": "no native tool attempted",
+    "canary_unchanged": true,
+    "before_effect_denial_proved": false,
+    "client_side_denial_is_native_proof": false,
+    "mode_mismatch_is_permission_bypass_proof": false
+  },
+  "supported_offline_provider": "No documented subscription-authenticated local mock provider override found. customModelsConfig is documented only for Gemini API-key mode, which is excluded from GoBot.",
+  "synthetic_workspace_has_own_git_boundary": true,
+  "new_model_calls": 0,
+  "new_paid_api_calls": 0,
+  "session_prompt_sent": false,
+  "native_session_deny_verified": false,
+  "verdict": "D: native tool-attempt canary test needs separately authorized model calls; metadata-only work cannot establish behavioral hard-deny",
+  "next_test": "Up to 4 Flash prompts in disposable canary workspace: file read/write, command marker, loopback HTTP marker, synthetic MCP tool marker. Each must show an attempted operation rejected before effect. No attempt means inconclusive. No TTS, no retries, no real files/secrets.",
+  "sources": [
+    "https://antigravity.google/docs/ide/extensions/acp",
+    "https://antigravity.google/docs/settings?tab=cli"
+  ]
+}

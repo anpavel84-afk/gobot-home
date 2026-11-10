@@ -1,0 +1,21 @@
+{
+  "scope": "only trace IDs admitted by the one-time phone budget; no conversation content read",
+  "status": "awaiting_physical_iphone_run",
+  "n": 0,
+  "rows": [],
+  "budget": {
+    "stt_attempts": 0,
+    "stt_seconds": 0,
+    "chat_reservations": 0,
+    "tts_characters_reserved": 0
+  },
+  "physical_iphone_result": "awaiting owner confirmation",
+  "p95": null,
+  "additional_opening_synthesis_requests": 0,
+  "limits": {
+    "stt_attempts": 3,
+    "stt_seconds": 45,
+    "flash_requests": 2,
+    "tts_characters": 800
+  }
+}

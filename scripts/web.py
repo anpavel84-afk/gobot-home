@@ -32,13 +32,18 @@ def owned():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("command", choices=["start", "serve", "stop", "status"])
+    parser.add_argument('--acceptance',action='store_true',help='Use the verified a71b71e client and explicit one-time phone budget')
     args = parser.parse_args()
     if args.command == "serve":
         import uvicorn, psutil
         from gobot.browser import create_browser_app
-        MANIFEST.write_text(json.dumps({"pid": os.getpid(), "created": psutil.Process().create_time(), "url": URL}))
+        if args.acceptance:
+            from phone_acceptance import create_app
+            application=create_app()
+        else:application=create_browser_app()
+        MANIFEST.write_text(json.dumps({"pid": os.getpid(), "created": psutil.Process().create_time(), "url": URL,'acceptance':args.acceptance}))
         try:
-            uvicorn.run(create_browser_app(), host=IP, port=PORT, ssl_keyfile=str(ROOT/"run/tls/gobot.key"),
+            uvicorn.run(application, host=IP, port=PORT, ssl_keyfile=str(ROOT/"run/tls/gobot.key"),
                         ssl_certfile=str(ROOT/"run/tls/gobot.crt"), proxy_headers=False,
                         access_log=False, log_level="warning", server_header=False)
         finally:
@@ -55,7 +60,7 @@ def main():
         env["PYTHONPATH"] = str(ROOT/"services/brain")
         env["PYTHONUTF8"] = "1"
         with (ROOT/"run/browser.log").open("ab") as log:
-            subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "serve"], cwd=ROOT,
+            subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "serve",*(['--acceptance'] if args.acceptance else [])], cwd=ROOT,
                              env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log,
                              creationflags=0x08000000 if os.name=="nt" else 0)
         for _ in range(50):
