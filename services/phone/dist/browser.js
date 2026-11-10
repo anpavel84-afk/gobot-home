@@ -273,12 +273,14 @@ async function startRecording() {
     }
     $('record').textContent = '■ Закончить диктовку';$('record').setAttribute('aria-pressed','true');$('record').classList.add('recording'); $('mic-status').textContent = 'Слушаю. Нажми ещё раз, когда закончишь.';
     window.GoBotHooks?.onListening?.();
+    return true;
   } catch (error) {
     feedback?.cancel();transcriptPending=false;$('send').disabled=false;
     const message=error.name==='NotAllowedError'?'Доступ к микрофону не разрешён. В Safari открой настройки этого сайта и разреши микрофон. Если ссылка открыта внутри другого приложения, открой её в Safari.':error.name==='NotFoundError'?'Браузер не обнаружил микрофон.':error.name==='NotReadableError'?'Микрофон занят другим приложением. Закрой запись в нём и попробуй снова.':error.message;
     $('mic-status').textContent=message;$('record').textContent='🎙 Начать диктовку';$('record').setAttribute('aria-pressed','false');$('record').classList.remove('recording');
     window.GoBotHooks?.onCaptureError?.(message);
     if(liveSocket){liveSocket.close();liveSocket=null;}
+    return false;
   }
   finally { micPending = false; }
 }

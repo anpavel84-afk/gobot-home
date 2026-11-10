@@ -37,5 +37,14 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   app.turn='new';app.manager.newTurn('new');app.event({type:'visual_response',turn_id:'old',data:{presentation:{id:'late'}}});assert.equal(app.manager.visual,null);
   app.pause('Пауза');assert(!app.enabled);assert.equal(app.manager.state,'muted');assert(!app.releaseLock);
   await sandbox.window.GoBotHooks.onTranscript({text:'Не отправлять после выключения',utterance_id:'late'});assert.equal(sends,1);
+  // A failed stop/start must not leave a permanently held face or a silent rejection.
+  app.enabled=true;const realStop=sandbox.window.GoBotClient.stop;
+  sandbox.window.GoBotClient.stop=()=>{throw new TypeError('Illegal invocation');};
+  await app.press();assert(!app.held);assert(app.captureAbort.signal.aborted);assert.equal(app.manager.state,'error');
+  sandbox.window.GoBotClient.stop=realStop;
+  const realStart=sandbox.window.GoBotClient.startRecording;
+  sandbox.window.GoBotClient.startRecording=async()=>false;
+  await app.press();assert(!app.held);assert(app.captureAbort.signal.aborted);assert(!recording);
+  sandbox.window.GoBotClient.startRecording=realStart;await app.press();assert.equal(starts,2);app.release();app.pause('Готово');
   console.log('Device units: 240 raster, 3 skins, 8 states, compact diagrams, stale frames, hold, dedupe and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

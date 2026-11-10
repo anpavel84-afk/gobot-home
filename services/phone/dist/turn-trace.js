@@ -10,7 +10,7 @@
     flush(){if(this.t0===null)return;this.revision++;fetch('/api/telemetry/'+encodeURIComponent(this.id),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(this.snapshot()),keepalive:true}).catch(()=>{});}
   }
   class FeedbackController {
-    constructor({play,stop,clock=()=>performance.now(),schedule=setTimeout,clear=clearTimeout}){Object.assign(this,{play,stop,clock,schedule,clear});this.epoch=0;this.timer=null;this.trace=null;this.config={enabled:true,filler_enabled:true,threshold_ms:2250};}
+    constructor({play,stop,clock=()=>performance.now(),schedule=(callback,ms)=>setTimeout(callback,ms),clear=id=>clearTimeout(id)}){Object.assign(this,{play,stop,clock,schedule,clear});this.epoch=0;this.timer=null;this.trace=null;this.config={enabled:true,filler_enabled:true,threshold_ms:2250};}
     configure(config){Object.assign(this.config,config);}
     begin(trace){
       this.cancel();this.trace=trace;const epoch=this.epoch;this.ready=false;this.used=false;

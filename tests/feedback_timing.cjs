@@ -1,7 +1,8 @@
 // Deterministic races, not an iPhone timing claim.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let now=0,id=0;const jobs=new Map(),played=[],stopped=[];
-const env={window:{},performance:{now:()=>now},setTimeout:(f,ms)=>{jobs.set(++id,{f,at:now+ms});return id;},clearTimeout:i=>jobs.delete(i),fetch:async()=>({})};
+// Browser Window timer APIs reject a foreign receiver. Arrow mocks hid this bug.
+const env={window:{},performance:{now:()=>now},setTimeout:function(f,ms){assert.notEqual(this?.constructor?.name,'FeedbackController','Illegal invocation: foreign timer receiver');jobs.set(++id,{f,at:now+ms});return id;},clearTimeout:function(i){assert.notEqual(this?.constructor?.name,'FeedbackController','Illegal invocation: foreign timer receiver');jobs.delete(i);},fetch:async()=>({})};
 vm.createContext(env);vm.runInContext(fs.readFileSync('services/phone/dist/turn-trace.js','utf8'),env);
 const {TurnTrace,FeedbackController}=env.window.GoBotTiming;
 const advance=t=>{now=t;for(const [i,job] of [...jobs])if(job.at<=now){jobs.delete(i);job.f();}};

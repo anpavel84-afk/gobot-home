@@ -87,9 +87,14 @@
     async press(){
       if(!this.enabled){this.status('Сначала нажми «Включить GoBot».');return;}
       if(this.held||window.GoBotClient.isRecording())return;
-      this.held=true;this.captureAbort=new AbortController();window.GoBotClient.stop();this.manager.visual=null;this.renderer.clearImage();
-      window.GoBotHooks.captureOptions={signal:this.captureAbort.signal,minDurationMs:400,minSpeechMs:180};
-      await window.GoBotClient.startRecording();if(!this.held)this.cancelCapture();
+      this.held=true;this.captureAbort=new AbortController();
+      try{
+        window.GoBotClient.stop();this.manager.visual=null;this.renderer.clearImage();
+        window.GoBotHooks.captureOptions={signal:this.captureAbort.signal,minDurationMs:400,minSpeechMs:180};
+        const started=await window.GoBotClient.startRecording();
+        if(started===false){this.held=false;this.captureAbort.abort();return;}
+        if(!this.held)this.cancelCapture();
+      }catch(_){this.held=false;this.captureAbort.abort();this.state('error','Не удалось начать запись. Обнови страницу и попробуй снова.');}
     }
     release(){if(!this.held)return;this.held=false;window.GoBotClient.endRecording();}
     cancelCapture(){this.held=false;this.captureAbort?.abort();window.GoBotClient.cancelRecording();if(this.enabled)this.state('idle','Запись отменена.');}
