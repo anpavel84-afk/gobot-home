@@ -1,4 +1,5 @@
 import re,time
+import threading
 from uuid import uuid4
 from dataclasses import dataclass
 from .quality import calculate,arithmetic_expression
@@ -12,7 +13,7 @@ class ToolResult:
 
 class LocalTools:
     def __init__(self,memory):
-        self.memory=memory
+        self.memory=memory;self.timer_targets={};self.target_lock=threading.Lock()
         with memory.connect() as c:c.execute('''CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY,device_id TEXT,conversation_id TEXT,deadline REAL,status TEXT)''')
     def execute(self,tool,req,slots=None):
         text=req.text.lower()
@@ -34,7 +35,11 @@ class LocalTools:
             return ToolResult(answer,evidence={'method':'server_clock','verified':True,'canonical_answer':answer,'display':value,'utc_offset':now.strftime('%z'),'as_of':now.isoformat()})
         if tool=='timer_status':
             with self.memory.connect() as c:rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline,id",(req.device_id,time.time())).fetchall()
-            answer=('Таймеры по ближайшему срабатыванию: '+'; '.join(str(i+1)+': '+duration_text(max(1,int(row['deadline']-time.time())))+' (ID '+row['id']+')' for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет активных таймеров.'
+            with self.target_lock:
+                self.timer_targets={k:v for k,v in self.timer_targets.items() if v[0]>time.time()}
+                if len(self.timer_targets)>=256:self.timer_targets.pop(next(iter(self.timer_targets)))
+                self.timer_targets[(req.device_id,req.conversation_id,req.profile_epoch)]=(time.time()+120,[r['id'] for r in rows[:5]])
+            answer=('Таймеры по ближайшему срабатыванию: '+'; '.join(str(i+1)+': '+duration_text(max(1,int(row['deadline']-time.time()))) for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет активных таймеров.'
             return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'active_count':len(rows)})
         if tool=='quick_clarify':return ToolResult('Уточни одну команду таймеру: одну длительность без альтернатив или конкретный таймер для отмены.' if slots.get('intent','').startswith('timer_') and slots.get('intent')!='timer_or_stopwatch' else 'Нужен таймер с длительностью или секундомер? Секундомер пока не подключён.')
         if tool=='quick_help':return ToolResult('Могу назвать время и дату, поставить таймер, проверить оставшееся время или посчитать выражение. Личная история доступна после подтверждения профиля.')
@@ -91,8 +96,12 @@ class LocalTools:
                 ordinal={'первый':1,'второй':2,'третий':3,'четвертый':4,'пятый':5}
                 index=ordinal.get(value)
                 if index is None and re.fullmatch(r'№?\d+',value):index=int(value.lstrip('№'))
-                selected=[rows[index-1]] if index and 0<index<=len(rows) else [r for r in rows if r['id']==value]
-            if not selected:return ToolResult('Уточни таймер: назови его номер по ближайшему срабатыванию, идентификатор или явно скажи «все таймеры».')
+                if index:
+                    with self.target_lock:snapshot=self.timer_targets.get((req.device_id,req.conversation_id,req.profile_epoch))
+                    ident=snapshot[1][index-1] if snapshot and snapshot[0]>time.time() and 0<index<=len(snapshot[1]) else None
+                    selected=[r for r in rows if r['id']==ident]
+                else:selected=[r for r in rows if r['id']==value]
+            if not selected:return ToolResult('Сначала попроси показать таймеры, затем назови номер из списка; можно указать идентификатор или явно сказать «все таймеры».')
             for row in selected:c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=? AND status='running'",(row['id'],req.device_id))
         return ToolResult('Все твои активные таймеры остановлены.' if value in {'все','все мои','мои все'} else 'Выбранный таймер остановлен.')
 

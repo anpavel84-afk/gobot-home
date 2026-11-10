@@ -41,9 +41,13 @@ def timers(service):
     ('Отмени все таймеры',{'first','second'}),('Отмени таймер неизвестный',set()),
 ])
 def test_timer_target_resolved_before_mutation(settings,monkeypatch,command,cancelled):
-    s,_=run_local(settings,monkeypatch,[command],seed=timers)
+    s,_=run_local(settings,monkeypatch,['Покажи мои таймеры',command],seed=timers)
     with s.memory.connect() as c:
         assert {r['id'] for r in c.execute("SELECT id FROM timers WHERE status='cancelled'")}==cancelled
+
+def test_unknown_ordinal_cannot_guess_timer_order(settings,monkeypatch):
+    s,_=run_local(settings,monkeypatch,['Отмени второй таймер'],seed=timers)
+    with s.memory.connect() as c:assert c.execute("SELECT count(*) FROM timers WHERE status='cancelled'").fetchone()[0]==0
 
 @pytest.mark.parametrize('remember',[True,False])
 def test_pending_decline_is_scoped_and_does_not_close_session(settings,monkeypatch,remember):

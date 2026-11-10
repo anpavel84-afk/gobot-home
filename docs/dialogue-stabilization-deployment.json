@@ -1,0 +1,89 @@
+{
+  "code_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045",
+  "kind": "real private HTTPS, local only, temporary memory; no model/STT/TTS",
+  "rows": [
+    {
+      "request": "Таймер на полчаса или на час",
+      "http_ms": 353.82,
+      "provider": "local",
+      "text": "Уточни одну команду таймеру: одну длительность без альтернатив или конкретный таймер для отмены.",
+      "statuses": [
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Поставь таймер на полчаса и расскажи стих",
+      "http_ms": 226.54,
+      "provider": "local",
+      "text": "Уточни одну команду таймеру: одну длительность без альтернатив или конкретный таймер для отмены.",
+      "statuses": [
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Поставь таймер",
+      "http_ms": 191.3,
+      "provider": "local",
+      "text": "На сколько минут или секунд поставить таймер?",
+      "statuses": [
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Нет",
+      "http_ms": 212.62,
+      "provider": "local",
+      "text": "Действие отменено.",
+      "statuses": [
+        "pending_declined",
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Нет, спасибо, а сколько сейчас времени?",
+      "http_ms": 203.91,
+      "provider": "local",
+      "text": "По времени домашнего сервера сейчас 16:41.",
+      "statuses": [
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Запусти секундомер",
+      "http_ms": 196.98,
+      "provider": "local",
+      "text": "Эта функция пока не подключена. Действие не выполнено.",
+      "statuses": [
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    },
+    {
+      "request": "Нет, спасибо!",
+      "http_ms": 198.77,
+      "provider": "local",
+      "text": "Хорошо.",
+      "statuses": [
+        "conversation_ended",
+        "running"
+      ],
+      "runtime_commit": "4919da3c7def2df94fc7a70fd22a1b0ca9dd5045"
+    }
+  ],
+  "cache_ready": 100,
+  "device_http": 200,
+  "services_healthy": true,
+  "native_isolation_metadata": true,
+  "codex_offline_reaudit": {
+    "real_model_requests": 0,
+    "mock_http_requests": 1,
+    "tools": []
+  },
+  "new_paid_calls": 0,
+  "physical_iphone": false
+}
