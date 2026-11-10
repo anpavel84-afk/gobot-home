@@ -5,6 +5,7 @@ from pathlib import Path
 from .processes import AgentError
 from .quality import RiskAssessment
 from .presentation import PresentationDecision
+from .timer_duration import is_timer_duration_reply
 
 @dataclass(frozen=True)
 class RouterPolicy:
@@ -73,7 +74,7 @@ class SmartRouter:
             model=req.model_id or ('gpt-6.1-sol' if provider=='codex' else policy.manual_google_model)
             return result('AGENT',provider,model,'explicit_model_selection','cli_subscription')
         pending=context.get('pending_action')
-        if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and re.fullmatch(r'(?:на )?(?:\d+|одну|две|три|четыре|пять|десять)\s+(?:минут\w*|секунд\w*|час\w*)[.!]?',text):
+        if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(text):
             return result('TOOL','local',None,'pending_timer_duration','local','timer')
         if re.search(r'^(?:гобот[,! ]+)?(?:поставь|установи|запусти|отмени|останови|выключи)\b.*таймер|^таймер(?:\s+на|\s+\d|$)',text):return result('TOOL','local',None,'known_timer_intent','local','timer')
         if text in {'стоп','остановись','хватит','отмена','да','нет','подтверждаю','отмени'}:

@@ -2,6 +2,7 @@ import re,time
 from uuid import uuid4
 from dataclasses import dataclass
 from .quality import calculate,arithmetic_expression
+from .timer_duration import timer_seconds,duration_text
 
 @dataclass
 class ToolResult:
@@ -43,13 +44,8 @@ class LocalTools:
             if re.search(r'отмени|останови|выключи',text):
                 with self.memory.connect() as c:c.execute("UPDATE timers SET status='cancelled' WHERE device_id=? AND status='running'",(req.device_id,))
                 return ToolResult('Твои активные таймеры остановлены.')
-            words={'одну':1,'один':1,'две':2,'два':2,'три':3,'четыре':4,'пять':5,'шесть':6,'семь':7,'восемь':8,'девять':9,'десять':10,'пятнадцать':15,'двадцать':20,'тридцать':30}
-            match=re.search(r'(\d+|'+ '|'.join(words)+r')\s*(секунд\w*|минут\w*|час\w*)',text)
-            if 'полчаса' in text:seconds=1800
-            elif match:
-                value=int(match[1]) if match[1].isdigit() else words[match[1]]
-                seconds=value*(3600 if match[2].startswith('час') else 60 if match[2].startswith('минут') else 1)
-            else:
+            seconds=timer_seconds(text)
+            if seconds is None:
                 if req.remember:
                     with self.memory.connect() as c:
                         c.execute("UPDATE pending_actions SET status='superseded' WHERE owner=? AND conversation_id=? AND status='pending'",(req.device_id,req.conversation_id))
@@ -61,7 +57,7 @@ class LocalTools:
                 c.execute("INSERT INTO timers VALUES(?,?,?,?,'running')",(ident,req.device_id,req.conversation_id,deadline))
                 c.execute("UPDATE pending_actions SET status='completed' WHERE owner=? AND conversation_id=? AND kind='timer_duration' AND expires>? AND status='pending'",(req.device_id,req.conversation_id,time.time()))
             widget={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':seconds*1000,'timer_id':ident,'deadline':deadline}}
-            return ToolResult('Таймер запущен на '+str(seconds//60)+' минут.' if seconds%60==0 else 'Таймер запущен на '+str(seconds)+' секунд.',widget)
+            return ToolResult('Таймер запущен на '+duration_text(seconds)+'.',widget)
         return ToolResult('Нужное действие пока не настроено.')
 
 async def text_stream(text):

@@ -10,7 +10,7 @@ node tests/browser_microphone.cjs
 .\.venv\Scripts\python.exe -X utf8 scripts/evaluate_router.py
 ```
 
-Последний полный прогон: 394 pytest passed, плюс Node unit harness микрофона/аудио.
+Последний полный прогон: 426 pytest passed, плюс Node unit harness микрофона/аудио.
 Это не реальный Safari и не измерение акустической точности.
 
 200 обращений / 10 тем / второй круг явных возвратов, отдельная временная SQLite

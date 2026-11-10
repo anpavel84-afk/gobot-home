@@ -1,0 +1,14 @@
+{
+  "request": "Таймер на 5 мин",
+  "transport": "private Tailscale HTTPS; certificate verified",
+  "provider": "local",
+  "response": "Таймер запущен на 5 минут.",
+  "visual_type": "timer_widget",
+  "duration_ms": 300000,
+  "test_timer_cancelled": true,
+  "remember": false,
+  "stt_tts_calls": 0,
+  "cli_calls": 0,
+  "paid_api_calls": 0,
+  "pytest_passed": 426
+}
