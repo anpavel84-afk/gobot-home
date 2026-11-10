@@ -72,6 +72,15 @@ def test_ru_article_to_licensed_latin_caption_and_overview():
         assert client.calls[-1][1]['titles']=='File:Boletus_edulis.jpg'
     asyncio.run(run())
 
+def test_recipe_context_rejects_person_with_the_same_name():
+    client=Client({'bad':{'ns':0,'index':1,'title':'Оливье, Лоренс','pageimage':'actor.jpg'},
+                   'right':{'ns':0,'index':2,'title':'Оливье (салат)','pageimage':'salad.jpg'}})
+    async def run():
+        candidates=await CommonsImages(client).page_images('блюдо оливье')
+        assert candidates and candidates[0].entity_title=='Оливье (салат)'
+        assert client.calls[-1][1]['titles']=='File:salad.jpg'
+    asyncio.run(run())
+
 
 @pytest.mark.parametrize('page',[
     {'ns':0,'title':'Белый медведь','pageimage':'bear.jpg'},

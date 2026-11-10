@@ -203,6 +203,11 @@ def create_browser_app(settings=None):
         from .visual_images import source_config
         config=source_config()
         return {'configured':bool(config),'contact':config.get('contact',''),'provider':config.get('provider','disabled'),'private_history_sent':False}
+    @app.get('/api/visual/generation/usage')
+    async def generation_usage(request:Request):
+        async with httpx.AsyncClient(trust_env=False,timeout=3) as client:
+            response=await client.get('http://127.0.0.1:18781/api/v1/visual/generation/usage',params={'device_id':await subject(request)},headers=auth)
+            return JSONResponse(response.json(),status_code=response.status_code)
 
     @app.post('/api/settings/visual')
     async def save_visual_settings(request:Request):

@@ -1,5 +1,45 @@
 {
   "$defs": {
+    "ConversationPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "followup_enabled": {
+          "default": true,
+          "title": "Followup Enabled",
+          "type": "boolean"
+        },
+        "followup_seconds": {
+          "default": 12,
+          "maximum": 30,
+          "minimum": 5,
+          "title": "Followup Seconds",
+          "type": "integer"
+        },
+        "silence_ms": {
+          "default": 900,
+          "maximum": 2000,
+          "minimum": 600,
+          "title": "Silence Ms",
+          "type": "integer"
+        },
+        "min_speech_ms": {
+          "default": 300,
+          "maximum": 1000,
+          "minimum": 200,
+          "title": "Min Speech Ms",
+          "type": "integer"
+        },
+        "echo_guard_ms": {
+          "default": 350,
+          "maximum": 1500,
+          "minimum": 200,
+          "title": "Echo Guard Ms",
+          "type": "integer"
+        }
+      },
+      "title": "ConversationPolicy",
+      "type": "object"
+    },
     "DeviceDisplay": {
       "additionalProperties": false,
       "properties": {
@@ -158,7 +198,7 @@
           "type": "boolean"
         },
         "style": {
-          "default": "balanced",
+          "default": "rich",
           "enum": [
             "minimal",
             "balanced",
@@ -176,6 +216,47 @@
           "default": false,
           "title": "Generation Allowed",
           "type": "boolean"
+        },
+        "generation_mode": {
+          "default": "off",
+          "enum": [
+            "off",
+            "missing",
+            "helpful"
+          ],
+          "title": "Generation Mode",
+          "type": "string"
+        },
+        "generation_provider": {
+          "default": "codex",
+          "enum": [
+            "codex",
+            "openai"
+          ],
+          "title": "Generation Provider",
+          "type": "string"
+        },
+        "generation_consent": {
+          "default": false,
+          "title": "Generation Consent",
+          "type": "boolean"
+        },
+        "generation_daily_limit": {
+          "default": 0,
+          "maximum": 20,
+          "minimum": 0,
+          "title": "Generation Daily Limit",
+          "type": "integer"
+        },
+        "source_preference": {
+          "default": "auto",
+          "enum": [
+            "auto",
+            "photos",
+            "illustrations"
+          ],
+          "title": "Source Preference",
+          "type": "string"
         },
         "thematic_icons": {
           "default": true,
@@ -229,6 +310,9 @@
     },
     "feedback": {
       "$ref": "#/$defs/FeedbackPreferences"
+    },
+    "conversation": {
+      "$ref": "#/$defs/ConversationPolicy"
     },
     "interaction_mode": {
       "default": "hold",

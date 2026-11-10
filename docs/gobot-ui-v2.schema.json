@@ -244,6 +244,57 @@
           "default": null,
           "title": "Backend"
         },
+        "generation_provider": {
+          "anyOf": [
+            {
+              "maxLength": 30,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generation Provider"
+        },
+        "generation_model": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generation Model"
+        },
+        "billing_kind": {
+          "anyOf": [
+            {
+              "enum": [
+                "api",
+                "cli_subscription",
+                "local"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Billing Kind"
+        },
+        "generation_usage": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "maxProperties": 20,
+          "title": "Generation Usage",
+          "type": "object"
+        },
         "icon": {
           "anyOf": [
             {

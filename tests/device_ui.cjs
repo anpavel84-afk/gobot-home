@@ -55,5 +55,14 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   sandbox.window.GoBotClient.startRecording=async()=>false;
   await app.press();assert(!app.held);assert(app.captureAbort.signal.aborted);assert(!recording);
   sandbox.window.GoBotClient.startRecording=realStart;await app.press();assert.equal(starts,2);app.release();app.pause('Готово');
-  console.log('Device units: 240 raster, 3 skins, 8 states, compact diagrams, stale frames, hold, dedupe and pause passed');
+  const pendingFollowup=[];sandbox.setTimeout=callback=>{pendingFollowup.push(callback);return pendingFollowup.length;};
+  app.profile.conversation={followup_enabled:true,followup_seconds:12,silence_ms:900,min_speech_ms:300,echo_guard_ms:350};
+  app.enabled=true;app.sessionActive=true;app.serverAudioEnded=true;
+  app.checkFollowup({playing:true});assert.equal(pendingFollowup.length,0);
+  app.checkFollowup({playing:false});assert.equal(pendingFollowup.length,1);
+  app.endConversation();const previousStarts=starts;await pendingFollowup.shift()();assert.equal(starts,previousStarts);
+  app.sessionActive=true;app.serverAudioEnded=true;app.checkFollowup({playing:false});await pendingFollowup.shift()();
+  assert.equal(starts,previousStarts+1);assert(sandbox.window.GoBotHooks.captureOptions.vad);
+  app.pause('Окончание теста');
+  console.log('Device units: raster, scenes, capture, followup playback gate, stop and pause passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

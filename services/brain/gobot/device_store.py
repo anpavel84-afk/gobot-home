@@ -15,7 +15,7 @@ class DeviceStore:
             if row:return DeviceProfile.model_validate_json(row[0])
             profile=DeviceProfile();c.execute('INSERT INTO profiles VALUES(?,?)',(owner,profile.model_dump_json()));return profile
     def update(self,owner,body):
-        allowed={'skin','screen','feedback','display','interaction_mode','keep_screen_awake'}
+        allowed={'skin','screen','feedback','conversation','display','interaction_mode','keep_screen_awake'}
         if not isinstance(body,dict) or not set(body)<=allowed:raise ValueError('Unknown device setting')
         with self.lock:
             current=self.profile(owner).model_dump()

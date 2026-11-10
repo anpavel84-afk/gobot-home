@@ -76,7 +76,7 @@ CASES=[
 ]
 @pytest.mark.parametrize('query,answer,strategy,tool',CASES)
 def test_thirty_two_synthetic_content_aware_scenes(query,answer,strategy,tool):
-    req=ChatRequest(text=query,mode='mock');route=SimpleNamespace(tool=tool,quality={})
+    req=ChatRequest(text=query,mode='mock',screen_preferences=ScreenPreferences(style='balanced'));route=SimpleNamespace(tool=tool,quality={})
     scene=VisualResponseComposer().compose(req,route=route,answer=answer)
     assert scene.visual_strategy==strategy and scene.display_text==answer
     assert scene.speech_text is None # Existing Speech Formatter remains the sole default speech renderer.
@@ -116,6 +116,11 @@ def test_device_renderer_node_units():
 def test_capture_activity_lifecycle_node_units():
     root=Path(__file__).resolve().parents[1]
     result=subprocess.run(['node','tests/capture_activity.cjs'],cwd=root,capture_output=True,text=True,timeout=15)
+    assert result.returncode==0,result.stderr
+
+def test_followup_vad_without_external_requests():
+    root=Path(__file__).resolve().parents[1]
+    result=subprocess.run(['node','tests/followup_vad.cjs'],cwd=root,capture_output=True,text=True,timeout=15)
     assert result.returncode==0,result.stderr
 
 def test_device_uses_actual_shared_browser_client():

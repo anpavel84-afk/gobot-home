@@ -1,0 +1,25 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const sandbox={window:{},Blob,ArrayBuffer,DataView,Int16Array,Uint8Array,Math};
+vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/capture.js','utf8'),sandbox);
+const Gate=sandbox.window.GoBotCapture.PCMVoiceGate;
+const quiet=new Int16Array(2400).buffer;
+const voice=new Int16Array(2400);for(let i=0;i<voice.length;i++)voice[i]=Math.round(6000*Math.sin(i*Math.PI/20));
+let gate=new Gate({windowMs:12000});let result;
+for(let i=0;i<120;i++)result=gate.push(quiet);
+assert.equal(result,'silence');assert.equal(gate.started,false);assert.equal(gate.parts.length,0);assert.equal(gate.ring.length,0);
+gate=new Gate({windowMs:12000});
+for(let i=0;i<119;i++)gate.push(quiet);
+for(let i=0;i<4;i++)assert.equal(gate.push(voice.buffer),'continue');
+assert(gate.started,'speech beginning at the deadline must continue beyond the window');
+for(let i=0;i<9;i++)result=gate.push(quiet);
+assert.equal(result,'end');assert(gate.speechMs>=300);
+(async()=>{
+ const blob=gate.wav(),data=new DataView(await blob.arrayBuffer());
+ assert.equal(blob.type,'audio/wav');assert.equal(data.getUint32(24,true),24000);
+ assert(blob.size<150000,'initial 12 seconds of silence must not be uploaded');
+ const noise=new Int16Array(2400);for(let i=0;i<noise.length;i++)noise[i]=i%2?20000:-20000;
+ gate=new Gate({windowMs:5000});
+ for(let i=0;i<50;i++)result=gate.push(noise.buffer);
+ assert.equal(result,'silence');assert.equal(gate.started,false);
+ console.log('Followup VAD: silent timeout, late speech, end of speech, bounded pre-roll and local noise rejection passed');
+})().catch(error=>{console.error(error);process.exitCode=1;});

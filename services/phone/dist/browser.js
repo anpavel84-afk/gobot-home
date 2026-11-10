@@ -145,7 +145,7 @@ function stop(preserveWaiting=false) {
   visuals?.interrupt();
   $('send').disabled = false; $('orb').classList.remove('busy'); $('result-badge').textContent = 'Остановлено';
 }
-async function send() {
+async function send(options={}) {
   if(transcriptPending)return;
   const text = $('question').value.trim(); if (!text) return;
   stop(true);if(!requestTrace||requestTrace.complete){requestTrace=window.GoBotTiming?new window.GoBotTiming.TurnTrace(uuid()).inputClosed():null;}requestTrace?.mark("chat_submit");visuals?.begin();$('timer').hidden=true; const runEpoch = epoch;
@@ -155,12 +155,13 @@ async function send() {
   let canSpeak=$('speak').checked;
   if(canSpeak){try{await unlockAudio();}catch(_){canSpeak=false;$('voice-status').textContent='Не удалось включить воспроизведение. Этот ответ придёт текстом; API синтеза не вызывается.';}}
   let answer = '', terminal = false;const dispatchAt=performance.now();let firstDeltaAt=null;currentTurn=uuid();const utterance=lastUtterance;lastUtterance=null;
-  window.GoBotHooks?.onTurn?.({turn_id:currentTurn,conversation_id:conversation});
+  window.GoBotHooks?.onTurn?.({turn_id:currentTurn,conversation_id:conversation,continuation:options.continuation===true});
   const sendTurn=currentTurn;
+  const turnTrace=requestTrace;
   try {
     const response = await fetch('/api/chat/stream', {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
       body: JSON.stringify({text, mode: $('model').value, conversation_id: conversation, turn_id: currentTurn, request_id:currentTurn,utterance_id:utterance,remember:$('remember').checked,context_detail:$('detailed-context').checked?'detailed':'standard', correlation_id: uuid(),
-        trace_id:requestTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
+        trace_id:turnTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
     if (!response.ok) throw new Error('http_' + response.status);
     const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
     while (true) {
@@ -173,7 +174,7 @@ async function send() {
         const item = JSON.parse(line.slice(6)), data = item.data || {};
         if (runEpoch !== epoch) return;
         window.GoBotHooks?.onEvent?.(item);
-        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;requestTrace?.mark('first_text');answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
+        if (item.type === 'text_delta') { if(firstDeltaAt===null)firstDeltaAt=performance.now()-dispatchAt;turnTrace?.mark('first_text');answer += data.text;renderDisplay(answer);visuals?.syncDisplay(answer); }
         else if (item.type === 'tool_status') {
           if(data.status==='loading_visual')visuals?.loading();
           if(data.status==='preparing_visual_attachment')visuals?.loading();
@@ -193,25 +194,25 @@ async function send() {
         else if(item.type==='tts_status')$('voice-status').textContent='Готовлю серверный голос…';
         else if (item.type === 'audio_start') $('voice-status').textContent = 'Серверный ИИ-голос: ' + data.provider + ' · ' + data.voice;
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
-        else if (item.type === 'tts_error') {feedback?.cancel();requestTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
+        else if (item.type === 'tts_error') {feedback?.cancel();turnTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
         else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
-          terminal = true; if(requestTrace){window.gobotLastTrace={client:requestTrace.snapshot(),stt:requestTrace.stt,gateway_stt:requestTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry};requestTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
+          terminal = true; if(turnTrace){window.gobotLastTrace={client:turnTrace.snapshot(),stt:turnTrace.stt,gateway_stt:turnTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry};turnTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
           const usage=data.usage?Object.entries(data.usage).map(([key,value])=>key+': '+value).join(', '):'Исполнитель не сообщил счётчики токенов';
           $('route-statistics').textContent='Модель: '+(data.model||'локально / диагностика')+' · первый текст после отправки в Brain: '+Math.round(firstDeltaAt||0)+' мс · маршрутизация: '+(data.router_ms==null?'—':data.router_ms.toFixed(2)+' мс')+' · '+(data.billing_kind==='cli_subscription'?'Квота CLI-подписки, без пересчёта в доллары':data.billing_kind==='api_tokens'?'Оплачиваемые API-токены':'Локальная обработка')+' · '+usage;
           if(data.quality)$('route-statistics').textContent+=' · Проверка: '+data.quality.method+' · обязательна: '+(data.quality.verification_required?'да':'нет')+' · сложность / фактическая неопределённость / последствия: '+data.quality.complexity+' / '+data.quality.factual_uncertainty+' / '+data.quality.consequence_risk+' (внутренние уровни, не вероятности)';
           if(data.presentation_plan?.visual_needed)$('route-statistics').textContent+=' · Визуал: '+data.presentation_plan.visual_strategy+' / '+data.presentation_plan.visual_priority+' · '+data.presentation_plan.reason;
           if(data.speech_metrics?.first_audio_server!=null)$('route-statistics').textContent+=' · Первый аудиочанк сервера: '+Math.round(data.speech_metrics.first_audio_server)+' мс';
         }
-        else if (['error', 'cancelled'].includes(item.type)) { terminal = true; feedback?.cancel();requestTrace?.mark('error');clearAudio(); $('result-badge').textContent = 'Не завершено'; $('voice-status').textContent = explain(data.code || 'cancelled'); }
+        else if (['error', 'cancelled'].includes(item.type)) { terminal = true; feedback?.cancel();turnTrace?.mark('error');clearAudio(); $('result-badge').textContent = 'Не завершено'; $('voice-status').textContent = explain(data.code || 'cancelled'); }
       }
       if (part.done) break;
     }
     if (!terminal) throw new Error('stream_disconnected');
   } catch (error) {
-    if (error.name !== 'AbortError') { feedback?.cancel();requestTrace?.mark('error');clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
+    if (error.name !== 'AbortError') { feedback?.cancel();turnTrace?.mark('error');clearAudio(); $('voice-status').textContent = explain(error.message); $('result-badge').textContent = 'Ошибка'; }
   } finally {
-    if(requestTrace)requestTrace.complete=true;
+    if(turnTrace)turnTrace.complete=true;
     if (active === controller) { active = null; $('send').disabled = false; $('orb').classList.remove('busy'); await loadHistory();await refreshMemory(); }
     window.GoBotHooks?.onStreamEnd?.({turn_id:sendTurn});
   }
@@ -227,7 +228,7 @@ async function showSpeaker(job,initial){
     try{state=await(await fetch('/api/speaker/'+job)).json();}catch(_){return;}
   }
 }
-async function startRecording() {
+async function startRecording({followup=false}={}) {
   if (recording || micPending) return; micPending = true;
   window.GoBotHooks?.onCapturePending?.();
   $('record').textContent='Запрашиваем микрофон…';$('mic-status').textContent='Запрашиваем доступ к микрофону…';
@@ -236,7 +237,7 @@ async function startRecording() {
     // File dictation must not wait for playback AudioContext/autoplay permission on iOS.
     // Request the microphone within the original user gesture.
     if($('stt-mode').value==='live')await unlockAudio();
-    stop();
+    if(!followup)stop();
     const captureEpoch=epoch;
     lastSpeakerJob=null;lastUtterance=uuid();requestTrace=window.GoBotTiming?new window.GoBotTiming.TurnTrace(lastUtterance):null;$('question').value='';
     const provider=$('stt').value,consent=$('paid-stt').checked,live=$('stt-mode').value==='live';
@@ -262,7 +263,9 @@ async function startRecording() {
         if(socket.readyState===WebSocket.OPEN)socket.send(chunk);
       },onStop:()=>{recording=null;recordStoppedAt=performance.now();$('record').textContent='Начать запись';$('mic-status').textContent='Распознаю речь · ждём финальный текст';if(socket.readyState===WebSocket.OPEN)socket.send('end');}});
     }else{
-      recording=await GoBotCapture.start({context:audio,...(window.GoBotHooks?.captureOptions||{}),onInputClosed:inputClosed,onStop:async(blob,info={})=>{
+      recording=await GoBotCapture.start({context:audio,...(window.GoBotHooks?.captureOptions||{}),
+        onSilence:()=>{recording=null;transcriptPending=false;$('send').disabled=false;window.GoBotHooks?.onFollowupSilence?.();},
+        onVoiceStart:()=>window.GoBotHooks?.onFollowupVoice?.(),onInputClosed:inputClosed,onStop:async(blob,info={})=>{
         requestTrace?.inputClosed(info.input_closed_at);requestTrace?.mark('encoding_end');
         if(captureEpoch!==epoch)return;
         window.GoBotHooks?.onRecognizing?.();

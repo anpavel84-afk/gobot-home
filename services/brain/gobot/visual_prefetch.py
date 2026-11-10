@@ -51,6 +51,8 @@ def extract_entity(question):
     """Only a short public noun phrase can leave the host, never a raw question."""
     if PRIVATE_QUERY.search(question) or PRIVATE.search(question) or social(question):return None
     text=normal(question)
+    if re.search(r'человеч\w*\s+сердц|сердц\w*\s+человек',text):
+        return Entity('Сердце человека','Сердце человека',('сердце человека','человеческое сердце'))
     if re.search(r'\bлисич(?:к\w*|ек)\b',text):
         if not re.search(r'ложн\w*\s+лисич|лисят|лисиц|хвост|нора|звер|лиса\b',text):
             return Entity('Лисичка (род грибов)','Лисички',('лисичка','Cantharellus'),'chanterelles')
@@ -87,6 +89,13 @@ def extract_entity(question):
             heads[lemma]=Entity(name,name,(name,))
         adjectives=[]
     return next(iter(heads.values())) if len(heads)==1 else None
+
+def planned_entity(question,plan):
+    entity=extract_entity(question)
+    if (entity is None and plan.reason=='recipe_reference_photo' and plan.visual_query
+            and not PRIVATE_QUERY.search(question) and not PRIVATE.search(question)):
+        return Entity('блюдо '+plan.visual_query,plan.visual_query,(plan.visual_query,))
+    return entity
 
 
 class SpeculativePhoto:

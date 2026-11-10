@@ -7,7 +7,7 @@ from .visual_images import ImageCandidate
 TITLES={'lunar_crater':'Лунный кратер · условный разрез','earth_moon':'Земля и Луна',
  'solar_eclipse':'Солнечное затмение','volcano':'Как устроен вулкан','milky_way':'Млечный Путь · условный вид',
  'tomato_plant':'Строение томатного куста','tomato_comparison':'Сердцевидный и округлый томат',
- 'dog_comparison':'Лабрадор и золотистый ретривер'}
+ 'dog_comparison':'Лабрадор и золотистый ретривер','fantasy_planet':'Сказочная планета · условная иллюстрация'}
 
 def draw_illustration(cache,template):
     if template not in TITLES:raise ValueError('Unsupported local illustration')
@@ -19,7 +19,12 @@ def draw_illustration(cache,template):
     ink=(238,245,244);mint=(163,229,205);muted=(156,175,183)
     def label(x,y,text,color=ink):draw.text((x,y),text,fill=color,font=font)
     label(35,25,TITLES[template]);label(35,510,'Условная иллюстрация GoBot · не фотография · не в масштабе',muted)
-    if template in {'earth_moon','solar_eclipse'}:
+    if template=='fantasy_planet':
+        draw.ellipse((355,150,605,400),fill=(93,93,171),outline=mint,width=4)
+        draw.arc((270,220,690,340),0,340,fill=(229,178,109),width=12)
+        draw.ellipse((690,135,720,165),fill=(200,215,231))
+        label(310,445,'Вымышленный мир · локальная графика',muted)
+    elif template in {'earth_moon','solar_eclipse'}:
         if template=='earth_moon':
             draw.ellipse((70,180,270,380),fill=(42,100,180),outline=mint,width=3);draw.ellipse((750,230,850,330),fill=(166,171,176))
             draw.line((290,280,725,280),fill=mint,width=4);label(120,400,'Земля');label(755,355,'Луна')

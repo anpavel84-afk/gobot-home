@@ -7,9 +7,14 @@ class Strict(BaseModel):model_config=ConfigDict(extra='forbid')
 
 class ScreenPreferences(Strict):
     automatic_illustrations:bool=True
-    style:Literal['minimal','balanced','rich']='balanced'
+    style:Literal['minimal','balanced','rich']='rich'
     prefer_real_photos:bool=True
     generation_allowed:bool=False
+    generation_mode:Literal['off','missing','helpful']='off'
+    generation_provider:Literal['codex','openai']='codex'
+    generation_consent:bool=False
+    generation_daily_limit:int=Field(default=0,ge=0,le=20)
+    source_preference:Literal['auto','photos','illustrations']='auto'
     thematic_icons:bool=True
     hold_after_response_seconds:int=Field(default=12,ge=0,le=120)
     return_to_idle:bool=True
@@ -42,6 +47,13 @@ class FeedbackPreferences(Strict):
     threshold_ms:int=Field(default=2250,ge=2000,le=2500)
     volume:float=Field(default=.22,ge=0,le=.5,allow_inf_nan=False)
 
+class ConversationPolicy(Strict):
+    followup_enabled:bool=True
+    followup_seconds:int=Field(default=12,ge=5,le=30)
+    silence_ms:int=Field(default=900,ge=600,le=2000)
+    min_speech_ms:int=Field(default=300,ge=200,le=1000)
+    echo_guard_ms:int=Field(default=350,ge=200,le=1500)
+
 class DeviceProfile(Strict):
     version:Literal[1]=1
     client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^browser-device-[a-f0-9-]{36}$')
@@ -50,6 +62,7 @@ class DeviceProfile(Strict):
     skin:DeviceSkin=Field(default_factory=DeviceSkin)
     screen:ScreenPreferences=Field(default_factory=ScreenPreferences)
     feedback:FeedbackPreferences=Field(default_factory=FeedbackPreferences)
+    conversation:ConversationPolicy=Field(default_factory=ConversationPolicy)
     interaction_mode:Literal['hold','toggle','wake']='hold'
     keep_screen_awake:bool=False
     has_screensaver:bool=False
@@ -62,7 +75,9 @@ class DeviceProfile(Strict):
                 'face_primitives':['ellipse','line','arc'],'skin':self.skin.model_dump(),
                 'animation':{'speaking_input':'actual_local_playback_rms','phoneme_sync':False,'blink_period_ms':11938,'listening_pulse_period_ms':1571},
                 'assets':{'screensaver_ref':'profile_screensaver' if self.has_screensaver else None,'private':True},
-                'image_generation_provider':'not_configured','screen':self.screen.model_dump()}
+                'image_generation_provider':self.screen.generation_provider,'screen':self.screen.model_dump(),
+                'conversation_policy':self.conversation.model_dump(),
+                'conversation_states':['STANDBY','ACTIVATED','LISTENING','PROCESSING','SPEAKING','FOLLOWUP_LISTENING','CANCELLED','ERROR','OFFLINE']}
 
 class DeviceSceneCommand(Strict):
     namespace:Literal['gobot.ui']='gobot.ui'

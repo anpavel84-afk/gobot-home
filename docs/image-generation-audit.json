@@ -1,0 +1,39 @@
+{
+  "checked_date": "2026-11-10",
+  "cli_version": "0.159.2",
+  "method": "modelProvider/capabilities/read",
+  "provider_capabilities": {
+    "imageGeneration": true,
+    "namespaceTools": true,
+    "webSearch": true
+  },
+  "model_turns_run": 0,
+  "generated_images_run": 0,
+  "credentials_read": false,
+  "codex_image_adapter": {
+    "available": false,
+    "reason": "image_only_isolation_not_verified",
+    "unverified": [
+      "native tool isolation with image generation enabled",
+      "file output location",
+      "image event size limits",
+      "subscription generation limits",
+      "cancellation billing"
+    ]
+  },
+  "openai_image_api": {
+    "implemented": true,
+    "real_tested": false,
+    "model": "gpt-image-2.6-flare",
+    "size": "1024x1024",
+    "quality": "low",
+    "default_consent": false,
+    "default_daily_attempts_limit": 0,
+    "automatic_retries": 0
+  },
+  "official_sources": [
+    "https://learn.chatgpt.com/docs/app-server",
+    "https://developers.openai.com/api/reference/resources/images/methods/generate"
+  ],
+  "privacy": "No auth material, prompts or user audio included"
+}

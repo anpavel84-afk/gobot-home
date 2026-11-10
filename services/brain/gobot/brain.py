@@ -22,7 +22,7 @@ from .visual_images import ImageCache
 from pathlib import Path
 from .presentation_planner import MultimodalResponsePlanner,ResponsePresentationPlan
 from .visual_subject import plain_answer_stream
-from .visual_prefetch import SpeculativePhoto,extract_entity
+from .visual_prefetch import SpeculativePhoto,extract_entity,planned_entity
 from .character_images import CharacterImages,CHARACTER_TOPIC,characters
 from .response_composer import VisualResponseComposer
 from .telemetry import Traces,Trace,scope,mark,client_trace,CURRENT
@@ -49,7 +49,7 @@ class Service:
             plan=self.composer.plan(req)
             if CHARACTER_TOPIC.search(text):return None
             if not self.composer.answer_visual_eligible(req,plan=plan) or RiskAssessment().assess(text,{}).verification_required:return None
-            entity=await asyncio.to_thread(extract_entity,text)
+            entity=await asyncio.to_thread(planned_entity,text,plan)
             if not entity:return None
             trace.mark('stt_visual_prefetch_start')
             result=await self.visual.attachment(req,entity.plan(),timeout=self.presentation_planner.policy.helpful_timeout_seconds)
@@ -177,7 +177,7 @@ class Service:
                 if decision:yield event(req,'screen_scene',scene=self.composer.compose(req,route=decision,context=ctx,plan=presentation_plan).model_dump(exclude={'display_text','speech_text'}),phase='planning')
                 if decision:trace.append({'presentation_plan':presentation_plan.model_dump()})
                 if decision and not visual_frame and self.composer.answer_visual_eligible(req,decision,ctx,presentation_plan):
-                    entity=await asyncio.to_thread(extract_entity,req.text)
+                    entity=await asyncio.to_thread(planned_entity,req.text,presentation_plan)
                     if CHARACTER_TOPIC.search(req.text) and decision.provider in {'antigravity','codex'}:
                         character_images=CharacterImages(req,self.visual.attachment,self.presentation_planner.policy.helpful_timeout_seconds)
                         visual_task=character_images
@@ -330,6 +330,9 @@ def create_app(settings=None):
         try:data,record=await asyncio.to_thread(service.visual.cache.read,asset,variant)
         except (KeyError,OSError):raise HTTPException(404,'image_expired_or_missing')
         return Response(data,media_type='image/jpeg',headers={'Content-Length':str(len(data)),'X-Content-Type-Options':'nosniff','Cache-Control':'private, max-age=300'})
+    @app.get('/api/v1/visual/generation/usage',dependencies=[Depends(auth)])
+    async def generation_usage(device_id:str):
+        return await asyncio.to_thread(service.visual.generation_usage,device_id)
     @app.post('/api/v1/visual/timer/cancel',dependencies=[Depends(auth)])
     async def cancel_visual_timer(request:Request):
         body=await request.json();owner=body.get('device_id');ident=body.get('timer_id')

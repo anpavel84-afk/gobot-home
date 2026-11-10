@@ -162,7 +162,10 @@ class CommonsImages:
             title=page.get('title','');filename=page.get('pageimage','')
             if page.get('ns')!=0 or 'disambiguation' in page.get('pageprops',{}) or not filename or '|' in filename or len(filename)>240:continue
             named=await asyncio.to_thread(entity_words,title)
-            if not named or not named<=requested or (named!=requested and len(named)<2):continue
+            culinary={'салат','блюдо','суп','десерт','кушанье'}
+            dish_match=('блюдо' in requested and bool(named&culinary)
+                        and bool(named-culinary) and named-culinary<=requested-{'блюдо'})
+            if not dish_match and (not named or not named<=requested or (named!=requested and len(named)<2)):continue
             metadata,_=await self.client.get(API,api=True,params={'action':'query','format':'json','titles':'File:'+filename,
                 'prop':'imageinfo','iiprop':'url|extmetadata|size|mime','iiurlwidth':960,'iiextmetadatafilter':'Artist|LicenseShortName|LicenseUrl|ImageDescription'})
             candidates=self.candidates(metadata,limit)
@@ -237,7 +240,7 @@ class OpenverseImages:
             if len(candidates)>=limit:break
         return candidates
 
-def normalize(data):
+def normalize(data,*,browser_size=960):
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error',Image.DecompressionBombWarning)
@@ -248,7 +251,7 @@ def normalize(data):
                     rgba=image.convert('RGBA');base=Image.new('RGBA',rgba.size,(255,255,255,255));image=Image.alpha_composite(base,rgba).convert('RGB')
                 else:image=image.convert('RGB')
                 variants={}
-                for name,size in [('browser',960),('preview',480),('device',240)]:
+                for name,size in [('browser',browser_size),('preview',480),('device',240)]:
                     scale=min(1,size/max(image.size));dimensions=(max(1,round(image.width*scale)),max(1,round(image.height*scale)))
                     scaled=image.resize(dimensions,Image.Resampling.LANCZOS)
                     if name=='device':
@@ -296,7 +299,7 @@ CREATE TABLE IF NOT EXISTS source_backoff(provider TEXT PRIMARY KEY,until REAL);
     def put(self,candidate,data):
         source_sha=hashlib.sha256(data).hexdigest()
         if candidate.sha256 and candidate.sha256!=source_sha:raise ImageUnavailable('reviewed_image_changed')
-        variants=normalize(data);asset=hashlib.sha256(candidate.url.encode()+b'\0v'+str(NORMALIZATION_VERSION).encode()+b'\0'+hashlib.sha256(data).digest()).hexdigest()
+        variants=normalize(data,browser_size=1200 if candidate.url.startswith('local:ai:') else 960);asset=hashlib.sha256(candidate.url.encode()+b'\0v'+str(NORMALIZATION_VERSION).encode()+b'\0'+hashlib.sha256(data).digest()).hexdigest()
         record={'asset_id':asset,'source_url':candidate.source_url,'source_label':candidate.source_label,'source_sha256':source_sha,'remote_url':candidate.url,'caption':candidate.caption,'attribution':candidate.author,'license':candidate.license,'license_url':candidate.license_url,'width':variants['browser']['width'],'height':variants['browser']['height'],'mime_type':'image/jpeg','local_cache_path':str(self.file(asset,'browser')),'created':self.clock(),'expires_at':self.clock()+self.ttl,'variants':{k:{'width':v['width'],'height':v['height'],'bytes':len(v['bytes'])} for k,v in variants.items()}}
         # Validate all remote metadata before writing it or exposing it to clients.
         record['normalization_version']=NORMALIZATION_VERSION

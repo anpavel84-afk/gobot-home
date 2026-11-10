@@ -45,12 +45,20 @@ class VisualService:
         self.slots=asyncio.Semaphore(2);self.locks={}
 
     def available(self):
-        return {'image_source':self.config_loader().get('provider','disabled'),'configured':bool(self.config_loader()),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
+        from .image_generation import generation_status
+        return {'generation':generation_status(),'image_source':self.config_loader().get('provider','disabled'),'configured':bool(self.config_loader()),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
 
     def fallback(self,req,title,code,kind='info_card',text=None):
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
         frame=Presentation(id=frame_id(req.turn_id,kind),type=kind,title=title,text=message,metadata=VisualMetadata(state='unavailable',reason=code))
         return VisualResult(frame,message,message)
+
+    def generation_usage(self,owner):
+        digest=hashlib.sha256(owner.encode()).hexdigest()
+        with self.cache.connect() as c:
+            exists=c.execute("SELECT 1 FROM sqlite_master WHERE name='generation_attempts' AND type='table'").fetchone()
+            rows=c.execute('SELECT provider,count FROM generation_attempts WHERE owner=? AND day=?',(digest,int(time.time()//86400))).fetchall() if exists else []
+        return {'day_basis':'UTC','attempts':dict(rows),'includes_failed_attempts':True,'dollar_cost':None}
 
     async def speculative_sources(self,query,commons,openverse):
         """Give the article resolver a head start; overlap slow sources on cache misses."""
@@ -207,10 +215,62 @@ class VisualService:
             return self.fallback(req,'Карточка результата','result_not_specified',text='Уточни, какой результат нужно показать в карточке.')
         return self.fallback(req,'Схема' if intent.kind=='diagram' else 'Карточка ответа','diagram_source_required')
 
+    async def generated(self,req,plan):
+        from .device_contract import ScreenPreferences
+        from .image_generation import OpenAIImageGenerationAdapter,CodexImageGenerationAdapter,MODEL
+        from .visual_subject import PRIVATE_QUERY
+        from .visual_prefetch import PRIVATE
+        pref=req.screen_preferences or ScreenPreferences()
+        if not pref.generation_allowed or pref.generation_mode=='off' or not pref.generation_consent or pref.generation_daily_limit<1:
+            return self.fallback(req,'Иллюстрация','image_generation_consent_required')
+        if PRIVATE_QUERY.search(req.text) or PRIVATE.search(req.text) or re.search(r'анатоми|эндокрин|лекарств|сердц|диагноз',req.text,re.I):
+            return self.fallback(req,'Иллюстрация','verified_diagram_required')
+        adapter=CodexImageGenerationAdapter() if pref.generation_provider=='codex' else OpenAIImageGenerationAdapter()
+        if pref.generation_provider=='codex':return self.fallback(req,'Иллюстрация',adapter.status()['reason'])
+        subject=plan.subject_label or plan.visual_query
+        if not subject:return self.fallback(req,'Иллюстрация','public_subject_required')
+        owner=hashlib.sha256(req.device_id.encode()).hexdigest()
+        key='local:ai:'+hashlib.sha256(json.dumps([owner,subject,MODEL,'1024x1024','low',pref.style],ensure_ascii=False).encode()).hexdigest()
+        if len(self.locks)>=128:self.locks={k:v for k,v in self.locks.items() if v.locked()}
+        async with self.locks.setdefault(key,asyncio.Lock()),self.slots:
+            record=await asyncio.to_thread(self.cache.source,key)
+            hit=bool(record);usage={}
+            if not record:
+                def reserve():
+                    with self.cache.connect() as c:
+                        c.execute('CREATE TABLE IF NOT EXISTS generation_attempts(owner TEXT,day INTEGER,provider TEXT,count INTEGER,PRIMARY KEY(owner,day,provider))')
+                        c.execute('BEGIN IMMEDIATE')
+                        day=int(time.time()//86400)
+                        row=c.execute('SELECT count FROM generation_attempts WHERE owner=? AND day=? AND provider=?',(owner,day,pref.generation_provider)).fetchone()
+                        if row and row[0]>=pref.generation_daily_limit:return False
+                        c.execute('INSERT INTO generation_attempts VALUES(?,?,?,1) ON CONFLICT(owner,day,provider) DO UPDATE SET count=count+1',(owner,day,pref.generation_provider))
+                        return True
+                if not await asyncio.to_thread(reserve):return self.fallback(req,'Иллюстрация','image_generation_daily_limit')
+                prompt=('Create a clearly illustrative picture of '+subject+
+                        '. Center the subject in the middle 65 percent for a circular screen. No labels or text. '+
+                        'This is a conceptual illustration, not documentary evidence. No anatomical or medical diagrams.')
+                data,usage=await adapter.generate(prompt,consent=True)
+                candidate=ImageCandidate(key,'ИИ-иллюстрация: '+subject,None,'OpenAI · '+MODEL,'AI-generated',None,'GoBot · ИИ-иллюстрация')
+                record=await asyncio.to_thread(self.cache.put,candidate,data)
+            frame=Presentation(id=frame_id(req.turn_id,'generated'),type='image_card',title=subject+' · ИИ',
+                text='Сгенерированная иллюстрация. Достоверность деталей не подтверждена.',images=[self.cache.public(record)],
+                metadata=VisualMetadata(synthetic=True,visual_strategy='generate',backend='openai_image_api',cache_hit=hit,
+                    generation_provider='openai',generation_model=MODEL,billing_kind='api',generation_usage=usage),
+                cache_key=record['asset_id'],expires_at=record['expires_at'])
+            return VisualResult(frame,frame.text,'')
+
     async def attachment(self,req,plan,*,timeout=8,cache_only=False):
         """Optional accompaniment never replaces the model answer or adds TTS captions."""
         try:
-            async with asyncio.timeout(timeout):
+            permitted=req.screen_preferences and req.screen_preferences.generation_consent and req.screen_preferences.generation_allowed and req.screen_preferences.generation_daily_limit>0
+            async with asyncio.timeout(120 if permitted and not cache_only else timeout):
+                if plan.reason=='ai_illustration':
+                    generated=await self.generated(req,plan)
+                    if generated.frame.images or not re.search(r'планет',req.text,re.I):return generated
+                    local_plan=plan.model_copy(update={'reason':'educational_local_illustration','template':'fantasy_planet'})
+                    local=await self.attachment(req,local_plan,timeout=8)
+                    local.frame.metadata.reason=generated.frame.metadata.reason
+                    return local
                 if plan.visual_strategy=='generate':
                     from .illustrations import draw_illustration
                     record,title=await asyncio.to_thread(draw_illustration,self.cache,plan.template)
@@ -221,8 +281,15 @@ class VisualService:
                     return VisualResult(frame,frame.text,'Подготовил поясняющую иллюстрацию.')
                 if req.mode=='mock':return self.fallback(req,'Визуальное сопровождение','diagnostic_no_external_images',text='В диагностическом Mock-режиме внешний поиск не запускается.')
                 speculative=plan.reason=='speculative_entity_photo'
-                result=await self.images(req,VisualIntent('image',query=plan.visual_query,
-                    strict_subject=plan.subject_source=='answer' or speculative,speculative=speculative),cache_only=cache_only)
+                try:
+                    async with asyncio.timeout(timeout):
+                        result=await self.images(req,VisualIntent('image',query=plan.visual_query,
+                            strict_subject=plan.subject_source=='answer' or speculative,speculative=speculative),cache_only=cache_only)
+                except TimeoutError:result=self.fallback(req,'Иллюстрация','image_lookup_timeout')
+                pref=req.screen_preferences
+                if (not result.frame.images and not cache_only and pref and pref.generation_mode in {'missing','helpful'}):
+                    generated=await self.generated(req,plan)
+                    if generated.frame.images:return generated
                 result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve'
                 if result.frame.images:result.frame.metadata.backend='wikimedia' if result.frame.images[0].source.label.startswith('Wikimedia') else 'openverse'
                 if plan.subject_source=='answer':

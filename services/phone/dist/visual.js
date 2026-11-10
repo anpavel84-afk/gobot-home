@@ -42,7 +42,7 @@
       if(count)card.append(gallery);
       if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
-      if(state.synthetic)card.append(node('small','Условная иллюстрация · создана локально · не фотография','visual-state'));
+      if(state.synthetic)card.append(node('small',state.generation_provider?'ИИ-иллюстрация · '+state.generation_provider+' · детали не подтверждены':'Условная иллюстрация · создана локально · не фотография','visual-state'));
       if(state.selection_basis==='source_metadata_search_unverified')card.append(node('small','Результаты поиска по метаданным; точное соответствие объекту не подтверждено.','visual-state'));
       if(frame.type==='timer_widget'&&Number.isFinite(state.deadline)){
         this.currentTimer=state.timer_id||null;const timer=node('output',undefined,'visual-countdown');timer.setAttribute('role','timer');timer.setAttribute('aria-live','off');card.append(timer);

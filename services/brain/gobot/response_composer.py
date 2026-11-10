@@ -51,10 +51,26 @@ class VisualResponseComposer:
         plan=self.planner.plan(req.text,route=route,context=context)
         pref=req.screen_preferences or ScreenPreferences()
         if plan.reason=='user_disabled_visual':return plan
+        if (pref.automatic_illustrations and pref.style!='minimal'
+                and re.search(r'придумай|сказочн|фантастическ',req.text,re.I)
+                and re.search(r'планет|город|пейзаж|мир',req.text,re.I)):
+            from .visual_subject import PRIVATE_QUERY
+            if not PRIVATE_QUERY.search(req.text):
+                ai=pref.generation_allowed and pref.generation_mode!='off' and pref.generation_consent and pref.generation_daily_limit>0
+                if not ai and not re.search(r'планет',req.text,re.I):return plan
+                return ResponsePresentationPlan(visual_needed=True,visual_priority='helpful',visual_type='illustration',
+                    visual_strategy='generate',template=None if ai else 'fantasy_planet',
+                    visual_query=req.text[:180],subject_label=req.text[:160],origin='implicit',
+                    reason='ai_illustration' if ai else 'educational_local_illustration')
         if plan.origin=='implicit' and (not pref.automatic_illustrations or pref.style=='minimal'):
             return ResponsePresentationPlan(reason='user_prefers_avatar_or_minimal')
         if plan.origin=='implicit' and plan.visual_strategy=='retrieve' and not pref.prefer_real_photos:
             return ResponsePresentationPlan(reason='user_prefers_local_or_avatar')
+        if (plan.visual_strategy=='retrieve' and plan.visual_needed and pref.source_preference=='illustrations'
+                and pref.generation_mode=='helpful' and pref.generation_allowed and pref.generation_consent
+                and pref.generation_daily_limit>0):
+            return plan.model_copy(update={'visual_strategy':'generate','template':None,'subject_label':plan.visual_query,
+                                          'reason':'ai_illustration'})
         if plan.visual_needed:return plan
         if not pref.automatic_illustrations or pref.style=='minimal':return plan
         if getattr(route,'tool',None) in {'verification','memory','file_permission','control','home'}:return plan

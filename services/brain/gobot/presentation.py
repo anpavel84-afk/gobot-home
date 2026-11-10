@@ -64,6 +64,10 @@ class VisualMetadata(Strict):
     visual_strategy:Literal['retrieve','generate','render_local','mixed']='render_local'
     synthetic:bool=False
     backend:str|None=Field(default=None,max_length=80)
+    generation_provider:str|None=Field(default=None,max_length=30)
+    generation_model:str|None=Field(default=None,max_length=80)
+    billing_kind:Literal['api','cli_subscription','local']|None=None
+    generation_usage:dict[str,int]=Field(default_factory=dict,max_length=20)
     icon:str|None=Field(default=None,max_length=12)
     template:str|None=Field(default=None,max_length=50)
     deadline:float|None=Field(default=None,allow_inf_nan=False)

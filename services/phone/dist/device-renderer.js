@@ -62,7 +62,10 @@
     }
     compactDiagram(template){
       const mint=this.profile.skin.face_color;
-      if(template==='gobot_pipeline'){
+      if(template==='fantasy_planet'){
+        this.circle(120,123,42,'#5d5dab');this.line([[58,137],[182,113]],'#e5b26d',5);
+        this.circle(174,78,7,'#c8d7e7');
+      }else if(template==='gobot_pipeline'){
         for(const [x,y,label] of [[73,92,'Клиент'],[167,92,'Brain'],[167,163,'Модель'],[73,163,'Голос']])this.text(label,x,y,12,75);
         this.line([[103,90],[130,90]],mint);this.line([[168,107],[168,139]],mint);this.line([[135,161],[107,161]],mint);
       }else if(['earth_moon','solar_eclipse'].includes(template)){
