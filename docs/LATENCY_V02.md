@@ -33,7 +33,7 @@ live registry до 128. Owner фильтруется до чтения. Client e
 
 ## Измеренное исправление
 
-Четыре свежих процесса финального кода: metadata/hash admission 522–551 мс;
+Четыре свежих процесса кода bb4a804: metadata/hash admission 522–551 мс;
 повторная обязательная проверка после прогрева 7.4–7.9 мс. Brain и Bridge прогревают локальные
 метаданные в lifespan до readiness. Проверка каждого запроса и invalidation по
 изменению файлов сохранены. [Raw](admission-profile-v02.json). Ноль model calls и

@@ -26,5 +26,7 @@
   "openai_calls": 0,
   "overall_speech_improvement_measured": false,
   "p95": null,
-  "note": "n=4 paired fresh-process observations; not a representative distribution"
+  "note": "n=4 paired fresh-process observations; not a representative distribution",
+  "source_code_commit": "bb4a804d4829f978de358d762f341dfb34ff1e85",
+  "fingerprint_kind": "Windows working-tree bytes; Git blobs may normalize CRLF"
 }

@@ -38,8 +38,8 @@ window.GoBotCapture={
       const handle={stop:()=>{if(done||closedAt!==null)return;closedAt=performance.now();const accepted=closedAt-started>=minDurationMs&&speechMs>=minSpeechMs;stop();stream.getTracks().forEach(t=>t.stop());if(accepted)onInputClosed?.({input_closed_at:closedAt,audio_seconds:(closedAt-started)/1000});},cancel:()=>{if(done)return;done=true;cleanup();if(recorder?.state==='recording')recorder.stop();}};
       abort=()=>handle.cancel();signal?.addEventListener('abort',abort,{once:true});
       if(signal?.aborted){handle.cancel();throw new DOMException('Запись отменена','AbortError');}
-      for(const track of stream.getAudioTracks())track.addEventListener('ended',()=>{if(!done){handle.cancel();onError?.(new Error('Микрофон был прерван браузером. Включи GoBot снова.'));}},{once:true});
-      for(const track of stream.getAudioTracks())track.addEventListener('mute',()=>{if(!done){handle.cancel();onError?.(new Error('Микрофон приостановлен браузером. Возобнови GoBot.'));}},{once:true});
+      for(const track of stream.getAudioTracks())track.addEventListener('ended',()=>{if(!done&&closedAt===null){handle.cancel();onError?.(new Error('Микрофон был прерван браузером. Включи GoBot снова.'));}},{once:true});
+      for(const track of stream.getAudioTracks())track.addEventListener('mute',()=>{if(!done&&closedAt===null){handle.cancel();onError?.(new Error('Микрофон приостановлен браузером. Возобнови GoBot.'));}},{once:true});
       this.active=handle;this.pending=false;timer=setTimeout(()=>handle.stop(),maxMs);return handle;
     }catch(error){cleanup();throw error;}
   }
