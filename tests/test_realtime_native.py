@@ -27,6 +27,7 @@ class Socket:
         if obj['type']=='response.create':
             self.n+=1;await self.queue.put({'type':'response.created','response':{'id':'resp_'+str(self.n)}})
         if obj['type']=='conversation.item.create' and obj.get('item',{}).get('id'):
+            assert 1<=len(obj['item']['id'])<=32,'Provider conversation item ID must fit its documented input bound'
             await self.queue.put({'type':'conversation.item.added','item':obj['item']})
     async def close(self):self.closed=True;await self.queue.put(None)
     def __aiter__(self):return self

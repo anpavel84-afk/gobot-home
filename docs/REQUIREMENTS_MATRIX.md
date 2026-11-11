@@ -241,3 +241,5 @@ Runtime 528c866 загружен; A/B HTTP200, owner manual uncapped сохра�
 Подробности расследования и границы подтверждения: CURRENT_STATUS.md §22.
 
 Runtime 2c276a6 опубликован и запущен; 1180 regression tests и 50 targeted native/family checks. Deployment evidence: two-stage-silence-deployment.json. Owner style private, marin/ACL/uncapped owner admission сохранены; физический iPhone retest pending.
+
+Bootstrap owner/family preferences: generated item IDs now 32 characters, production socket fixture enforces bound; 50 targeted tests. Real startup retest pending; CURRENT_STATUS.md §23.

@@ -1161,3 +1161,17 @@ Family profiles не создавались, PIN/ACL/биометрия не и�
 → ответ → молчание в followup → нейтральное завершение без Error и микрофон OFF;
 потом новый ручной Start и оценка выбранного характера. Это инструкция владельцу,
 не утверждение, что данный физический прогон уже выполнен.
+
+
+## 23. Срочное исправление запуска с owner style
+
+После включения характера реальные owner попытки закрывались setup_failed / user_stop
+с provider_errors.other=1 до settings_acknowledged; службы и HTTPS оставались healthy.
+Сырые provider ошибки ранее не сохранялись, поэтому их точный payload не восстановлен.
+Найден дефект bootstrap preferences: client item ID pref_ + uuid.hex имел 37 символов;
+заменён на 32-символьный uuid.hex. Provider input item IDs ограничены 32 символами
+([официальная схема](https://developers.openai.com/api/reference/resources/realtime/client-events)).
+Production socket fixture теперь проверяет это ограничение, чего прежний mock не делал.
+50 native/family-preferences checks passed; новой платной developer пробы нет.
+Характер не удаляется, voice и budgets не меняются. Подтверждение нового запуска
+настоящим владельцем ожидается после загрузки исправления. Настройка погоды продолжается.

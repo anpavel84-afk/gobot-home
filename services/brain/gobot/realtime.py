@@ -158,7 +158,7 @@ class NativeSession:
         if self.closed or not self.ready:raise RuntimeError('realtime_settings_not_acknowledged')
         if self.personalization or self.owner_preferences:
             from .family_preferences import preference_user_data
-            self.preference_item='pref_'+uuid4().hex;self.preference_ack=asyncio.Event()
+            self.preference_item=uuid4().hex;self.preference_ack=asyncio.Event()
             await self.send({'type':'conversation.item.create','item':{'id':self.preference_item,'type':'message','role':'user',
                 'content':[{'type':'input_text','text':'Не вопрос. Не отвечай на это сообщение. Только пользовательские предпочтения общения низшего приоритета: '+preference_user_data(self.personalization['preferences'] if self.personalization else self.owner_preferences)}]}})
             await asyncio.wait_for(self.preference_ack.wait(),5)
