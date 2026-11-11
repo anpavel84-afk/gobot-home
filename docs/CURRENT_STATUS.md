@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B с Expert Handoff v2 и visual fulfillment опубликован и запущен на `7b1d925f75bb5a5ba66001d3c1f94979948e7160`.
+  Native/A-B с Expert Handoff v2, visual fulfillment и разрешённой генерацией 20/day опубликован и запущен на `eb4e4c8fe7611958a2b2cf8438196e68a35ed69c`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1468,3 +1468,24 @@ size/quality/complexity/n=1; usage сохраняется. Лимит числа
 итоговые targeted результаты и activation evidence фиксируются после завершения.
 Модельная генерация/речь проверялись только fixtures. Физический iPhone и реальный
 Image API output в этом проходе не подменяются metadata или unit tests.
+
+Активация выполнена на runtime `eb4e4c8fe7611958a2b2cf8438196e68a35ed69c`,
+опубликованном в master. Перед обновлением все четыре active/pending счётчика 0;
+backup Brain/DeviceStore/ImageCache SQLite integrity_check=ok, ignored
+data/backups/before-image-activation-20261111T054355. Native policy и настройки
+сохранены локально, разрешение записано в private run/image-generation-authorization.json.
+
+[Проверка включения](image-integration-enablement.json): real native status
+image_generation_allowed=true, server cap=20; существующий owner phone profile
+allowed/consent=true, mode=missing, provider=openai, daily=20. Client binding прежний,
+manual Realtime unlimited сохранён, expert_jobs_allowed=false. Wiki budget=60/min,
+2000/rolling-24h; ledger/backoff не сбрасывались. A/B HTTP200, hair JPEG HTTP200,
+декодирован 240×240. Генераций разработчика **0**, фактический Image API output и
+физический iPhone не проверены. Новая беседа/обновление B получает активную конфигурацию.
+
+После финального followup guard: **87 targeted tests passed / 25.02 s**.
+Промежуточный тест «нет, спасибо» обнаружил зависимость fixture от одного 10 ms
+scheduling tick перед асинхронным SQLite close. Заменён ожиданием фактического
+closed в ограниченном окне с обязательным cleanup; paid response по-прежнему запрещён.
+Новый тест подтверждает, что followup закрывает микрофон, но сохраняет mock generation
+worker. Проверка index/history gitleaks перед публикацией — 0 findings.

@@ -1,0 +1,65 @@
+{
+  "runtime_commit": "eb4e4c8fe7611958a2b2cf8438196e68a35ed69c",
+  "image_generation_allowed": true,
+  "server_daily_limit": 20,
+  "owner_profile": {
+    "generation_allowed": true,
+    "generation_consent": true,
+    "generation_mode": "missing",
+    "generation_provider": "openai",
+    "generation_daily_limit": 20,
+    "visual_source_policy": "wikimedia_generate"
+  },
+  "same_bound_owner_client": true,
+  "model": "gpt-image-2.6-flare",
+  "model_metadata_http": 200,
+  "size": "1024x1024",
+  "quality": "low",
+  "complexity": "low",
+  "wikimedia_budget": {
+    "requests_per_minute": 60,
+    "requests_per_day": 2000,
+    "shared_wikimedia_budget": true
+  },
+  "counter_reset": false,
+  "remote_backoff_bypassed": false,
+  "http": {
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/api/visual/assets/6516218bb21342694fc93ae3f451c7b4fb980b08474b39987a5ee84913b43d91/device.jpg": 200
+  },
+  "hair_source_check": {
+    "question": "Сколько у человека волос на голове?",
+    "subject": "волосы",
+    "asset_ready": true,
+    "reason": null,
+    "elapsed_ms": 1666.96,
+    "paid_calls": 0,
+    "native_voice_tested": false,
+    "asset_id": "6516218bb21342694fc93ae3f451c7b4fb980b08474b39987a5ee84913b43d91",
+    "caption": "hyaline layer, cortex of hair, medulla of hair, Huxley's layer, Henle's layer, Outer or dermic coat",
+    "license": "Public domain",
+    "source_url": "https://commons.wikimedia.org/wiki/File:Gray945.png",
+    "decoded_size": [
+      240,
+      240
+    ]
+  },
+  "developer_paid_generation_calls": 0,
+  "real_image_api_output_tested_by_developer": false,
+  "owner_generation_usage": {
+    "day_basis": "UTC",
+    "attempts": {},
+    "statuses": {},
+    "includes_failed_attempts": true,
+    "dollar_cost": null
+  },
+  "native_manual_unlimited": true,
+  "expert_jobs_allowed": false,
+  "physical_iphone_generation_verified": false,
+  "tests": {
+    "full_before_followup_guard": 1263,
+    "final_targeted": 87
+  },
+  "backup_integrity": "ok"
+}

@@ -292,3 +292,7 @@ Runtime 7b1d925 опубликован и запущен; A/B и оба cached d
 | «Сколько у человека волос» | Quantified possessor grammar, три порядка слов; real Wikimedia hair illustration decoded |
 | Тишина не отменяет pending image | Mic closes; bounded worker stays; cancellation/profile/pagehide unchanged; native fixture |
 | Подписка и API различаются | Codex image-only blocked; OpenAI metadata200, real paid generation не выполнялась |
+
+Runtime eb4e4c8 опубликован и запущен. Owner phone generation ON, cap20;
+native status/profile/client binding проверены, A/B и hair asset HTTP200.
+Full 1263 + final targeted 87; paid output/iPhone generation pending.
