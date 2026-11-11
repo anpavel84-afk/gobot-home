@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  A/B/C и Luna опубликованы и запущены на `cf36554` (финальный release ниже).
+  A/B/C и Luna опубликованы и запущены на `9e6d0bb5f747c1ff2da677cd6a6aece7af86729c`.
   Вне explicit demo routes default пока legacy; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
@@ -1792,3 +1792,23 @@ unknown create без ID блокирует новый paid create, known reject
 Настройка применяется при следующем включении, что указано в UI; явно названная
 модель в поручении имеет приоритет. Выбор профиля сам не подтверждает задачу.
 После этой правки68 целевых тестов прошли; дополнительно52 экспертных/Live checks.
+
+Финальное [развёртывание](live-deployment.json): code9e6d0bb опубликован и запущен,
+перед restart Brain/B/C active0, pending hangups0. Последний WAL-aware backup
+`data/backups/before-expert-handoff-20261111T092611`, Brain/DeviceStore и5 ledgers,
+integrity=ok. A baseline SHA/assets проверены; все A/B/C routes и scriptsHTTP200.
+Сгенерированные browser/preview/device assets получены по HTTPS и декодированы.
+Это не ACK физического дисплея. Политики/кэш/память/счётчики не сбрасывались.
+
+Effective owner: C Live1/client ON, Luna ON; B Mini/baseline; API estimate$10/day,
+Live60min/day/600s-session, Luna500 requests/day, CLI20 jobs/day, Image20/day.
+Developer ledger: Live2, Luna4, Realtime5 responses, CLI1, Image1; API estimate$0.12243,
+pending_usage0, Live unconfirmed0. CLI quota отдельно. Исторические speech/opening
+бюджеты не использованы. Общий root default пока legacy; explicit B/C не подменяются.
+
+Откат без удаления данных: завершить C и открыть `/demo2/b/device`; для прежнего
+нормализатора/голоса — `/demo2/a/device`. C можно выключить в Owner Full Test.
+Не запускать два микрофонных режима одновременно. Телефонная приёмка C: Enable один
+раз → простой вопрос → продолжение → таймер → Stop → новый вопрос → «нет, спасибо»;
+отдельно тишина45s, pagehide/return и тихая речь. Смотреть фактический voice/backend
+и числовую telemetry; не сохранять домашнюю запись. Новых developer paid calls нет.

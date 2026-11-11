@@ -1,0 +1,79 @@
+{
+  "runtime_code_commit": "9e6d0bb5f747c1ff2da677cd6a6aece7af86729c",
+  "http": {
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/demo2/c": 200,
+    "/demo2/c/device": 200,
+    "/live.js": 200,
+    "/demo2/a/compat.js": 200,
+    "/owner-test-ui.js": 200
+  },
+  "A_baseline": "a71b71e987efdfe01884e34de10712782c0e36ac",
+  "A_assets_hash_verified": true,
+  "B_model": "gpt-realtime-2.1-mini",
+  "default_outside_demo": "legacy",
+  "C_candidate_model": "gpt-live-1",
+  "C_enabled_for_owner_binding": true,
+  "Live_1_1_verified": false,
+  "delegation": "client",
+  "C_backend_model": "gpt-6-luna",
+  "C_backend_enabled": true,
+  "active_sessions": {
+    "B": 0,
+    "C": 0
+  },
+  "Live_usage": {
+    "model": "gpt-live-1",
+    "requested_version": "1.1",
+    "model_version_1_1_verified": false,
+    "voice_seconds_observed": 87.0,
+    "unconfirmed_sessions": 0,
+    "reserved_seconds_including_pending": 87.0,
+    "voice_usd_per_minute": 0.05,
+    "backend_billed_separately": true,
+    "cumulative_usage_not_summed": true,
+    "hard_dollar_cap_guaranteed": false,
+    "contains_conversation_content": false,
+    "latest_report": null
+  },
+  "owner_attempts_today": {
+    "expert": 1,
+    "image": 1,
+    "live": 2,
+    "live_backend": 4,
+    "realtime": 5
+  },
+  "owner_developer_counts": {
+    "developer": 13
+  },
+  "estimated_usd_including_pending": 0.12243,
+  "pending_usage": 0,
+  "quotas": {
+    "api_estimate_usd_per_day": 10.0,
+    "expert_jobs_per_day": 20,
+    "image_attempts_per_day": 20,
+    "live_minutes_per_day": 60,
+    "live_session_seconds": 600,
+    "live_backend_requests_per_day": 500
+  },
+  "image_variants_http_decoded": {
+    "url": [
+      1024,
+      1024
+    ],
+    "preview_variant": [
+      480,
+      480
+    ],
+    "device_variant": [
+      240,
+      240
+    ]
+  },
+  "private_memory_native_ready": false,
+  "speaker_identity_ready": false,
+  "C_physical_iphone_verified": false,
+  "acoustic_quality_verified": false
+}

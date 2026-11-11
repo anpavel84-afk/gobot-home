@@ -99,3 +99,6 @@ Brain, инструменты, Visual Pipeline и ExpertJobs, отдельный
 ledger. Владелец отдельно разрешил быстрый backend gpt-6-luna: 2048 input / 512 output,
 один запрос одновременно, без tools/retries, общий Owner Full Test. Реализация и
 реальные этапы приёмки разделены в паспорте §30–32; B не заменяется молча.
+Открыть: `/demo2/a/device` — прежний путь, `/demo2/b/device` — Realtime Mini,
+`/demo2/c/device` — GPT-Live 1 + gpt-6-luna. Код9e6d0bb опубликован и запущен;
+приёмка на физическом iPhone и доступ API Live1.1 остаются отдельными этапами.

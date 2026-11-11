@@ -321,9 +321,9 @@ Runtime и публикация фиксируются в CURRENT_STATUS.md §28
 | Тихий PTT | Production JS: baseline и quiet на одном RMS .003; B default baseline |
 | Private ACL отдельно | Public owner route не открывает личный архив; native private retrieval ещё отсутствует |
 | A/B сохраняются | Immutable A + compat; B Realtime Mini; C в общем продукте |
-| Live 1.1 | Не подтверждена API/catalog; gpt-live-1 metadata only, не voice acceptance |
-| Live protocol/timeline/full duplex | Реализованы отдельные protocol/API/ledger/client; C fixtures и production JS; real provider pending |
-| Реальная приёмка | Новых paid calls=0; iPhone/C/ESP32 pending |
+| Live 1.1 | Не подтверждена; gpt-live-1 реально принят в двух voice sessions |
+| Live protocol/timeline/full duplex | Отдельные protocol/API/ledger/client; real Live timer/audio/Close, C fixtures и production JS |
+| Реальная приёмка | Live2/Luna4/CLI1/Image1 подтверждены на указанных путях; joint C voice/iPhone/ESP32 pending |
 
 Текущий этап и runtime — CURRENT_STATUS.md §29–30.
 
@@ -357,3 +357,8 @@ Luna real4/4 прошли: exact counts164–268/output46–50, effortnone, toke
 непустые ответы и продолжение темы. First text1.23–2.81s включает count0.55–1.47s;
 это не acoustic TTFA. Joint Luna→Live voice пока fixture, физический iPhone pending.
 Полный free1293; код/публикация/runtime и оставшиеся ограничения — паспорт §32.
+
+Финальный код9e6d0bb запущен, owner C/Luna ON, A/B сохранены, root default legacy.
+Последний полный free1296 + финальные targeted68/52; selected expert profile C
+проверен без выдачи согласия. Финансовые лимиты не сброшены; все real evidence,
+условия сравнения, A/B rollback и физическая приёмка перечислены в паспорте §32.
