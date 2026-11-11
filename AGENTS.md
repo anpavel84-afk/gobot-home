@@ -65,6 +65,13 @@ user-level data notice, not a second function_call_output or an instruction from
 New questions retain permitted result cards without stale voice interruption; remember=false
 stays RAM-only. Profile change/revocation/close never transfers results or auto-retries jobs.
 Catalog metadata and offline isolation are not real entitlement, latency or iPhone acceptance.
+Blocked expert admission must not become an awaiting-confirmation job. Expose effective admission
+to Realtime instructions and the existing expert panel; only accepted=true means submitted.
+Persist allowlisted stage/rejection counters only, never household transcripts for diagnostics.
+Owner requested A restored for manual comparison: isolate its browser settings/consents from B,
+preserve frozen baseline bytes and Russian formatter; opening A must not invoke STT/CLI/TTS.
+Any bound manual-consent bootstrap applies once and respects subsequent local revocation.
+This does not authorize automated paid tests or enable B expert jobs.
 
 OWNER DIRECT 2026-11-11 separately permits OpenAI Image API fallback on the existing
 bound owner phone: at most 20 attempts per UTC day, 1024x1024 low quality/complexity,

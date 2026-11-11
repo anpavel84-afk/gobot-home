@@ -1,0 +1,28 @@
+{
+  "audit_kind": "existing_content_free_ledger_and_deployed_admission_no_model_calls",
+  "last_recorded_session_closed_utc": "2026-11-11T08:57:57.271878+00:00",
+  "close_reason": "user_stop",
+  "user_turns": 4,
+  "response_attempts": 6,
+  "completion_counts": {
+    "completed": 6
+  },
+  "provider_errors": {},
+  "client_playback_delay_ms": [
+    1573.7,
+    1696.1,
+    1287.82,
+    1494.24
+  ],
+  "client_playback_is_not_first_useful_word_or_acoustic_acceptance": true,
+  "expert_jobs_allowed": false,
+  "expert_policy_exists": false,
+  "family_profiles": 0,
+  "expert_jobs_reserved_total": 0,
+  "durable_expert_results": 0,
+  "historical_tool_steps_recorded": false,
+  "transcript_available_in_persisted_report": false,
+  "exact_model_promise_or_tool_selection_reconstructable": false,
+  "contains_conversation_content": false,
+  "automated_paid_calls": 0
+}

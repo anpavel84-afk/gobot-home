@@ -1489,3 +1489,74 @@ scheduling tick перед асинхронным SQLite close. Заменён �
 closed в ограниченном окне с обязательным cleanup; paid response по-прежнему запрещён.
 Новый тест подтверждает, что followup закрывает микрофон, но сохраняет mock generation
 worker. Проверка index/history gitleaks перед публикацией — 0 findings.
+
+## 28. Разбор несостоявшейся передачи B → CLI и восстановление A
+
+Владелец сообщил, что в последнем разговоре просил передать задачу в CLI, но не
+получил результат. [Аудит существующего журнала](expert-handoff-blocker-audit.json):
+последняя записанная сессия закрыта 11 ноября в **05:57:57 America/Sao_Paulo**,
+причина user_stop, 4 пользовательских turn, 6 provider responses completed,
+provider_errors пуст. Разница client_playback − input_ended: 1573.70, 1696.10,
+1287.82, 1494.24 ms. Это сигнал клиента, **не первое полезное слово** и не акустика.
+
+На момент проверки expert_jobs_allowed=false; отдельного expert policy нет;
+семейных профилей 0; в expert ledger зарезервировано **0 запусков**, durable expert
+results=0. expert_start при такой конфигурации не передавался модели. Запуск не
+мог пройти предусмотренные серверные допуски. Это не подтверждённый timeout CLI.
+
+Текст закрытой гостевой беседы не записывается в persistent native report; query,
+answer и UI events очищаются при закрытии. Старый отчёт также не содержал этапов
+expert tool. Поэтому **нельзя восстановить точную реплику модели или утверждать,
+что именно в этой беседе вызван expert_propose**. Шесть responses при четырёх turn
+не доказывают экспертный вызов. Домашние разговоры ради диагностики не сохранялись.
+
+Подтверждённый дефект кода: общие инструкции предлагали expert_start независимо
+от фактического допуска; expert_propose создавал awaiting_confirmation даже при
+заведомой блокировке. Это могло создавать ложное ожидание передачи.
+
+Исправлено в существующем pipeline:
+
+* Компактный effective admission включается в session instructions; expert_start
+  отсутствует при blocked admission, включая guest/нет согласия/нет лимита.
+  Propose и согласие не считаются запуском; нужен настоящий accepted=true.
+* Заблокированный expert_propose возвращает state=blocked, executed/accepted=false;
+  не создаёт фиктивное задание «Ждёт согласия». В существующей панели сразу
+  раскрывается «Задача в CLI не передана» с конкретными причинами.
+* Финальный текст явной просьбы передать задачу независимо от model tool даёт
+  UI-диагностику блокировки. Эвристика intent **не авторизует запуск**. Повторный
+  final transcript того же turn не считает вторую просьбу.
+* Persistent report дополнен allowlisted expert_activity/expert_blocked_reasons:
+  requested/proposed/start_requested/accepted/completed и конкретные отказы.
+  Нет текста задач, speaker/provider IDs или аудио. Исторические записи не дополняются
+  выдуманными этапами. Счётчик blocked считает решения допуска, а не число заданий.
+* ExpertJobs использует соседний ledger своего RealtimeManager; синтетический
+  тестовый manager больше не обращается к production expert ledger по умолчанию.
+
+Эксперты остаются **OFF**. Для реального запуска по-прежнему нужны отдельное
+согласие на конечный лимит и подтверждённый взрослый Family/PIN профиль; инструкция
+модели или разрешённая генерация картинок эти условия не заменяют. Реального
+Realtime → CLI → spoken result на iPhone пока нет. Защита отмены, late consent,
+одного запуска/одного function_call_output и private results сохранена.
+
+A: frozen assets a71b71e сохраняют исходные SHA; поверх HTML подключён небольшой
+compat layer. Локальные voice settings, CLI consent и conversation_id отделены
+от B. В круглом A доступны прежние controls разрешений STT/TTS/CLI; readiness
+проверяет только metadata, без provider generation. На существующем owner phone
+сохранён private manual grant по просьбе восстановить A: bootstrap согласий один
+раз, дальнейший локальный отказ сохраняется. Это не разрешение developer paid tests
+или экспертам B. Микрофон не запускается открытием страницы, A/B используют общий
+exclusive lock. Перед A нужно выключить B в другой вкладке. Полный прежний backup,
+Speech Formatter, выбранный голос и 100 клипов не перезаписываются.
+
+Бесплатная приёмка: **1269 passed / 50.57 s**; отдельно production DOM для A и
+expert panel, bound readiness API, blocked proposal/no fake job, отсутствие приватного
+текста в журнале, позднее согласие/отказ/отмена/профили/один executor — mocks.
+Новых платных STT/LLM/TTS/expert/image проб **0**. Физический iPhone после этих
+исправлений и понимание русского шёпота не проверены. Публикация/runtime SHA — ниже
+после развёртывания. Backup Brain + DeviceStore SQLite integrity_check=ok:
+ignored data/backups/before-expert-handoff-20261111T061141.
+
+На отдельное предложение приёмки одного Sol High job владелец ответил:
+**«Пока оставить экспертные запуски выключенными»**. Новый expert grant не создаётся;
+реальная CLI-приёмка отложена по этому решению. Ручное сравнение A — отдельный
+обычный legacy conversation path, не экспертная делегация из B.

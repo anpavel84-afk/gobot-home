@@ -296,3 +296,18 @@ Runtime 7b1d925 опубликован и запущен; A/B и оба cached d
 Runtime eb4e4c8 опубликован и запущен. Owner phone generation ON, cap20;
 native status/profile/client binding проверены, A/B и hair asset HTTP200.
 Full 1263 + final targeted 87; paid output/iPhone generation pending.
+
+## Owner §51 — фактический допуск expert handoff / сравнение A/B
+
+| Критерий | Реализация / подтверждение |
+| --- | --- |
+| Проверка последнего случая B | Existing ledger: 4 turns, 6 completed responses, errors={}, expert reservations=0; точного текста/tool events нет |
+| Не обещать выключенный CLI | Effective admission в instructions; start tool только при допуске; акустический ответ требует iPhone приёмки |
+| Blocked не awaiting_confirmation | Tool integration: accepted/executed=false, state=blocked, jobs пуст; обычная сессия доступна |
+| Видимый отказ на explicit просьбу | Final transcript diagnostic intent → expert_blocked → existing panel раскрыт; production DOM fixture |
+| Аудит стадий без домашних разговоров | Allowlisted numeric counters; private keys/text исключены; исторические данные не выдумываются |
+| Нет обхода согласий | Late transcript/decline/cancel/one CLI/one call output/profile ACL fixtures; реальный expert grant OFF |
+| A/B настройки независимы | Scoped localStorage compatibility + bound readiness; local revocation сохраняется; immutable asset hash tests |
+| Платные и аппаратные проверки | 1269 free tests passed; новых paid calls=0; phone expert E2E / A speech pending |
+
+Runtime и публикация фиксируются в CURRENT_STATUS.md §28.

@@ -19,6 +19,10 @@ vm.runInNewContext(fs.readFileSync('services/phone/dist/expert-ui.js','utf8'),{w
  events.DOMContentLoaded();const panel=window.GoBotExpertUI;await panel.refresh();
  assert(panel.status.textContent.includes('отдельный лимит CLI'));
  assert(panel.select.children.some(x=>x.textContent.includes('gpt-6.1-sol / high')));
+ panel.event({type:'expert_blocked',data:{availability:status,executed:false}});
+ assert(panel.root.open&&panel.status.textContent.includes('Задача в CLI не передана'));
+ assert(panel.status.textContent.includes('PIN-профиль'));
+ assert.equal(panel.cards.size,0);
  const job={job_id:'job-one',state:'running',expert:status.profiles[0],storage:'confirmed_profile'};
  panel.event({type:'expert_job',data:{job}});assert.equal(panel.cards.size,1);
  panel.event({type:'turn_started',data:{}});assert.equal(panel.cards.size,1);

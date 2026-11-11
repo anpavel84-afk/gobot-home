@@ -71,7 +71,7 @@ class RealtimeBudget:
     def total_tokens(self,session):
         with self.connect() as c:rows=c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),)).fetchall()
         return sum(json.loads(row[0]).get('total_tokens',0) for row in rows)
-    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None,alignment_counts=None,control_failure=None):
+    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None,alignment_counts=None,control_failure=None,expert_activity=None,expert_blocked_reasons=None):
         # Explicit allowlist: captions, queries, speaker IDs and raw audio cannot enter this ledger.
         setup_keys={'call_created','sideband_connected','settings_acknowledged'}
         turn_keys={'input_ended','response_created','answer_transcript','output_buffer_started','client_playback','client_playback_stopped'}
@@ -95,6 +95,9 @@ class RealtimeBudget:
             report['provider_errors']={k:v for k,v in (provider_errors or {}).items() if k in error_codes and type(v) is int and 0<v<=1000}
             report['completion_counts']={k:v for k,v in (completion_counts or {}).items() if k in {'max_output_tokens','completed','cancelled','failed','incomplete','other'} and type(v) is int and 0<v<=1000}
             report['alignment_counts']={k:v for k,v in (alignment_counts or {}).items() if k in {'match','suspected_mismatch'} and type(v) is int and 0<v<=1000}
+            from .expert_jobs import EXPERT_ACTIVITY,EXPERT_BLOCKERS
+            report['expert_activity']={k:v for k,v in (expert_activity or {}).items() if k in EXPERT_ACTIVITY and type(v) is int and 0<v<=1000}
+            report['expert_blocked_reasons']={k:v for k,v in (expert_blocked_reasons or {}).items() if k in EXPERT_BLOCKERS and type(v) is int and 0<v<=1000}
             if control_failure:
                 action=control_failure.get('action');kind=control_failure.get('kind')
                 report['control_failure']={'action':action if action in {'text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','visual_presented'} else 'other',

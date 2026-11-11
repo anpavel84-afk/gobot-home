@@ -67,6 +67,22 @@ def create_browser_app(settings=None):
     from .demo2 import attach_demo2
     attach_demo2(app)
 
+    @app.get('/api/demo2/a/readiness')
+    async def legacy_readiness(request:Request):
+        owner=await subject(request)
+        profile=await asyncio.to_thread(devices.profile,device_scope(request,owner))
+        try:grant=json.loads((ROOT/'run/legacy-owner-admission.json').read_text(encoding='utf-8'))
+        except (OSError,ValueError):grant={}
+        allowed=bool(grant.get('enabled') and grant.get('authorization') and grant.get('allowed_client_id')==profile.client_id)
+        from .live_agents import agent_status
+        agents=await asyncio.to_thread(agent_status,allowed)
+        return JSONResponse({'manual_authorized':allowed,'automatic_calls':False,'engine':'legacy',
+            'grant_revision':hashlib.sha256(str(grant.get('authorization','')).encode()).hexdigest()[:16] if allowed else None,
+            'stt':'gpt-transcribe','cli_provider':'antigravity','cli_model':settings.router.fast_cli_model,
+            'voice':'marin','voice_formatter':'legacy Russian Speech Formatter',
+            'cli_ready':agents['antigravity']['available'],'cli_reason':agents['antigravity']['reason'],
+            'openai_key_configured':openai_key_present()},headers={'Cache-Control':'no-store'})
+
     @app.post('/api/chat/stream')
     async def chat(request:Request):
         timing=Trace('pending','gateway-chat');timing.mark('request_received')

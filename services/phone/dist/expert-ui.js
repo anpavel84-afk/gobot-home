@@ -32,6 +32,12 @@
         for(const job of data.saved_jobs||[]){this.job(job);if(job.result)this.result(job,job.result,true);}
       }catch(_){if(epoch===this.epoch)this.status.textContent='Статус экспертов временно недоступен. Обычный разговор остаётся доступен.';}
     }
+    blocked(data){
+      const availability=data.availability||{};
+      const codes=[...(availability.blocked_reasons||[]),...(data.error?[data.error]:[])];
+      this.status.textContent='Задача в CLI не передана. '+[...new Set(codes)].map(x=>reasons[x]||'Запуск не разрешён сервером').join('. ');
+      this.root.open=true;
+    }
     job(job){
       if(!job?.job_id||!this.list)return;
       let entry=this.cards.get(job.job_id);
@@ -46,7 +52,7 @@
       entry.detail.hidden=false;entry.body.textContent=result.display_text;
       if(deferred)entry.text.textContent+=' · Сохранён для просмотра; текущую реплику не перебивает';
     }
-    event(item){if(item.type==='expert_job')this.job(item.data.job);if(item.type==='expert_result')this.result(item.data.job,item.data.result,item.data.voice_deferred);}
+    event(item){if(item.type==='expert_blocked')this.blocked(item.data);if(item.type==='expert_job')this.job(item.data.job);if(item.type==='expert_result')this.result(item.data.job,item.data.result,item.data.voice_deferred);}
   }
   const panel=new ExpertPanel();window.GoBotExpertUI=panel;window.addEventListener('DOMContentLoaded',()=>panel.mount());
 })();

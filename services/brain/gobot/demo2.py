@@ -42,6 +42,7 @@ def attach_demo2(app,root=None):
             _,raw=original(name);html=raw.decode('utf-8')
             for asset in read_manifest()['files']:
                 html=html.replace('src="/'+asset+'"','src="/demo2/a/assets/'+asset+'"').replace('href="/'+asset+'"','href="/demo2/a/assets/'+asset+'"')
+            html=html.replace('</head>','<script src="/demo2/a/compat.js"></script></head>')
         else:
             html=(ROOT/'services/phone/dist'/name).read_text(encoding='utf-8')
             html=html.replace('<body','<body data-conversation-engine="realtime"',1)
@@ -65,3 +66,5 @@ def attach_demo2(app,root=None):
         path,_=original(asset)
         mime='text/javascript' if path.suffix=='.js' else 'text/css' if path.suffix=='.css' else None
         return FileResponse(path,media_type=mime)
+    @app.get('/demo2/a/compat.js')
+    async def compat():return FileResponse(ROOT/'services/phone/dist/demo2-a-compat.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})

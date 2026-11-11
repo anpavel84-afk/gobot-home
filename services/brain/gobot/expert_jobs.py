@@ -9,6 +9,21 @@ from .models import ChatRequest
 from .providers import bridge_stream
 from .expert_store import ExpertBudget
 
+EXPERT_ACTIVITY={'explicit_request','proposal_requested','proposal_created','start_requested','accepted','blocked','completed','failed','timed_out','cancel_requested'}
+EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','expert_quota_consent_required',
+    'expert_budget_missing_or_expired','expert_budget_exhausted','expert_budget_other_device',
+    'confirmation_transcript_pending','current_user_confirmation_required','expert_confirmation_already_used',
+    'expert_context_changed','confirmed_adult_required_for_expert','expert_not_in_session_budget',
+    'expert_profile_not_in_budget','expert_budget_or_consent_required','realtime_budget_or_consent_required',
+    'isolation_not_verified','quota_consent_required','expert_profile_unavailable','explicit_expert_profile_mismatch',
+    'expert_context_limit','expert_job_already_started','one_active_expert_job_only','realtime_session_budget_exhausted',
+    'realtime_trial_client_not_allowed','tool_validation_or_execution_failed'}
+
+def explicit_expert_request(text):
+    """Only a diagnostic intent signal; never authority or a replacement task."""
+    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',text,re.I)
+                and re.search(r'переда\w*|адрес\w*|отправ\w*|спроси|подключ\w*|делегир\w*|обрат\w*|пусть.*(?:провер|разбер)',text,re.I))
+
 def profile_in_text(text):
     if re.search(r'\b(?:argon|аргон)\b',text,re.I):return 'ARGON_DEEP'
     if re.search(r'\b(?:astra|астр[ауы])\b',text,re.I):return 'ASTRA_MEDIUM' if re.search(r'\b(?:medium|медиум|средн\w*)\b',text,re.I) else 'ASTRA_HIGH'
@@ -59,10 +74,15 @@ class ExpertJob:
 class ExpertJobs:
     def __init__(self,session,*,executor=None,budget=None,admission=None):
         self.session=session;self.executor=executor or self.execute
-        self.budget=budget or ExpertBudget(Path(__file__).resolve().parents[3]/'run/realtime-experts')
+        manager_budget=getattr(getattr(session,'manager',None),'budget',None)
+        self.budget=budget or ExpertBudget((manager_budget.root.parent if manager_budget else Path(__file__).resolve().parents[3]/'run')/'realtime-experts')
         self.jobs={};self.pending=None;self.lock=asyncio.Lock()
         self.admission=admission
         self.used_confirmation_turns=set()
+
+    def audit(self,stage,reasons=()):
+        recorder=getattr(self.session,'expert_audit',None)
+        if recorder:recorder(stage,reasons)
 
     def active(self):return any(j.state in {'queued','running'} for j in self.jobs.values())
 
@@ -77,15 +97,16 @@ class ExpertJobs:
         store=getattr(getattr(self.session,'manager',None),'expert_store',None)
         if store:store.save(job,job.profile_epoch)
 
-    def status(self):
+    def status(self,*,include_profiles=True):
         from .expert_profiles import profile_status
         policy=self.budget.policy();usage=self.budget.status();reasons=[]
         if not getattr(self.session.policy,'expert_jobs_allowed',False):reasons.append('native_experts_disabled')
         if not getattr(self.session,'expert_authorized',False):reasons.append('confirmed_adult_profile_required')
         if not self.session.offer.expert_quota_consent:reasons.append('expert_quota_consent_required')
         if not self.budget.active(policy):reasons.append('expert_budget_missing_or_expired')
+        elif policy.allowed_client_id and policy.allowed_client_id!=getattr(self.session.offer,'client_id',None):reasons.append('expert_budget_other_device')
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
-        return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status(),
+        return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status() if include_profiles else [],
                 'allowed_profiles':getattr(policy,'allowed_profiles',[]),'jobs_remaining':usage['sessions_remaining'],
                 'timeout_seconds':getattr(policy,'job_timeout_seconds',90),'jobs':[self.public(j) for j in self.jobs.values()]}
 
@@ -166,6 +187,7 @@ class ExpertJobs:
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.call_id=call_id;job.state='queued'
+            self.audit('accepted')
             job.timings['queued']=round((time.monotonic()-job.clock_origin)*1000,2)
             self.used_confirmation_turns.add(confirmation_key)
             self.persist(job)
@@ -223,6 +245,7 @@ class ExpertJobs:
         finally:
             self.persist(job)
             if self.authorized_owner(job):
+                if job.state in {'completed','failed','timed_out'}:self.audit(job.state)
                 s.emit('expert_job',job=self.public(job))
                 await self.return_result(job)
 
