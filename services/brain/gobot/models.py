@@ -33,6 +33,7 @@ class ChatRequest(BaseModel):
     screen_preferences:ScreenPreferences|None=None
 
 class VoiceRequest(ChatRequest):
+    mode_conversation_id:str|None=Field(default=None,pattern=ID)
     speaker_job_id: str | None = Field(default=None, pattern=r'^[a-f0-9-]{36}$')
     speak: bool = True
     tts_provider: Literal["openai", "denis"] = "openai"

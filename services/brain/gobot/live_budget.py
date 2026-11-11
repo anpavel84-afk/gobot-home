@@ -73,7 +73,7 @@ class LiveBudget:
             'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False,'latest_report':json.loads(latest[0]) if latest else None}
 
     def record_report(self,session,reason):
-        allowed={'user_stop','conversation_ended','idle_timeout','session_time_limit','owner_mode_disabled','page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected','speaker_changed_or_uncertain','server_shutdown','setup_failed','sideband_closed','provider_closed'}
+        allowed={'mode_switch','user_stop','conversation_ended','idle_timeout','session_time_limit','owner_mode_disabled','page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected','speaker_changed_or_uncertain','server_shutdown','setup_failed','sideband_closed','provider_closed'}
         keys={'input_start_ms','input_end_ms','first_output_start_ms','client_playback_seen_ms','visual_provisional_scene_sent','visual_provisional_sent','visual_refined_sent'}
         report={'model':'gpt-live-1','reason':reason if reason in allowed else 'other','final_usage_confirmed':session.final_usage_confirmed,
             'setup_ms':{k:v for k,v in session.timings.items() if k in {'create_ms','attach_and_ack_ms','total_ms'} and type(v) in (int,float)},

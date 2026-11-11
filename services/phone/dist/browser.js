@@ -216,7 +216,7 @@ async function send(options={}) {
   try {
     const response = await fetch('/api/chat/stream', {method: 'POST', headers: {'Content-Type': 'application/json'}, signal: controller.signal,
       body: JSON.stringify({text, mode: $('model').value, conversation_id: conversation, turn_id: currentTurn, request_id:currentTurn,utterance_id:utterance,remember:$('remember').checked,context_detail:$('detailed-context').checked?'detailed':'standard', correlation_id: uuid(),
-        trace_id:turnTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,tts_character_limit:options.tts_character_limit??null,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel'})});
+        trace_id:turnTrace?.id, usage_consent: $('quota').checked, speak: canSpeak, tts_provider: $('tts').value, tts_voice: $('voice').value || 'marin', paid_tts_consent: $('paid').checked,tts_character_limit:options.tts_character_limit??null,speaker_job_id:lastSpeakerJob,client_kind:window.GoBotHooks?.clientKind||'panel',...window.GoBotUnified?.requestFields()})});
     if (!response.ok) throw new Error('http_' + response.status);
     const reader = response.body.getReader(), decoder = new TextDecoder(); let pending = '';
     while (true) {

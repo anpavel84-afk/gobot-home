@@ -362,3 +362,22 @@ Luna real4/4 прошли: exact counts164–268/output46–50, effortnone, toke
 Последний полный free1296 + финальные targeted68/52; selected expert profile C
 проверен без выдачи согласия. Финансовые лимиты не сброшены; все real evidence,
 условия сравнения, A/B rollback и физическая приёмка перечислены в паспорте §32.
+
+### Новое решение §55: основной разговор C ↔ A
+
+Эти строки заменяют конфликтующие прежние требования default legacy / explicit-C-only.
+
+| Требование | Реализация и бесплатная проверка | Оставшаяся приёмка |
+| --- | --- | --- |
+| Один основной интерфейс, запуск C | root/device unified.js, HTTP fixtures; A/B/C comparison сохранены | iPhone Start |
+| «Экспертный режим» → A | Server exact intent, mode lease, confirmed Live close → прежний legacy pipeline | Реальная голосовая команда и Safari autoplay |
+| Возврат в C | Точная команда, новый provider session с разрешёнными RAM messages | Реальное A→C аудио |
+| End/Stop/idle10 → C standby | Server/JS fixtures, без нового paid create; default selection reset | Физические10s после playback |
+| Тишина не удерживается картинкой | Live idle_due не ждёт visual/expert cards; stale activity guard | Реальная комната/фоновый шум |
+| Контекст без private leakage | Memory RAM scope + owner/client/epoch, remember=false, forbidden resume fixtures | Калиброванные голоса/семья остаются отдельной работой |
+| Общие инструменты | Настройки на прежнем device owner; timer на том же client namespace; real local HTTP timer fixture | iPhone weather/timer |
+| Локальное «ГоБот» | **Не готово**, readiness=false, честная подсказка и Start | Установка/проверка keyword detector, buffering, iPhone/ESP32 |
+| Экспертная модель A | Существующий AUTO Flash Low/Medium, Speech Formatter сохранён | Sol Medium — отдельная настройка/приёмка, не заявлен включённым |
+| Расходы | Owner policy восстановлена, hash checked; ledgers/caps не сброшены; paid developer0 | Реальный счёт/voice duration при ручной пробе |
+
+Текущий code/runtime, backup и ограничения — CURRENT_STATUS.md §34.

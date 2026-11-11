@@ -129,6 +129,11 @@ class Service:
             async with asyncio.timeout(self.settings.timeout):
                 mark("context_start")
                 ctx=await asyncio.to_thread(self.memory.context,req)
+                mode_flow=getattr(req,'_mode_flow',None)
+                settings_req=req.model_copy(update={'device_id':mode_flow.owner}) if mode_flow else req
+                if mode_flow:
+                    settings_context=await asyncio.to_thread(self.memory.context,settings_req)
+                    if settings_context.get('pending_action'):ctx['pending_action']=settings_context['pending_action']
                 mark("context_end")
                 decision=None;widget=None;selected=req.mode;verification=None;must_gate=False;spoken_override=None;visual_frame=None
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
@@ -170,7 +175,8 @@ class Service:
                         finally:
                             work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
-                        tool_result=await self.configuration.execute(req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,req,decision.slots)
+                        tool_req=req.model_copy(update={'device_id':'realtime-device:'+mode_flow.client}) if mode_flow and decision.tool in {'timer','timer_status'} else req
+                        tool_result=await self.configuration.execute(settings_req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,tool_req,decision.slots)
                         widget=tool_result.widget
                         if decision.tool=='settings':
                             if decision.quality.get('verification_required') and not tool_result.evidence:tool_result.evidence={'abstained':True}
@@ -546,9 +552,30 @@ def create_app(settings=None):
             with __import__('contextlib').suppress(Exception):await ws.close()
     @app.post('/api/v1/chat/voice/stream',dependencies=[Depends(auth)])
     async def voice_stream(req:VoiceRequest,request:Request):
-        chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id','tts_character_limit'}))
+        flow=None
+        if req.mode_conversation_id:
+            from .conversation_modes import mode_intent
+            try:flow,req=live.modes.legacy_request(req)
+            except PermissionError as error:raise HTTPException(403,str(error))
+            intent=mode_intent(req.text)
+            ctx=await asyncio.to_thread(service.memory.context,req)
+            if intent=='end' or closing_intent(req.text,ctx)=='end_conversation':intent='end'
+            if intent:
+                flow.legacy_turn=None
+                if intent=='end':state=live.modes.end(flow)
+                else:state=live.modes.select(flow,intent)
+                async def local_mode():
+                    for item in [event(req,'tool_status',status='conversation_mode',mode=state),event(req,'final',text='',provider='local')]:
+                        yield 'event: '+item.type+'\ndata: '+item.model_dump_json()+'\n\n'
+                return StreamingResponse(local_mode(),media_type='text/event-stream')
+            flow.legacy_turn=req.turn_id;flow.last_activity=time.monotonic()
+        chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id','tts_character_limit','mode_conversation_id'}))
+        if flow:chat_req._mode_flow=flow
         trace=service.traces.get(chat_req.device_id,chat_req.trace_id or chat_req.utterance_id or chat_req.turn_id);trace.mark("memory_prepare_start")
-        replay=await service.prepare(chat_req)
+        try:replay=await service.prepare(chat_req)
+        except BaseException:
+            if flow:flow.legacy_turn=None
+            raise
         trace.mark("memory_prepare_end")
         async def generate():
             iterator=voiced_events(service,speech,chat_req,speak=req.speak,tts_provider=req.tts_provider,tts_voice=req.tts_voice,paid_tts_consent=req.paid_tts_consent,replay=replay,prepared=True,tts_character_limit=req.tts_character_limit)
@@ -557,7 +584,9 @@ def create_app(settings=None):
                     if item['type']=='audio_chunk':trace.mark('audio_transport_send')
                     if item['type']=='final':item['data']['telemetry']=trace.snapshot()
                     yield 'event: '+item['type']+'\ndata: '+json.dumps(item,ensure_ascii=False)+'\n\n'
-            finally:await iterator.aclose()
+            finally:
+                await iterator.aclose()
+                if flow and flow.legacy_turn==chat_req.turn_id:flow.legacy_turn=None;flow.last_activity=time.monotonic()
         return StreamingResponse(generate(),media_type='text/event-stream',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})
     @app.get('/api/v1/turns/{turn_id}',dependencies=[Depends(auth)])
     async def turn_status(turn_id:str):

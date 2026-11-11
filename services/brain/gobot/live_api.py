@@ -21,7 +21,8 @@ def attach_brain_live(app,manager,auth):
         return {'engine':'gpt_live','requested_version':'1.1','actual_candidate_model':LIVE_MODEL,'version_1_1_verified':False,
             'enabled':manager.owner_testing.policy().live_enabled and (not binding or manager.owner_testing.authorized(binding)),'delegation':'client','store':False,
             'billing':manager.budget.status(),'active_sessions':sum(not s.closed for s in manager.sessions.values()),
-            'default_changed':False,'iphone_verified':False,'private_memory_ready':False,'silent_backend_llm':False,
+            'default_changed':True,'product_default_engine':'live','conversation_modes':['live','legacy'],'idle_seconds':10,
+            'wake_word_ready':False,'iphone_verified':False,'private_memory_ready':False,'silent_backend_llm':False,
             'general_backend_ready':manager.owner_testing.policy().live_backend_enabled,'general_backend_model':'gpt-6-luna',
             'general_backend_input_limit':2048,'general_backend_output_limit':512,'general_backend_concurrency':1}
     @app.post('/api/v1/live/sessions',dependencies=[Depends(auth)])
@@ -34,7 +35,8 @@ def attach_brain_live(app,manager,auth):
             profile=await asyncio.to_thread(devices.profile,scope)
             s,answer=await manager.start(offer,profile)
             return {'session_id':s.id,'sdp':answer,'model':LIVE_MODEL,'voice':s.config['audio']['output']['voice'],
-                'configuration_confirmed':s.ready,'delegation':'client','store':False,'memory_mode':'guest_ram_only'}
+                'configuration_confirmed':s.ready,'delegation':'client','store':False,'memory_mode':'guest_ram_only',
+                'mode_conversation_id':s.mode_flow.id if s.mode_flow else None}
         except PermissionError as error:raise HTTPException(403,str(error))
         except (ValueError,ValidationError):raise HTTPException(409,'invalid_or_busy_live_session')
         except RuntimeError as error:
@@ -79,14 +81,47 @@ def attach_brain_live(app,manager,auth):
     async def session_status(ident:str,device_id:str,client_id:str,profile_epoch:str=''):
         valid_id(ident)
         s=owned(ident,{'device_id':device_id,'client_id':client_id,'profile_epoch':profile_epoch})
-        return {'closing':s.closing,'closed':s.closed,'reason':s.close_reason,'final_usage_confirmed':s.final_usage_confirmed}
+        return {'closing':s.closing,'closed':s.closed,'reason':s.close_reason,'final_usage_confirmed':s.final_usage_confirmed,
+            'mode':s.mode_flow.public() if s.mode_flow else None}
     @app.post('/api/v1/live/identity/close',dependencies=[Depends(auth)])
     async def close_identity(request:Request):
         body=await bounded_json(request,2000)
+        for flow in manager.modes.items.values():
+            if (flow.owner,flow.client,flow.epoch)==(body.get('device_id'),body.get('client_id'),body.get('profile_epoch')):manager.modes.end(flow,'profile_changed')
         for s in list(manager.sessions.values()):
             if not s.closed and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)==(body.get('device_id'),body.get('client_id'),body.get('profile_epoch')):
                 await manager.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'profile_changed')
         return {'closed':True}
+    @app.post('/api/v1/live/modes/{ident}/command',dependencies=[Depends(auth)])
+    async def mode_command(ident:str,request:Request):
+        from pydantic import BaseModel,ConfigDict
+        from typing import Literal
+        class Command(BaseModel):
+            model_config=ConfigDict(extra='forbid')
+            action:Literal['activity','live','legacy','end']
+            input_active:bool=False
+            playback_active:bool=False
+        body=await bounded_json(request,2000)
+        scope={k:body.pop(k,None) for k in ['device_id','client_id','profile_epoch']}
+        try:
+            parsed=Command.model_validate(body)
+            flow=manager.modes.owned(valid_id(ident),scope['device_id'],scope['client_id'],scope['profile_epoch'])
+            if parsed.action=='end':
+                manager.modes.end(flow,'conversation_ended')
+                s=manager.sessions.get(flow.provider_session)
+                if s and not s.closed:await manager.close(s.id,flow.owner,flow.client,flow.epoch,'conversation_ended')
+            elif parsed.action=='activity':
+                if flow.active:manager.modes.activity(flow,parsed.input_active,parsed.playback_active)
+            else:
+                if flow.legacy_turn:raise PermissionError('conversation_mode_busy')
+                manager.modes.select(flow,parsed.action)
+                s=manager.sessions.get(flow.provider_session)
+                if s and not s.closed:
+                    if parsed.action=='legacy':await manager.close(s.id,flow.owner,flow.client,flow.epoch,'mode_switch')
+                    else:raise PermissionError('conversation_mode_already_live')
+            return flow.public()
+        except ValidationError:raise HTTPException(422,'invalid_mode_command')
+        except PermissionError as error:raise HTTPException(403,str(error))
     @app.post('/api/v1/live/sessions/{ident}/speaker',dependencies=[Depends(auth)])
     async def speaker(ident:str,request:Request,device_id:str,client_id:str,segment_id:str,profile_epoch:str=''):
         valid_id(ident)
@@ -117,7 +152,7 @@ def attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
     @app.post('/api/live/sessions')
     async def create(request:Request):
         body=await bounded_json(request)
-        allowed={'session_id','conversation_id','sdp','consent','requested_model','requested_voice','requested_expert_profile','personalization_mode','input_mode','remember','speaker_consent','client_kind'}
+        allowed={'session_id','conversation_id','sdp','consent','requested_model','requested_voice','requested_expert_profile','personalization_mode','input_mode','remember','speaker_consent','client_kind','conversation_mode','mode_conversation_id'}
         if set(body)-allowed:raise HTTPException(422,'live_client_configuration_denied')
         body.update(await identity(request))
         device='browser-'+request.client.host.replace('.','-')
@@ -137,6 +172,11 @@ def attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
         try:LiveCommand.model_validate(body)
         except ValidationError:raise HTTPException(422,'invalid_live_command')
         body.update(await identity(request));return await forward('POST','/sessions/'+ident+'/command',body=body,timeout=25)
+    @app.post('/api/live/modes/{ident}/command')
+    async def mode_command(ident:str,request:Request):
+        valid_id(ident);body=await bounded_json(request,2000)
+        if set(body)-{'action','input_active','playback_active'}:raise HTTPException(422,'invalid_mode_command')
+        body.update(await identity(request));return await forward('POST','/modes/'+ident+'/command',body=body,timeout=25)
     @app.get('/api/live/sessions/{ident}/events')
     async def events(ident:str,request:Request):
         valid_id(ident)

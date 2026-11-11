@@ -28,6 +28,8 @@ class LiveOffer(BaseModel):
     requested_expert_profile:ExpertProfileName|None=None
     client_kind:Literal['panel','device']='device'
     developer_acceptance:bool=False
+    conversation_mode:Literal['standalone','unified']='standalone'
+    mode_conversation_id:str|None=Field(default=None,pattern=ID)
 
 class LiveCommand(BaseModel):
     model_config=ConfigDict(extra='forbid')

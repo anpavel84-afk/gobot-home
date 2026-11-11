@@ -33,9 +33,11 @@
      requested_model:'gpt-live-1',requested_voice:settings.voice||'marin',personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',
      requested_expert_profile:document.getElementById('realtime-expert-profile')?.value||undefined,
      speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,remember:settings.remember,
-     input_mode:document.getElementById('live-input-mode')?.value||'continuous',client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
+     input_mode:document.getElementById('live-input-mode')?.value||'continuous',client_kind:window.GoBotHooks?.clientKind||'panel',
+     ...(window.GoBotUnified?.enabled?{conversation_mode:'unified',mode_conversation_id:window.GoBotUnified.id}: {})},this.abort.signal);
     if(generation!==this.generation)throw Error('Запуск отменён');
     if(!answer.configuration_confirmed||answer.model!=='gpt-live-1'||answer.delegation!=='client')throw Error('Live не подтвердил модель или безопасную конфигурацию');
+    if(window.GoBotUnified?.enabled)window.GoBotUnified.id=answer.mode_conversation_id;
     await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});
     await this.connected(pc,this.abort.signal);
     this.events=new EventSource('/api/live/sessions/'+id+'/events');this.events.onmessage=e=>{if(generation===this.generation)this.event(JSON.parse(e.data));};this.events.onerror=()=>{if(generation===this.generation)void this.transportEnded('events_disconnected');};
@@ -68,7 +70,7 @@
     try{
      const response=await this.fetcher('/api/live/sessions/'+id+'/status',{cache:'no-store',signal:controller.signal});
      if(response.ok){const state=await response.json();if(generation!==this.generation)return;
-      if(state.closed){await this.close(state.final_usage_confirmed?'Live завершён. Микрофон выключен.':'Микрофон выключен; финальный usage ещё не подтверждён.',state.reason||reason,true);return;}
+      if(state.closed){this.closedMode=state.mode;this.finalUsageConfirmed=state.final_usage_confirmed===true;await this.close(state.final_usage_confirmed?'Live завершён. Микрофон выключен.':'Микрофон выключен; финальный usage ещё не подтверждён.',state.reason||reason,true);return;}
       if(state.closing){this.preparingClose(state.reason);return;}
      }
     }catch(_){}finally{clearTimeout(timeout);}
@@ -99,6 +101,7 @@
    if(event.type==='closing')this.preparingClose(data.reason);
    if(event.type==='visual_status')document.getElementById('realtime-visual-status')?.replaceChildren(document.createTextNode(data.message||''));
    if(event.type==='closed'){
+    this.closedMode=data.mode;this.finalUsageConfirmed=data.final_usage_confirmed===true;
     const message=data.reason==='profile_changed'?'Профиль изменён. Начните новый безопасный разговор.':data.reason==='speaker_changed_or_uncertain'?'Голос изменился или не подтверждён. Старый контекст закрыт; можно начать гостевой разговор.':data.final_usage_confirmed?'Live завершён. Микрофон выключен.':'Live закрыт локально; финальный usage ещё не подтверждён.';
     void this.close(message,data.reason||'user_stop',true);
    }
@@ -136,7 +139,7 @@
     await Promise.resolve(); // Publish the shared close promise before a synchronous terminal path clears it.
     try{if(id&&!serverClosed)await this.api('sessions/'+id+'/command',{command_id:uuid(),action:'end',reason:['page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected'].includes(reason)?reason:'user_stop'});}
     catch(_){this.status(message+' Подтверждение закрытия сервера не получено.');}
-    finally{this.id=null;this.closing=null;this.serverClosingReason=null;window.GoBotHooks?.onNativeClosed?.({reason,message,error:!['user_stop','idle_timeout','conversation_ended','session_time_limit','settings_changed','profile_changed','speaker_changed_or_uncertain','owner_mode_disabled'].includes(reason)});}
+    finally{this.id=null;this.closing=null;this.serverClosingReason=null;window.GoBotHooks?.onNativeClosed?.({reason,message,error:!['mode_switch','user_stop','idle_timeout','conversation_ended','session_time_limit','settings_changed','profile_changed','speaker_changed_or_uncertain','owner_mode_disabled'].includes(reason)});window.GoBotUnified?.liveClosed(this.closedMode,this.finalUsageConfirmed,reason);this.closedMode=null;this.finalUsageConfirmed=false;}
    })();return this.closing;
   }
  }

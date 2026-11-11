@@ -104,3 +104,15 @@ through Responses, while Live retains delegation.type=client. Max 2048 input tok
 (provider count before generation), max512 output, reasoning=none, one concurrent request,
 no tools/retries, within the Owner Full Test $10/day estimate; developer acceptance max4 calls.
 This does not change B, authorize other text models, or renew the exhausted 2 Live developer sessions.
+
+OWNER DIRECT 2026-11-11 unified conversation supersedes the explicit-C-only default rule:
+root / and /device start in C (gpt-live-1/client + approved Luna). Exact "экспертный режим"
+switches the active conversation to the existing A STT/CLI/SpeechFormatter/TTS path;
+"живой разговор" returns to C. A's existing AUTO Flash models are preserved; Sol Medium
+is a proposed future profile, not silently substituted. A/B/C comparison URLs stay intact.
+End/"стоп" or 10 seconds of idle after actual playback ends resets selection to C WITHOUT
+opening C. Only a new activation starts a paid connection. Close must finalize before A.
+Mode scope is server-owned guest RAM, bound to principal/client/profile epoch, not private
+memory authorization. Never claim local Russian wake-word readiness from mode fixtures.
+Current keyword detector is unconfigured: browser testing uses explicit Start. Wake needs
+separate installed/calibrated local detector and first-word buffering; no continuous cloud STT.

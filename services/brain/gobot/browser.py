@@ -465,7 +465,14 @@ def create_browser_app(settings=None):
 
     @app.get("/")
     async def index():
-        return FileResponse(ROOT / "services/phone/dist/browser.html", media_type="text/html")
+        return unified_page('browser.html')
+
+    def unified_page(name):
+        html=(ROOT/'services/phone/dist'/name).read_text(encoding='utf-8')
+        html=html.replace('<body','<body data-conversation-engine="live" data-unified="true"',1)
+        html=html.replace('</head>','<script src="/unified.js" defer></script></head>')
+        html=html.replace('Браузерный прототип','GoBot · C ↔ A')
+        return HTMLResponse(html,headers={'Cache-Control':'no-store','X-GoBot-Conversation':'live-legacy-unified'})
 
     @app.api_route('/api/telemetry/{ident}',methods=['GET','POST'])
     async def telemetry(request:Request,ident:str):
@@ -482,7 +489,7 @@ def create_browser_app(settings=None):
         return JSONResponse(result.json(),status_code=result.status_code)
 
     @app.get('/device')
-    async def device_page():return FileResponse(ROOT/'services/phone/dist/device.html',media_type='text/html')
+    async def device_page():return unified_page('device.html')
 
     @app.get('/api/device/profile')
     async def device_profile(request:Request):
@@ -531,6 +538,7 @@ def create_browser_app(settings=None):
     async def static(asset: str):
         assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','live.js','realtime-speaker.js','expert-ui.js','owner-test-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
+        assets['unified.js']='text/javascript'
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'
         if asset not in assets:

@@ -73,6 +73,7 @@
       document.addEventListener('visibilitychange',()=>{if(document.hidden)this.pause('Прослушивание приостановлено. Нажми «Возобновить GoBot».');});
       window.addEventListener('pagehide',()=>this.pause('Приостановлено'));window.addEventListener('offline',()=>{this.pause('Нет сети. После подключения возобнови GoBot.');this.state('offline');});
       window.addEventListener('online',()=>this.status('Сеть восстановлена. Нажми «Возобновить GoBot».'));
+      window.GoBotUnified?.bindHooks();
       try{const result=await(await fetch('/api/device/timers')).json();const timer=result.timers?.[0];if(timer){this.turn='restored-timer';this.manager.newTurn(this.turn);this.manager.frame({id:timer.id,type:'timer_widget',title:'Таймер',metadata:timer,images:[]},this.turn);this.manager.state='idle';this.manager.finish(this.turn);}}catch(_){}
       this.diagnostics={client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation};
       document.getElementById('device-diagnostics').textContent=JSON.stringify({client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation},null,2);
@@ -116,7 +117,7 @@
     }
     checkFollowup(audio){
       if(activeVoice()?.selected())return;
-      const policy=this.profile.conversation;
+      const policy=window.GoBotUnified?.enabled&&window.GoBotUnified.mode==='legacy'?{...this.profile.conversation,followup_enabled:true,followup_seconds:10}:this.profile.conversation;
       if(!this.enabled||!policy?.followup_enabled||!this.sessionActive||!this.serverAudioEnded||!this.answerPlaybackStarted||audio.playing||audio.feedback_playing||this.followupPending)return;
       this.followupPending=true;const epoch=this.sessionEpoch,turn=this.turn;
       this.followupTimer=setTimeout(async()=>{
