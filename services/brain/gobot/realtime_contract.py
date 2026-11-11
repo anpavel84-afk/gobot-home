@@ -55,6 +55,7 @@ class RealtimePolicy(Strict):
     allowed_client_id: str|None = Field(default=None,pattern=ID)
     expert_jobs_allowed: bool = False
     image_generation_allowed: bool = False
+    device_settings_allowed: bool = False
     owner_assistant_preferences:dict|None=None
 
     @field_validator('owner_assistant_preferences')
@@ -66,6 +67,8 @@ class RealtimePolicy(Strict):
 
     @model_validator(mode='after')
     def unlimited_requires_owner_interactive(self):
+        if self.device_settings_allowed and (self.audience!='owner_interactive' or not self.allowed_client_id):
+            raise ValueError('Device settings capability requires an explicitly bound owner client')
         if self.owner_assistant_preferences is not None and (self.audience!='owner_interactive' or not self.allowed_client_id):
             raise ValueError('Owner conversation style requires an explicitly bound owner client')
         if any(getattr(self,key) is None for key in ('expires_at','max_sessions','max_responses_per_session','max_session_seconds','observed_token_limit')):
