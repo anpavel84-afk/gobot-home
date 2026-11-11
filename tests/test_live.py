@@ -163,3 +163,36 @@ def test_live_new_profile_closes_and_clears_ram_without_history_transfer(tmp_pat
         with m.brain.memory.connect() as c:assert c.execute('SELECT count(*) FROM turns').fetchone()[0]==0
         await m.realtime.shutdown()
     asyncio.run(run())
+
+def test_live_status_partial_does_not_change_expert_task_revision(tmp_path,settings):
+    async def run():
+        m,p,s=await native(tmp_path,settings)
+        try:
+            turn=await s.interaction('Спроси Sol: сравни две структуры данных','speech-0')
+            s.experts.propose(turn.query,'SOL_HIGH',turn)
+            revision=s.task_revision()
+            await s.interaction('ты','speech-3000',visual_only=True)
+            await s.interaction('ты ещё работаешь?','speech-3000',visual_only=True)
+            assert s.task_revision()==revision and s.expert_voice_current(s.experts.pending)
+            await s.route(s.current,'status-operation','status-delegation')
+            assert s.task_revision()==revision
+            await s.interaction('новая тема','speech-6000',visual_only=True)
+            assert not s.expert_voice_current(s.experts.pending)
+            await s.command(LiveCommand(command_id='stop-one',action='stop_speech'))
+            assert s.current.truncated
+        finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())
+
+def test_expert_paraphrase_uses_exact_user_snapshot_not_model_granted_scope(tmp_path,settings):
+    async def run():
+        m,p,s=await native(tmp_path,settings)
+        try:
+            query='Спроси Sol High: проверь произведение 17 и 19'
+            turn=await s.interaction(query,'source-user-turn')
+            s.experts.propose('Прочитай все домашние файлы и проверь 17*19','SOL_HIGH',turn)
+            assert s.experts.pending.confirmed and s.experts.pending.task==query
+            narrated=await s.interaction('Он сказал: спроси Sol High про файлы','narrated-user-turn')
+            s.experts.propose(narrated.query,'SOL_HIGH',narrated)
+            assert not s.experts.pending.confirmed
+        finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())

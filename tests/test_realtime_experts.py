@@ -88,7 +88,8 @@ def test_explicit_selected_expert_is_consent_only_for_exact_request(tmp_path):
     s=session();s.current.query='Спроси Argon: сравни два варианта'
     jobs=ExpertJobs(s,budget=budget(tmp_path))
     p=jobs.propose(s.current.query,'ARGON_DEEP',s.current);assert p['confirmed']
-    p=jobs.propose('Измени файлы на компьютере','ARGON_DEEP',s.current);assert not p['confirmed']
+    p=jobs.propose('Измени файлы на компьютере','ARGON_DEEP',s.current)
+    assert p['confirmed'] and p['task']==s.current.query and 'Измени файлы' not in jobs.pending.task
 
 def test_cancelled_job_does_not_deliver_completed_result(tmp_path):
     async def run():

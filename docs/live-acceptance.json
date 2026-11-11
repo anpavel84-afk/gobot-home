@@ -1,0 +1,39 @@
+{
+  "synthetic_only": true,
+  "requested_model": "gpt-live-1",
+  "requested_version": "1.1",
+  "actual_model": "gpt-live-1",
+  "session_started": true,
+  "physical_iphone": false,
+  "acoustic_quality_verified": false,
+  "auto_retries": 0,
+  "separate_stt_tts_calls": 0,
+  "create_http": 200,
+  "cold_setup_ms": 1998.15,
+  "voice": "marin",
+  "webrtc_connected": true,
+  "timer_command_ms": 1443.1,
+  "timer_widget": true,
+  "timer_expired": true,
+  "decoded_audible_frames": 129,
+  "first_decoded_audio_after_tool_ms": 1222.53,
+  "heard_useful_word_ms": null,
+  "event_types": [
+    "input_transcript",
+    "ready",
+    "speaker_readiness",
+    "speaker_segment",
+    "text_delta",
+    "timer_expired",
+    "turn_started",
+    "visual_response"
+  ],
+  "close": {
+    "closed": true,
+    "final_usage_confirmed": true
+  },
+  "test_kind": "typed_timer",
+  "setup_measurement_scope": "backend_create_and_attach_excludes_local_ICE_and_microphone",
+  "voice_seconds_final": 15,
+  "voice_estimated_usd": 0.0125
+}

@@ -42,5 +42,6 @@ class NativeSpeakerIdentity:
                    ui_identity='tentative_match' if profile else 'unknown',segment_id=segment)
             if s.personalization and profile!=s.access.confirmed_profile_id or changed:
                 await s.manager.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'speaker_changed_or_uncertain')
+            elif hasattr(s,'speaker_cycle'):s.speaker_cycle()
         s.spawn(identify())
         return {'accepted':True,'local_only':True,'raw_audio_saved':False,'external_stt_calls':0}

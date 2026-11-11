@@ -1,0 +1,12 @@
+[
+  {
+    "model": "gpt-6-luna",
+    "http": 200,
+    "generation_tested": false
+  },
+  {
+    "model": "gpt-6.1-sol",
+    "http": 200,
+    "generation_tested": false
+  }
+]

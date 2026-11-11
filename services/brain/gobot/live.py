@@ -43,6 +43,9 @@ def short_chunks(text):
         chunk+=char
     if chunk:yield chunk
 
+def status_query(query):
+    return bool(re.fullmatch(r'(?:ты )?(?:ещ[её] )?(?:работаешь|думаешь|готово|закончил)[?!. ]*',query.casefold()))
+
 class LiveSession(VoiceVisualSession):
     def __init__(self,manager,offer,profile,limit):
         self.manager=manager;self.offer=offer;self.profile=profile.model_copy(deep=True);self.id=offer.session_id
@@ -106,6 +109,8 @@ class LiveSession(VoiceVisualSession):
     def settings_request(self,text,turn):return self.request(text,turn).model_copy(update={'device_id':self.offer.device_id})
     def can_configure_device(self):return self.experts.owner_public_allowed() and self.manager.owner_testing.policy().device_settings_enabled
     def expert_audit(self,stage,reasons=()):self.emit('expert_progress',stage=stage,reasons=list(reasons))
+    def speaker_cycle(self):
+        if not self.closed and not self.closing:self.emit('speaker_segment',segment_id=self.speaker.begin())
 
     async def initialize(self):
         instructions=LIVE_INSTRUCTIONS;history=[];voice=self.profile.voice.voice or self.offer.requested_voice
@@ -203,11 +208,12 @@ class LiveSession(VoiceVisualSession):
             return self.current
         if self.current and self.current.photo:await self.current.photo.close()
         if self.current and not self.current.stored:await self.finish_turn(False)
-        status_only=bool(re.fullmatch(r'(?:ты )?(?:ещ[её] )?(?:работаешь|думаешь|готово|закончил)[?!. ]*',query.casefold()))
+        status_only=status_query(query)
         confirmation=bool(self.experts.pending and self.experts.pending.state=='awaiting_confirmation' and re.fullmatch(r'(?:да|нет|подтверждаю|согласен)(?:[ ,].*)?',query.casefold()))
-        if not status_only and not confirmation:self.revision+=1
+        if not visual_only and not status_only and not confirmation:self.revision+=1
         self.speech_stopped=False
         self.interaction_id=interaction_id;turn=NativeTurn(str(uuid4()),query=query);self.current=turn;self.turns.append(turn)
+        turn.task_revision_committed=not visual_only
         if str(interaction_id).startswith('speech-'):turn.timings['input_start_ms']=int(interaction_id[7:])
         turn.req=self.request(query,turn.id);await self.manager.brain.prepare(turn.req)
         self.emit('turn_started')
@@ -218,6 +224,7 @@ class LiveSession(VoiceVisualSession):
     async def finish_turn(self,heard):
         turn=self.current
         if not turn:return
+        if not heard:turn.truncated=True
         if turn.stored:
             if heard and not self.speech_stopped and turn.req:await asyncio.to_thread(self.manager.brain.memory.complete_native_continuation,turn.req,turn.answer,'openai:'+LIVE_MODEL,turn.trace)
             return
@@ -247,6 +254,10 @@ class LiveSession(VoiceVisualSession):
             await self.append('commentary','Результат '+job.profile['requested_label']+'. '+summary,job.delegation_id)
         else:await self.append('commentary','Экспертная задача '+job.state+'. Готового вывода нет; обычный разговор доступен.',job.delegation_id)
 
+    def expert_voice_current(self,job):
+        return bool(not self.closing and not self.input_active and not self.playback_active and self.current and
+            (self.current.id==job.confirmation_turn_id or status_query(self.current.query)))
+
     async def route(self,turn,operation,did):
         from .quick_intents import resolve_quick
         from .presentation import PresentationDecision
@@ -257,6 +268,14 @@ class LiveSession(VoiceVisualSession):
         if operation in self.operations:return
         self.operations[operation]='checking'
         pending=self.experts.pending
+        if status_query(query):
+            state=pending.state if pending else None
+            message='Эксперт ещё работает; готового результата пока нет.' if state in {'queued','running'} else 'Разбор готов; полный результат доступен в карточке.' if state=='completed' else 'Сейчас активного экспертного разбора нет.'
+            await self.append('commentary',message,did);return
+        confirmation=bool(pending and pending.state=='awaiting_confirmation' and re.fullmatch(r'(?:да|нет|подтверждаю|согласен)(?:[ ,].*)?',query.casefold()))
+        if not getattr(turn,'task_revision_committed',False):
+            if not confirmation:self.revision+=1
+            turn.task_revision_committed=True
         if pending and pending.state=='awaiting_confirmation':
             self.experts.observe(query)
             if pending.state=='cancelled':
@@ -359,7 +378,9 @@ class LiveSession(VoiceVisualSession):
             finally:self.acks.pop(ident,None)
             return {'accepted':True}
         if action=='stop_speech':
-            self.speech_stopped=True;self.emit('playback_cleared');await self.append('instructions','Прекратите текущую речь. Не продолжайте её хвост. Дождитесь нового сообщения пользователя.',None)
+            self.speech_stopped=True
+            if self.current:self.current.truncated=True
+            self.emit('playback_cleared');await self.append('instructions','Прекратите текущую речь. Не продолжайте её хвост. Дождитесь нового сообщения пользователя.',None)
         elif action=='cancel_task':
             output=await self.experts.cancel(command.job_id);self.emit('expert_job',job=output)
         elif action=='activity':

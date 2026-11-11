@@ -31,6 +31,11 @@ def profile_in_text(text):
     if re.search(r'\b(?:sol|сол|солу|соля)\b',text,re.I):return 'SOL_XHIGH' if re.search(r'\b(?:xhigh|extra high|экстра хай)\b',text,re.I) else 'SOL_HIGH'
     return None
 
+def explicit_expert_command(text,profile):
+    # Only the actual user's imperative can grant this task. Quoted/narrated commands cannot.
+    value=text.strip()
+    return bool(profile_in_text(value)==profile and re.match(r'^(?:(?:а|пожалуйста|ты)[, ]+)*(?:спроси|подключи|передай|отправь|адресуй|попроси|пусть)\b',value,re.I))
+
 def normalize_result(text,profile):
     text=text.strip()
     if not text or len(text)>24000:raise ValueError('invalid_expert_result')
@@ -144,9 +149,13 @@ class ExpertJobs:
         job.remember=bool(getattr(self.session.offer,'remember',False) and job.profile_id and job.profile_epoch)
         job.already_explained=turn.answer[:2000]
         # Explicit user request can authorize precisely this task, never a model's paraphrase.
-        explicit=profile_in_text(turn.query)==profile and bool(re.search(r'спроси|подключи|передай|пусть.*(?:разбер|провер)',turn.query,re.I))
+        explicit=explicit_expert_command(turn.query,profile)
         previous=getattr(self.session.turns[-2],'query',None) if len(self.session.turns)>1 else None
-        job.confirmed=bool(explicit and (task==turn.query or previous and task==previous))
+        if explicit:
+            # Keep an exact permitted source snapshot. A model's task paraphrase never defines consent scope.
+            reference_only=bool(re.fullmatch(r'(?:спроси|подключи|передай|отправь|адресуй)\s+(?:(?:этот|предыдущий|последний)\s+(?:вопрос|задачу)\s+)?(?:sol|сол|солу|argon|аргон|astra|астра|астру)(?:\s+(?:high|hi|хай|medium|медиум|extra high|xhigh|экстра хай))?(?:\s+(?:этот вопрос|эту задачу|для глубокого анализа))?[.!? ]*',turn.query,re.I))
+            job.task=previous if reference_only and previous and task==previous else turn.query
+        job.confirmed=bool(explicit)
         if job.confirmed:job.confirmation_turn_id=getattr(turn,'id',None)
         self.jobs[job.id]=job;self.pending=job
         return self.public(job)
@@ -282,6 +291,7 @@ class ExpertJobs:
         job.returned=True
         same_owner=self.authorized_owner(job)
         current=(job.revision==self.revision() and same_owner and s.current is not None and not s.current.cancelled)
+        if hasattr(s,'expert_voice_current'):current=current and s.expert_voice_current(job)
         if hasattr(s,'expert_completed'):
             if same_owner and job.result:s.emit('expert_result',job=self.public(job),result=job.result,voice_deferred=not current)
             await s.expert_completed(job,current)

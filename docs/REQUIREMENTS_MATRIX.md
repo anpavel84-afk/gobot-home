@@ -338,3 +338,9 @@ Runtime и публикация фиксируются в CURRENT_STATUS.md §28
 | Общий reasoning backend | Не подключён; отдельное решение владельца, не скрытый CLI или новая LLM |
 | Private persistent memory | Пока отсутствует в native C; guest RAM не считается долговременной памятью |
 | Real audio / iPhone | Не доказаны 1286 free tests; controlled canary и физическая приёмка отдельно |
+
+C real: Live1/marin/SDP/sideband/decoded PCM/timer/Close подтверждены,
+2 sessions final87s, estimate$0.0725. Voice expert synthetic input misrecognized,
+CLI0; не принят. B typed expert proposal получена, start0/CLI0; исправлен canonical
+consent scope и next_action, повторная проверка после deployment. iPhone pending.
+Подробные условия и source/runtime — CURRENT_STATUS §31.

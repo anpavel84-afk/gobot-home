@@ -9,17 +9,40 @@ from uuid import uuid4
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'services/brain'))
 
-async def run():
+async def run(voice_expert=False):
     import httpx,numpy as np
     from aiortc import RTCPeerConnection,RTCSessionDescription,AudioStreamTrack
+    from av import AudioFrame
+    from fractions import Fraction
     from gobot.owner_testing import OwnerTesting
+    from gobot.device_store import DeviceStore
     policy=OwnerTesting(ROOT/'run/owner-testing').policy()
     if not policy.enabled or not policy.live_enabled or policy.developer_live_limit<1:raise SystemExit('Developer Live admission required')
     keys=json.loads((ROOT/'run/keys.json').read_text());headers={'Authorization':'Bearer '+keys['api_token']}
-    appid='live-canary-'+uuid4().hex;clientid='live-canary-device';owner='browser-live-canary'
-    base='http://127.0.0.1:18781/api/v1/live';pc=RTCPeerConnection();pc.addTrack(AudioStreamTrack());pc.createDataChannel('oai-events')
+    synthetic_task='Спроси Сол: сравни очередь и стек. Дай короткий вывод из двух предложений.'
+    samples=None
+    if voice_expert:
+        from gobot.audio import Speech
+        pcm,rate=await asyncio.to_thread(Speech().denis_sync,synthetic_task)
+        original=np.frombuffer(pcm,dtype=np.int16)
+        samples=np.interp(np.arange(int(len(original)*48000/rate))*rate/48000,np.arange(len(original)),original).astype(np.int16)
+    class CanaryInput(AudioStreamTrack):
+        def __init__(self):super().__init__();self.pcm=np.zeros(0,dtype=np.int16);self.pts=0;self.clock=None
+        async def recv(self):
+            if self.clock is None:self.clock=time.monotonic()
+            await asyncio.sleep(max(0,self.clock+self.pts/48000-time.monotonic()))
+            data=np.zeros(960,dtype=np.int16);count=min(len(self.pcm),960);data[:count]=self.pcm[:count];self.pcm=self.pcm[count:]
+            frame=AudioFrame.from_ndarray(data.reshape(1,-1),format='s16',layout='mono');frame.sample_rate=48000;frame.pts=self.pts;frame.time_base=Fraction(1,48000);self.pts+=960;return frame
+    microphone=CanaryInput()
+    appid='live-canary-'+uuid4().hex;owner='browser-live-canary'
+    devices=DeviceStore(ROOT/'data/browser-devices')
+    profile=devices.profile(owner+'@127.0.0.1')
+    clientid=profile.client_id
+    base='http://127.0.0.1:18781/api/v1/live';pc=RTCPeerConnection();pc.addTrack(microphone);pc.createDataChannel('oai-events')
     report={'synthetic_only':True,'requested_model':'gpt-live-1','requested_version':'1.1','actual_model':None,
-        'session_started':False,'physical_iphone':False,'acoustic_quality_verified':False,'auto_retries':0,'separate_stt_tts_calls':0}
+        'session_started':False,'physical_iphone':False,'acoustic_quality_verified':False,'auto_retries':0,'separate_stt_tts_calls':0,
+        'setup_measurement_scope':'backend_create_and_attach_excludes_local_ICE_and_microphone',
+        'test_kind':'synthetic_voice_expert' if voice_expert else 'typed_timer'}
     events=[];received=[];tasks=[];sse=None;session_created=False
     @pc.on('track')
     def track(remote):
@@ -54,6 +77,25 @@ async def run():
                 await asyncio.sleep(.1)
             if pc.connectionState!='connected':raise RuntimeError('canary_webrtc_not_connected')
             report['webrtc_connected']=True
+            if voice_expert:
+                requested=time.monotonic();microphone.pcm=samples
+                deadline=requested+65
+                while time.monotonic()<deadline:
+                    jobs=[e.get('data',{}).get('job',{}) for e in events if e['type']=='expert_job']
+                    if any(j.get('state') in {'completed','failed','timed_out'} for j in jobs):break
+                    await asyncio.sleep(.2)
+                jobs=[e.get('data',{}).get('job',{}) for e in events if e['type']=='expert_job']
+                report['expert_unique_jobs']=len({j.get('job_id') for j in jobs})
+                report['expert_states']=list(dict.fromkeys(j.get('state') for j in jobs))
+                report['expert_actual']=jobs[-1].get('expert') if jobs else None
+                report['native_input_transcript']=''.join(e.get('data',{}).get('text','') for e in events if e['type']=='live_input_delta')
+                result_events=[e for e in events if e['type']=='expert_result']
+                report['expert_result_card']=bool(result_events)
+                report['expert_elapsed_ms']=round((time.monotonic()-requested)*1000,2)
+                await asyncio.sleep(8)
+                report['decoded_audible_frames']=len(received)
+                report['event_types']=sorted({e['type'] for e in events})
+                return report
             tool_start=time.monotonic();await command('text',text='Поставь таймер на пять секунд')
             report['timer_command_ms']=round((time.monotonic()-tool_start)*1000,2)
             await asyncio.sleep(9)
@@ -76,8 +118,8 @@ async def run():
     return report
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--real',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--real',action='store_true');parser.add_argument('--voice-expert',action='store_true');args=parser.parse_args()
     if not args.real:raise SystemExit('Use --real only with owner-approved bounded developer budget')
-    result=asyncio.run(run())
-    target=ROOT/'docs/live-acceptance.json';target.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    result=asyncio.run(run(args.voice_expert))
+    target=ROOT/('docs/live-expert-acceptance.json' if args.voice_expert else 'docs/live-acceptance.json');target.write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps(result,ensure_ascii=False))

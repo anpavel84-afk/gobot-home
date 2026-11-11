@@ -1674,3 +1674,37 @@ setup cancellation, cumulative 12→15s, RAM cleanup и production JS full-duple
 `scripts/live_acceptance.py --real`: серверный developer limit, synthetic silence,
 таймер, decode PCM, финальный Close; без домашнего аудио и автоматических retries.
 Runtime/результат провайдера будут дописаны после deployment/canary.
+
+C опубликован и запущен на `e86c29f` после idle-check и online SQLite backup
+`data/backups/before-expert-handoff-20261111T081338` (Brain, DeviceStore и ledgers,
+integrity=ok). Private owner policy сохранена и дополнена Live: 60 min/day,
+600s/session, developer до 2 sessions / 180s. Image20, B Mini/baseline не менялись.
+
+[Реальный canary таймера](live-acceptance.json): gpt-live-1/marin подтверждены
+session.started, WebRTC connected, настоящие timer widget/expiration, 129 декодированных
+ненулевых PCM frames, финальный Close подтверждён. Backend create+attach 1998.15ms
+**без локального ICE/microphone setup**; первая PCM-активность относительно команды
+1222.53ms. Это не первое полезное слово и не iPhone. Final15s = estimate$0.0125.
+
+[Второй Live canary](live-expert-acceptance.json): synthetic offline TTS → WebRTC,
+Live1/marin setup1508.34ms. Native transcript не сохранил команду «Спроси Сол»;
+CLI0, handoff не принят. Это не тест живого шёпота и не доказательство превосходства
+B/C. Final72s = estimate$0.06; оба Live sessions закрыты, unknown finalization0.
+Developer Live2/2 использованы, автоматического повтора нет. Синтетический входной
+Denis использован только тестом в RAM, не возвращён в продукт/ожидание/выходной голос.
+
+[B text canary](realtime-expert-acceptance.json): Mini, одна proposal SOL_HIGH,
+expert_start0/CLI0, предложение осталось awaiting_confirmation, idle close штатный.
+Расход Realtime estimate$0.0122114, private/home transcripts не использовались.
+Исправление: прямое поручение теперь привязывает consent к точному серверному снимку
+ввода, вместо буквального совпадения model paraphrase. Модельная подмена scope
+отбрасывается; quoted/narrated «спроси Sol» не даёт права. Tool выдаёт next_action
+expert_start, когда задача уже подтверждена. Новые C status fragments не меняют
+task revision до готового delegated intent; Stop помечает непрослушанный хвост.
+Бесплатные целевые проверки после исправлений: 50 passed. Повторная ограниченная
+приёмка B выполняется после deployment; C Live budget заново не открывается.
+
+A: поверх неизменных baseline assets добавлен ограниченный Enable timeout. После
+8s показывается ожидание Safari/микрофона, после18s поколение операции инвалидируется,
+локальный клиент закрывается и допускает повторное включение. Зависшее ожидание
+больше не остаётся без статуса; причина на физическом Safari ещё не подтверждена.

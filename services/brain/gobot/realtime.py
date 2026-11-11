@@ -514,6 +514,8 @@ class NativeSession(VoiceVisualSession):
                 output=self.experts.propose(args['task'],args['profile'],turn)
                 self.expert_audit('proposal_created')
                 output['availability']=availability;output['accepted']=False;output['executed']=False
+                output['next_action']='expert_start' if output['confirmed'] else 'await_user_confirmation'
+                if output['confirmed']:output['message']='Точная задача уже явно поручена пользователем. Вызови expert_start с этим proposal_id; не проси повторного согласия. Пока accepted=false, CLI ещё не запущен.'
                 self.emit('expert_job',job=output)
                 await self.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,'output':json.dumps(output,ensure_ascii=False)}})
                 await self.response();return
