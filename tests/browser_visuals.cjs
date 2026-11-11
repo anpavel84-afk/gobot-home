@@ -25,11 +25,11 @@ assert(!root.textContent.includes('INTERNAL'));assert(root.textContent.includes(
 renderer.begin();renderer.render(frame);
 assert.equal(renderer.render({...frame,id:'map',type:'rich_answer',images:[],metadata:{backend:'answer_map',diagram_labels:['Первое понятие']}}),false);
 renderer.syncDisplay('Пояснение');assert.equal(renderer.frames.get('one').body.hidden,true);
-all(root,'img')[0].onerror();assert.match(root.textContent,/недоступно/);
+all(root,'img')[0].onerror();assert.equal(root.textContent,'');assert(root.hidden);
 renderer.begin();renderer.render({...frame,id:'gallery',type:'image_gallery',images:[image(),image('b'.repeat(64))]});assert.equal(all(root,'img').length,2);
-renderer.begin();renderer.render({...frame,id:'unsafe',title:'<script>do not run</script>',images:[{...image(),url:'http://127.0.0.1/private'}]});assert.equal(all(root,'img').length,0);assert.match(root.textContent,/<script>/);
-renderer.begin();renderer.loading();assert.doesNotThrow(()=>renderer.render({type:'image_card'}));renderer.interrupt();assert.match(root.textContent,/остановлен/);
-renderer.begin();renderer.render({...frame,id:'partial',type:'image_gallery',images:[{},null],metadata:{state:'loading'}});assert.match(root.textContent,/пока не получено/);
+renderer.begin();renderer.render({...frame,id:'unsafe',title:'<script>do not run</script>',images:[{...image(),url:'http://127.0.0.1/private'}]});assert.equal(all(root,'img').length,0);assert(root.hidden);
+renderer.begin();renderer.loading();assert.doesNotThrow(()=>renderer.render({type:'image_card'}));renderer.interrupt();assert.equal(root.textContent,'');assert(root.hidden);
+renderer.begin();renderer.render({...frame,id:'partial',type:'image_gallery',images:[{},null],metadata:{state:'loading'}});assert.equal(root.textContent,'');assert(root.hidden);
 renderer.begin();const timerId='11111111-1111-1111-1111-111111111111';renderer.render({...frame,id:'timer',type:'timer_widget',images:[],metadata:{state:'ready',deadline:clock/1000+180,timer_id:timerId}});
 assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer(timerId));
 (async()=>{await all(root,'button')[0].onclick();assert.equal(all(root,'output')[0].textContent,'Таймер остановлен');assert.equal(requests[0][0],'/api/visual/timer/cancel');assert.equal(requests[0][1].timer_id,timerId);renderer.begin();assert.equal(ticks.size,0);
@@ -58,6 +58,6 @@ assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer
   assert.deepEqual(deliveryFailures,['stage-three-failed']);
   assert(renderer.frames.has('stage-two'));assert(!renderer.frames.has('stage-three-failed'));
   renderer.begin();renderer.render({...frame,id:'fulfillment-fallback',type:'info_card',images:[],text:'Генерация отключена. Можно повторить запрос.',metadata:{state:'unavailable',facts:{visual_fulfillment:'fallback',generation_fallback_reason:'image_generation_policy_denied',source_failure_reason:'image_not_found'}}});
-  assert(root.textContent.includes('Генерация отключена'));assert(!root.textContent.includes('image_generation_policy_denied'));assert(!root.textContent.includes('visual_fulfillment'));
+  assert.equal(root.textContent,'');assert(root.hidden);assert(!root.textContent.includes('image_generation_policy_denied'));assert(!root.textContent.includes('visual_fulfillment'));
   console.log('Visual DOM units: card, gallery, partial payload, dedupe, safe paths, countdown, cancel and all 8 types passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

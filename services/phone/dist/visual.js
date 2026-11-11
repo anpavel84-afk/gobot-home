@@ -9,14 +9,21 @@
   class BrowserVisualRenderer {
     constructor(root,timerRoot=null){this.root=root;this.timerRoot=timerRoot||root;this.intervals=new Set();this.frames=new Map();this.timerCards=new Map();this.currentTimer=null;}
     begin(){if(this.timerRoot===this.root){for(const timer of this.intervals)clearInterval(timer);this.intervals.clear();this.timerCards.clear();this.currentTimer=null;}this.frames.clear();this.root.replaceChildren();this.root.hidden=true;}
-    loading(){this.root.hidden=false;this.root.replaceChildren(node('p','Подбираю визуальный ответ…','visual-progress'));this.loadingNow=true;}
-    interrupt(){if(this.loadingNow){this.loadingNow=false;this.root.replaceChildren(node('p','Поиск изображения остановлен.','visual-progress'));}}
+    loading(){this.loadingNow=true;if(!this.frames.size){this.root.replaceChildren();this.root.hidden=true;}}
+    interrupt(){this.loadingNow=false;if(!this.frames.size){this.root.replaceChildren();this.root.hidden=true;}}
     syncDisplay(text){for(const entry of this.frames.values())entry.body.hidden=!!text&&text.trim()===(entry.frame.text||'').trim();}
     hasTimer(id){return this.timerCards.has(id)||this.currentTimer===id;}
     clearScene(){for(const [id,entry] of this.frames){if(entry.frame.metadata?.transient_scene){entry.card.remove();this.frames.delete(id);}}}
     render(frame){
       if(frame?.metadata?.backend==='answer_map')return false;
       if(!frame||frame.namespace!=='gobot.ui'||frame.version!==2||!kinds.has(frame.type)||typeof frame.id!=='string')return false;
+      const avatar=frame.metadata?.avatar_fallback||frame.metadata?.transient_scene&&frame.metadata?.visual_stage==='provisional'||
+        ['image_card','image_gallery'].includes(frame.type)&&!frame.images?.some(image=>imagePath.test(image?.url||'')&&imagePath.test(image?.preview_variant||''))||frame.metadata?.state==='unavailable'&&
+        (/^(?:image_|generation_|optional_visual_|private_image_)/.test(frame.metadata?.reason||'')||frame.metadata?.facts?.visual_fulfillment==='fallback');
+      if(avatar){
+        for(const [id,entry] of this.frames)if(!entry.decoded&&entry.frame.type!=='timer_widget'){entry.card.remove();this.frames.delete(id);}
+        if(!this.frames.size){this.root.replaceChildren();this.root.hidden=true;}this.loadingNow=false;return false;
+      }
       // The two stages occupy one scene slot, never an accumulating carousel.
       const stagePrevious=[];
       if(frame.metadata?.visual_stage&&!this.frames.has(frame.id)){
@@ -45,8 +52,8 @@
         if(!image||!imagePath.test(image.url||'')||!imagePath.test(image.preview_variant||''))continue;
         const figure=node('figure');const open=node('a');open.href=image.url;open.target='_blank';open.rel='noopener';open.setAttribute('aria-label','Открыть изображение крупнее');
         const img=node('img');img.src=image.preview_variant;img.alt=image.alt||image.caption||frame.title||'Изображение';img.loading=frame.metadata?.visual_stage?'eager':'lazy';img.decoding='async';img.width=480;img.height=360;
-        img.onload=()=>{if(this.frames.has(frame.id)){replaceStage();this.onImageReady?.(frame.id,img);}};
-        img.onerror=()=>{if(!this.frames.has(frame.id))return;this.onImageError?.(frame.id);if(stagePrevious.length){card.remove();this.frames.delete(frame.id);return;}img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
+        img.onload=()=>{if(this.frames.has(frame.id)){this.frames.get(frame.id).decoded=true;replaceStage();this.onImageReady?.(frame.id,img);}};
+        img.onerror=()=>{const entry=this.frames.get(frame.id);if(!entry)return;this.onImageError?.(frame.id);figure.remove();entry.failures=(entry.failures||0)+1;if(entry.failures>=count){card.remove();this.frames.delete(frame.id);if(!this.frames.size){this.root.replaceChildren();this.root.hidden=true;}}};
         open.append(img);figure.append(open);if(image.caption)figure.append(node('figcaption',image.caption));
         const credit=node('p',undefined,'visual-credit');credit.append(node('span',(image.attribution||'')+' · '));
         for(const [label,value] of [[image.source?.label||'Источник',image.source?.url],[image.license||'Лицензия',image.license_url]]){
@@ -54,7 +61,7 @@
         }
         credit.append(node('span','Размер изменён; метаданные удалены.'));figure.append(credit);gallery.append(figure);count++;
       }
-      if(count)card.append(gallery);
+      if(count){card.append(gallery);card.hidden=true;}
       if(stagePrevious.length){if(count)card.hidden=true;else replaceStage();}
       if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};

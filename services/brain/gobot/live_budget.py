@@ -76,9 +76,10 @@ class LiveBudget:
         allowed={'mode_switch','user_stop','conversation_ended','idle_timeout','session_time_limit','owner_mode_disabled','page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected','speaker_changed_or_uncertain','server_shutdown','setup_failed','sideband_closed','provider_closed'}
         keys={'input_start_ms','input_end_ms','first_output_start_ms','client_playback_seen_ms','visual_provisional_scene_sent','visual_provisional_sent','visual_refined_sent'}
         report={'model':'gpt-live-1','reason':reason if reason in allowed else 'other','final_usage_confirmed':session.final_usage_confirmed,
+            'unified_mode':getattr(session,'mode_flow',None) is not None,
             'setup_ms':{k:v for k,v in session.timings.items() if k in {'create_ms','attach_and_ack_ms','total_ms'} and type(v) in (int,float)},
             'turns':[ {k:v for k,v in turn.timings.items() if k in keys and type(v) in (int,float)} for turn in session.turns[-64:]],
-            'events':{k:v for k,v in session.event_counts.items() if k in {'turn_started','backend_status','expert_job','expert_result','meaning_mismatch','visual_response','visual_status','warning','playback_cleared'}},
+            'events':{k:v for k,v in session.event_counts.items() if k in {'conversation_mode_switching','turn_started','backend_status','expert_job','expert_result','meaning_mismatch','visual_response','visual_status','warning','playback_cleared'}},
             'contains_conversation_content':False,'client_playback_is_signal_not_useful_word':True,'physical_iphone_verified':False,
             'clock_domains':{'input_output_offsets':'provider_media_timeline','visual_client_seen':'server_elapsed_since_application_session'}}
         with self.connect() as c:c.execute('INSERT INTO reports VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',(hashlib.sha256(session.id.encode()).hexdigest(),time.time(),json.dumps(report)))

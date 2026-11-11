@@ -112,7 +112,7 @@
     }
     visualFailed(frame,turn){
       if(!this.ready||turn!==this.currentTurn)return;
-      this.visualStatus('Изображение не загрузилось. Можно повторить запрос; голосовой ответ продолжается.');
+      if(window.GoBotHooks?.clientKind!=='device')this.visualStatus('');
       void this.command('visual_failed',{frame_id:frame,turn_id:turn}).catch(()=>{});
     }
     visualStatus(text){
@@ -166,7 +166,7 @@
       if(item.type==='speaker_segment_end')void this.speakerMirror?.flush();
       if(item.type==='speaker_identity')this.speakerStatus(item.data.state==='recognized'?'Предположительное совпадение голоса · личная память не разрешена':'Говорящий неизвестен · гостевой контекст');
       if(item.type==='turn_started'){this.clearReview();this.currentTurn=item.turn_id;this.visualStatus('');this.mic(false);this.heard=false;this.drained=false;this.response=null;window.GoBotHooks?.onTurn?.({turn_id:item.turn_id,conversation_id:item.conversation_id});}
-      if(item.type==='visual_status'&&item.turn_id===this.currentTurn)this.visualStatus(item.data.message||'Визуальный источник временно недоступен.');
+      if(item.type==='visual_status'&&item.turn_id===this.currentTurn){this.diag({stage:'visual_status',status:item.data.status,reason:item.data.reason});this.visualStatus('');}
       if(item.type==='input_transcript'){
         if(item.turn_id!==this.currentTurn)return;
         this.lastInputText=item.data.text;this.reviewTurn=item.turn_id;

@@ -36,7 +36,9 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
  const client=new window.GoBotNativeVoice({fetcher,Peer,media:sandbox.navigator.mediaDevices});
  await client.start();assert(client.ready);assert.equal(track.enabled,false);assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,1);
  client.currentTurn='visual-current';client.event({type:'visual_status',turn_id:'visual-current',data:{status:'searching',message:'Ищу изображение в Wikimedia.'}});
- assert.equal(elements['realtime-visual-status'].textContent,'Ищу изображение в Wikimedia.');
+ assert.equal(elements['realtime-visual-status'].textContent,'');assert(elements['realtime-visual-status'].hidden);
+ client.event({type:'visual_status',turn_id:'visual-current',data:{status:'fallback',message:'Изображение недоступно'}});
+ assert.equal(elements['realtime-visual-status'].textContent,'');assert(elements['realtime-visual-status'].hidden);
  client.event({type:'visual_status',turn_id:'old-turn',data:{message:'STALE_PRIVATE_TEXT'}});assert(!elements['realtime-visual-status'].textContent.includes('STALE'));
  assert(!('requested_expert_profile' in requests.find(r=>r.url.endsWith('/sessions')).body)); // Compatible with an older running backend.
  await client.pttStart();assert.equal(track.enabled,true);client.startedAt=performance.now()-1000;client.speechMs=250;

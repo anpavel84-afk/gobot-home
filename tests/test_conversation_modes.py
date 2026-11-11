@@ -10,6 +10,9 @@ from test_live import native,offer
 
 @pytest.mark.parametrize('text,target',[
  ('Экспертный режим!','legacy'),('ГоБот, переключи меня в экспертный режим','legacy'),
+ ('Давай перейдём в экспертный режим','legacy'),('Давай перейдем в экспертный режим A','legacy'),
+ ('Давай перейдём в экспертный режим А. Давай.','legacy'),('Экспертный режим А','legacy'),
+ ('Переключись в режим A','legacy'),('Давай включим экспертный режим','legacy'),
  ('Включи вдумчивый режим','legacy'),('Давай разберём подробно','legacy'),
  ('Вернись к обычному разговору','live'),('Живой разговор','live'),('Стоп','end'),('stop','end'),
  ('Что означает экспертный режим?',None),('Он сказал «экспертный режим»',None),
@@ -101,8 +104,45 @@ def test_legacy_idle_resets_default_without_creating_live(tmp_path,settings):
   finally:await m.shutdown();await m.realtime.shutdown()
  asyncio.run(run())
 
+@pytest.mark.parametrize('suffix',['',' A',' А'])
+def test_real_transcript_path_switches_after_model_ack_without_delegation_or_heartbeat(tmp_path,settings,suffix):
+ async def run():
+  m,p,s=await native(tmp_path,settings,conversation_mode='unified')
+  try:
+   for i,text in enumerate(['Давай перейдём в ','экспертный режим'+suffix]):
+    await s.handle({'type':'session.input_transcript.delta','event_id':'input-'+str(i),'start_ms':i*400,'end_ms':(i+1)*400,'delta':text})
+   await s.handle({'type':'session.output_transcript.delta','event_id':'ack-output','start_ms':850,'end_ms':1400,'delta':'Да, давайте.'})
+   assert not s.delegation_tasks and not s.backend_task
+   task=s.mode_control_task;await asyncio.wait_for(task,2)
+   await m.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'mode_switch')
+   assert s.closed and s.final_usage_confirmed and s.mode_flow.mode=='legacy'
+   assert s.mode_flow.active and s.mode_flow.provider_closed
+   assert sum(e['type']=='session.close' for e in s.ws.sent)==1
+   assert s.event_counts['conversation_mode_switching']==1
+   assert not s.experts.jobs
+  finally:await m.shutdown();await m.realtime.shutdown()
+ asyncio.run(run())
+
+def test_mode_fragment_is_not_authorization_before_audio_end_and_correction_cancels(tmp_path,settings):
+ async def run():
+  m,p,s=await native(tmp_path,settings,conversation_mode='unified')
+  try:
+   await s.handle({'type':'session.input_transcript.delta','event_id':'first','start_ms':0,'end_ms':900,'delta':'Давай перейдем в экспертный режим'})
+   await asyncio.sleep(.8)
+   assert not s.closed and s.mode_flow.mode=='live','A network delivery gap is not end of speech'
+   await s.handle({'type':'session.input_transcript.delta','event_id':'correction','start_ms':920,'end_ms':1500,'delta':', хотя нет, не переключай'})
+   await s.handle({'type':'session.output_transcript.delta','event_id':'out','start_ms':1600,'end_ms':2200,'delta':'Хорошо.'})
+   await asyncio.sleep(.1)
+   assert not s.closed and s.mode_flow.mode=='live'
+  finally:await m.shutdown();await m.realtime.shutdown()
+ asyncio.run(run())
+
 def test_production_unified_client_switches_only_after_close():
  result=subprocess.run(['node','tests/unified_browser.cjs'],cwd=Path(__file__).resolve().parents[1],capture_output=True,text=True,timeout=15)
+ assert result.returncode==0,result.stdout+result.stderr
+
+def test_production_live_event_bridge_to_unified_client():
+ result=subprocess.run(['node','tests/unified_live_browser.cjs'],cwd=Path(__file__).resolve().parents[1],capture_output=True,text=True,timeout=15)
  assert result.returncode==0,result.stdout+result.stderr
 
 def test_unified_voice_endpoint_local_commands_and_timer_no_cli(tmp_path,settings,monkeypatch):
@@ -148,5 +188,6 @@ def test_root_is_unified_but_comparison_pages_are_preserved(settings):
    response=client.get(path)
    assert response.status_code==200 and 'data-unified="true"' in response.text and '/unified.js' in response.text
   assert 'data-unified=' not in client.get('/demo2/b/device').text
-  assert 'data-unified=' not in client.get('/demo2/c/device').text
+  assert 'data-unified="true"' in client.get('/demo2/c/device').text
+  assert '/unified.js' in client.get('/demo2/c/device').text
   assert client.get('/unified.js').status_code==200

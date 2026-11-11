@@ -76,7 +76,7 @@ class LiveSession(VoiceVisualSession):
         self.setup_done=asyncio.Event();self.setup_task=None
         self.create_attempted=False;self.create_rejected=False
         self.input_seen_at=0;self.closed_phrase=None;self.speech_stopped=False
-        self.backend_task=None;self.activity_at=0
+        self.backend_task=None;self.activity_at=0;self.mode_control_task=None
 
     def task_revision(self):return self.revision
     def mark_turn(self,turn,name):
@@ -124,7 +124,7 @@ class LiveSession(VoiceVisualSession):
     async def initialize(self):
         instructions=LIVE_INSTRUCTIONS;history=[];voice=self.profile.voice.voice or self.offer.requested_voice
         if self.mode_flow:
-            instructions+='\nРежимы разговора: на «экспертный режим» или «давай разберём подробно» обратись к backend. Сервер переключит весь разговор в прежний STT/CLI/TTS путь. Это не разовая экспертная задача. На «стоп» заверши разговор через backend. Не объявляй переключение выполненным заранее.'
+            instructions+='\nРежимы GoBot: C — этот живой разговор; A («а», «эй») — существующий экспертный STT/CLI/TTS путь. На «давай перейдём в экспертный режим», «экспертный режим A» или «давай разберём подробно» Generate <|SpawnThinking|>. Это серверная команда переключить весь разговор, не просьба обсудить режим и не разовая экспертная задача. Режим A существует. Сервер обрабатывает также транскрипт независимо от делегирования. Не отвечай «переключил», «давай перейдём» или «не знаю режим A»: завершение подтверждается интерфейсом только после фактического переключения. На «стоп» заверши разговор через backend.'
         if self.offer.personalization_mode=='confirmed_profile':
             family=self.manager.identity.family;ident=self.access.confirmed_profile_id
             if not ident:raise PermissionError('confirmed_profile_required')
@@ -213,6 +213,7 @@ class LiveSession(VoiceVisualSession):
                 if context:
                     turn=await self.interaction(context.query,context.interaction_id,visual_only=True)
                     turn.timings['input_end_ms']=event['end_ms']
+                    self.schedule_mode_control(turn)
             elif self.current and event.get('start_ms',0)>=self.current.timings.get('input_start_ms',0):
                 self.current.timings.setdefault('first_output_start_ms',event.get('start_ms',0))
                 self.current.answer+=event['delta'];self.emit('text_delta',text=event['delta'])
@@ -422,6 +423,7 @@ class LiveSession(VoiceVisualSession):
 
     async def mode_control(self,query):
         intent=mode_intent(query)
+        if self.closed or self.closing:return bool(intent)
         if intent=='end':
             self.closed_phrase=query
             self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'conversation_ended'));return True
@@ -429,10 +431,32 @@ class LiveSession(VoiceVisualSession):
             self.closed_phrase=query
             if intent=='live':
                 await self.append('commentary','Сейчас уже включён живой разговор.',None);return True
+            if self.mode_flow.mode==intent:return True
             self.manager.modes.select(self.mode_flow,intent)
+            self.emit('conversation_mode_switching',target=intent,confirmed=False)
             self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'mode_switch'))
             return True
         return False
+
+    def schedule_mode_control(self,turn):
+        # Reversible UX command, scoped to one full recognized phrase. No classifier,
+        # model-issued consent or delegation event is required. Wait for audio
+        # activity ending or the actual answer, not just a network delta gap.
+        if self.mode_control_task and not self.mode_control_task.done():self.mode_control_task.cancel()
+        query=turn.query
+        if not mode_intent(query) or not self.mode_flow:return
+        async def settled():
+            await asyncio.sleep(.75)
+            for _ in range(12):
+                if self.closed or self.closing or turn is not self.current or turn.query!=query or turn.cancelled:return
+                fresh=time.monotonic()-self.activity_at<2
+                answer_started=bool(turn.answer.strip())
+                audio_silence=fresh and self.activity_at>=self.input_seen_at and not self.input_active
+                if audio_silence or answer_started:
+                    await self.mode_control(query);return
+                await asyncio.sleep(.25)
+            self.emit('warning',code='mode_command_waiting_for_input_end')
+        self.mode_control_task=self.spawn(settled())
 
     def idle_due(self,now=None):
         now=time.monotonic() if now is None else now

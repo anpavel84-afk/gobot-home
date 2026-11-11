@@ -46,6 +46,9 @@ def attach_demo2(app,root=None):
         else:
             html=(ROOT/'services/phone/dist'/name).read_text(encoding='utf-8')
             html=html.replace('<body','<body data-conversation-engine="'+('live' if which=='c' else 'realtime')+'"',1)
+            if which=='c':
+                html=html.replace('data-conversation-engine="live"','data-conversation-engine="live" data-unified="true"',1)
+                html=html.replace('</head>','<script src="/unified.js" defer></script></head>')
         html=html.replace('href="/device"','href="/demo2/'+which+'/device"').replace('href="/"','href="/demo2/'+which+'"')
         html=html.replace('Браузерный прототип',('A · Legacy' if which=='a' else 'C · GPT-Live 1' if which=='c' else 'B · Realtime Mini'))
         label=('A · Legacy STT → CLI → TTS · интерфейс a71b71e · общий Brain' if which=='a' else 'C · GPT-Live 1 · 1.1 API не подтверждён' if which=='c' else 'B · Native Realtime Mini · общий Owner Full Test')

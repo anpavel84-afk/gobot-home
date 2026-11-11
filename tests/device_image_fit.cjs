@@ -42,7 +42,13 @@ renderer.load(frame,'current',()=>true);const late=images.at(-1);renderer.clearI
 const scene=new api.SceneManager(profile);scene.newTurn('current');
 texts.length=0;
 renderer.draw({visual:{id:'fallback',type:'info_card',title:'Орёл',images:[],metadata:{state:'unavailable',reason:'image_not_found',visual_strategy:'retrieve',facts:{generation_fallback_reason:'image_generation_policy_denied'}}},state:'thinking',turn:'current'},0,0);
-assert(texts.some(row=>row[0]==='Генерация отключена'));assert(texts.some(row=>row[0]==='Можно повторить запрос'));
+assert(!texts.some(row=>/недоступ|отключена|повторить запрос/i.test(row[0])));
+let faces=0;const face=renderer.face.bind(renderer);renderer.face=(...args)=>{faces++;face(...args);};
+renderer.draw({visual:{id:'missing',images:[],metadata:{avatar_fallback:true}},state:'speaking',turn:'current'},.08,10);
+assert.equal(faces,1,'A missing image must animate the speaking face');
+renderer.clearImage();renderer.draw({visual:frame,state:'speaking',turn:'current'},.08,10);
+assert.equal(faces,2,'Pending decode must leave the face visible');
+assert(!scene.frame({id:'missing',images:[],metadata:{avatar_fallback:true}},'current'));assert.equal(scene.visual,null);
 assert(scene.frame({...frame,id:'refined',metadata:{visual_stage:'refined',visual_revision:1}},'current'));
 assert(!scene.frame({...frame,metadata:{visual_stage:'provisional',visual_revision:0}},'current'));
 assert(!scene.frame({...frame,metadata:{visual_stage:'refined',visual_revision:2}},'old'));

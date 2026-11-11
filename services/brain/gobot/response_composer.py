@@ -113,17 +113,10 @@ class VisualResponseComposer:
             preserve_visual=bool(has_visual),source_metadata={'basis':'response_content_and_route','verification':'not_implied_by_visual'})
         if plan.reason in {'model_selected_avatar','user_disabled_visual'}:return scene
         if plan.origin=='implicit' and has_visual is False:
-            if plan.subject_label and plan.reason=='speculative_entity_photo':
-                scene.scene_type='icon';scene.visual_strategy='show_emoji_or_icon'
-                scene.visual_subject=plan.subject_label
-                scene.visual_payload={'title':plan.subject_label,'icon':'✦','decorative':True}
-                scene.source_metadata['fallback_reason']='image_unavailable_for_confirmed_subject'
+            scene.source_metadata['fallback_reason']='avatar_when_image_missing'
             return scene
         if plan.visual_needed:
             if has_visual is None and plan.visual_strategy=='retrieve' and (plan.subject_label or plan.visual_query):
-                scene.scene_type='icon';scene.visual_strategy='show_emoji_or_icon'
-                scene.visual_subject=plan.subject_label or plan.visual_query
-                scene.visual_payload={'title':scene.visual_subject,'icon':'✦','decorative':True,'loading':True}
                 scene.source_metadata['planned_strategy']='retrieve_photo'
                 return scene
             strategy={'retrieve':'retrieve_photo','generate':'generate_illustration','render_local':'render_widget','mixed':'render_widget'}[plan.visual_strategy]

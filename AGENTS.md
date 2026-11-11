@@ -116,3 +116,12 @@ Mode scope is server-owned guest RAM, bound to principal/client/profile epoch, n
 memory authorization. Never claim local Russian wake-word readiness from mode fixtures.
 Current keyword detector is unconfigured: browser testing uses explicit Start. Wake needs
 separate installed/calibrated local detector and first-word buffering; no continuous cloud STT.
+
+OWNER DIRECT 2026-11-11 acceptance fixes supersede on-screen image-error cards:
+missing/loading/failed image keeps the speaking face; actual decoded media replaces it.
+Keep source/policy/quota reasons in diagnostics, not as "image unavailable" on the round
+screen. Preserve genuine timer/weather/data/diagram widgets and an already valid Stage1.
+Old C bookmarks must mount the unified coordinator too. Natural direct commands including
+"давай перейдем в экспертный режим A/А" are server actions. Native transcript controls
+must not depend on the model emitting delegation. Wait for audio end or actual answer
+activity, invalidate corrected/stale phrases, and confirm A only after real Live close.

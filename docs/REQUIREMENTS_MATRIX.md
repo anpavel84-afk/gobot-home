@@ -384,3 +384,16 @@ Luna real4/4 прошли: exact counts164–268/output46–50, effortnone, toke
 Code `1de0cdf` опубликован и запущен. HTTP200 root/device/scripts/A/B/C, idle10,
 Live unconfirmed0, frozen A hashes unchanged; desktop IAB показал новый общий
 экран без Start/платного вызова. Реальные iPhone mode-switch/wake ещё не приняты.
+
+### Приёмочные поправки §55.1 (заменяют image-failure card на основном экране)
+
+| Требование | Проверка | Граница |
+| --- | --- | --- |
+| Нет asset/decode → говорящее лицо без ошибок/бейджа | production canvas + DOM fixtures, source diagnostics retained | iPhone raster/acoustics отдельно |
+| Пригодное изображение появляется после decode | Canvas fit + DOM load/stage fixtures; valid Stage1 survives refinement failure | Новые real source/Image API calls не выполнялись |
+| «Давай перейдём в экспертный режим A/А» | Parser + input/output protocol through real LiveManager, no delegation | Настоящее ASR/voice owner acceptance pending |
+| Устное «давайте» не считается переходом | Production live.js→unified.js→A fixture checks closed/final confirmation | Safari autoplay hardware pending |
+| Старые C ссылки имеют mode coordinator | HTTP C panel/device includes unified.js and unified flag | Не доказано, какой старый URL использовался ранее |
+| Исправление/незавершённый ввод не переключают | Delayed/cancelled control fixture; no network-gap completion | Шум/перебивание на физическом телефоне отдельно |
+
+Последний фактический runtime — CURRENT_STATUS.md §35.

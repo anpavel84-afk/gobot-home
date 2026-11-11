@@ -63,7 +63,8 @@ class VisualService:
 
     def fallback(self,req,title,code,kind='info_card',text=None):
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
-        frame=Presentation(id=frame_id(req.turn_id,kind),type=kind,title=title,text=message,metadata=VisualMetadata(state='unavailable',reason=code))
+        image_failure=code.startswith(('image_','generation_','optional_visual_','private_image_','public_subject_','verified_diagram_'))
+        frame=Presentation(id=frame_id(req.turn_id,kind),type=kind,title=title,text=message,metadata=VisualMetadata(state='unavailable',reason=code,avatar_fallback=image_failure))
         return VisualResult(frame,message,message)
 
     @staticmethod
@@ -81,6 +82,7 @@ class VisualService:
     def describe_missing(req,plan,result,*,generation_reason=None):
         """A recoverable result card is not a completed image request."""
         reason=result.frame.metadata.reason or 'image_not_found'
+        result.frame.metadata.avatar_fallback=True
         blocked=generation_reason or result.frame.metadata.facts.get('generation_fallback_reason') or VisualService.generation_blocker(req)
         message=REASONS.get(reason,result.frame.text or 'Пригодное изображение не получено.')
         if blocked and blocked!=reason:message+=' '+REASONS.get(blocked,'Генерация сейчас недоступна.')

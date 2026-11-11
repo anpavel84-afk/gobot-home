@@ -65,7 +65,8 @@ def test_semantic_choice_and_independent_rejection_rules():
 def test_color_words_are_not_plant_scenes():
     req=ChatRequest(text=QUESTION,mode='auto');composer=VisualResponseComposer()
     scene=composer.compose(req,answer='У попугаев встречаются цветовые мутации и оранжевый цвет.')
-    assert scene.visual_subject=='Попугаи'
+    assert 'попуга' in composer.plan(req).subject_label.casefold()
+    assert scene.scene_type=='avatar' # No image yet: keep the face, never a plant scene.
     other=composer.compose(ChatRequest(text='Почему так?',mode='auto'),answer='Цветовые мутации меняют цвет оперения.')
     assert other.visual_subject!='Растения'
 

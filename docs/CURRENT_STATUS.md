@@ -1889,3 +1889,41 @@ Start не нажимался, платная сессия/микрофон не
 Private WAL-aware backup перед этим запуском:
 `data/backups/before-unified-20261111T141521`, integrity=ok; перед копированием
 Brain turns/voice, B/C и pending hangups=0. Финальный targeted97/8.38s прошёл.
+
+## 35. Исправления после телефонных замечаний: нет картинки и переход A
+
+База `master@257818b`, дерево чистое; работал code1de0cdf. Владелец сообщил:
+основной экран показывал ошибку изображения, Live устно соглашалась перейти в A,
+но перехода не было. Это **провал телефонного сценария**, несмотря на прежние fixtures.
+
+В коде подтверждены три разрыва: старые C entry points не загружали unified.js;
+parser отвергал суффикс A/А; native server command полагалась на delegation либо
+последующий client activity path. По сохранённой телеметрии нельзя установить,
+какой именно C URL использовался владельцем: раньше report не содержал этот флаг.
+Новая numeric telemetry включает unified_mode и счётчик mode_switching без текста.
+
+Исправлено: C URL теперь монтируют тот же координатор, parser принимает естественные
+точные команды («давай перейдём…», «режим A/А»), bounded input-transcript control
+срабатывает без delegation. Ожидаются audio-end/activity или фактический output,
+а не одна сетевая пауза; поправки/новая реплика инвалидируют pending control.
+Сервер сначала фиксирует switching, закрывает Live с final usage, затем клиент
+действительно включает A. Устное согласие модели не считается подтверждением.
+
+Визуал: Presentation metadata avatar_fallback сохраняет причины в диагностике;
+основной canvas/DOM не выводят сообщения об отсутствии картинки, лимите генерации
+или ошибке decode. До decode остаётся говорящее лицо, готовое изображение плавно
+заменяет его. Поиск/Wikimedia-first/ImageGen limits не менялись. Готовый Stage1,
+таймеры, погодные и содержательные карточки/схемы сохраняются. Frozen A bytes не менялись.
+
+Новая приёмка: native transcript chunks → устное «давайте» → **без delegation и
+heartbeat** → реальный manager.close с fake provider → A mode ready; отдельные
+варианты A/А, незавершённый ввод/поправка, production live.js+unified.js bridge
+с fake media/HTTP, speaking-face canvas, failed decode, сохранение Stage1 и таймеров.
+Это бесплатные protocol/component/JS проверки, не новое реальное голосовое испытание.
+Реальные iPhone переходы после исправления, Safari autoplay и ASR остаются для владельца.
+Paid developer calls0; budgets/ACL/private memory не расширялись. Wake word по-прежнему
+не настроен, Start кнопкой. Полный итог и deployed code фиксируются после прогона/idle guard.
+Бесплатная проверка: **1327 passed /66.00s**, дополнительно целевые98/8.98s;
+Owner policy hash после прогона не изменился. WAL-aware private backup:
+`data/backups/before-unified-20261111T165836`, integrity=ok. Before-backup и свежий
+idle guard: Brain turns/voice, B/C, pending hangups=0. Актуальный release — ниже.

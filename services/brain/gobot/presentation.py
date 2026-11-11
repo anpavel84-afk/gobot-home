@@ -54,6 +54,7 @@ class VisualAction(Strict):
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
 
 class VisualMetadata(Strict):
+    avatar_fallback:bool=False
     visual_stage:Literal['provisional','refined']|None=None
     visual_revision:int=Field(default=0,ge=0,le=2)
     image_fit:Literal['cover','contain']='cover'

@@ -1,10 +1,13 @@
 /* Semantic device scenes + canvas renderer. Logical raster is independent of CSS. */
 (() => {
   'use strict';
+  const avatarFallback=frame=>!!frame&&(frame.metadata?.avatar_fallback===true||
+    frame.metadata?.state==='unavailable'&&(/^(?:image_|generation_|optional_visual_|private_image_)/.test(frame.metadata?.reason||'')||frame.metadata?.facts?.visual_fulfillment==='fallback'));
   class SceneManager{
     constructor(profile,clock=()=>Date.now()){this.profile=profile;this.clock=clock;this.turn=null;this.visual=null;this.scene=null;this.state='idle';this.completed=false;this.returnAt=null;}
     newTurn(turn){this.turn=turn;this.visual=null;this.scene=null;this.completed=false;this.returnAt=null;this.state='thinking';this.gallery=[];this.galleryAt=null;}
     frame(frame,turn){if(frame?.metadata?.backend==='answer_map')return false;if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;
+      if(avatarFallback(frame)){if(this.visual?.images?.length)return false;this.visual=null;this.scene=null;this.gallery=[];this.galleryAt=null;return false;}
       if(frame.metadata?.visual_stage&&this.visual?.metadata?.visual_stage&&(frame.metadata.visual_revision||0)<(this.visual.metadata.visual_revision||0))return false;
       this.visual=frame;this.returnAt=null;
       if(frame.metadata?.facts?.presentation_group==='answer_characters'){
@@ -117,11 +120,14 @@
       const c=this.ctx,p=this.profile;c.setTransform(p.display.width/240,0,0,p.display.height/240,0,0);c.clearRect(0,0,240,240);c.save();c.beginPath();c.arc(120,120,120,0,Math.PI*2);c.clip();c.fillStyle=p.skin.background;c.fillRect(0,0,240,240);
       const inset=Math.max(35,p.display.safe_inset*240/p.display.width),contentScale=(240-2*inset)/170;
       let frame=manager.visual;const state=manager.state;
+      const faceOnly=avatarFallback(frame)||frame?.images?.length&&frame.id!==this.imageId&&!(this.imageFrame&&this.imageTurn===manager.turn)||
+        !frame&&manager.scene?.source_metadata?.planned_strategy==='retrieve_photo';
+      if(faceOnly)frame=null;
       // Keep this turn's previous decoded picture until its refinement decodes.
       if(frame?.images?.length&&frame.id!==this.imageId&&this.imageFrame&&this.imageTurn===manager.turn)frame=this.imageFrame;
       const cover=frame?.images?.length&&this.image&&this.imageId===frame.id&&this.imageFit(frame)==='cover'&&!['offline','error','listening','recognizing'].includes(state);
       if(contentScale<1&&!cover){c.translate(120,120);c.scale(contentScale,contentScale);c.translate(-120,-120);}
-      if(['offline','error','listening','recognizing'].includes(state)||state==='muted'&&!frame){this.face(state,level,t);}
+      if(faceOnly||['offline','error','listening','recognizing'].includes(state)||state==='muted'&&!frame){this.face(state,level,t);}
       else if(frame?.type==='timer_widget'&&Number.isFinite(frame.metadata?.deadline)){
         const seconds=Math.max(0,Math.ceil(frame.metadata.deadline-Date.now()/1000)),hours=Math.floor(seconds/3600);
         const digits=hours?`${hours}:${String(Math.floor(seconds/60)%60).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;

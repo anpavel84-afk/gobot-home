@@ -9,12 +9,18 @@ from uuid import uuid4
 IDLE_SECONDS=10
 
 def mode_intent(text):
+    # Only a complete direct speech act: quoted/narrated text never selects a mode.
     value=' '.join(re.sub(r'[,.!?:;—–-]+',' ',text.casefold().replace('ё','е')).split())
     value=re.sub(r'^(?:гобот|го бот)\s+','',value)
+    value=re.sub(r'^(?:ну |хорошо |ладно )','',value)
+    value=re.sub(r'^пожалуйста | пожалуйста$','',value)
+    value=re.sub(r' (?:давай|да)$','',value)
     if value in {'стоп','stop','закончи разговор','закончим разговор','заверши разговор','давай закончим','спасибо закончили'}:return 'end'
-    prefix=r'(?:(?:включи|включить|переключи(?:сь| меня)?|перейди|давай перейдем)(?: в| на)? )?'
-    if re.fullmatch(prefix+r'(?:экспертный|вдумчивый) режим',value) or value in {'давай разберем подробно','разберем подробно'}:return 'legacy'
-    if re.fullmatch(prefix+r'(?:обычный режим|быстрый режим|живой разговор)',value) or value in {'вернись к обычному разговору','вернись в обычный режим'}:return 'live'
+    verb=r'(?:включи|включить|переключи(?:сь| меня| нас)?|перейди|перейдем|включим|давай (?:перейдем|включим|переключимся|переключи(?: меня)?|перейди))'
+    prefix=r'(?:'+verb+r'(?: в| на)? )?'
+    if re.fullmatch(prefix+r'(?:экспертный|вдумчивый) (?:режим|вариант)(?: [aа])?',value) or value in {'давай разберем подробно','разберем подробно'}:return 'legacy'
+    if re.fullmatch(verb+r'(?: в| на)? режим [aа]',value):return 'legacy'
+    if re.fullmatch(prefix+r'(?:обычный режим|быстрый режим|живой разговор)(?: [cс])?',value) or value in {'вернись к обычному разговору','вернись в обычный режим'}:return 'live'
     return None
 
 @dataclass

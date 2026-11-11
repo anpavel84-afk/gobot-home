@@ -61,6 +61,7 @@ def test_missing_photo_becomes_recoverable_card_not_successful_badge(query):
             card=published[0].frame
             assert not card.images and card.metadata.state=='unavailable'
             assert card.metadata.facts['generation_fallback_reason']=='image_generation_disabled'
+            assert card.metadata.avatar_fallback,'Source errors belong in diagnostics, not on the face'
             assert 'Генерация' in card.text and 'повторить' in card.text
             assert not worker.diagnostics['candidate_ready'] and not worker.diagnostics['asset_delivered']
             assert worker.diagnostics['fulfillment_state']=='fallback'

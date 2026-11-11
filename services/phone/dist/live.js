@@ -99,7 +99,14 @@
    if(event.type==='text_delta')this.diagnostic({stage:'answer_delta',text:data.text});
    if(event.type==='usage')this.diagnostic({stage:'usage',...data});
    if(event.type==='closing')this.preparingClose(data.reason);
-   if(event.type==='visual_status')document.getElementById('realtime-visual-status')?.replaceChildren(document.createTextNode(data.message||''));
+   if(event.type==='visual_status'){
+    this.diagnostic({stage:'visual_status',status:data.status,reason:data.reason});
+    const node=document.getElementById('realtime-visual-status');if(node){node.textContent='';node.hidden=true;}
+   }
+   if(event.type==='conversation_mode_switching'){
+    this.mic(false);if(this.output){this.output.muted=true;this.output.pause();}
+    window.GoBotUnified?.status('Переключаю в экспертный режим. Ожидаю закрытия Live…');
+   }
    if(event.type==='closed'){
     this.closedMode=data.mode;this.finalUsageConfirmed=data.final_usage_confirmed===true;
     const message=data.reason==='profile_changed'?'Профиль изменён. Начните новый безопасный разговор.':data.reason==='speaker_changed_or_uncertain'?'Голос изменился или не подтверждён. Старый контекст закрыт; можно начать гостевой разговор.':data.final_usage_confirmed?'Live завершён. Микрофон выключен.':'Live закрыт локально; финальный usage ещё не подтверждён.';

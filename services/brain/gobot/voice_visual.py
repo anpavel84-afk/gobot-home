@@ -3,6 +3,8 @@ import asyncio,re
 
 class VoiceVisualSession:
     def ensure_visual(self,turn):
+        from .conversation_modes import mode_intent
+        if mode_intent(turn.query):return None
         if not turn.visual_task and (turn.query or not self.policy.input_transcription):turn.visual_task=self.spawn(self.visual(turn))
         return turn.visual_task
 
