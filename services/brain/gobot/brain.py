@@ -348,6 +348,10 @@ def create_app(settings=None):
     from .realtime_api import attach_brain_realtime
     from .family_access import IdentityAccessManager
     realtime=RealtimeManager(service,identity=IdentityAccessManager(family,identity))
+    from .live import LiveManager
+    from .live_api import attach_brain_live
+    live=LiveManager(realtime)
+    realtime.live=live
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)
@@ -359,6 +363,7 @@ def create_app(settings=None):
         await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)
         service.warm_photos.clear()
         for flag in service.running.values():flag.set()
+        await live.shutdown()
         await realtime.shutdown()
         await identity.close()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
@@ -366,7 +371,10 @@ def create_app(settings=None):
         if not hmac.compare_digest(request.headers.get('authorization',''),'Bearer '+settings.api_token):raise HTTPException(401,'Authentication required')
     app.state.realtime=realtime
     attach_brain_realtime(app,realtime,auth)
-    attach_family(app,family,identity,speech,auth,on_preferences_changed=realtime.invalidate_principal,openings=service.openings)
+    app.state.live=live;attach_brain_live(app,live,auth)
+    async def invalidate_voice_principal(owner,reason='profile_changed'):
+        await realtime.invalidate_principal(owner,reason);await live.invalidate_principal(owner,reason)
+    attach_family(app,family,identity,speech,auth,on_preferences_changed=invalidate_voice_principal,openings=service.openings)
     @app.get('/healthz')
     async def health():return {'status':'ok','service':'gobot-brain'}
     @app.get('/readyz')

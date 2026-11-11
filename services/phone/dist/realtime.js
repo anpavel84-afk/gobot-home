@@ -310,6 +310,7 @@
     for(const [id,key] of [['realtime-speaker-enabled','speaker_identity_enabled'],['realtime-personalization','personalization_mode']])document.getElementById(id)?.addEventListener('change',async e=>{await client.close().catch(()=>{});await fetch('/api/device/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice:{[key]:e.target.type==='checkbox'?e.target.checked:e.target.value}})});});
     select.addEventListener('change',async()=>{
       window.GoBotClient?.cancelRecording();await client.close().catch(()=>{});
+      await window.GoBotLive?.close('Выбран другой движок','settings_changed').catch(()=>{});
       await fetch('/api/device/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice:{engine:select.value}})});
     });
   });

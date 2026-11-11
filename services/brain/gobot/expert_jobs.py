@@ -54,6 +54,8 @@ class ExpertJob:
     expires:float=field(default_factory=lambda:time.time()+120)
     confirmed:bool=False
     call_id:str|None=None
+    operation_id:str|None=None
+    delegation_id:str|None=None
     provider_session:str|None=None
     result:dict|None=None
     worker:object=None
@@ -86,6 +88,9 @@ class ExpertJobs:
         if recorder:recorder(stage,reasons)
 
     def active(self):return any(j.state in {'queued','running'} for j in self.jobs.values())
+    def revision(self):
+        method=getattr(self.session,'task_revision',None)
+        return method() if method else len(self.session.turns)
 
     def authorized_owner(self,job):
         s=self.session
@@ -133,7 +138,7 @@ class ExpertJobs:
         if requested and requested!=profile:raise ValueError('explicit_expert_profile_mismatch')
         if len(self.jobs)>=8:raise ValueError('expert_job_capacity')
         if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
-        job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,len(self.session.turns),self.session.access.effective_scope,self.session.offer.conversation_id)
+        job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,self.revision(),self.session.access.effective_scope,self.session.offer.conversation_id)
         job.profile_id=getattr(self.session.access,'confirmed_profile_id',None)
         job.profile_epoch=getattr(self.session.offer,'confirmed_profile_epoch',None)
         job.remember=bool(getattr(self.session.offer,'remember',False) and job.profile_id and job.profile_epoch)
@@ -157,7 +162,7 @@ class ExpertJobs:
             if selected and resolve_profile(selected)['model']==job.profile['model'] and not re.search(r'\b(?:high|hi|хай|medium|медиум|xhigh|extra|экстра)\b',value):selected=job.profile['profile']
             if selected and selected!=job.profile['profile']:job.profile=resolve_profile(selected)
             if not job.profile['metadata_verified']:job.confirmed=False;return
-            job.confirmed=True;job.revision=len(self.session.turns);job.confirmation_turn_id=getattr(self.session.current,'id',None)
+            job.confirmed=True;job.revision=self.revision();job.confirmation_turn_id=getattr(self.session.current,'id',None)
         elif not (profile_in_text(value) and value==job.task.casefold()):
             # Scope amendment and a new question are not blanket consent.
             job.confirmed=False;job.state='cancelled'
@@ -169,14 +174,15 @@ class ExpertJobs:
                 'storage':'confirmed_profile' if job.remember else 'temporary_session','result_ready':bool(job.result),
                 'usage_kind':'cli_subscription','usage':job.usage,'timings_ms':job.timings}
 
-    async def start(self,proposal_id,call_id):
+    async def start(self,proposal_id,call_id,*,delegation_id=None):
         async with self.lock:
             job=next((j for j in self.jobs.values() if j.proposal_id==proposal_id),None)
             if not job or job.owner!=self.session.access.effective_scope:raise ValueError('expert_proposal_not_found')
-            if job.call_id:
-                if job.call_id==call_id:return job
+            started_key=job.call_id or job.operation_id
+            if started_key:
+                if started_key==call_id:return job
                 raise ValueError('expert_job_already_started')
-            if job.state!='awaiting_confirmation' or not job.confirmed or time.time()>job.expires or job.revision!=len(self.session.turns):raise PermissionError('current_user_confirmation_required')
+            if job.state!='awaiting_confirmation' or not job.confirmed or time.time()>job.expires or job.revision!=self.revision():raise PermissionError('current_user_confirmation_required')
             if job.confirmation_turn_id and job.confirmation_turn_id!=getattr(self.session.current,'id',None):raise PermissionError('current_user_confirmation_required')
             confirmation_key=getattr(self.session.current,'id',len(self.session.turns))
             if confirmation_key in self.used_confirmation_turns:raise PermissionError('expert_confirmation_already_used')
@@ -197,20 +203,24 @@ class ExpertJobs:
             job.max_result_characters=getattr(policy,'max_result_characters',24000)
             job.context_token_limit=getattr(policy,'max_context_tokens',3000)
             if hasattr(self.session,'manager'):job.packet=await self.prepare_packet(job)
-            if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
+            if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             if getattr(policy,'owner_full_test',False):
                 await asyncio.to_thread(self.session.manager.owner_testing.reserve,self.session.owner_test_binding,'expert',job.id,origin='developer' if getattr(self.session.offer,'developer_acceptance',False) else 'owner')
             reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session,'owner_test_binding',None))
-            if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
+            if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
-            job.call_id=call_id;job.state='queued'
+            if hasattr(self.session,'expert_accepted'):job.operation_id=call_id;job.delegation_id=delegation_id
+            else:job.call_id=call_id
+            job.state='queued'
             self.audit('accepted')
             job.timings['queued']=round((time.monotonic()-job.clock_origin)*1000,2)
             self.used_confirmation_turns.add(confirmation_key)
             self.persist(job)
             # Close the real tool call exactly once with accepted, not a fabricated result.
-            await self.session.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,
-                'output':json.dumps({'accepted':True,'job_id':job.id,'state':'queued','result_available':False})}})
+            if hasattr(self.session,'expert_accepted'):await self.session.expert_accepted(job)
+            else:
+                await self.session.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,
+                    'output':json.dumps({'accepted':True,'job_id':job.id,'state':'queued','result_available':False})}})
             job.worker=self.session.spawn(self.run(job))
             self.session.emit('expert_job',job=self.public(job))
             return job
@@ -268,10 +278,14 @@ class ExpertJobs:
 
     async def return_result(self,job):
         s=self.session
-        if job.returned or not job.call_id or s.closed:return
+        if job.returned or not (job.call_id or job.operation_id) or s.closed:return
         job.returned=True
         same_owner=self.authorized_owner(job)
-        current=(job.revision==len(s.turns) and same_owner and s.current is not None and not s.current.cancelled)
+        current=(job.revision==self.revision() and same_owner and s.current is not None and not s.current.cancelled)
+        if hasattr(s,'expert_completed'):
+            if same_owner and job.result:s.emit('expert_result',job=self.public(job),result=job.result,voice_deferred=not current)
+            await s.expert_completed(job,current)
+            return
         output={'job_id':job.id,'state':job.state}
         if current and job.result:output['result']=job.result
         else:output['result_withheld']='Context changed or task unavailable; do not invent an expert conclusion.'

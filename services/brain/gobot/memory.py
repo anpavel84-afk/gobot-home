@@ -112,6 +112,14 @@ class Memory:
             if row and row['owner']==req.device_id and row['conversation']==req.conversation_id and row['status']=='completed':
                 row.update(result=text,provider=provider,trace=json.dumps(trace),updated=time.time())
 
+    def update_transient_input(self,req):
+        if req.remember:raise ValueError('transient_input_only')
+        with self.transient_lock:
+            row=self.transient.get(req.turn_id)
+            if row and row['owner']==req.device_id and row['conversation']==req.conversation_id and row['status']=='running':
+                # Update the same logical utterance; never append a second user record per delta.
+                row['text']=req.text
+
     def finish(self,req,status,text,provider,trace):
         if not req.remember:
             with self.transient_lock:

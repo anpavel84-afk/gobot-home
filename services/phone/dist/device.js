@@ -1,6 +1,7 @@
 /* Device interaction adapter. Speech/STT/SSE are exclusively GoBotClient/browser.js. */
 (() => {
   'use strict';
+  const activeVoice=()=>window.GoBotLive?.selected()?window.GoBotLive:window.GoBotRealtime;
   // Minimal bindings for the shared client engine, not a hidden second app or pipeline.
   const root=document.createElement('section');root.hidden=true;root.id='client-bindings';document.body.append(root);
   const selects={model:['auto','fast','reasoning','codex','google','mock'],tts:['openai','denis'],stt:['openai','whisper','mock'],'stt-mode':['file'],voice:[],'visual-source':['openverse','wikimedia','disabled']};
@@ -11,15 +12,15 @@
   class DeviceApp{
     constructor(){this.enabled=false;this.held=false;this.profile=null;this.turn=null;this.sent=new Set();this.generation=0;this.streamDone=true;this.releaseLock=null;this.captureAbort=null;this.sessionActive=false;this.serverAudioEnded=false;this.followupPending=false;this.sessionEpoch=0;}
     status(text){document.getElementById('device-status').textContent=text;}
-    state(value,text){this.conversationState={idle:'STANDBY',muted:'STANDBY',listening:'LISTENING',recognizing:'PROCESSING',thinking:'PROCESSING',speaking:'SPEAKING',error:'ERROR',offline:'OFFLINE'}[value]||'STANDBY';if(this.manager)this.manager.state=value;if(text)this.status(text);document.getElementById('device-mic').textContent=value==='listening'?'● Микрофон записывает вопрос':this.enabled?'○ Режим активен · микрофон по нажатию':'● Микрофон выключен';}
+    state(value,text){this.conversationState={idle:'STANDBY',muted:'STANDBY',listening:'LISTENING',recognizing:'PROCESSING',thinking:'PROCESSING',speaking:'SPEAKING',error:'ERROR',offline:'OFFLINE'}[value]||'STANDBY';if(this.manager)this.manager.state=value;if(text)this.status(text);const voice=activeVoice();document.getElementById('device-mic').textContent=voice?.engine==='live'&&voice.ready?(voice.recording?'● C: микрофон включён · непрерывный разговор':'○ C: микрофон заглушён · сессия оплачивается'):value==='listening'?'● Микрофон записывает вопрос':this.enabled?'○ Режим активен · микрофон по нажатию':'● Микрофон выключен';}
     async init(){
       const response=await fetch('/api/device/profile');if(!response.ok)throw Error('Не удалось загрузить профиль устройства');const data=await response.json();this.profile=data.profile;
       const {DeviceRenderer,SceneManager}=window.GoBotDeviceRenderer;this.manager=new SceneManager(this.profile);this.renderer=new DeviceRenderer(document.getElementById('device-screen'),this.profile);
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
       this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
-      this.renderer.onImageError=(id,turn)=>{if(turn!==this.turn)return;this.status('Изображение не загрузилось. Ответ продолжается.');window.GoBotRealtime?.visualFailed?.(id,turn);};
+      this.renderer.onImageError=(id,turn)=>{if(turn!==this.turn)return;this.status('Изображение не загрузилось. Ответ продолжается.');activeVoice()?.visualFailed?.(id,turn);};
       this.renderer.onImageReady=(_,turn)=>{if(turn===this.turn&&this.enabled)window.GoBotClient.trace?.()?.mark('visual_decoded');};
-      this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();window.GoBotRealtime?.visualPresented?.(id,turn);}};
+      this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();activeVoice()?.visualPresented?.(id,turn);}};
       const hooks=window.GoBotHooks;
       hooks.onNativeClosed=({reason,message,error})=>{
         this.cancelTapGuard();
@@ -59,8 +60,8 @@
       canvas.onclick=()=>{if(this.profile.interaction_mode==='toggle')window.GoBotClient.isRecording()?this.release():this.press();};
       canvas.onkeydown=event=>{if(event.repeat)return;if(event.code==='Space'||event.code==='Enter'){event.preventDefault();window.GoBotClient.isRecording()?this.release():this.press();}};
       canvas.oncontextmenu=event=>event.preventDefault();
-      document.getElementById('device-enable').onclick=()=>this.enable();document.getElementById('device-disable').onclick=()=>this.pause('Микрофон выключен');
-      document.getElementById('device-stop').onclick=()=>{this.cancelCapture();window.GoBotClient.stop();this.state(this.enabled?'idle':'muted','Ответ остановлен');};
+      document.getElementById('device-enable').onclick=()=>this.enable();document.getElementById('device-disable').onclick=()=>activeVoice()?.engine==='live'?void activeVoice().toggleMute():this.pause('Микрофон выключен');
+      document.getElementById('device-stop').onclick=()=>{if(activeVoice()?.engine==='live'){void activeVoice().stopSpeech();return;}this.cancelCapture();window.GoBotClient.stop();this.state(this.enabled?'idle':'muted','Ответ остановлен');};
       document.getElementById('device-raster').onclick=()=>canvas.toBlob(blob=>{if(!blob)return;if(this.rasterURL)URL.revokeObjectURL(this.rasterURL);this.rasterURL=URL.createObjectURL(blob);const image=document.getElementById('raster-preview');image.src=this.rasterURL;image.width=canvas.width;image.height=canvas.height;image.hidden=false;},'image/png');
       document.addEventListener('visibilitychange',()=>{if(document.hidden)this.pause('Прослушивание приостановлено. Нажми «Возобновить GoBot».');});
       window.addEventListener('pagehide',()=>this.pause('Приостановлено'));window.addEventListener('offline',()=>{this.pause('Нет сети. После подключения возобнови GoBot.');this.state('offline');});
@@ -72,7 +73,7 @@
       let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=(audio.playing||audio.feedback_playing)&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
     }
     event(item){
-      if(window.GoBotRealtime?.selected()&&['closed','error','warning'].includes(item.type))return;
+      if(activeVoice()?.selected()&&['closed','error','warning'].includes(item.type))return;
       if(item.turn_id!==this.turn)return;const data=item.data||{};
       if(item.type==='meaning_mismatch'){
         this.manager.visual=null;this.manager.scene=null;this.manager.gallery=[];this.manager.galleryAt=null;this.renderer.clearImage();
@@ -107,7 +108,7 @@
       clearTimeout(this.followupTimer);
     }
     checkFollowup(audio){
-      if(window.GoBotRealtime?.selected())return;
+      if(activeVoice()?.selected())return;
       const policy=this.profile.conversation;
       if(!this.enabled||!policy?.followup_enabled||!this.sessionActive||!this.serverAudioEnded||!this.answerPlaybackStarted||audio.playing||audio.feedback_playing||this.followupPending)return;
       this.followupPending=true;const epoch=this.sessionEpoch,turn=this.turn;
@@ -133,8 +134,8 @@
       if(this.enabled||this.enabling)return;this.enabling=true;const generation=++this.generation;
       try{
         if(this.profile.interaction_mode==='wake')throw Error('Русская активация «ГоБот» ещё не настроена. Выбери удержание или нажатие в панели.');
-        if(window.GoBotRealtime?.selected()){
-          await window.GoBotRealtime.start();this.enabled=true;this.state('idle','Realtime готов. Удерживай круг и говори.');document.getElementById('device-enable').textContent='GoBot включён';return;
+        if(activeVoice()?.selected()){
+          await activeVoice().start();this.enabled=true;this.state('idle',activeVoice().engine==='live'?'C · GPT-Live 1 готов. Можно говорить.':'Realtime готов. Удерживай круг и говори.');document.getElementById('device-enable').textContent='GoBot включён';return;
         }
         const settings=window.GoBotClient.getSettings();
         if(settings.stt==='openai'&&!settings.paid_stt)throw Error('В панели управления разреши OpenAI STT для своих запросов.');
@@ -169,7 +170,7 @@
       return this.beginPress();
     }
     async beginPress(){
-      if(window.GoBotRealtime?.selected()){if(this.held)return;this.held=true;const started=await window.GoBotRealtime.pttStart();if(!started)this.held=false;return;}
+      if(activeVoice()?.selected()){if(this.held)return;this.held=true;const started=await activeVoice().pttStart();if(!started)this.held=false;return;}
       if(this.followupPending||window.GoBotClient.isRecording()&&!this.held){this.cancelCapture();}
       if(this.held||window.GoBotClient.isRecording())return;
       this.held=true;this.captureAbort=new AbortController();

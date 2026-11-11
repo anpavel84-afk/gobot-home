@@ -316,13 +316,25 @@ Runtime и публикация фиксируются в CURRENT_STATUS.md §28
 
 | Требование | Фактический этап |
 | --- | --- |
-| Unified owner expenses/readiness | Server/SQLite/UI implemented, free fixtures; activation pending |
+| Unified owner expenses/readiness | Активирован d49b574; bound owner phone, CLI20/day, Image20/day, estimate$10/day |
 | Mini/full | Два metadata200, requested ID/config ACK, новая session; voice comparison pending |
 | Тихий PTT | Production JS: baseline и quiet на одном RMS .003; B default baseline |
 | Private ACL отдельно | Public owner route не открывает личный архив; native private retrieval ещё отсутствует |
 | A/B сохраняются | Immutable A + compat; B Realtime Mini; C в общем продукте |
 | Live 1.1 | Не подтверждена API/catalog; gpt-live-1 metadata only, не voice acceptance |
-| Live protocol/timeline/full duplex | Следующий этап; не отмечен работающим по Realtime tests |
+| Live protocol/timeline/full duplex | Реализованы отдельные protocol/API/ledger/client; C fixtures и production JS; real provider pending |
 | Реальная приёмка | Новых paid calls=0; iPhone/C/ESP32 pending |
 
 Текущий этап и runtime — CURRENT_STATUS.md §29–30.
+
+| C приёмка | Фактическая граница |
+| --- | --- |
+| B сохраняется | Mini/baseline не меняются; C explicit route, общий Brain |
+| Client delegation | Реальные delegation ID, acoustic Timeline, replay dedup; timer/ExpertJobs integration fixtures |
+| Stop / Cancel / End | Отдельные действия, full-duplex JS fixture; iPhone interruption pending |
+| Setup cancel / double Close | Known provider cleanup once, final cumulative usage; synthetic provider |
+| Family isolation | Fail-closed identity cleanup, RAM erased, no provider-history transfer; no real calibrated profiles |
+| Two-stage visual | Shared VoiceVisualSession, canonical UI scenes/render ACK; Live image E2E pending |
+| Общий reasoning backend | Не подключён; отдельное решение владельца, не скрытый CLI или новая LLM |
+| Private persistent memory | Пока отсутствует в native C; guest RAM не считается долговременной памятью |
+| Real audio / iPhone | Не доказаны 1286 free tests; controlled canary и физическая приёмка отдельно |

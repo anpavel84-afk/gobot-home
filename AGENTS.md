@@ -93,3 +93,9 @@ Use Live client delegation with real delegation IDs, separate protocol/SDP valid
 server sideband, native timeline transcripts and cumulative duration billing, not Realtime events.
 Keep C explicitly selected until verified version/acceptance permits a documented default switch.
 No household recording, hidden backend LLM, or CLI on every turn. Preserve current dirty work.
+Live is the voice frontend; general delegated content needs a real reasoning backend.
+Do not treat steering Live to answer by itself as successful backend fulfillment. A new
+paid text backend needs an explicit model/budget decision, separate usage, and no retries.
+Native C remains guest/RAM-only until authorized retrieval/persistence is actually integrated.
+Normal idle is not an error; explicit End closes local media immediately and finalizes provider
+usage separately. Unknown finalization is not successful closure or permission to replay work.

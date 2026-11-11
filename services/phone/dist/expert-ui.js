@@ -17,7 +17,7 @@
       const refresh=node('button','Обновить доступность и готовые разборы');refresh.type='button';refresh.onclick=()=>this.refresh();this.root.append(refresh);
       this.list=node('div');this.root.append(this.list);(document.querySelector('.device-controls')||document.querySelector('main')).after?.(this.root);
       if(!this.root.isConnected)document.querySelector('main')?.append(this.root);
-      this.consent.onchange=async()=>{try{await window.GoBotRealtime?.close('Согласие на экспертов изменено. Начните новую беседу.','settings_changed');const r=await fetch('/api/device/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice:{expert_quota_consent:this.consent.checked}})});if(!r.ok)throw Error();await this.refresh();}catch(_){this.status.textContent='Не удалось сохранить согласие. Новый эксперт не запускался.';}};
+      this.consent.onchange=async()=>{try{await window.GoBotRealtime?.close('Согласие на экспертов изменено. Начните новую беседу.','settings_changed');await window.GoBotLive?.close('Согласие на экспертов изменено. Начните новую беседу.','settings_changed');const r=await fetch('/api/device/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({voice:{expert_quota_consent:this.consent.checked}})});if(!r.ok)throw Error();await this.refresh();}catch(_){this.status.textContent='Не удалось сохранить согласие. Новый эксперт не запускался.';}};
       fetch('/api/device/profile').then(r=>r.json()).then(d=>{this.consent.checked=d.profile?.voice?.expert_quota_consent===true;}).catch(()=>{});
       void this.refresh();
     }

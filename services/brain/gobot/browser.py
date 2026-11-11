@@ -64,6 +64,8 @@ def create_browser_app(settings=None):
 
     from .realtime_api import attach_gateway_realtime
     attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_epoch)
+    from .live_api import attach_gateway_live
+    attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
     from .demo2 import attach_demo2
     attach_demo2(app)
 
@@ -527,7 +529,7 @@ def create_browser_app(settings=None):
 
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','realtime-speaker.js','expert-ui.js','owner-test-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','live.js','realtime-speaker.js','expert-ui.js','owner-test-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'

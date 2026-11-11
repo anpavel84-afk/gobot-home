@@ -28,6 +28,11 @@ class OwnerTestPolicy(BaseModel):
     developer_expert_limit:int=Field(default=0,ge=0,le=3)
     developer_image_limit:int=Field(default=0,ge=0,le=1)
     developer_transcription_limit:int=Field(default=0,ge=0,le=2)
+    live_enabled:bool=False
+    live_minutes_per_day:int=Field(default=60,ge=1,le=1440)
+    live_session_seconds:int=Field(default=600,ge=30,le=3600)
+    developer_live_limit:int=Field(default=0,ge=0,le=2)
+    developer_live_seconds:int=Field(default=0,ge=0,le=180)
 
 class OwnerTesting:
     def __init__(self,root):
@@ -46,14 +51,14 @@ class OwnerTesting:
         p=self.policy();return bool(p.authorization and binding and p.allowed_client_id==binding)
     def update(self,binding,patch):
         if not self.bound(binding):raise PermissionError('owner_device_required')
-        if set(patch)-{'enabled','api_estimate_usd_per_day','realtime_responses_per_day','expert_jobs_per_day','image_attempts_per_day','experts_enabled','images_enabled','device_settings_enabled','realtime_model','audio_preset'}:raise ValueError('owner_policy_field_denied')
+        if set(patch)-{'enabled','api_estimate_usd_per_day','realtime_responses_per_day','expert_jobs_per_day','image_attempts_per_day','experts_enabled','images_enabled','device_settings_enabled','realtime_model','audio_preset','live_enabled','live_minutes_per_day','live_session_seconds'}:raise ValueError('owner_policy_field_denied')
         with self.lock:
             p=self.policy();value=OwnerTestPolicy.model_validate({**p.model_dump(),**patch,'revision':p.revision+1})
             temp=self.policy_path.with_suffix('.tmp');temp.write_text(value.model_dump_json(indent=2),encoding='utf-8');os.replace(temp,self.policy_path)
         return self.status(binding)
     def reserve(self,binding,kind,ident,*,estimate=0,origin='owner'):
         if not self.authorized(binding):raise PermissionError('owner_test_not_authorized')
-        p=self.policy();caps={'realtime':p.realtime_responses_per_day,'expert':p.expert_jobs_per_day,'image':p.image_attempts_per_day,'transcription':2}
+        p=self.policy();caps={'realtime':p.realtime_responses_per_day,'expert':p.expert_jobs_per_day,'image':p.image_attempts_per_day,'transcription':2,'live':240}
         if kind not in caps:raise ValueError('invalid_owner_operation')
         if kind=='expert' and not p.experts_enabled:raise PermissionError('native_experts_disabled')
         if kind=='image' and not p.images_enabled:raise PermissionError('image_generation_policy_denied')

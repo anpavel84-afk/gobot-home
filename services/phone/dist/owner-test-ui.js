@@ -14,10 +14,10 @@
    this.root.append(el('p','Полная модель меняет собеседника Realtime. CLI-эксперт выполняет отдельную задачу и возвращает результат тому же собеседнику. Смена модели закрывает сессию; новый запуск — кнопкой GoBot.'));
    const audioLabel=el('label','Диагностика аудио · один параметр за раз');this.audio=el('select');this.audio.id='realtime-audio-preset';for(const [value,text] of presets)this.audio.append(Object.assign(el('option',text),{value}));audioLabel.append(this.audio);this.root.append(audioLabel);
    const budgets=el('details');budgets.append(el('summary','Бюджет и разрешённые модули'));
-   for(const [key,text,min,max,step] of [['api_estimate_usd_per_day','Порог оценочных API-расходов в сутки, USD',1,500,.5],['realtime_responses_per_day','Realtime responses в сутки',10,10000,1],['expert_jobs_per_day','CLI-задачи в сутки',1,100,1],['image_attempts_per_day','Генерации изображений в сутки',1,100,1]]){
-    const l=el('label',text),n=el('input');Object.assign(n,{type:'number',min,max,step,value:state.policy[key]});this.fields[key]=n;l.append(n);budgets.append(l);
+   for(const [key,text,min,max,step] of [['api_estimate_usd_per_day','Порог оценочных API-расходов в сутки, USD',1,500,.5],['realtime_responses_per_day','Realtime responses в сутки',10,10000,1],['expert_jobs_per_day','CLI-задачи в сутки',1,100,1],['image_attempts_per_day','Генерации изображений в сутки',1,100,1],['live_minutes_per_day','Live: минут открытой сессии в сутки',1,1440,1],['live_session_seconds','Live: максимум секунд одной сессии',30,3600,1]]){
+    if(state.policy[key]===undefined)continue;const l=el('label',text),n=el('input');Object.assign(n,{type:'number',min,max,step,value:state.policy[key]});this.fields[key]=n;l.append(n);budgets.append(l);
    }
-   for(const [key,text] of [['enabled','Owner Full Test включён'],['experts_enabled','Разрешить экспертов с подтверждением задачи'],['images_enabled','Image API после неудачи Wikimedia'],['device_settings_enabled','Разрешённые серверные настройки устройства']]){const l=el('label',text),n=el('input');n.type='checkbox';n.checked=state.policy[key];this.fields[key]=n;l.append(n);budgets.append(l);}
+   for(const [key,text] of [['enabled','Owner Full Test включён'],['live_enabled','C: разрешить GPT-Live 1 ($0.05/мин; API 1.1 не подтверждён)'],['experts_enabled','Разрешить экспертов с подтверждением задачи'],['images_enabled','Image API после неудачи Wikimedia'],['device_settings_enabled','Разрешённые серверные настройки устройства']]){if(state.policy[key]===undefined)continue;const l=el('label',text),n=el('input');n.type='checkbox';n.checked=state.policy[key];this.fields[key]=n;l.append(n);budgets.append(l);}
    const save=el('button','Сохранить бюджет и разрешения');save.type='button';save.onclick=()=>this.save(true);budgets.append(save);this.root.append(budgets);
    this.root.append(el('p','Порог расходов — серверная оценка с резервом, не абсолютный предел счёта OpenAI: usage приходит с задержкой. Неизвестные исходы сохраняют резерв. Транскрипция оплачивается отдельно; CLI расходует подписочную квоту. Открытие панели само не запускает платные операции.'));
    this.readiness=el('ul');this.root.append(this.readiness);
@@ -35,7 +35,7 @@
   async refresh(){try{const r=await fetch('/api/realtime/owner-test',{cache:'no-store'});if(r.ok)this.apply(await r.json());}catch(_){this.info.textContent='Не удалось обновить статус; платный повтор не запускался.';}}
   async save(all){
    const patch={realtime_model:this.model.value,audio_preset:this.audio.value};if(all)for(const [key,n] of Object.entries(this.fields))patch[key]=n.type==='checkbox'?n.checked:Number(n.value);
-   try{await window.GoBotRealtime?.close('Настройки B изменены. Включите GoBot для новой сессии.','settings_changed');const r=await fetch('/api/realtime/owner-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw Error();await this.refresh();await window.GoBotExpertUI?.refresh();}catch(_){this.info.textContent='Настройки не применены. Платный запуск не выполнялся.';}
+   try{if(window.GoBotRealtime?.id)await window.GoBotRealtime.close('Настройки B изменены. Включите GoBot для новой сессии.','settings_changed');if(all&&patch.enabled===false)await window.GoBotLive?.close('Owner Full Test выключен');const r=await fetch('/api/realtime/owner-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw Error();await this.refresh();await window.GoBotExpertUI?.refresh();}catch(_){this.info.textContent='Настройки не применены. Платный запуск не выполнялся.';}
   }
   diagnostic(data){
    if(!this.trace)return;
@@ -44,6 +44,7 @@
    if(data.stage==='first_client_audio'&&this.released)data={...data,release_to_audio_signal_ms:Math.round(performance.now()-this.released)};
    if(data.stage==='level'){if(performance.now()-this.lastLevel<150)return;this.lastLevel=performance.now();this.level.textContent='RMS '+data.rms.toFixed(5)+' · активность '+Math.round(data.speech_ms)+' мс';return;}
    if(data.stage==='gpt_transcribe'){this.input=data.text;this.transcript.textContent='GPT Transcribe: '+this.input;return;}
+   if(data.stage==='live_input_delta'){this.input=(this.input+data.text).slice(-600);this.transcript.textContent='Нативный транскрипт Live: '+this.input;return;}
    if(data.stage==='answer_delta'){this.answer=(this.answer+data.text).slice(0,600);this.spoken.textContent='Начало фактического ответа Realtime: '+this.answer;return;}
    if(data.stage==='capture_settings'){
     const keys=['echoCancellation','noiseSuppression','autoGainControl','sampleRate','channelCount','latency'];const pick=o=>Object.fromEntries(keys.filter(k=>k in o).map(k=>[k,o[k]]));data={stage:data.stage,requested:pick(data.requested),effective:pick(data.effective),supported:pick(data.supported)};

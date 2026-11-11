@@ -47,7 +47,8 @@ class ExpertStore:
         if not job.profile_id or not job.remember:return False
         if not self.family or not self.family.session_valid(job.profile_id,family_epoch):return False
         document={'job_id':job.id,'proposal_id':job.proposal_id,'task':job.task,'expert':job.profile,
-                  'result':job.result,'error':job.error,'call_id':job.call_id,'provider_session':job.provider_session,'usage':job.usage,'timings_ms':job.timings}
+                  'result':job.result,'error':job.error,'call_id':job.call_id,'provider_session':job.provider_session,'usage':job.usage,'timings_ms':job.timings,
+                  'operation_id':job.operation_id,'delegation_id':job.delegation_id}
         with self.memory.connect() as c:
             row=c.execute('SELECT age,epoch FROM family_profiles WHERE id=?',(job.profile_id,)).fetchone()
             if not row or row['age']=='child' or row['epoch']!=family_epoch:return False

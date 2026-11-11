@@ -1,0 +1,66 @@
+{
+  "runtime_commit": "d49b57486258c1b5cf8ca5e2c44579b06522861f",
+  "owner_mode_enabled": true,
+  "policy": {
+    "realtime_model": "gpt-realtime-2.1-mini",
+    "audio_preset": "baseline",
+    "api_estimate_usd_per_day": 10.0,
+    "realtime_responses_per_day": 500,
+    "expert_jobs_per_day": 20,
+    "image_attempts_per_day": 20
+  },
+  "B_model": "gpt-realtime-2.1-mini",
+  "B_audio": "baseline",
+  "native_expert_flag": true,
+  "owner_public_experts_enabled": true,
+  "expert_blockers": [],
+  "expert_profiles": [
+    {
+      "profile": "ARGON_DEEP",
+      "model": "gemini-4-argon-medium",
+      "effort": "medium",
+      "metadata_verified": true,
+      "isolation_verified": true
+    },
+    {
+      "profile": "ASTRA_HIGH",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "metadata_verified": true,
+      "isolation_verified": true
+    },
+    {
+      "profile": "SOL_XHIGH",
+      "model": "gpt-6.1-sol",
+      "effort": "xhigh",
+      "metadata_verified": true,
+      "isolation_verified": true
+    },
+    {
+      "profile": "SOL_HIGH",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "metadata_verified": true,
+      "isolation_verified": true
+    },
+    {
+      "profile": "ASTRA_MEDIUM",
+      "model": "gpt-6-astra",
+      "effort": "medium",
+      "metadata_verified": true,
+      "isolation_verified": true
+    }
+  ],
+  "image_api_allowed": true,
+  "image_limit": 20,
+  "http": {
+    "/demo2/a/device": 200,
+    "/demo2/a/compat.js": 200,
+    "/demo2/b/device": 200,
+    "/owner-test-ui.js": 200
+  },
+  "private_memory_unlocked": false,
+  "paid_developer_calls": 0,
+  "iphone_verified": false,
+  "Live_C_created": false
+}

@@ -12,8 +12,8 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B с Expert Handoff v2, visual fulfillment и разрешённой генерацией 20/day опубликован и запущен на `eb4e4c8fe7611958a2b2cf8438196e68a35ed69c`.
-  Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
+  Native/A-B и Owner Full Test опубликованы и запущены на `d49b57486258c1b5cf8ca5e2c44579b06522861f`.
+  Вне explicit demo routes default пока legacy; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -1571,7 +1571,7 @@ ignored data/backups/before-expert-handoff-20261111T061141.
 CLI quota не API USD. Ручной owner и разовый developer расход учитываются отдельно.
 Для нового developer acceptance подготовлены до 24 responses в двух Realtime sessions,
 3 CLI tasks, 2 коротких STT и 1 image с expiry и без auto retry.
-**Runtime ещё прежний, новые экономические разрешения не активированы. Paid calls=0.**
+**Исторический этап до d49b574; активация описана в конце §30.**
 
 Public expert task на bound owner device отделён от права читать личный архив.
 Child/private ACL и task confirmation сохраняются. Без подтверждённого профиля result
@@ -1617,3 +1617,60 @@ UI, duration billing/finalization, ограниченные реальные п�
 Опубликованный HEAD 34976fb и запущенный eb4e4c8 не откатываются. A compatibility fix
 также пока не deployed; после сообщения владельца «ничего не происходит» добавлены
 явная стадия включения/ожидания Safari и пояснение Enable → удержать круг → вопрос.
+
+Этап §29 уже развёрнут на `d49b574`, [activation evidence](owner-full-test-activation.json).
+Перед restart все active/pending счётчики 0, WAL-aware backup Brain/DeviceStore
+integrity_check=ok, ignored data/backups/before-expert-handoff-20261111T065910.
+Owner mode ON на прежнем owner phone binding: Mini/baseline сохранены; CLI public
+admission enabled, blockers=[], пять exact profiles metadata/isolation verified.
+Image API остаётся ON/20; A/B и compat/owner UI HTTP200. Private memory не открыта.
+Новых paid developer calls 0, C пока не создан. Общий default за пределами explicit
+demo routes не переключён. Полный 1275 + поздние targeted 82 и 14; iPhone pending.
+
+## 31. Реализация C до реального допуска провайдера
+
+Добавлены [LiveManager](../services/brain/gobot/live.py), отдельные contract/provider/API,
+Timeline, cumulative-duration ledger и [браузерный клиент C](../services/phone/dist/live.js).
+Это тот же FastAPI/Brain: Quick Intents/SettingsTools, настоящие таймеры, общий
+VisualResponseComposer, ExpertJobs/Bridge и существующий локальный ECAPA mirror.
+Общий код визуала вынесен без второго стека в voice_visual.py; A baseline не менялся.
+Маршруты C: `/demo2/c`, `/demo2/c/device`; B остаётся Mini/baseline, без auto migration.
+
+Провайдер: `/v1/live/sessions`, attach той же session, delegation=client, store=false,
+пустые allowlists browser data channel. Session.started проверяет model/voice/instructions/
+store/delegation/allowlists; API key остаётся на сервере. Метаданные 1.1 не подтверждены.
+Sideband listener установлен до Close; финальный cumulative usage не суммируется.
+Один ограниченный повтор attach допускается только ради закрытия известного ID,
+не ради повтора оплаченного вопроса. Неизвестный результат остаётся unconfirmed.
+
+Input/output transcript разделены по acoustic timestamps/event_id. Delegation не содержит
+готовой задачи; ограниченное ожидание контекста, typed validation, operation dedup и
+существующие подтверждения предшествуют действию. Реальный delegation_id отделён
+от operation_id/CLI session. CLI result → commentary, не Realtime function output.
+Карточка результата публикуется до попытки речи и при новой теме не перебивает её.
+
+В C микрофон непрерывный, EC включён, нет старого RMS/180ms admission gate и второго STT.
+Stop локально глушит speech и блокирует старый хвост; Cancel task и End отдельны.
+Тишина 45s без playback/jobs приводит к normal idle; таймеры не отменяются Stop speech.
+Фактически проигранная PCM-активность клиента отличается от append ACK/транскрипта;
+RMS-индикатор не является доказательством услышанного слова или полного конца мысли.
+
+**Открытый продуктовый пробел:** документация Live разделяет voice frontend и reasoning
+backend. Общий быстрый информационный backend у нас отсутствует. Клиентский маршрут
+к инструментам/экспертам реализован, но обычную делегацию нельзя честно считать
+полноценным ответом. Не подключена скрытая платная LLM и не запускается CLI на каждый
+вопрос. Владельцу предложен gpt-6-luna как отдельное решение; до согласия выдаётся
+конкретный статус, B остаётся рабочим разговорным вариантом.
+
+Память C сейчас guest/RAM-only, remember=true не объявляется долговременной памятью.
+PIN/preferences не открывают private archive неизвестному голосу. Смена профиля закрывает
+provider session и очищает временный transcript/tasks; при неподтверждённом cleanup
+переход профиля блокируется. Семейных профилей/калибровки в установке по-прежнему 0.
+
+Бесплатный полный regression: **1286 passed / 52.94s**. Включены C protocol fixtures,
+настоящий SQLite timer через mocked Live, реальный ExpertJobs с fake CLI, replay,
+setup cancellation, cumulative 12→15s, RAM cleanup и production JS full-duplex/Stop/Close.
+Это не paid voice/CLI acceptance и не iPhone. Реальный canary отделён в
+`scripts/live_acceptance.py --real`: серверный developer limit, synthetic silence,
+таймер, decode PCM, финальный Close; без домашнего аудио и автоматических retries.
+Runtime/результат провайдера будут дописаны после deployment/canary.

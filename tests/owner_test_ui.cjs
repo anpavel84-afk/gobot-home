@@ -3,7 +3,7 @@ class Node{constructor(tag,text=''){this.tag=tag;this.children=[];this.textConte
 const events={},nodes={},requests=[],controls=new Node('div');let closed=0;
 const state={authorized:true,enabled:true,policy:{realtime_model:'gpt-realtime-2.1-mini',audio_preset:'baseline',api_estimate_usd_per_day:10,realtime_responses_per_day:500,expert_jobs_per_day:20,image_attempts_per_day:20,enabled:true,experts_enabled:true,images_enabled:true,device_settings_enabled:true},attempts_today:{},estimated_usd_including_pending_reserves:0,readiness:{realtime:{configured:true,implemented:true,acceptance:'synthetic'}}};
 const document={createElement:t=>new Node(t),getElementById:k=>nodes[k]||null,querySelector:()=>controls};
-const window={addEventListener:(k,f)=>events[k]=f,GoBotRealtime:{close:async()=>closed++},GoBotExpertUI:{refresh:async()=>{}}};
+const window={addEventListener:(k,f)=>events[k]=f,GoBotRealtime:{id:'active-fixture',close:async()=>closed++},GoBotExpertUI:{refresh:async()=>{}}};
 const fetch=async(url,opts={})=>{requests.push([url,opts]);return {ok:true,json:async()=>state};};
 vm.runInNewContext(fs.readFileSync('services/phone/dist/owner-test-ui.js','utf8'),{window,document,fetch,performance,JSON,Object,Number});
 (async()=>{

@@ -24,7 +24,7 @@ def test_uncertain_voice_revokes_personal_context(settings,monkeypatch):
         path=request.url.path
         if path.endswith('/family/login'):return httpx.Response(200,json={'id':profile,'epoch':'fixture','name':'Тест'})
         if path.endswith('/family/session'):return httpx.Response(200,json={'valid':True})
-        if path.endswith('/realtime/identity/close'):return httpx.Response(200,json={'closed':True})
+        if path.endswith(('/realtime/identity/close','/live/identity/close')):return httpx.Response(200,json={'closed':True})
         if '/speaker/' in path:return httpx.Response(200,json={'state':'unknown','reason':'identity_pending'})
         if path.endswith('/chat/voice/stream'):
             body=json.loads(request.content);forwarded.append(body)

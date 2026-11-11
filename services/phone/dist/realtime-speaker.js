@@ -24,7 +24,7 @@ window.GoBotRealtimeSpeaker=class {
     // Report a short segment as unknown; never inherit identity from a long previous turn.
     const data=new Uint8Array(size<96000?0:size);let at=0;if(data.length)for(const part of parts){data.set(new Uint8Array(part),at);at+=part.byteLength;}
     const session=this.client.id;
-    try{await this.client.fetcher('/api/realtime/sessions/'+session+'/speaker?'+new URLSearchParams({segment_id:segment}),{method:'POST',headers:{'Content-Type':'audio/pcm;rate=16000'},body:data,signal:this.client.abort?.signal});}
+    try{await this.client.fetcher('/api/'+(this.client.apiBase||'realtime')+'/sessions/'+session+'/speaker?'+new URLSearchParams({segment_id:segment}),{method:'POST',headers:{'Content-Type':'audio/pcm;rate=16000'},body:data,signal:this.client.abort?.signal});}
     catch(_){}finally{data.fill(0);parts.length=0;}
   }
   close(){this.active=false;this.ready=false;this.parts=[];this.ring=[];this.bytes=0;this.segment=null;if(this.node)this.node.port.onmessage=null;this.source?.disconnect();this.node?.disconnect();this.mute?.disconnect();}

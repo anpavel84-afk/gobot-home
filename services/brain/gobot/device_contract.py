@@ -71,7 +71,7 @@ class VoicePreferences(Strict):
     realtime_model:Literal['gpt-realtime-2.1-mini','gpt-realtime-2.1']='gpt-realtime-2.1-mini'
     audio_preset:Literal['baseline','quiet_ptt','browser_ns_off','browser_ec_off','browser_agc_on','browser_agc_off','server_noise_off','server_far_field','server_strength_half','vad_sensitive']='baseline'
     expert_quota_consent:bool=False
-    engine:Literal['legacy','realtime']='legacy'
+    engine:Literal['legacy','realtime','live']='legacy'
     realtime_consent:bool=False
     personalization_mode:Literal['guest','confirmed_profile']='guest'
     speaker_identity_enabled:bool=True
