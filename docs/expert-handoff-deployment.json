@@ -1,5 +1,5 @@
 {
-  "runtime_commit": "78d6536fab95b1a7f839d0eace3600d3b9122e13",
+  "runtime_commit": "597d6991bb12ab9c9d0ae1d889e27c6b6a711d1a",
   "http": {
     "/demo2": 200,
     "/demo2/a/device": 200,

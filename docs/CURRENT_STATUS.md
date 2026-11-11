@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B с Expert Handoff v2 опубликован и запущен на `78d6536fab95b1a7f839d0eace3600d3b9122e13`.
+  Native/A-B с Expert Handoff v2 опубликован и запущен на `597d6991bb12ab9c9d0ae1d889e27c6b6a711d1a`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1297,6 +1297,9 @@ ImageGen=false. Реальных model calls в этом проходе не б�
 targeted native/expert tests passed / 20.04 s**; полная регрессия 1208 выше относится
 к непосредственно предшествующей версии. Запрошен отдельный один SOL_HIGH E2E;
 ожидание ответа не является разрешением, runtime admission остаётся OFF.
+ACL-поправка `597d6991bb12ab9c9d0ae1d889e27c6b6a711d1a` также опубликована и
+запущена после свежего idle guard (все четыре счётчика 0). A/B и status HTTP200,
+owner manual unlimited сохранён, experts/ImageGen OFF; deployment evidence обновлён.
 
 Откат: сохранённый A доступен по /demo2/a/device; отдельный native/legacy выбор
 сохранён. Для экспертов достаточно оставить admission OFF; новые UI/таблица не
