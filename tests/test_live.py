@@ -266,3 +266,17 @@ def test_expired_confirmed_profile_closes_provider_without_reusing_history(tmp_p
         assert s.closed and s.close_reason=='profile_changed' and s.final_usage_confirmed
         await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())
+
+def test_live_honors_selected_expert_profile_without_granting_consent(tmp_path,settings):
+    async def run():
+        m,p,s=await native(tmp_path,settings,requested_expert_profile='ASTRA_MEDIUM')
+        s.experts.budget.policy_path.write_text(ExpertPolicy(enabled=True,authorization='fixture',allowed_client_id='client-1',allowed_profiles=['ASTRA_MEDIUM'],expires_at=time.time()+60,max_sessions=1).model_dump_json())
+        try:
+            turn=await s.interaction('Нужен более глубокий разбор: сравни очередь и стек','explicit-deep-request')
+            await s.route(turn,'operation','real-delegation')
+            job=s.experts.pending
+            assert job is not None,s.experts.status(include_profiles=False)
+            assert job.profile['model']=='gpt-6-astra' and job.profile['effort']=='medium'
+            assert not job.confirmed and job.worker is None
+        finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())

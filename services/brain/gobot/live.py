@@ -324,7 +324,7 @@ class LiveSession(VoiceVisualSession):
             status=self.experts.status(include_profiles=False)
             if not status['enabled']:
                 self.emit('expert_blocked',availability=status,executed=False);await self.append('commentary','Эксперт пока не запущен: '+', '.join(status['blocked_reasons']),did);return
-            profile=profile_in_text(query) or 'SOL_HIGH'
+            profile=profile_in_text(query) or self.offer.requested_expert_profile or 'SOL_HIGH'
             task=query
             if len(query.split())<7:
                 if self.last_task:task=self.last_task
@@ -373,9 +373,10 @@ class LiveSession(VoiceVisualSession):
             result=await asyncio.to_thread(self.manager.brain.tools.execute,'verification',turn.req,{})
             await self.append('commentary',result.text,did);return
         if assessment.complexity>=2 and self.experts.status(include_profiles=False)['enabled']:
-            proposal=self.experts.propose(query,'SOL_HIGH',turn);self.experts.pending.delegation_id=did
+            profile=self.offer.requested_expert_profile or 'SOL_HIGH'
+            proposal=self.experts.propose(query,profile,turn);self.experts.pending.delegation_id=did
             self.emit('expert_job',job=proposal)
-            await self.append('commentary','Здесь полезен подробный разбор. Подключить Sol High для этой задачи?',did);return
+            await self.append('commentary','Здесь полезен подробный разбор. Подключить '+self.experts.pending.profile['requested_label']+' для этой задачи?',did);return
         # No silent paid text backend or mandatory CLI for general informational delegation.
         if not self.manager.owner_testing.policy().live_backend_enabled:
             self.emit('warning',code='live_general_backend_not_configured')

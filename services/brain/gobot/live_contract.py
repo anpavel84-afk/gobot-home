@@ -4,6 +4,7 @@ from pydantic import BaseModel,ConfigDict,Field
 from typing import Literal
 from .models import ID
 from .realtime_contract import VOICES
+from .expert_profiles import ExpertProfileName
 
 LIVE_MODEL='gpt-live-1'
 class LiveOffer(BaseModel):
@@ -24,6 +25,7 @@ class LiveOffer(BaseModel):
     remember:bool=False
     speaker_consent:bool=False
     expert_quota_consent:bool=False
+    requested_expert_profile:ExpertProfileName|None=None
     client_kind:Literal['panel','device']='device'
     developer_acceptance:bool=False
 

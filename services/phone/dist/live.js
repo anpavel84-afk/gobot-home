@@ -31,6 +31,7 @@
     const settings=window.GoBotClient.getSettings();
     const answer=await this.api('sessions',{session_id:id,conversation_id:window.GoBotClient.conversationId(),sdp:pc.localDescription.sdp,consent:true,
      requested_model:'gpt-live-1',requested_voice:settings.voice||'marin',personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',
+     requested_expert_profile:document.getElementById('realtime-expert-profile')?.value||undefined,
      speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,remember:settings.remember,
      input_mode:document.getElementById('live-input-mode')?.value||'continuous',client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
     if(generation!==this.generation)throw Error('Запуск отменён');

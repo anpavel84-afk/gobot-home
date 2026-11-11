@@ -10,7 +10,7 @@
       if(this.root)return;
       this.root=node('details');this.root.id='realtime-experts';this.root.className='expert-panel';this.root.append(node('summary','Экспертные задачи'));
       this.status=node('p','Проверяю доступность…');this.status.id='expert-availability';this.root.append(this.status);
-      const label=node('label','Предпочтительный эксперт');this.select=node('select');this.select.id='realtime-expert-profile';this.select.append(Object.assign(node('option','Автоматически по задаче'),{value:''}));label.append(this.select);this.root.append(label);
+      const label=node('label','Предпочтительный эксперт · при следующем включении');this.select=node('select');this.select.id='realtime-expert-profile';this.select.append(Object.assign(node('option','Автоматически по задаче'),{value:''}));label.append(this.select);this.root.append(label);
       this.consent=node('input');this.consent.id='realtime-expert-consent';this.consent.type='checkbox';const check=node('label');check.append(this.consent,node('span','Разрешаю экспертную CLI-квоту в отдельном серверном лимите'));this.root.append(check);
       this.root.append(node('p','Обычный разговор идёт без CLI. Один разбор — один эксперт. Текущие факты требуют источников; мнение другой модели не заменяет проверку.'));
       const family=node('a','Выбрать или подтвердить профиль в разделе «Семья»');family.href='/settings/family';this.root.append(family);

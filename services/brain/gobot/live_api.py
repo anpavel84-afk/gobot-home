@@ -117,7 +117,7 @@ def attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
     @app.post('/api/live/sessions')
     async def create(request:Request):
         body=await bounded_json(request)
-        allowed={'session_id','conversation_id','sdp','consent','requested_model','requested_voice','personalization_mode','input_mode','remember','speaker_consent','client_kind'}
+        allowed={'session_id','conversation_id','sdp','consent','requested_model','requested_voice','requested_expert_profile','personalization_mode','input_mode','remember','speaker_consent','client_kind'}
         if set(body)-allowed:raise HTTPException(422,'live_client_configuration_denied')
         body.update(await identity(request))
         device='browser-'+request.client.host.replace('.','-')

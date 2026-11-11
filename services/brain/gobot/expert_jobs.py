@@ -23,7 +23,7 @@ EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','e
 def explicit_expert_request(text):
     """Only a diagnostic intent signal; never authority or a replacement task."""
     return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',text,re.I)
-                and re.search(r'переда\w*|адрес\w*|отправ\w*|спроси|подключ\w*|делегир\w*|обрат\w*|пусть.*(?:провер|разбер)',text,re.I))
+                and re.search(r'переда\w*|адрес\w*|отправ\w*|спроси|спрашивай|подключ\w*|делегир\w*|обрат\w*|пусть.*(?:провер|разбер)',text,re.I))
 
 def profile_in_text(text):
     if re.search(r'\b(?:argon|аргон)\b',text,re.I):return 'ARGON_DEEP'
@@ -34,7 +34,7 @@ def profile_in_text(text):
 def explicit_expert_command(text,profile):
     # Only the actual user's imperative can grant this task. Quoted/narrated commands cannot.
     value=text.strip()
-    return bool(profile_in_text(value)==profile and re.match(r'^(?:(?:а|пожалуйста|ты)[, ]+)*(?:спроси|подключи|передай|отправь|адресуй|попроси|пусть)\b',value,re.I))
+    return bool(profile_in_text(value)==profile and re.match(r'^(?:(?:а|пожалуйста|ты)[, ]+)*(?:спроси|спрашивай|подключи|передай|отправь|адресуй|попроси|пусть)\b',value,re.I))
 
 def normalize_result(text,profile):
     text=text.strip()
