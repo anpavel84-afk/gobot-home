@@ -19,13 +19,15 @@ def weather_words(value):
 def weather_followup(value,context):
     if not (context or {}).get('weather_followup'):return None
     value=weather_words(value)
+    value=re.sub(r'^(?:нет[,\s]+|я (?:имел в виду|сказал)\s+)','',value)
+    value=re.sub(r'^не (?:сегодня|завтра|послезавтра)[,\s]+а\s+','',value)
     without_home=' '.join(re.sub(r'\b'+HOME_REFERENCE+r'\b','',value).strip(' ,').split())
     last=(context or {}).get('weather_last_request') or {'operation':'weather_current'}
     if not isinstance(last,dict):return None
     last={k:last[k] for k in ('operation','offset','days','weekday') if k in last}
     if last.get('operation') not in {'weather_current','weather_forecast'}:return None
     if not without_home and value:return last
-    period=r'(?:завтра|послезавтра|сегодня|сейчас|на (?:неделю|две недели|выходные|выходных|\d{1,2} дней)|в (?:понедельник|вторник|среду|четверг|пятницу|субботу|воскресенье))'
+    period=r'(?:(?:на )?(?:завтра|послезавтра|сегодня)|сейчас|на (?:неделю|две недели|выходные|выходных|\d{1,2} дней)|в (?:понедельник|вторник|среду|четверг|пятницу|субботу|воскресенье))'
     if re.fullmatch(period,without_home):return weather_query('погода '+without_home)
     # A property followup inherits the selected date/range, then refreshes the
     # source. A previous model answer is not itself a weather source.

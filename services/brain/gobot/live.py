@@ -486,6 +486,10 @@ class LiveSession(VoiceVisualSession):
         query=turn.query
         current=lambda:not self.closed and not self.closing and turn is self.current and turn.query==query and not turn.cancelled
         if not current():return
+        # Admit the weather task before awaiting the source, so an interruption
+        # such as "нет, завтра" can refine it while the first lookup is pending.
+        self.weather_topic=quick.executor=='settings' and quick.slots.get('operation') in {'weather_current','weather_forecast'}
+        if self.weather_topic:self.weather_last_request={k:quick.slots[k] for k in ('operation','offset','days','weekday') if k in quick.slots}
         self.emit('local_tool_status',state='running',tool=quick.executor,intent=quick.intent)
         slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
         try:
@@ -509,8 +513,6 @@ class LiveSession(VoiceVisualSession):
                 await self.append('commentary','Серверный инструмент не подтвердил результат. Автоматического повтора нет.',did)
             return
         if not result or not current():return
-        self.weather_topic=quick.executor=='settings' and quick.slots.get('operation') in {'weather_current','weather_forecast'}
-        if self.weather_topic:self.weather_last_request={k:quick.slots[k] for k in ('operation','offset','days','weekday') if k in quick.slots}
         if quick.executor=='settings' and (quick.slots.get('operation','').startswith('weather_') or getattr(result,'profile',None)):
             home=await self.home_environment()
             if not current():return

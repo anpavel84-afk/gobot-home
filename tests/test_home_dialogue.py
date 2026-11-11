@@ -38,6 +38,39 @@ def test_place_or_property_repair_keeps_requested_period(reply):
     assert q and q.slots==request
 
 
+@pytest.mark.parametrize('reply',['Нет, завтра','Нет, на завтра','Нет, не сегодня, а завтра','Я имел в виду завтра','Я сказал завтра'])
+def test_correction_is_a_new_date_only_inside_weather_task(reply):
+    q=resolve_quick(reply,{'weather_followup':True,'weather_last_request':{'operation':'weather_current'}})
+    assert q and q.slots['operation']=='weather_forecast' and q.slots['offset']==1
+    assert not resolve_quick(reply)
+
+
+def test_weather_followup_exists_while_source_is_pending_and_old_result_cannot_publish(tmp_path,settings):
+    async def run():
+        manager,s=await start(tmp_path,settings)
+        manager.brain.configuration.devices.update('browser-1@fixture',{'weather':{'enabled':True,'location_name':'Home','latitude':0,'longitude':0}})
+        real=manager.brain.configuration.execute;entered=asyncio.Event();release=asyncio.Event()
+        async def slow(req,slots,**kwargs):
+            if slots['operation']=='weather_current':
+                entered.set();await release.wait()
+            return await real(req,slots,**kwargs)
+        manager.brain.configuration.execute=slow
+        forecast,_,today=forecast_source();manager.brain.configuration.weather=forecast
+        first=asyncio.create_task(say(s,'Какая погода?',0))
+        try:
+            await asyncio.wait_for(entered.wait(),2)
+            assert s.weather_topic
+            await say(s,'Нет, завтра',5000)
+            release.set();await asyncio.gather(first,return_exceptions=True)
+            cards=[e['data']['presentation'] for e in s.events if e['type']=='visual_response' and e['data']['presentation']['type']=='weather_card']
+            assert cards and all(c['metadata']['weather']['kind']=='forecast' for c in cards)
+            assert cards[-1]['metadata']['weather']['days'][0]['date']==(today+timedelta(days=1)).isoformat()
+            assert not s.backend_task and not s.experts.jobs
+        finally:
+            release.set();await asyncio.gather(first,return_exceptions=True);await manager.shutdown();await manager.realtime.shutdown()
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('query',['Ну не показывай погоду завтра','Хорошо, объясни как образуется дождь','А какая температура тела сейчас?','Что такое ветер?','Завтра расскажи про космос','Он сказал: погода завтра','Тогда удали все мои файлы','Ну а не ставь таймер на пять минут'])
 def test_conversational_weather_does_not_create_unrelated_or_negated_action(query):
     result=resolve_quick(query,{'weather_followup':True,'weather_last_request':{'operation':'weather_forecast','offset':1,'days':1}})
