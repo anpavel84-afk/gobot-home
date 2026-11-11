@@ -18,12 +18,13 @@ def attach_brain_live(app,manager,auth):
         except KeyError:raise HTTPException(404,'live_session_not_found')
     @app.get('/api/v1/live/status',dependencies=[Depends(auth)])
     async def status(binding:str=''):
-        from .skill_catalogue import summary
+        from .skill_catalogue import summary,catalogue
         return {'engine':'gpt_live','requested_version':'1.1','actual_candidate_model':LIVE_MODEL,'version_1_1_verified':False,
             'enabled':manager.owner_testing.policy().live_enabled and (not binding or manager.owner_testing.authorized(binding)),'delegation':'client','store':False,
             'billing':manager.budget.status(),'active_sessions':sum(not s.closed for s in manager.sessions.values()),
             'default_changed':True,'product_default_engine':'live','conversation_modes':['live','legacy'],'idle_seconds':10,
             'input_action_bridge_version':3,'native_tools':['clock','timer','weather_current','weather_forecast','weather_setup','utility','skill_readiness'],'skill_catalogue':summary(),
+            'home_dialogue':{'version':1,'rules':len(catalogue().get('dialogue_rules',[])),'weather_default':'configured_device_home','weather_followups':'scoped_current_topic','live_gps':False},
             'wake_word_ready':False,'iphone_verified':False,'private_memory_ready':False,'silent_backend_llm':False,
             'general_backend_ready':manager.owner_testing.policy().live_backend_enabled,'general_backend_model':'gpt-6-luna',
             'general_backend_input_limit':2048,'general_backend_output_limit':512,'general_backend_concurrency':1}

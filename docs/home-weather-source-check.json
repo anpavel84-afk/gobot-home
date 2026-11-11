@@ -1,0 +1,10 @@
+{
+  "provider": "Open-Meteo",
+  "configured_home": true,
+  "current_source_validated": true,
+  "tomorrow_source_validated": true,
+  "provider_timezone_present": true,
+  "public_http_calls": 2,
+  "paid_api_calls": 0,
+  "coordinates_or_household_values_exported": false
+}

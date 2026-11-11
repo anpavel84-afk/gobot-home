@@ -152,3 +152,13 @@ Decorative hearts/stars do not identify a person or authorize memory. Mic state 
 independent. Expired timers latch until dismissed; profile invalidation clears them.
 Preserve photo cover/diagram contain, decode ACK, two-stage alignment and avatar on
 missing images. Figma importer is a retained source artifact, not verified Figma output.
+
+OWNER DIRECT household dialogue: a weather request without an explicit city uses
+the existing configured device-home location, not guessed GPS/IP and not a new
+city question. Keep weather date/place slots for scoped followups (tomorrow, same
+place, wind); invalidate on topic/profile change. Live gets compact city-only
+application data at startup and coalesced updates, never coordinates/private
+archive. The existing assistant-skills.json carries reviewed dialogue rules,
+not permission/capability grants. Normalize conversational wrappers only in the
+read-only weather path; do not make destructive action parsing fuzzy. Preserve
+source verification, geographic time zone, finite quotas and explicit setup.

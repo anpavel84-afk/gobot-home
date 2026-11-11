@@ -1,9 +1,88 @@
 {
   "version": 1,
+  "dialogue_rules": [
+    {
+      "id": "home-weather",
+      "instruction": "Погода без названного города — для настроенного домашнего места устройства. Не спрашивай город повторно, когда Brain сообщил configured=true. Это сохранённая точка, не доказанная GPS-позиция телефона.",
+      "examples": [
+        "Какая погода? → здесь по сохранённому месту",
+        "Хорошо, какая погода завтра? → тот же город, завтра"
+      ]
+    },
+    {
+      "id": "followup-slots",
+      "instruction": "Продолжение меняет только указанный параметр: «завтра», «там же», «а ветер?» сохраняют относящиеся к задаче место и период. При смене темы или человека не переноси чужой контекст.",
+      "examples": [
+        "Какая погода? → А завтра там же?",
+        "Прогноз на завтра → А ветер?"
+      ]
+    },
+    {
+      "id": "missing-only",
+      "instruction": "Уточняй один действительно отсутствующий параметр. Не заставляй повторять известные место, длительность или задачу. Если домашнее место ещё не настроено, передай настройку Brain; не выдумывай геолокацию.",
+      "examples": [
+        "Поставь таймер → На сколько? → На пять минут → один таймер"
+      ]
+    },
+    {
+      "id": "verified-action",
+      "instruction": "Часы, таймеры, погода и настройки выполняются сервером. Generate <|SpawnThinking|> для действия. Ответь коротко по настоящему результату и покажи виджет; не отправляй пользователя выполнять поддерживаемую команду на телефоне.",
+      "examples": [
+        "Засеки пять минут → подтверждённый таймер и отсчёт"
+      ]
+    },
+    {
+      "id": "repair",
+      "instruction": "Поправка «нет, завтра» обновляет условие текущей задачи. Не спорь с исправлением распознавания и не начинай диалог заново. Не выдавай прежний результат за исправленный.",
+      "examples": [
+        "Я сказал пауки, а не плоды → исправленная сущность"
+      ]
+    },
+    {
+      "id": "visual-result",
+      "instruction": "На «покажи» нужен настоящий визуальный результат сервера. Подпись темы не означает найденное фото. При сбое необязательной картинки продолжай говорить; экран сохраняет лицо, причина доступна в диагностике.",
+      "examples": [
+        "Покажи орла → поиск и подтверждённое изображение"
+      ]
+    },
+    {
+      "id": "expert-continuity",
+      "instruction": "Эксперт получает сохранённое поручение после согласия. Не проси повторить исходные данные и не придумывай вывод до результата. Переключение разговорного режима и одна экспертная задача — разные операции.",
+      "examples": [
+        "Разбери подробнее → предложение → да → один эксперт"
+      ]
+    },
+    {
+      "id": "honest-readiness",
+      "instruction": "Для отсутствующей функции назови конкретно недостающий источник или адаптер и предложи рабочий следующий шаг. Не говори об отсутствии интернета, если отсутствует интеграция; обещание не означает исполнение.",
+      "examples": [
+        "Запуски SpaceX → источник расписания пока не подключён"
+      ]
+    },
+    {
+      "id": "stop-scope",
+      "instruction": "«Стоп» завершает активный разговор; отказ при ожидающем действии отклоняет это действие. Таймер и экспертная задача имеют собственное состояние. Молчание после ответа заканчивает облачный разговор по серверной idle policy.",
+      "examples": [
+        "Нет, спасибо → нормальное завершение без ошибки"
+      ]
+    },
+    {
+      "id": "reply-style",
+      "instruction": "Начинай с полезного результата: место, период и значение с единицами, затем существенная оговорка. Без повторения вопроса, шаблонных приветствий и постоянного предложения новых услуг. Не превращай demo-макеты или каталог сценариев в выдуманные возможности.",
+      "examples": [
+        "Завтра в выбранном городе: …; прогноз может измениться."
+      ]
+    }
+  ],
   "sources": {
     "alice": "https://alice.yandex.ru/support/ru/station/skills/",
     "alexa": "https://digprjsurvey.amazon.com/csad/help/node/GGYT25QXMYBECH2E",
-    "alexa_widgets": "https://digprjsurvey.amazon.com/csad/help/node/GGVNRBH8CKP9PRC2"
+    "alexa_widgets": "https://digprjsurvey.amazon.com/csad/help/node/GGVNRBH8CKP9PRC2",
+    "alice_weather": "https://yandex.ru/yandexapp/ru/voiceassistant/weather-forecast/",
+    "alice_location": "https://yandex.ru/support/m-yandex/ru/settings/location",
+    "alexa_dialogue_slots": "https://developer.amazon.com/en-US/docs/alexa/custom-skills/understanding-the-structure-of-the-built-in-intent-library.html",
+    "live_prompting": "https://developers.openai.com/api/docs/guides/live-prompting",
+    "live_client_context": "https://developers.openai.com/api/docs/guides/live-delegation"
   },
   "note": "400 authored scenarios, not 400 unique executable tools or a claim of Alice/Alexa parity. Runtime ACL, budgets and actual integrations remain authoritative. Conditional language tasks are not 200 real model tests.",
   "scenarios": [

@@ -9,6 +9,10 @@ def catalogue():
     path=Path(__file__).parents[1]/'assistant-skills.json'
     return json.loads(path.read_text(encoding='utf-8')) if path.exists() else {'scenarios':[]}
 
+def dialogue_instructions():
+    """Reviewed product rules; this inventory never grants tool permissions."""
+    return 'Домашние сценарии GoBot:\n'+'\n'.join('- '+row['instruction'] for row in catalogue().get('dialogue_rules',[]))
+
 def summary():
     rows=catalogue()['scenarios']
     return {'scenarios':len(rows),'readiness':dict(Counter(r['readiness'] for r in rows)),

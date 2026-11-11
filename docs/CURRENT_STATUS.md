@@ -2233,3 +2233,50 @@ horizontal overflow0 (atlas665px). Start/provider session не запускал�
 A для сравнения сохранён `/demo2/a/device`. Code rollback на4931c49 требует idle
 и совместимого чтения нового skin.expression, без восстановления старых ledger
 или согласий ради отката графики.
+
+
+## 39. Домашняя погода: default place и продолжения диалога
+
+Владелец сообщил: current weather получен, но «хорошо, какая погода завтра?»
+вызывало ненужный вопрос о городе. Полный старый C-протокол после restart
+отсутствует: native C remember=false/RAM-only; в SQLite за24h нет сообщений
+provider gpt-live-1/openai:gpt-live-1. Не включали постоянную запись ради аудита.
+
+**Воспроизведено бесплатно на коде04d8999:** plain «Какая погода?» и «А завтра?»
+имели weather route; «Хорошо, какая погода завтра?», «А завтра там же?» и
+«Ну там же, где и сегодня» его не имели. Погодный город не входил в стартовый
+session.input и пакет Luna. Это два установленных дефекта маршрута/контекста;
+дословное поведение provider в старой беседе не реконструируется как факт.
+
+**Исправлено:** weather-only нормализация вводных; связанные дата/место/свойство
+в RAM текущей погодной темы. Последний weather request хранит только тип/offset/
+days/weekday, не произвольный prompt и не личную историю. «Там же» после завтра
+не превращает запрос в текущую погоду. Другой инструмент/тема гасит эллипсис.
+SettingsTools продолжает использовать сохранённое место соответствующего
+DeviceStore scope; informational queries не меняют его. Никакой guessed GPS.
+
+Live получает compact home data при старте: configured, city label, basis=
+configured_device_home_not_live_gps. Координаты/чужие profiles не отправляются.
+После настройки/смены места отправляется лишь изменённое thinking data;
+защита current turn проверяется после await. Luna получает разрешённый
+home_context, однако погодные запросы направляются в источник без Luna/CLI.
+[10 диалоговых правил](../services/brain/assistant-skills.json) встроены в
+Live instructions,400inventory и readiness не выданы за новые интеграции.
+
+[Настоящий бесплатный source check](home-weather-source-check.json):
+Open-Meteo current и tomorrow по существующей домашней точке получены и
+валидированы; timezone присутствует.2public HTTP calls, paid0; ни координаты,
+ни реальные бытовые значения не экспортированы. Это не новый Live voice E2E.
+Автотесты используют настоящий Brain и WeatherClient с mock HTTP/Live provider,
+включая owner exact dialogue→same city→tomorrow→same place→wind, cache и1session,
+без backend/CLI jobs, без повторного геокодирования/настройки.
+Финальные проверки/commit/runtime фиксируются ниже после idle deployment.
+
+Проверки до выпуска: **1942 passed /116.45s**; финальные home/live/backend
+**149/11.29s** (включают128новых диалоговых проверок).
+[Машиночитаемая приёмка](home-dialogue-check.json). Изменён только weather
+wrapper/контекст, startup data, prompt rules и status metadata. Модели,
+WebRTC/audio, семейные ACL, ключи и квоты не менялись. Новых платных probes0;
+настоящий Live voice/iPhone после этого исправления пока не подтверждён.
+Перед выпуском сохранён WAL-aware backup
+`data/backups/before-unified-20261111T202407`, integrity=ok, idle0.

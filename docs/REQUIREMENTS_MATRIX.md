@@ -461,3 +461,14 @@ canaries проверен targeted328; платные пробы не повто
 atlas/device проверены, HTTP200/A baseline unchanged. Новых платных вызовов0.
 Saved non-null preferences сохранены; штатный bootstrap заполнил прежние
 null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отдельно.
+
+
+### Домашние продолжения — CURRENT_STATUS §39
+
+| Требование | Реализация | Граница |
+| --- | --- | --- |
+| Без города — домашнее место | Scoped saved DeviceStore + compact home_context | Не GPS телефона/не guessed IP; если нет настройки — Setup |
+| «Хорошо…завтра», «там же», «а ветер?» | Weather-only wrapper parsing + last request slots | Только активная тема/сессия, не чужой профиль |
+| Источник вместо догадки | Existing WeatherClient/SettingsTools, source-backed cards/voice text | Реальные2free HTTP, Live speech после фикса отдельно |
+| Правила домашних разговоров |10reviewed rules в существующем400catalogue, используются Live | Не400working integrations, правила не заменяют ACL |
+| Приватность истории | remember=false/RAM; old protocol не придуман | Новая постоянная запись не включена |

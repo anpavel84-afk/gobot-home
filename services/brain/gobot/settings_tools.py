@@ -6,7 +6,7 @@ from .weather import WeatherClient,WeatherError
 from .presentation import Presentation,VisualMetadata,VisualSource,frame_id
 from .local_tools import ToolResult
 from .device_contract import WeatherPreferences
-from .weather_queries import weather_query
+from .weather_queries import weather_query,weather_followup
 from .weather import condition
 
 HELP='Могу настроить город для погоды, громкость и голос OpenAI, режим модели, вступления, продолжение разговора, иллюстрации и лицо. Например: «Настрой погоду для моего города», «Громкость 40 процентов», «Выключи вступления».'
@@ -15,8 +15,8 @@ def settings_intent(value,context=None):
     """Returns a typed operation; no fuzzy state-changing matches."""
     pending=(context or {}).get('pending_action')
     def op(name,**slots):return {'operation':name,**slots}
-    if (context or {}).get('weather_followup') and re.fullmatch(r'(?:а )?(?:завтра|послезавтра|сегодня|на (?:неделю|две недели|выходных|\d{1,2} дней))',value):
-        return weather_query('погода '+re.sub(r'^а ','',value))
+    followup=weather_followup(value,context)
+    if followup:return followup
     if pending and pending.get('expires',0)>time.time() and pending.get('kind','').startswith('weather_'):
         payload=pending.get('payload',{})
         if value in {'нет','нет спасибо','не надо','отмена','отмени','отмени настройку','отмени подключение','не подключай'}:return op('weather_cancel',pending_id=pending['id'])
