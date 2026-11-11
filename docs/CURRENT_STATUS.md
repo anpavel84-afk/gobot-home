@@ -12,7 +12,8 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  A/B/C и Luna опубликованы и запущены на `9e6d0bb5f747c1ff2da677cd6a6aece7af86729c`.
+  C↔A опубликован и запущен на `1de0cdfee3bb650ac348e1343d94df7a2035acc8`;
+  прежние A/B/C и Luna сохранены.
   Последнее решение C ↔ A и фактическое развёртывание — §34 ниже; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
@@ -1876,7 +1877,15 @@ run. Она восстановлена из private backup092611; тест пе�
 Нельзя считать фразу «ГоБот» рабочей активацией по результатам этих fixtures.
 Новых разрешений на оплату разработческих проб не запрашивалось/не использовалось.
 
-Развёртывание и опубликованный code SHA будут записаны после idle/backup/HTTP проверки.
+Опубликован и запущен code commit **`1de0cdfee3bb650ac348e1343d94df7a2035acc8`**.
+Перед restart повторно Brain turns/voice, B/C и pending hangups=0. После запуска
+[HTTP/runtime проверка](unified-conversation-check.json): root/device/unified.js и
+все A/B/C device routes HTTP200, C default=live, idle10, Live unconfirmed0,
+owner Live/Luna ON, API estimate$10/day, Live60min/day, Image20/day неизменны.
+A frozen asset hashes совпадают с baseline. В desktop IAB реально открыт `/device`:
+показаны «Живой разговор · C», кнопки обоих режимов и End, инструкция10s;
+Start не нажимался, платная сессия/микрофон не запускались. Это UI-проверка,
+не физическая телефонная приёмка и не голосовой E2E.
 Private WAL-aware backup перед этим запуском:
 `data/backups/before-unified-20261111T141521`, integrity=ok; перед копированием
 Brain turns/voice, B/C и pending hangups=0. Финальный targeted97/8.38s прошёл.

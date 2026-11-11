@@ -1,0 +1,29 @@
+{
+  "runtime_code_commit": "1de0cdfee3bb650ac348e1343d94df7a2035acc8",
+  "http": {
+    "/": 200,
+    "/device": 200,
+    "/unified.js": 200,
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/demo2/c/device": 200
+  },
+  "default_engine": "live",
+  "idle_seconds": 10,
+  "C_model": "gpt-live-1",
+  "B_model": "gpt-realtime-2.1-mini",
+  "A_baseline_unchanged": true,
+  "A_auto_models": "existing Antigravity Flash Low/Medium",
+  "new_paid_developer_calls": 0,
+  "wake_word_ready": false,
+  "physical_iphone_switch_verified": false,
+  "guest_ram_only": true,
+  "owner_live_enabled": true,
+  "owner_luna_enabled": true,
+  "image_attempts_per_day": 20,
+  "live_minutes_per_day": 60,
+  "api_estimate_usd_per_day": 10.0,
+  "active_C": 0,
+  "unconfirmed_live": 0
+}

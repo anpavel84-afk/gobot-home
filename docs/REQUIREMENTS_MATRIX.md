@@ -381,3 +381,6 @@ Luna real4/4 прошли: exact counts164–268/output46–50, effortnone, toke
 | Расходы | Owner policy восстановлена, hash checked; ledgers/caps не сброшены; paid developer0 | Реальный счёт/voice duration при ручной пробе |
 
 Текущий code/runtime, backup и ограничения — CURRENT_STATUS.md §34.
+Code `1de0cdf` опубликован и запущен. HTTP200 root/device/scripts/A/B/C, idle10,
+Live unconfirmed0, frozen A hashes unchanged; desktop IAB показал новый общий
+экран без Start/платного вызова. Реальные iPhone mode-switch/wake ещё не приняты.
