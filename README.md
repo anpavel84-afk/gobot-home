@@ -96,5 +96,6 @@ Earcon/filler отделены от полезного ответа; реаль�
 Демо 2 сохраняет A (legacy), B (Realtime Mini, прежние настройки) и добавляет C
 (GPT-Live 1, explicit candidate). API 1.1 пока не подтверждён. C использует тот же
 Brain, инструменты, Visual Pipeline и ExpertJobs, отдельный Live protocol и duration
-ledger. Общий быстрый reasoning backend пока не подключён; C не объявляется заменой B
-по наличию одного адаптера. Актуальные acceptance/runtime — паспорт §30–31.
+ledger. Владелец отдельно разрешил быстрый backend gpt-6-luna: 2048 input / 512 output,
+один запрос одновременно, без tools/retries, общий Owner Full Test. Реализация и
+реальные этапы приёмки разделены в паспорте §30–32; B не заменяется молча.

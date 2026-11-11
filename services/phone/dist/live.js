@@ -37,7 +37,7 @@
     await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});
     await this.connected(pc,this.abort.signal);
     this.events=new EventSource('/api/live/sessions/'+id+'/events');this.events.onmessage=e=>{if(generation===this.generation)this.event(JSON.parse(e.data));};this.events.onerror=()=>{if(generation===this.generation)void this.close('Управляющее соединение Live потеряно','events_disconnected');};
-    this.inputMode=document.getElementById('live-input-mode')?.value||'continuous';this.ready=true;this.pending=false;this.muted=this.inputMode==='hold';this.mic(!this.muted);this.status('C · GPT-Live 1 готов. '+(this.muted?'Удерживайте круг для микрофона.':'Можно говорить и перебивать; микрофон остаётся включён.'));this.meter(generation);
+    this.inputMode=document.getElementById('live-input-mode')?.value||'continuous';this.ready=true;this.pending=false;this.muted=this.inputMode==='hold';this.mic(!this.muted);this.status('C · GPT-Live 1 готов. '+(state.general_backend_ready===false?'Инструменты доступны; быстрый backend для обычных вопросов ещё не подключён. ':'')+(this.muted?'Удерживайте круг для микрофона.':'Можно говорить и перебивать; микрофон остаётся включён.'));this.meter(generation);
    }catch(error){await this.close(error.message,'webrtc_failed');throw error;}
   }
   async connected(pc,signal){
@@ -73,6 +73,11 @@
    if(event.type==='closing'){this.mic(false);if(this.output)this.output.muted=true;this.status('Разговор завершается. Микрофон выключен.');}
    if(event.type==='visual_status')document.getElementById('realtime-visual-status')?.replaceChildren(document.createTextNode(data.message||''));
    if(event.type==='closed')void this.close(data.final_usage_confirmed?'Live завершён. Микрофон выключен.':'Live закрыт локально; финальный usage ещё не подтверждён.',data.reason||'user_stop',true);
+   if(event.type==='backend_status'){
+    const text='Backend C · '+data.model+' · '+data.state+(data.reason?' · '+data.reason:'');
+    const node=document.getElementById('live-status');if(node)node.textContent=text;
+    this.diagnostic({stage:'live_backend',state:data.state,model:data.model,timings:data.timings,usage:data.usage,estimated_usd:data.estimated_usd});
+   }
    window.GoBotExpertUI?.event(event);window.GoBotClient?.applyNativeEvent?.(event);
   }
   meter(generation){
@@ -108,7 +113,7 @@
   const option=document.createElement('option');option.value='live';option.textContent='C · GPT-Live 1 · API 1.1 пока не подтверждён';select.append(option);
   if(document.body.dataset.conversationEngine==='live')select.value='live';
   const section=document.createElement('details');section.id='live-controls';const summary=document.createElement('summary');summary.textContent='C · GPT-Live 1 · непрерывный разговор';section.append(summary);
-  const p=document.createElement('p');p.id='live-status';p.textContent='Явный кандидат Live 1, не 1.1. $0.05/мин открытой сессии; backend и изображения отдельно. Включение — кнопкой GoBot. A/B сохранены.';section.append(p);
+  const p=document.createElement('p');p.id='live-status';p.textContent='Кандидат Live 1, не 1.1. Быстрый backend — gpt-6-luna при включении в Owner Full Test. $0.05/мин открытой сессии, backend и изображения отдельно. A/B сохранены.';section.append(p);
   const mode=document.createElement('select');mode.id='live-input-mode';for(const [value,text] of [['continuous','Непрерывный микрофон'],['hold','Микрофон только при удержании']]){const n=document.createElement('option');n.value=value;n.textContent=text;mode.append(n);}section.append(mode);
   const label=document.createElement('label'),ns=document.createElement('input');ns.type='checkbox';ns.checked=true;ns.id='live-browser-ns';label.append(ns,document.createTextNode('Browser noise suppression · отдельная проба C; эхо-защита остаётся включённой'));section.append(label);
   for(const [text,handler] of [['Заглушить / включить микрофон',()=>live.toggleMute()],['Остановить речь',()=>live.stopSpeech()],['Завершить разговор',()=>live.close()]]){const b=document.createElement('button');b.type='button';b.textContent=text;b.onclick=()=>void handler().catch(e=>live.status(e.message));section.append(b);}

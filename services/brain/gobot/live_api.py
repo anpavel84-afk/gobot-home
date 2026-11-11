@@ -21,7 +21,9 @@ def attach_brain_live(app,manager,auth):
         return {'engine':'gpt_live','requested_version':'1.1','actual_candidate_model':LIVE_MODEL,'version_1_1_verified':False,
             'enabled':manager.owner_testing.policy().live_enabled and (not binding or manager.owner_testing.authorized(binding)),'delegation':'client','store':False,
             'billing':manager.budget.status(),'active_sessions':sum(not s.closed for s in manager.sessions.values()),
-            'default_changed':False,'iphone_verified':False,'private_memory_ready':False,'silent_backend_llm':False}
+            'default_changed':False,'iphone_verified':False,'private_memory_ready':False,'silent_backend_llm':False,
+            'general_backend_ready':manager.owner_testing.policy().live_backend_enabled,'general_backend_model':'gpt-6-luna',
+            'general_backend_input_limit':2048,'general_backend_output_limit':512,'general_backend_concurrency':1}
     @app.post('/api/v1/live/sessions',dependencies=[Depends(auth)])
     async def create(request:Request):
         try:

@@ -1,5 +1,5 @@
 """GPT-Live C over the existing GoBot Brain. No Realtime wire events here."""
-import asyncio,json,re,time
+import asyncio,json,re,time,httpx
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -48,7 +48,7 @@ def status_query(query):
 
 class LiveSession(VoiceVisualSession):
     def __init__(self,manager,offer,profile,limit):
-        self.manager=manager;self.offer=offer;self.profile=profile.model_copy(deep=True);self.id=offer.session_id
+        self.manager=manager;self.offer=offer.model_copy(update={'remember':False});self.profile=profile.model_copy(deep=True);self.id=offer.session_id
         self.started=time.monotonic();self.limit=limit;self.closed=False;self.closing=False;self.ready=False
         self.provider_id=None;self.ws=None;self.reader=None;self.timer=None;self.tasks=set()
         self.events=[];self.event_serial=0;self.changed=asyncio.Event();self.subscriber=False
@@ -69,6 +69,7 @@ class LiveSession(VoiceVisualSession):
         self.delegation_for_turn={};self.last_task='';self.final_usage_confirmed=False
         self.setup_done=asyncio.Event();self.setup_task=None
         self.input_seen_at=0;self.closed_phrase=None;self.speech_stopped=False
+        self.backend_task=None
 
     def task_revision(self):return self.revision
     def mark_turn(self,turn,name):
@@ -206,6 +207,7 @@ class LiveSession(VoiceVisualSession):
             self.emit('input_transcript',text=query,final=False,confirm_text_allowed=False)
             if len(query.split())>=4:self.ensure_visual(self.current)
             return self.current
+        if self.backend_task and not self.backend_task.done():self.backend_task.cancel()
         if self.current and self.current.photo:await self.current.photo.close()
         if self.current and not self.current.stored:await self.finish_turn(False)
         status_only=status_query(query)
@@ -268,6 +270,12 @@ class LiveSession(VoiceVisualSession):
         if operation in self.operations:return
         self.operations[operation]='checking'
         pending=self.experts.pending
+        if pending and pending.state in {'awaiting_confirmation','queued','running'} and re.match(r'^(?:да[, ]+но|уточнение[: ,]|измени (?:задачу|условие)|сравни только)',query,re.I):
+            task=pending.task+'\nУточнение пользователя: '+query
+            profile=pending.profile['profile'];await self.experts.cancel(pending.id)
+            proposal=self.experts.propose(task,profile,turn);self.experts.pending.confirmed=False
+            self.experts.pending.delegation_id=did;self.emit('expert_job',job=proposal)
+            await self.append('commentary','Задача изменена, прежний разбор остановлен. Подтвердите обновлённое поручение перед новым запуском.',did);return
         if status_query(query):
             state=pending.state if pending else None
             message='Эксперт ещё работает; готового результата пока нет.' if state in {'queued','running'} else 'Разбор готов; полный результат доступен в карточке.' if state=='completed' else 'Сейчас активного экспертного разбора нет.'
@@ -335,13 +343,44 @@ class LiveSession(VoiceVisualSession):
             if getattr(result,'frame',None):self.emit('visual_response',presentation=result.frame.model_dump())
             if getattr(result,'setup',None):self.emit('tool_setup',setup=result.setup)
             await self.append('commentary',spoken_fields(result.text)['spoken_text'],did);self.operations[operation]='completed';return
-        from .quality import RiskAssessment
-        if RiskAssessment().assess(query,context).verification_required:
+        from .quality import RiskAssessment,arithmetic_expression
+        assessment=RiskAssessment().assess(query,context)
+        if re.search(r'расписани|(?:ближайш|следующ|предстоящ).*?(?:запуск|рейс|вылет|поезд)',query,re.I):
+            await self.append('commentary','Источник расписания пока не подключён. Не буду угадывать даты или статусы.',did);return
+        if assessment.method=='calculator':
+            result=await asyncio.to_thread(self.manager.brain.tools.execute,'calculator',turn.req,{'expression':arithmetic_expression(query)})
+            await self.append('commentary',spoken_fields(result.text)['spoken_text'],did);return
+        if assessment.method=='memory_source':
+            await self.append('commentary','В этом голосовом режиме доступен контекст текущей беседы. Доступ к личному архиву пока не подключён; голосовое совпадение само его не открывает.',did);return
+        if assessment.verification_required:
             result=await asyncio.to_thread(self.manager.brain.tools.execute,'verification',turn.req,{})
             await self.append('commentary',result.text,did);return
+        if assessment.complexity>=2 and self.experts.status(include_profiles=False)['enabled']:
+            proposal=self.experts.propose(query,'SOL_HIGH',turn);self.experts.pending.delegation_id=did
+            self.emit('expert_job',job=proposal)
+            await self.append('commentary','Здесь полезен подробный разбор. Подключить Sol High для этой задачи?',did);return
         # No silent paid text backend or mandatory CLI for general informational delegation.
-        self.emit('warning',code='live_general_backend_not_configured')
-        await self.append('commentary','В C быстрый backend для содержательных ответов ещё не подключён. Инструменты доступны; для обычного разговора пока используйте B. Эксперт подключается только по отдельной задаче.',did)
+        if not self.manager.owner_testing.policy().live_backend_enabled:
+            self.emit('warning',code='live_general_backend_not_configured')
+            await self.append('commentary','Быстрый backend C выключен в Owner Full Test. Инструменты доступны; обычный разговор также доступен в B.',did);return
+        packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,query,context,'FAST_CHAT')
+        if self.closed or self.closing or turn is not self.current:return
+        async def deliver(text):
+            if not self.closed and not self.closing and turn is self.current:await self.append('commentary',text,did)
+        async def compute():
+            self.emit('backend_status',state='running',model='gpt-6-luna')
+            try:
+                result=await self.manager.backend.answer(query,packet,binding=self.owner_test_binding,operation=self.id+':'+operation,
+                    developer=self.offer.developer_acceptance,on_text=deliver,is_current=lambda:not self.closed and not self.closing and turn is self.current and self.manager.owner_testing.authorized(self.owner_test_binding) and self.manager.owner_testing.policy().live_backend_enabled)
+                self.emit('backend_status',state='completed',model=result['model'],usage=result['usage'],timings=result['timings'],estimated_usd=result['estimated_usd'])
+            except asyncio.CancelledError:raise
+            except (PermissionError,ValueError,RuntimeError,TimeoutError,httpx.HTTPError) as error:
+                code=str(error) if isinstance(error,(PermissionError,ValueError,RuntimeError)) else 'live_backend_network_error'
+                self.emit('backend_status',state='failed',model='gpt-6-luna',reason=code)
+                await self.append('commentary','Быстрый текстовый backend сейчас не завершил ответ. Автоматического повтора нет. Можно уточнить вопрос или выбрать B.',did)
+            finally:
+                if self.backend_task is asyncio.current_task():self.backend_task=None
+        self.backend_task=self.spawn(compute())
 
     async def expire(self):
         try:
@@ -380,6 +419,7 @@ class LiveSession(VoiceVisualSession):
         if action=='stop_speech':
             self.speech_stopped=True
             if self.current:self.current.truncated=True
+            if self.backend_task and not self.backend_task.done():self.backend_task.cancel()
             self.emit('playback_cleared');await self.append('instructions','Прекратите текущую речь. Не продолжайте её хвост. Дождитесь нового сообщения пользователя.',None)
         elif action=='cancel_task':
             output=await self.experts.cancel(command.job_id);self.emit('expert_job',job=output)
@@ -416,6 +456,8 @@ class LiveManager:
     def __init__(self,realtime,*,provider=None,root=None):
         self.realtime=realtime;self.brain=realtime.brain;self.identity=realtime.identity;self.owner_testing=realtime.owner_testing;self.expert_store=realtime.expert_store
         self.provider=provider or LiveProvider();self.budget=LiveBudget(root or realtime.budget.root.parent/'live',self.owner_testing)
+        from .live_backend import LiveBackend
+        self.backend=LiveBackend(self.budget.root,self.owner_testing)
         self.sessions={};self.lock=realtime.lock # One server audio lease across B and C.
     def owned(self,ident,owner,client,epoch):
         s=self.sessions.get(ident)

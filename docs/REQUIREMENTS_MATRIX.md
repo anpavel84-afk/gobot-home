@@ -344,3 +344,11 @@ C real: Live1/marin/SDP/sideband/decoded PCM/timer/Close подтвержден�
 CLI0; не принят. B typed expert proposal получена, start0/CLI0; исправлен canonical
 consent scope и next_action, повторная проверка после deployment. iPhone pending.
 Подробные условия и source/runtime — CURRENT_STATUS §31.
+
+Owner §54: gpt-6-luna явно разрешена для C. Fixed Responses/token-count adapter,
+2048/512, no tools/retries, concurrency1, scoped ContextPacket, отдельный usage и
+developer4. Free backend + C route tests прошли; real Luna pending.
+B typed handoff после исправления: **одна настоящая SOL_HIGH completed**, карточка
+и native PCM после результата; voice/iPhone не проверены. Shared Image fallback:
+реальная генерация после Wikimedia miss, JPEG1024/480/240 decoded. Эти результаты
+не объявляют C voice expert или физическое устройство принятыми.

@@ -744,9 +744,9 @@ class RealtimeManager:
         state['readiness']={
             'realtime':{'implemented':True,'configured':openai_key_present(),'acceptance':'owner_reports_conversation_works; acoustic_comparison_pending'},
             'ptt_followup_stop':{'implemented':True,'configured':True,'acceptance':'fixtures_and_owner_use; iOS_edges_pending'},
-            'experts':{'implemented':True,'configured':self.budget.policy().expert_jobs_allowed,'acceptance':'mock_passed; real_e2e_pending'},
+            'experts':{'implemented':True,'configured':self.budget.policy().expert_jobs_allowed,'acceptance':'real_B_text_to_SOL_HIGH_to_native_audio_passed; voice_confirmation_iPhone_and_other_profiles_pending'},
             'visuals':{'implemented':True,'configured':True,'acceptance':'real_Wikimedia_and_renderers; phone_comparison_pending'},
-            'image_api':{'implemented':True,'configured':openai_key_present() and state['policy']['images_enabled'],'acceptance':'provider_metadata_verified; real_output_pending'},
+            'image_api':{'implemented':True,'configured':openai_key_present() and state['policy']['images_enabled'],'acceptance':'real_shared_pipeline_generated_1024_and_decoded_240_480; iPhone_render_pending'},
             'weather':{'implemented':True,'configured':True,'acceptance':'Open-Meteo adapter; confirmed_location_required'},
             'clock_timers_calendar':{'implemented':True,'configured':True,'acceptance':'local_clock/date_and_real_timer_actions; no_external_calendar_integration'},
             'family_preferences':{'implemented':True,'configured':bool(profiles),'acceptance':'server_and_UI_tests; real_voice_profiles_not_enrolled'},
@@ -758,7 +758,9 @@ class RealtimeManager:
         if hasattr(self,'live'):
             state['live_usage']=self.live.budget.status()
             state['readiness']['live']={'implemented':True,'configured':state['policy']['live_enabled'],
-                'acceptance':'GPT-Live 1 candidate; 1.1 unverified; phone acceptance pending'}
+                'acceptance':'real_Live1_marin_timer_audio_Close_passed; 1.1_and_phone_pending'}
+            state['readiness']['live_backend']={'implemented':True,'configured':state['policy']['live_backend_enabled'],
+                'acceptance':'owner_approved_gpt_6_luna; exact_input_count_2048_output512_concurrency1; real_backend_acceptance_pending'}
         return state
 
     def prune_lifecycle(self):

@@ -1,0 +1,57 @@
+{
+  "synthetic_only": true,
+  "pipeline": "production_VisualService_Wikimedia_first_then_generation_if_missing",
+  "elapsed_ms": 7245.85,
+  "progress": [
+    "generating"
+  ],
+  "asset_delivered": true,
+  "generated": true,
+  "generation_model": "gpt-image-2.6-flare",
+  "reason": null,
+  "facts": {
+    "retrieval_fallback_reason": "image_not_found"
+  },
+  "usage": {
+    "input_tokens": 65,
+    "output_tokens": 824,
+    "total_tokens": 889
+  },
+  "auto_retries": 0,
+  "physical_iphone": false,
+  "render_ack_from_iphone": false,
+  "image_contract": {
+    "asset_id": "aa2963c20a7871e0cf0303dae7662d84218032707de4e68701426aa0305fd5cb",
+    "url": "/api/visual/assets/aa2963c20a7871e0cf0303dae7662d84218032707de4e68701426aa0305fd5cb/browser.jpg",
+    "preview_variant": "/api/visual/assets/aa2963c20a7871e0cf0303dae7662d84218032707de4e68701426aa0305fd5cb/preview.jpg",
+    "device_variant": "/api/visual/assets/aa2963c20a7871e0cf0303dae7662d84218032707de4e68701426aa0305fd5cb/device.jpg",
+    "caption": "ИИ-иллюстрация: бумажный робот с тремя прозрачными фиолетовыми крыльями",
+    "alt": "ИИ-иллюстрация: бумажный робот с тремя прозрачными фиолетовыми крыльями",
+    "mime_type": "image/jpeg",
+    "width": 1024,
+    "height": 1024,
+    "source": {
+      "label": "GoBot · ИИ-иллюстрация",
+      "url": null
+    },
+    "attribution": "OpenAI · gpt-image-2.6-flare",
+    "license": "AI-generated",
+    "license_url": null,
+    "changes": "Scaled and re-encoded; device image padded to square; metadata removed"
+  },
+  "new_cache_jpegs": 3,
+  "decoded_sizes": [
+    [
+      1024,
+      1024
+    ],
+    [
+      240,
+      240
+    ],
+    [
+      480,
+      480
+    ]
+  ]
+}

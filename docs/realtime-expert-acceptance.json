@@ -8,7 +8,10 @@
   "model": "gpt-realtime-2.1-mini",
   "expert_unique_jobs": 1,
   "expert_states": [
-    "awaiting_confirmation"
+    "awaiting_confirmation",
+    "queued",
+    "running",
+    "completed"
   ],
   "expert_actual": {
     "profile": "SOL_HIGH",
@@ -17,16 +20,16 @@
     "model": "gpt-6.1-sol",
     "effort": "high"
   },
-  "expert_elapsed_ms": 85112.93,
-  "expert_result_card": false,
-  "result_contains_323": false,
-  "decoded_frames_after_result": 0,
-  "usage_estimated_usd": 0.0122114,
+  "expert_elapsed_ms": 12225.86,
+  "expert_result_card": true,
+  "result_contains_323": true,
+  "decoded_frames_after_result": 249,
+  "usage_estimated_usd": 0.01228888,
   "blocked_reasons": [],
   "stage_events": [],
   "event_types": [
-    "closed",
     "expert_job",
+    "expert_result",
     "generation_done",
     "input_transcript",
     "interrupted",
@@ -45,11 +48,5 @@
   "close": {
     "closed": true,
     "hangup_confirmed": true
-  },
-  "server_expert_activity": {
-    "explicit_request": 1,
-    "proposal_requested": 1,
-    "proposal_created": 1
-  },
-  "conclusion": "Proposal created, no expert_start and zero CLI launches; task snapshot and next_action repair pending deployment"
+  }
 }

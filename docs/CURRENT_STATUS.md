@@ -1708,3 +1708,35 @@ A: поверх неизменных baseline assets добавлен огран
 8s показывается ожидание Safari/микрофона, после18s поколение операции инвалидируется,
 локальный клиент закрывается и допускает повторное включение. Зависшее ожидание
 больше не остаётся без статуса; причина на физическом Safari ещё не подтверждена.
+
+## 32. Принятое решение по Luna и итог текущих реальных canary
+
+Владелец явно разрешил gpt-6-luna в C: 2048 input / 512 output, concurrency1,
+без retries, общий estimate$10/day, developer до4 запросов. Добавлен отдельный
+live_backend.py, fixed-origin Responses, exact `/responses/input_tokens` gate,
+store=false/tools=[]/effort=none. Его задача — обычные ответы; инструменты остаются
+в Brain, сложный анализ предлагается одному CLI-эксперту с подтверждением.
+Context Manager передаёт только разрешённый packet; дельты не становятся отдельными
+пользовательскими записями. Текущий вопрос не обрезается, лимит останавливает генерацию.
+Backend ledger хранит хэши операций/counts/usage, не домашний текст.
+
+Поток законченных предложений → Live commentary; output transcript Live по-прежнему
+ведёт Stage2 визуала. Новая тема отменяет старый быстрый backend, а status-вопрос не
+уничтожает экспертную задачу. Доступ к прошлому приватному архиву native пока отсутствует.
+Бесплатные backend/protocol/owner/expert/A tests после интеграции: **34 passed**.
+Полный regression до Luna: **1288 passed /53.40s**. Реальная Luna приёмка пока pending.
+
+Исправленный [B → Sol High → B](realtime-expert-acceptance.json) на runtime927d3c5:
+один CLI job, queued/running/completed, gpt-6.1-sol/high, число323 в настоящем результате,
+полная карточка и 249 декодированных ненулевых PCM frames после результата.
+Отправка команды → result12,225.86ms; Realtime estimate$0.01228888; hangup подтверждён.
+Это typed input, не проверка голоса/слуха на iPhone. [До исправления](realtime-expert-acceptance-before.json)
+proposal не дошла до expert_start. Astra/Argon сейчас только metadata/isolation, без новых real jobs.
+
+[Image fallback](image-fallback-acceptance.json): реальный Wikimedia miss → production
+VisualService → gpt-image-2.6-flare, 1024square/low, elapsed7245.85ms, три JPEG варианта
+1024/480/240 декодированы. Input65/output824/total889, оценка около$0.025; не invoice.
+Одна developer image attempt, повторов0, iPhone render ACK не проверен. Image20/day не повышен.
+Live developer2/2 использованы, final87s, voice estimate$0.0725, unconfirmed0.
+Всего до Luna: 2 Live sessions, 2 Realtime sessions/5 responses, 1 CLI job, 1 image,
+новых STT/TTS0; резервы/usage не сбрасывались. Физические iPhone/ESP32 pending.

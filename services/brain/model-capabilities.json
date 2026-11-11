@@ -128,6 +128,39 @@
       ],
       "reasoning_metadata_source": "installed Codex model/list, docs/expert-model-metadata.json",
       "entitlement_verified_by_inference": false
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "capabilities": [
+        "text",
+        "live_client_backend"
+      ],
+      "usage_kind": "api",
+      "average_latency_ms": null,
+      "tested_task_categories": [],
+      "quality_proven": false,
+      "availability": "project_metadata_200",
+      "supported_reasoning_efforts": [
+        "none",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "configured_effort": "none",
+      "restrictions": [
+        "live_client_delegation_only",
+        "owner_full_test_only",
+        "no_tools",
+        "max_input_2048_output_512",
+        "no_retries"
+      ],
+      "known_limitations": [
+        "not an independent fact source",
+        "not an expert CLI profile"
+      ]
     }
   ],
   "lite_approved_categories": [],

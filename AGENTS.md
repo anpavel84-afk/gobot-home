@@ -99,3 +99,8 @@ paid text backend needs an explicit model/budget decision, separate usage, and n
 Native C remains guest/RAM-only until authorized retrieval/persistence is actually integrated.
 Normal idle is not an error; explicit End closes local media immediately and finalizes provider
 usage separately. Unknown finalization is not successful closure or permission to replay work.
+OWNER DIRECT 2026-11-11 explicitly authorizes gpt-6-luna as C's fast text backend
+through Responses, while Live retains delegation.type=client. Max 2048 input tokens
+(provider count before generation), max512 output, reasoning=none, one concurrent request,
+no tools/retries, within the Owner Full Test $10/day estimate; developer acceptance max4 calls.
+This does not change B, authorize other text models, or renew the exhausted 2 Live developer sessions.

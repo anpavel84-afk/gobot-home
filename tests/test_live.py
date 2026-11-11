@@ -196,3 +196,23 @@ def test_expert_paraphrase_uses_exact_user_snapshot_not_model_granted_scope(tmp_
             assert not s.experts.pending.confirmed
         finally:await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())
+
+def test_live_general_question_routes_luna_result_to_real_delegation_without_cli(tmp_path,settings):
+    async def run():
+        m,p,s=await native(tmp_path,settings)
+        policy=m.owner_testing.policy();m.owner_testing.policy_path.write_text(policy.model_copy(update={'live_backend_enabled':True}).model_dump_json())
+        calls=[]
+        class Backend:
+            async def answer(self,query,packet,**kwargs):
+                calls.append((query,packet));await kwargs['on_text']('Это синтетическое объяснение.')
+                return {'model':'gpt-6-luna','usage':{'input_tokens':100,'output_tokens':20},'timings':{'completed_ms':10},'estimated_usd':.00002}
+        m.backend=Backend()
+        try:
+            turn=await s.interaction('Что такое чёрная дыра?','stable-question')
+            await s.route(turn,'operation','actual-live-delegation');await s.backend_task
+            assert len(calls)==1 and not s.experts.jobs
+            assert any(e['type']=='session.commentary.append' and e['delegation_id']=='actual-live-delegation' and 'синтетическое объяснение' in e['content'] for e in s.ws.sent)
+            assert any(e['type']=='backend_status' and e['data']['state']=='completed' for e in s.events)
+            assert not any(e['type']=='response.create' for e in s.ws.sent)
+        finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())
