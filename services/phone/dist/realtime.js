@@ -61,7 +61,7 @@
         await this.gather(pc,this.abort.signal);
         const config=window.GoBotClient.getSettings();
         this.creationAttempted=true;
-        const answer=await this.api('sessions',{session_id:id,sdp:pc.localDescription.sdp,conversation_id:window.GoBotClient.conversationId(),consent:true,requested_voice:config.voice||'marin',expert_quota_consent:config.quota===true,speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',remember:config.remember,speak:config.speak,client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
+        const answer=await this.api('sessions',{session_id:id,sdp:pc.localDescription.sdp,conversation_id:window.GoBotClient.conversationId(),consent:true,requested_voice:config.voice||'marin',expert_quota_consent:document.getElementById('realtime-expert-consent')?.checked===true,...(admission.expert_handoff_version>=2?{requested_expert_profile:document.getElementById('realtime-expert-profile')?.value||null}:{}),speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',remember:config.remember,speak:config.speak,client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
         if(epoch!==this.generation)throw Error('Запуск отменён');
         if(!answer.configuration_confirmed||answer.model!=='gpt-realtime-2.1-mini')throw Error('Сервер не подтвердил выбранную модель');
         await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});if(this.speakerMirror)this.speakerMirror.ready=answer.speaker_readiness?.ready===true;
@@ -161,6 +161,7 @@
       if(item.type==='playback_cleared'||item.type==='interrupted'){this.playing=false;this.level=0;this.heard=false;}
       if(item.type==='listening'){this.status('Слушаю…');}
       if(item.type==='turn_complete'){void this.followup();}
+      if(item.type==='followup_closed'){clearTimeout(this.followupTimer);this.mic(false);this.status('Эксперт работает · микрофон закрыт. Для нового вопроса удерживайте круг.');}
       if(item.type==='response_incomplete')this.status('Ответ ограничен лимитом длины тестовой пробы.');
       if(item.type==='turn_incomplete')this.status('Лимита не хватило для голосового ответа. Можно задать более короткий вопрос нажатием.');
       if(item.type==='closed'){const end=this.termination(item.data.reason);void this.close(end.message,'server_closed',end.error);}
@@ -168,7 +169,7 @@
         if(['realtime_connection_lost','realtime_session_unavailable'].includes(item.data?.code))void this.transportEnded('events_disconnected','Управляющее соединение потеряно. Микрофон выключен.');
         else void this.close('Ошибка Realtime. Микрофон выключен; причина сохранена в диагностике.','provider_error',true);
       }
-      this.emit(item);
+      window.GoBotExpertUI?.event(item);this.emit(item);
     }
     speakerStatus(text){document.getElementById('speaker-status')?.replaceChildren(document.createTextNode(text));document.getElementById('realtime-speaker-status')?.replaceChildren(document.createTextNode(text));}
     async followup(){
@@ -224,6 +225,7 @@
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
       this.clearReview();
+      window.GoBotExpertUI?.clear();
       this.abort?.abort();clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);this.mic(false);
       this.stream?.getTracks().forEach(t=>{t.onended=null;t.stop();});this.events?.close();this.events=null;
       this.speakerMirror?.close();this.speakerMirror=null;

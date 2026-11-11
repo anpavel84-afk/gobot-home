@@ -453,7 +453,7 @@ window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,un
     if(item.type==='meaning_mismatch')visuals?.begin();
     if(item.type==='ready'){$('route-meta').textContent='OpenAI Realtime · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent='Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
     if(item.type==='tool_status'&&data.status==='settings_applied')applyServerProfile(data.profile);
-    if(item.type==='expert_result'){
+    if(item.type==='expert_result'&&!window.GoBotExpertUI){
       let box=$('expert-result');if(!box){box=document.createElement('details');box.id='expert-result';$('answer').after(box);}box.replaceChildren();
       const title=document.createElement('summary'),text=document.createElement('p'),who=data.result.actual_executor;
       title.textContent='Полный разбор · '+who.model+' · '+who.effort;text.textContent=data.result.display_text;box.append(title,text);

@@ -17,3 +17,5 @@ body.browser-product{--bg:#0c141a;--surface:#15232c;--surface2:#192c36;--ink:#ee
 
 .device-policy-settings{border:1px solid var(--line);border-radius:14px;padding:16px;margin:18px 0;display:grid;gap:14px}.device-policy-settings legend{padding:0 8px;color:var(--ink)}.device-policy-settings>label{display:grid;gap:8px;margin:0}.device-policy-settings>label.check{display:flex}.device-policy-settings select{width:100%}.device-policy-settings p{margin:0}
 .visual-stage-replace{animation:visual-stage-in 180ms ease-out}@keyframes visual-stage-in{from{opacity:.3}to{opacity:1}}@media(prefers-reduced-motion:reduce){.visual-stage-replace{animation:none}}
+
+.expert-panel{margin:20px auto;padding:16px;border:1px solid #29414c;border-radius:16px;max-width:760px;color:#edf5f4}.expert-panel label{display:flex;gap:10px;align-items:center;margin:12px 0}.expert-panel select{max-width:100%}.expert-panel button{margin:12px 0}.expert-panel article{border-top:1px solid #29414c;padding:12px 0}.expert-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.expert-panel p{font-size:13px;color:#9cafb7}.expert-panel a{color:#a3e5cd}

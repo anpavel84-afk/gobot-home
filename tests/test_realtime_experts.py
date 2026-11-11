@@ -53,8 +53,10 @@ def test_confirmation_runs_once_returns_one_real_call_output_and_same_session(tm
         assert job.state=='completed' and len(calls)==1
         assert await jobs.start(p['proposal_id'],'call_actual_1') is job
         with pytest.raises(ValueError):await jobs.start(p['proposal_id'],'call_actual_2')
-        assert len(s.sent)==1 and s.sent[0]['item']['call_id']=='call_actual_1'
-        result=json.loads(s.sent[0]['item']['output'])['result']
+        assert len(s.sent)==2 and s.sent[0]['item']['call_id']=='call_actual_1'
+        assert json.loads(s.sent[0]['item']['output'])['accepted'] is True
+        assert 'result' not in json.loads(s.sent[0]['item']['output'])
+        result=json.loads(s.sent[1]['item']['content'][0]['text'])['data']['result']
         assert result['numbers']==['42'] and 'предположение' in result['display_text'] and s.responses==1
     asyncio.run(run())
 
@@ -96,6 +98,6 @@ def test_cancelled_job_does_not_deliver_completed_result(tmp_path):
         p=jobs.propose(s.current.query,'ARGON_DEEP',s.current);jobs.observe('Да')
         job=await jobs.start(p['proposal_id'],'call_cancel');await started.wait();await jobs.cancel(job.id)
         assert job.state=='cancelled' and not job.result
-        assert len(s.sent)==1 and json.loads(s.sent[0]['item']['output'])['state']=='cancelled'
+        assert len(s.sent)==2 and json.loads(s.sent[1]['item']['content'][0]['text'])['data']['state']=='cancelled'
         assert jobs.budget.status()['sessions_reserved']==1
     asyncio.run(run())

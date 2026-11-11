@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B код с two-stage visuals, круглым cover и silence-close исправлением опубликован и запущен на `2c276a614ce806715d9402b9ab2fd612bb55c067`.
+  Native/A-B с исправленным bootstrap опубликован и запущен на `1d719136ca451507c1bd47c7ca3a84b42b5440c2`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1189,3 +1189,86 @@ SettingsTools получает шаги connect/location/confirm/verify, про�
 Следующее явное указание владельца: вариант B принят для обычного разговора;
 сейчас приоритет — завершить Realtime→Expert CLI Handoff. Эту незакоммиченную работу
 сохраняем, не откатываем и не подменяем отдельной системой. Активных subagents нет.
+
+## 25. Realtime → Expert CLI Handoff: бесплатная приёмка
+
+Исходная база этого прохода: runtime `1d71913`, checkpoint `743287a` сохраняет
+незавершённую настройку погоды из §24. Владелец сообщил, что B держит разговор и
+его устраивает. Это пользовательская приёмка обычного разговора, не замер latency,
+не акустическая проверка всех числительных и не реальный Expert CLI E2E.
+
+Минимальный проход: проверить admission/catalog → закрыть consent race и лимиты →
+сохранить готовые разборы с ACL → показать состояние в B → бесплатная регрессия →
+отдельно согласовать одну реальную задачу. Bridge и Family не пересоздавались.
+
+### Что добавлено и почему
+
+* [ExpertJobs](../services/brain/gobot/expert_jobs.py): обработанный consent_ready
+  устраняет гонку позднего ASR и expert_start; один confirmation turn используется
+  один раз. Отказ/изменение задачи не является «да». Exact model/effort обязательны.
+* [ExpertBudget / ExpertStore](../services/brain/gobot/expert_store.py): отдельный
+  конечный grant client/profile/expiry/job-count, timeout, лимиты ContextPacket и
+  результата. Согласие Realtime не разрешает CLI. После резервирования повторно
+  проверяются закрытие, revision, права/Family epoch; гонка может консервативно
+  израсходовать reservation, но не запускает CLI и не вызывает автоматический retry.
+* Результаты — связанная таблица в существующей Brain SQLite (migration 8),
+  profile_id/epoch/conversation. Только взрослый PIN-профиль + remember=true;
+  remember=false остаётся в RAM. Чужой профиль, отозванный epoch и ребёнок не читают
+  взрослый результат. Удаление Family профиля удаляет связанные карточки.
+* expert_start возвращает один **accepted**, не вывод эксперта. По готовности
+  отдельный user-level data notice возвращает результат в ту же Realtime-сессию;
+  повторного function_call_output на исходный call_id нет. Central response lock
+  сохраняется. Нативный голос не переключается, отдельный TTS/CLI на обычную реплику
+  не добавлен. Реальное качество пересказа ещё не принято.
+* Новый вопрос сохраняет готовый разбор на экране без автоматического перебивания.
+  После закрытия доступен сохранённый результат собственного подтверждённого
+  профиля; reconnect/restart не перезапускает CLI. Running после restart — interrupted.
+  Окно followup закрывает микрофон, а не согласованный job до его собственного timeout.
+* [Expert UI](../services/phone/dist/expert-ui.js) встроен в B browser/device:
+  блокеры, точный model/effort, отдельный quota consent, статусы и полный безопасный
+  textContent. Смена/закрытие профиля очищает карточки и инвалидирует поздний fetch.
+  Новый параметр preferred expert передаётся только серверу handoff_version>=2,
+  чтобы статический новый JS не ломал старый работающий backend при обновлении.
+
+### Каталог и изоляция
+
+| Профиль | Реальный model / effort | Что подтверждено |
+| --- | --- | --- |
+| SOL_HIGH | gpt-6.1-sol / high | Installed Codex model/list, без inference |
+| SOL_XHIGH | gpt-6.1-sol / xhigh | То же; не молчаливая замена High |
+| ASTRA_MEDIUM | gpt-6-astra / medium | Installed Codex model/list, без inference |
+| ASTRA_HIGH | gpt-6-astra / high | То же |
+| ARGON_DEEP | gemini-4-argon-medium / medium | Ранее сохранённый native Antigravity catalog |
+
+[Санитизированные метаданные](expert-model-metadata.json). Каталог не доказывает
+доступность inference по подписке. «Gemini 1» не определён и не подменён.
+Офлайн-аудит Codex выполнен после изменения digest экспертных профилей:
+1 synthetic mock HTTP request, tools=[], реальных model calls=0, isolated=true,
+terminal AgentError от намеренного mock HTTP400. [Evidence](expert-handoff-isolation.json).
+Это проверка ограниченного runtime, не замер полезного ответа и не ACP-допуск.
+
+### Бесплатные проверки и оставшаяся реальная приёмка
+
+Полная регрессия до финальных race-проверок: **1204 passed / 44.30 s**.
+Финальная регрессия: **1208 passed / 46.69 s**. Browser QA фиксируется после развёртывания.
+Новые tests/test_expert_handoff_acceptance.py используют настоящие Brain/Family/
+Context/SQLite-компоненты, синтетические профили, provider socket и executor:
+позднее согласие, один call/output/notice, точная модель, отказ/изменение области,
+timeout/error/cancel/quota, новый вопрос/профиль, профильные ACL, ребёнок,
+remember=false, restart без retry, пакет без чужой памяти, HTTP no-store, UI DOM.
+Отдельные проверки гонки во время reserve_session не допускают старый CLI.
+
+На проверенном live runtime: expert_jobs_allowed=false, отдельного policy.json
+экспертов нет, Family profiles=0. Реальных экспертных тестов **0**; latency согласие→
+эксперт→голос и расход CLI **не измерены**. Не менялись owner uncapped Realtime,
+marin, ImageGen OFF, A backup, .venv-speaker и private HTTPS.
+
+Следующий конкретный тест: один SOL_HIGH (gpt-6.1-sol/high), ContextPacket ≤3000
+оценочных токенов, результат ≤6000 символов, timeout 90 s, одна попытка без retry.
+Нужны отдельное согласие владельца и взрослый PIN-профиль в существующей «Семье»;
+PIN не присылать в чат. Новый personal client отличается от гостевого телефона:
+контролируемый test admission необходимо привязать к его фактическому client_id,
+не открывая экспертов глобально и не обрывая текущую гостевую настройку B.
+Телефонный прогон выполняет владелец: предложение → «да, Sol High» → одна задача →
+тот же голос + полный результат. Отказ и смена темы/профиля проверяются отдельно.
+Пока этот допуск не получен, эксперты остаются OFF; mock не называется iPhone E2E.

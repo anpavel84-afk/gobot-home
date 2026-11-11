@@ -1,5 +1,5 @@
 """Bounded confirmed expert jobs. Model proposals never authorize execution."""
-import asyncio,re,time
+import asyncio,re,time,json
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
@@ -7,11 +7,12 @@ from .expert_profiles import resolve_profile
 from .realtime_budget import RealtimeBudget
 from .models import ChatRequest
 from .providers import bridge_stream
+from .expert_store import ExpertBudget
 
 def profile_in_text(text):
     if re.search(r'\b(?:argon|аргон)\b',text,re.I):return 'ARGON_DEEP'
-    if re.search(r'\b(?:astra|астр[ауы])\b',text,re.I):return 'ASTRA_HIGH'
-    if re.search(r'\b(?:sol|сол|солу)\b',text,re.I):return 'SOL_XHIGH'
+    if re.search(r'\b(?:astra|астр[ауы])\b',text,re.I):return 'ASTRA_MEDIUM' if re.search(r'\b(?:medium|медиум|средн\w*)\b',text,re.I) else 'ASTRA_HIGH'
+    if re.search(r'\b(?:sol|сол|солу|соля)\b',text,re.I):return 'SOL_XHIGH' if re.search(r'\b(?:xhigh|extra high|экстра хай)\b',text,re.I) else 'SOL_HIGH'
     return None
 
 def normalize_result(text,profile):
@@ -42,23 +43,70 @@ class ExpertJob:
     worker:object=None
     returned:bool=False
     error:str|None=None
+    profile_id:str|None=None
+    profile_epoch:str|None=None
+    remember:bool=False
+    confirmation_turn_id:str|None=None
+    packet:dict=field(default_factory=dict)
+    already_explained:str=''
+    timeout_seconds:int=90
+    max_result_characters:int=24000
+    context_token_limit:int=3000
+    usage:dict=field(default_factory=dict)
+    timings:dict=field(default_factory=dict)
+    clock_origin:float=field(default_factory=time.monotonic)
 
 class ExpertJobs:
-    def __init__(self,session,*,executor=None,budget=None):
+    def __init__(self,session,*,executor=None,budget=None,admission=None):
         self.session=session;self.executor=executor or self.execute
-        self.budget=budget or RealtimeBudget(Path(__file__).resolve().parents[3]/'run/realtime-experts')
+        self.budget=budget or ExpertBudget(Path(__file__).resolve().parents[3]/'run/realtime-experts')
         self.jobs={};self.pending=None;self.lock=asyncio.Lock()
+        self.admission=admission
+        self.used_confirmation_turns=set()
+
+    def active(self):return any(j.state in {'queued','running'} for j in self.jobs.values())
+
+    def authorized_owner(self,job):
+        s=self.session
+        if s.closed or job.owner!=s.access.effective_scope or job.profile_id!=getattr(s.access,'confirmed_profile_id',None):return False
+        if job.profile_id:
+            return bool(s.manager.identity.family.session_valid(job.profile_id,job.profile_epoch))
+        return True # Synthetic unprofiled unit harness; runtime admission requires an adult.
+
+    def persist(self,job):
+        store=getattr(getattr(self.session,'manager',None),'expert_store',None)
+        if store:store.save(job,job.profile_epoch)
+
+    def status(self):
+        from .expert_profiles import profile_status
+        policy=self.budget.policy();usage=self.budget.status();reasons=[]
+        if not getattr(self.session.policy,'expert_jobs_allowed',False):reasons.append('native_experts_disabled')
+        if not getattr(self.session,'expert_authorized',False):reasons.append('confirmed_adult_profile_required')
+        if not self.session.offer.expert_quota_consent:reasons.append('expert_quota_consent_required')
+        if not self.budget.active(policy):reasons.append('expert_budget_missing_or_expired')
+        elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
+        return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status(),
+                'allowed_profiles':getattr(policy,'allowed_profiles',[]),'jobs_remaining':usage['sessions_remaining'],
+                'timeout_seconds':getattr(policy,'job_timeout_seconds',90),'jobs':[self.public(j) for j in self.jobs.values()]}
 
     def propose(self,task,profile,turn):
         if not isinstance(task,str) or not 1<=len(task)<=8000:raise ValueError('invalid_expert_task')
         chosen=resolve_profile(profile)
         if not chosen['metadata_verified']:raise ValueError('expert_profile_unavailable')
+        requested=profile_in_text(turn.query)
+        requested=requested or getattr(self.session.offer,'requested_expert_profile',None)
+        if requested and requested!=profile:raise ValueError('explicit_expert_profile_mismatch')
         if len(self.jobs)>=8:raise ValueError('expert_job_capacity')
         if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
         job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,len(self.session.turns),self.session.access.effective_scope,self.session.offer.conversation_id)
+        job.profile_id=getattr(self.session.access,'confirmed_profile_id',None)
+        job.profile_epoch=getattr(self.session.offer,'confirmed_profile_epoch',None)
+        job.remember=bool(getattr(self.session.offer,'remember',False) and job.profile_id and job.profile_epoch)
+        job.already_explained=turn.answer[:2000]
         # Explicit user request can authorize precisely this task, never a model's paraphrase.
         explicit=profile_in_text(turn.query)==profile and bool(re.search(r'спроси|подключи|передай|пусть.*(?:разбер|провер)',turn.query,re.I))
         job.confirmed=bool(explicit and task==turn.query)
+        if job.confirmed:job.confirmation_turn_id=getattr(turn,'id',None)
         self.jobs[job.id]=job;self.pending=job
         return self.public(job)
 
@@ -68,10 +116,12 @@ class ExpertJobs:
         value=' '.join(text.casefold().strip().rstrip('.!?').split())
         if time.time()>job.expires:job.state='timed_out';return
         if re.fullmatch(r'(?:нет|нет[, ]+спасибо|не надо|отмена)',value):job.state='cancelled';return
-        if re.fullmatch(r'(?:да|подтверждаю|согласен|да[, ]+(?:argon|аргон|astra|астра|sol|сол)(?: (?:high|extra high|экстра хай))?)',value):
+        if re.fullmatch(r'(?:да|подтверждаю|согласен|да[, ]+(?:argon|аргон|astra|астра|sol|сол)(?: (?:high|hi|хай|medium|медиум|xhigh|extra high|экстра хай))?)',value):
             selected=profile_in_text(value)
+            if selected and resolve_profile(selected)['model']==job.profile['model'] and not re.search(r'\b(?:high|hi|хай|medium|медиум|xhigh|extra|экстра)\b',value):selected=job.profile['profile']
             if selected and selected!=job.profile['profile']:job.profile=resolve_profile(selected)
-            job.confirmed=True;job.revision=len(self.session.turns)
+            if not job.profile['metadata_verified']:job.confirmed=False;return
+            job.confirmed=True;job.revision=len(self.session.turns);job.confirmation_turn_id=getattr(self.session.current,'id',None)
         elif not (profile_in_text(value) and value==job.task.casefold()):
             # Scope amendment and a new question are not blanket consent.
             job.confirmed=False;job.state='cancelled'
@@ -79,7 +129,9 @@ class ExpertJobs:
     def public(self,job):
         return {'job_id':job.id,'proposal_id':job.proposal_id,'state':job.state,'task':job.task,
                 'expert':{k:job.profile[k] for k in ('profile','requested_label','provider','model','effort')},
-                'expires_at':job.expires,'confirmed':job.confirmed,'error':job.error}
+                'expires_at':job.expires,'confirmed':job.confirmed,'error':job.error,
+                'storage':'confirmed_profile' if job.remember else 'temporary_session','result_ready':bool(job.result),
+                'usage_kind':'cli_subscription','usage':job.usage,'timings_ms':job.timings}
 
     async def start(self,proposal_id,call_id):
         async with self.lock:
@@ -89,42 +141,88 @@ class ExpertJobs:
                 if job.call_id==call_id:return job
                 raise ValueError('expert_job_already_started')
             if job.state!='awaiting_confirmation' or not job.confirmed or time.time()>job.expires or job.revision!=len(self.session.turns):raise PermissionError('current_user_confirmation_required')
+            if job.confirmation_turn_id and job.confirmation_turn_id!=getattr(self.session.current,'id',None):raise PermissionError('current_user_confirmation_required')
+            confirmation_key=getattr(self.session.current,'id',len(self.session.turns))
+            if confirmation_key in self.used_confirmation_turns:raise PermissionError('expert_confirmation_already_used')
             if any(j.state in {'queued','running'} for j in self.jobs.values()):raise PermissionError('one_active_expert_job_only')
             if not self.session.offer.expert_quota_consent:raise PermissionError('expert_quota_consent_required')
             if not getattr(self.session,'expert_authorized',False):raise PermissionError('confirmed_adult_required_for_expert')
             if not getattr(getattr(self.session,'policy',None),'expert_jobs_allowed',False):raise PermissionError('expert_not_in_session_budget')
-            await asyncio.to_thread(self.budget.reserve_session,job.id,True)
+            policy=await asyncio.to_thread(self.budget.policy)
+            if job.profile['profile'] not in getattr(policy,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
+            if self.admission:
+                state=self.admission(job.profile)
+            elif hasattr(self.session,'manager'):
+                from .live_agents import agent_status
+                state=(await asyncio.to_thread(agent_status,True)).get(job.profile['provider'],{})
+            else:state={'available':True} # Unit harness has no runtime manager/executor admission path.
+            if not state.get('available'):raise PermissionError(state.get('reason') or 'expert_isolation_or_provider_unavailable')
+            job.timeout_seconds=getattr(policy,'job_timeout_seconds',90)
+            job.max_result_characters=getattr(policy,'max_result_characters',24000)
+            job.context_token_limit=getattr(policy,'max_context_tokens',3000)
+            if hasattr(self.session,'manager'):job.packet=await self.prepare_packet(job)
+            if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
+            reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None))
+            if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
+            if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.call_id=call_id;job.state='queued'
+            job.timings['queued']=round((time.monotonic()-job.clock_origin)*1000,2)
+            self.used_confirmation_turns.add(confirmation_key)
+            self.persist(job)
+            # Close the real tool call exactly once with accepted, not a fabricated result.
+            await self.session.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,
+                'output':json.dumps({'accepted':True,'job_id':job.id,'state':'queued','result_available':False})}})
             job.worker=self.session.spawn(self.run(job))
+            self.session.emit('expert_job',job=self.public(job))
             return job
 
-    async def execute(self,job):
+    async def prepare_packet(self,job):
         s=self.session
         req=ChatRequest(text=job.task,device_id=s.access.effective_scope,conversation_id=s.access.context_conversation,
                         remember=False,turn_id=job.id,provider=job.profile['provider'],model_id=job.profile['model'],usage_consent=True)
         context=await asyncio.to_thread(s.manager.brain.memory.context,req)
         packet=await asyncio.to_thread(s.manager.brain.context_manager.pack,req.text,context,'REASONING')
-        packet['expert_deliverable']='Give checkable conclusions, assumptions, source status and caveats. No hidden chain-of-thought. Tools and file access unavailable. Current facts need evidence.'
-        packet['already_explained_by_gobot']=s.current.answer[:2000] if s.current else ''
+        # Bound the whole packet; never slice JSON into invalid/unattributed fragments.
+        from .context_manager import tokens,serialize_context
+        packet['dialogue_state']={'expert_deliverable':'Give checkable conclusions, arguments, assumptions, source status, uncertainty and caveats. No hidden chain-of-thought. Current facts require supplied sources; another model is not independent factual evidence.',
+                                 'already_explained_by_gobot':job.already_explained[:1000]}
+        for key in ['messages','retrieved','facts']:
+            while tokens(serialize_context(job.task,packet))>job.context_token_limit and packet.get(key):packet[key].pop(0)
+        if tokens(serialize_context(job.task,packet))>job.context_token_limit:packet.pop('summary',None)
+        if tokens(serialize_context(job.task,packet))>job.context_token_limit:raise ValueError('expert_context_limit')
+        return packet
+
+    async def execute(self,job):
+        s=self.session
+        req=ChatRequest(text=job.task,device_id=s.access.effective_scope,conversation_id=s.access.context_conversation,
+                        remember=False,turn_id=job.id,provider=job.profile['provider'],model_id=job.profile['model'],usage_consent=True)
+        packet=job.packet or await self.prepare_packet(job)
         result=''
         async for delta in bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile']):
             result+=delta
-            if len(result)>24000:raise ValueError('expert_result_limit')
+            if len(result)>job.max_result_characters:raise ValueError('expert_result_limit')
         job.provider_session=packet.get('_provider_session_id')
+        usage=packet.get('_provider_usage',{})
+        job.usage={k:v for k,v in usage.items() if type(v) is int and v>=0 and k in {'inputTokens','outputTokens','totalTokens','cachedInputTokens','reasoningOutputTokens','input_tokens','output_tokens','total_tokens'}}
+        if hasattr(self.budget,'record_cli_usage'):await asyncio.to_thread(self.budget.record_cli_usage,job.id,job.usage)
         return result
 
     async def run(self,job):
         s=self.session
         try:
-            job.state='running';s.emit('expert_job',job=self.public(job))
-            async with asyncio.timeout(90):text=await self.executor(job)
+            if not self.authorized_owner(job) or job.state=='cancelled':job.state='cancelled';return
+            job.state='running';self.persist(job);s.emit('expert_job',job=self.public(job))
+            job.timings['running']=round((time.monotonic()-job.clock_origin)*1000,2)
+            async with asyncio.timeout(job.timeout_seconds):text=await self.executor(job)
             if s.closed or job.state=='cancelled':return
-            job.result=normalize_result(text,job.profile);job.state='completed'
+            if len(text)>job.max_result_characters:raise ValueError('expert_result_limit')
+            job.result=normalize_result(text,job.profile);job.state='completed';job.timings['completed']=round((time.monotonic()-job.clock_origin)*1000,2);self.persist(job)
         except asyncio.CancelledError:job.state='cancelled';raise
         except TimeoutError:job.state='timed_out';job.error='expert_timeout'
         except Exception:job.state='failed';job.error='expert_failed_no_retry'
         finally:
-            if not s.closed:
+            self.persist(job)
+            if self.authorized_owner(job):
                 s.emit('expert_job',job=self.public(job))
                 await self.return_result(job)
 
@@ -132,20 +230,28 @@ class ExpertJobs:
         s=self.session
         if job.returned or not job.call_id or s.closed:return
         job.returned=True
-        current=(job.revision==len(s.turns) and job.owner==s.access.effective_scope and not s.current.cancelled)
+        same_owner=self.authorized_owner(job)
+        current=(job.revision==len(s.turns) and same_owner and s.current is not None and not s.current.cancelled)
         output={'job_id':job.id,'state':job.state}
         if current and job.result:output['result']=job.result
         else:output['result_withheld']='Context changed or task unavailable; do not invent an expert conclusion.'
-        import json
-        await s.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':job.call_id,'output':json.dumps(output,ensure_ascii=False)}})
-        if current and job.result:s.emit('expert_result',result=job.result)
+        # The original tool call already received accepted. Do not send a second output.
+        # A new user-data item is a supported conversation notification, never an instruction.
+        if current:
+            notice={'kind':'expert_job_completed','origin_call_id':job.call_id,'data':output,'trusted_as_instructions':False}
+            await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,'type':'message','role':'user',
+                'content':[{'type':'input_text','text':json.dumps(notice,ensure_ascii=False)}]}})
+            job.timings['result_notified']=round((time.monotonic()-job.clock_origin)*1000,2);self.persist(job)
+        if same_owner and job.result:s.emit('expert_result',job=self.public(job),result=job.result,voice_deferred=not current)
         if current:await s.response()
 
     async def cancel(self,job_id):
         job=self.jobs.get(job_id)
         if not job or job.owner!=self.session.access.effective_scope:raise ValueError('expert_job_not_found')
+        if job.state in {'completed','failed','timed_out','cancelled'}:return self.public(job)
         job.state='cancelled'
         if job.worker:job.worker.cancel();await asyncio.gather(job.worker,return_exceptions=True)
+        self.persist(job)
         return self.public(job)
 
     async def close(self):

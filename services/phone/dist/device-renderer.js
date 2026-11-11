@@ -129,6 +129,9 @@
       }else if(frame?.type==='weather_card'&&frame.metadata?.state==='ready'&&Number.isFinite(Number(frame.metadata?.facts?.temperature))){
         this.text('Погода',120,62,14,145);this.text(frame.metadata.facts.temperature+' °C',120,116,36,170,p.skin.face_color);
         this.text(frame.subtitle,120,155,12,160);this.text('Open-Meteo',120,181,11,145);
+      }else if(frame?.metadata?.backend==='device_setup'){
+        this.text('Настройка погоды',120,76,14,155);this.text(frame.subtitle,120,117,13,160,p.skin.face_color);
+        this.text('Шаг '+frame.metadata.facts.step+' из '+frame.metadata.facts.steps,120,156,12,145);
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
       else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.save();const alpha=!p.skin.reduced_motion&&this.imageReadyAt?Math.min(1,Math.max(0,(Date.now()-this.imageReadyAt)/180)):1;c.globalAlpha=alpha;this.drawFittedImage(frame,this.imageFit(frame));c.restore();c.fillStyle='rgba(12,20,26,.82)';c.fillRect(0,180,240,60);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(frame.metadata?.generation_provider?'ИИ-иллюстрация':overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,Math.min(155,240-2*inset));
         if(alpha>=.1&&this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}

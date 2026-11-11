@@ -243,3 +243,22 @@ Runtime 528c866 загружен; A/B HTTP200, owner manual uncapped сохра�
 Runtime 2c276a6 опубликован и запущен; 1180 regression tests и 50 targeted native/family checks. Deployment evidence: two-stage-silence-deployment.json. Owner style private, marin/ACL/uncapped owner admission сохранены; физический iPhone retest pending.
 
 Bootstrap owner/family preferences: generated item IDs now 32 characters, production socket fixture enforces bound; 50 targeted tests. Real startup retest pending; CURRENT_STATUS.md §23.
+
+## Owner §48 — подтверждённый Realtime → Expert CLI handoff
+
+| Требование | Реализация / проверка | Статус |
+| --- | --- | --- |
+| Обычный B без CLI | Existing native engine; experts OFF exposes readonly propose/cancel, not start | Владелец принял обычный разговор; новый expert E2E не выполнен |
+| Точная модель и effort | ExpertProfileName, registry, installed model/list | Sol High/xhigh, Astra medium/high metadata; Argon Antigravity; неизвестный Gemini 1 не подменяется |
+| Согласие после async ASR | NativeTurn.consent_ready + ExpertJobs.observe/start | Late transcript/отказ/изменение области; одно согласие не переиспользуется |
+| Отдельная квота, один эксперт | ExpertBudget finite client/profile/expiry/count + lock | Fixtures; live OFF, grant отсутствует |
+| Безопасный reserve/spawn | Post-reservation owner/epoch/revision/closed guard | Закрытие, revoke и новый turn во время reservation не запускают CLI |
+| Не блокировать Mini, один output | accepted tool result + distinct data notice + central response | Mock same provider session/voice; real audio pending |
+| Результат после нового вопроса | Deferred card + ExpertStore in existing SQLite | Не перебивает; собственный profile/epoch/conversation; remember=false RAM |
+| Ошибки/отмена/квота | Structured status, timeout and no retry | Native conversation остаётся; чужой/детский профиль не получает данные |
+| Followup и job разные сроки | Mic closes while agreed bounded job continues | Native fixture; физический iPhone pending |
+| B интерфейс | expert-ui.js existing page, authenticated status, no-store | DOM/mock integration; deployment/browser evidence в CURRENT_STATUS.md §25 |
+| Изоляция / расходы | Matching offline Codex audit; private grant OFF | tools=[], 1 mock HTTP, 0 paid/model calls; entitlement/latency не измерены |
+
+Текущие факты требуют источников: мнение эксперта само по себе не является проверкой.
+Подробности, публикация и реальные блокеры — CURRENT_STATUS.md §25.

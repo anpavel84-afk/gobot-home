@@ -68,6 +68,7 @@ class WeatherPreferences(Strict):
         return self
 
 class VoicePreferences(Strict):
+    expert_quota_consent:bool=False
     engine:Literal['legacy','realtime']='legacy'
     realtime_consent:bool=False
     personalization_mode:Literal['guest','confirmed_profile']='guest'

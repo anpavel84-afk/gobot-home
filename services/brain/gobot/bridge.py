@@ -9,6 +9,7 @@ from .providers import MockAgentAdapter
 from .live_agents import live_stream, agent_status
 from .processes import AgentError
 from .models import ExecutorModel
+from .expert_profiles import ExpertProfileName
 from .telemetry import Trace,scope,CURRENT,mark
 class Task(BaseModel):
     model_config=ConfigDict(extra='forbid')
@@ -18,7 +19,7 @@ class Task(BaseModel):
     turn_id:str=Field(max_length=100)
     usage_consent:bool=False
     model_id:ExecutorModel|None=None
-    expert_profile:Literal['ARGON_DEEP','ASTRA_HIGH','SOL_XHIGH']|None=None
+    expert_profile:ExpertProfileName|None=None
     trace_id:str|None=Field(default=None,max_length=100)
 
 def create_app(settings=None):

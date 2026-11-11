@@ -3,6 +3,7 @@ import re
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field,model_validator,field_validator
 from .models import ID
+from .expert_profiles import ExpertProfileName
 
 MODEL = 'gpt-realtime-2.1-mini'
 VOICES = ('marin','cedar','alloy','ash','ballad','coral','echo','sage','shimmer','verse')
@@ -16,6 +17,7 @@ class RealtimeOffer(Strict):
     sdp: str = Field(min_length=30,max_length=65536)
     consent: bool = False
     expert_quota_consent: bool = False
+    requested_expert_profile:ExpertProfileName|None=None
     remember: bool = True
     speak: bool = True
     # These are injected by the authenticated gateway, never accepted from the browser.

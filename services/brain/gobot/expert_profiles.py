@@ -1,11 +1,16 @@
 """Exact expert selection. Labels do not silently substitute model or effort."""
 import json
 from pathlib import Path
+from typing import Literal
+
+ExpertProfileName=Literal['ARGON_DEEP','ASTRA_HIGH','ASTRA_MEDIUM','SOL_HIGH','SOL_XHIGH']
 
 PROFILES={
     'ARGON_DEEP':{'requested_label':'Argon Deep','provider':'antigravity','model':'gemini-4-argon-medium','effort':'medium','effort_transport':'model_id_suffix','metadata_source':'authenticated Antigravity session/new model registry'},
     'ASTRA_HIGH':{'requested_label':'Astra High','provider':'codex','model':'gpt-6-astra','effort':'high','effort_transport':'model_reasoning_effort','metadata_source':'Codex model/list'},
     'SOL_XHIGH':{'requested_label':'Sol Extra High','provider':'codex','model':'gpt-6.1-sol','effort':'xhigh','effort_transport':'model_reasoning_effort','metadata_source':'Codex model/list'},
+    'SOL_HIGH':{'requested_label':'Sol 6.1 High','provider':'codex','model':'gpt-6.1-sol','effort':'high','effort_transport':'model_reasoning_effort','metadata_source':'Codex model/list'},
+    'ASTRA_MEDIUM':{'requested_label':'Astra Medium','provider':'codex','model':'gpt-6-astra','effort':'medium','effort_transport':'model_reasoning_effort','metadata_source':'Codex model/list'},
 }
 
 def resolve_profile(name,*,codex_metadata=None):
@@ -25,7 +30,7 @@ def resolve_profile(name,*,codex_metadata=None):
             verified=result['model'] in json.dumps(data.get('sessions',data))
         except (OSError,ValueError):verified=False
     result.update(metadata_verified=verified,availability='metadata_confirmed' if verified else 'unavailable',
-                  consent_required=True,usage_kind='cli_subscription',known_limitations=['No real quality benchmark','No filesystem, shell, web or MCP tools','Separate expert budget required'])
+                  consent_required=True,usage_kind='cli_subscription',known_limitations=['Catalog metadata is not an entitlement or quality benchmark','No filesystem, shell, web or MCP tools','Separate expert budget required'])
     return result
 
 def profile_status():

@@ -85,7 +85,17 @@
       "known_limitations": [
         "Tools absent",
         "No factual-quality benchmark yet"
-      ]
+      ],
+      "supported_reasoning_efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+      ],
+      "reasoning_metadata_source": "installed Codex model/list, docs/expert-model-metadata.json",
+      "entitlement_verified_by_inference": false
     },
     {
       "provider": "codex",
@@ -107,7 +117,17 @@
       "known_limitations": [
         "high effort is a separate parameter",
         "No real expert trial in this migration"
-      ]
+      ],
+      "supported_reasoning_efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max",
+        "ultra"
+      ],
+      "reasoning_metadata_source": "installed Codex model/list, docs/expert-model-metadata.json",
+      "entitlement_verified_by_inference": false
     }
   ],
   "lite_approved_categories": [],

@@ -22,6 +22,12 @@ def attach_brain_realtime(app,manager,auth):
     @app.get('/api/v1/realtime/status',dependencies=[Depends(auth)])
     async def status():return manager.status()
 
+    @app.get('/api/v1/realtime/experts',dependencies=[Depends(auth)])
+    async def expert_status(device_id:str,client_id:str,profile_epoch:str='',confirmed_profile_epoch:str='',conversation_id:str|None=None):
+        try:result=await asyncio.to_thread(manager.expert_status,device_id,client_id,profile_epoch or None,confirmed_profile_epoch or None,conversation_id)
+        except PermissionError:raise HTTPException(403,'confirmed_profile_required')
+        return JSONResponse(result,headers={'Cache-Control':'no-store'})
+
     @app.post('/api/v1/realtime/sessions',dependencies=[Depends(auth)])
     async def create(request:Request):
         try:
@@ -133,10 +139,24 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
         if r.status_code!=200:raise HTTPException(r.status_code,'realtime_session_not_found')
         return JSONResponse(r.json(),headers={'Cache-Control':'no-store'})
 
+    @app.get('/api/realtime/experts')
+    async def expert_status(request:Request,conversation_id:str|None=None):
+        scope=await identity(request)
+        if conversation_id and not re.fullmatch(ID,conversation_id):raise HTTPException(422,'invalid_conversation_id')
+        if scope['device_id'].startswith('personal:'):
+            import base64
+            payload=request.cookies['gobot_profile'].rsplit('.',1)[0]
+            scope['confirmed_profile_epoch']=json.loads(base64.urlsafe_b64decode(payload+'='*(-len(payload)%4)))['epoch']
+        if conversation_id:scope['conversation_id']=conversation_id
+        async with httpx.AsyncClient(trust_env=False,timeout=5) as c:
+            r=await c.get(base+'/experts',headers=auth,params={k:v or '' for k,v in scope.items()})
+        if r.status_code!=200:raise HTTPException(r.status_code,'expert_status_unavailable')
+        return JSONResponse(r.json(),headers={'Cache-Control':'no-store'})
+
     @app.post('/api/realtime/sessions')
     async def create(request:Request):
         body=await bounded_json(request)
-        allowed={'session_id','conversation_id','sdp','consent','remember','speak','client_kind','expert_quota_consent','personalization_mode','speaker_consent','requested_voice'}
+        allowed={'session_id','conversation_id','sdp','consent','remember','speak','client_kind','expert_quota_consent','requested_expert_profile','personalization_mode','speaker_consent','requested_voice'}
         if set(body)-allowed:raise HTTPException(422,'client_configuration_denied')
         body.update(await identity(request))
         if body['device_id'].startswith('personal:'):

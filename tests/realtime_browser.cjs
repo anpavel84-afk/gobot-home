@@ -35,6 +35,7 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
 (async()=>{
  const client=new window.GoBotNativeVoice({fetcher,Peer,media:sandbox.navigator.mediaDevices});
  await client.start();assert(client.ready);assert.equal(track.enabled,false);assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,1);
+ assert(!('requested_expert_profile' in requests.find(r=>r.url.endsWith('/sessions')).body)); // Compatible with an older running backend.
  await client.pttStart();assert.equal(track.enabled,true);client.startedAt=performance.now()-1000;client.speechMs=250;
  await client.pttEnd();assert.equal(track.enabled,false);
  assert.equal(requests.filter(r=>r.body?.action==='ptt_end').length,1);
