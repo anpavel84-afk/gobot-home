@@ -5,6 +5,11 @@
     "gpt-live-1",
     "gpt-live-transcribe"
   ],
-  "voice_session_started": false,
-  "paid_calls": 0
+  "voice_session_started": true,
+  "accepted_voice_model": "gpt-live-1",
+  "accepted_voice": "marin",
+  "voice_sessions_confirmed": 2,
+  "voice_evidence": "live-acceptance.json",
+  "api_1_1_verified": false,
+  "metadata_lookup_paid_calls": 0
 }

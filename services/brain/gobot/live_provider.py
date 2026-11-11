@@ -1,5 +1,5 @@
 """Fixed-origin GPT-Live WebRTC creation and trusted sideband. No implicit retries."""
-import json,re
+import asyncio,json,re
 from urllib.parse import quote
 import httpx
 from websockets.asyncio.client import connect
@@ -19,7 +19,7 @@ class LiveProvider:
         return quote(value,safe='')
     async def create(self,sdp,config):
         live_sdp(sdp)
-        async with self.client_factory() as c:
+        async with asyncio.timeout(20),self.client_factory() as c:
             r=await c.post('https://api.openai.com/v1/live/sessions',headers=self.headers(),json={'session':config,'transport':{'type':'webrtc','sdp':sdp}})
         if r.status_code!=201:
             try:error=r.json().get('error',{})

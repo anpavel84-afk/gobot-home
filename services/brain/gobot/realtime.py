@@ -760,7 +760,7 @@ class RealtimeManager:
             state['readiness']['live']={'implemented':True,'configured':state['policy']['live_enabled'],
                 'acceptance':'real_Live1_marin_timer_audio_Close_passed; 1.1_and_phone_pending'}
             state['readiness']['live_backend']={'implemented':True,'configured':state['policy']['live_backend_enabled'],
-                'acceptance':'owner_approved_gpt_6_luna; exact_input_count_2048_output512_concurrency1; real_backend_acceptance_pending'}
+                'acceptance':'real_4_synthetic_Luna_responses_passed; 2048_512_concurrency1; Live_join_fixture_and_iPhone_pending'}
         return state
 
     def prune_lifecycle(self):

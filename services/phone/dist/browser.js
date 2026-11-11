@@ -453,7 +453,7 @@ window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,un
         text:'',images:[],metadata:{transient_scene:true,state:'ready',icon:payload.icon,visual_stage:'provisional',visual_revision:0}});
     }
     if(item.type==='meaning_mismatch')visuals?.begin();
-    if(item.type==='ready'){$('route-meta').textContent='OpenAI Realtime · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent='Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
+    if(item.type==='ready'){const live=activeVoice()?.engine==='live';$('route-meta').textContent=(live?'GPT-Live':'OpenAI Realtime')+' · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent=live?'Нативный GPT-Live; обычный текстовый backend — gpt-6-luna, CLI-эксперты отдельно. Без второго STT и отдельного TTS. Контекст в RAM; личный архив закрыт.':'Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
     if(item.type==='tool_status'&&data.status==='settings_applied')applyServerProfile(data.profile);
     if(item.type==='expert_result'&&!window.GoBotExpertUI){
       let box=$('expert-result');if(!box){box=document.createElement('details');box.id='expert-result';$('answer').after(box);}box.replaceChildren();

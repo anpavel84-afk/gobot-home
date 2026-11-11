@@ -51,7 +51,9 @@ class LiveSession(VoiceVisualSession):
         self.manager=manager;self.offer=offer.model_copy(update={'remember':False});self.profile=profile.model_copy(deep=True);self.id=offer.session_id
         self.started=time.monotonic();self.limit=limit;self.closed=False;self.closing=False;self.ready=False
         self.provider_id=None;self.ws=None;self.reader=None;self.timer=None;self.tasks=set()
+        self.close_reason=None
         self.events=[];self.event_serial=0;self.changed=asyncio.Event();self.subscriber=False
+        self.event_counts={}
         self.send_lock=asyncio.Lock();self.close_lock=asyncio.Lock();self.started_ack=asyncio.Event();self.terminal=asyncio.Event();self.acks={};self.seen=set()
         self.timeline=ConversationTimeline();self.operations={};self.delegation_tasks={};self.turns=[];self.current=None;self.revision=0;self.interaction_id=None
         self.timings={};self.alignment_counts={};self.last_scene=None;self.last_activity=time.monotonic();self.playback_active=False;self.input_active=False
@@ -68,6 +70,7 @@ class LiveSession(VoiceVisualSession):
         self.speaker=NativeSpeakerIdentity(self)
         self.delegation_for_turn={};self.last_task='';self.final_usage_confirmed=False
         self.setup_done=asyncio.Event();self.setup_task=None
+        self.create_attempted=False;self.create_rejected=False
         self.input_seen_at=0;self.closed_phrase=None;self.speech_stopped=False
         self.backend_task=None
 
@@ -77,6 +80,7 @@ class LiveSession(VoiceVisualSession):
     def emit(self,kind,**data):
         if self.closed and kind!='closed':return
         self.event_serial+=1
+        self.event_counts[kind]=min(10000,self.event_counts.get(kind,0)+1)
         self.events.append({'serial':self.event_serial,'type':kind,'session_id':self.id,'conversation_id':self.offer.conversation_id,
             'turn_id':self.current.id if self.current else self.id,'data':data})
         while len(self.events)>128 or sum(len(json.dumps(x)) for x in self.events)>262144:self.events.pop(0)
@@ -133,15 +137,24 @@ class LiveSession(VoiceVisualSession):
         packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,req.text,{'messages':[],'facts':[],'retrieved':[]},'FAST_CHAT')
         history.append({'type':'message','role':'user','content':[{'type':'input_text','text':'Разрешённый временный контекст GoBot: '+json.dumps({k:packet[k] for k in ['runtime_environment','topic'] if packet.get(k)},ensure_ascii=False)}]})
         self.config=live_config(voice,instructions,history)
-        self.provider_id,answer=await self.manager.provider.create(self.offer.sdp,self.config)
+        if self.closing or self.closed:raise RuntimeError('live_setup_cancelled')
+        create_started=time.monotonic()
+        self.create_attempted=True
+        try:self.provider_id,answer=await self.manager.provider.create(self.offer.sdp,self.config)
+        except RuntimeError as error:
+            if re.fullmatch(r'live_create_rejected_4\d\d',str(error)):self.create_rejected=True
+            raise
+        self.timings['create_ms']=round((time.monotonic()-create_started)*1000,2)
         await asyncio.to_thread(self.manager.budget.registered,self.id,self.provider_id)
         if self.closing:return answer # Close owns cleanup of the known ID; never start a cancelled conversation.
         try:live_sdp(answer)
         except ValueError:raise RuntimeError('live_invalid_answer_sdp') from None
+        attach_started=time.monotonic()
         self.ws=await self.manager.provider.attach(self.provider_id).__aenter__()
         self.reader=asyncio.create_task(self.read())
         await asyncio.wait_for(self.started_ack.wait(),10)
         if not self.ready:raise RuntimeError('live_settings_not_confirmed')
+        self.timings.update(attach_and_ack_ms=round((time.monotonic()-attach_started)*1000,2),total_ms=round((time.monotonic()-self.started)*1000,2))
         self.emit('ready',model=LIVE_MODEL,voice=voice,configuration_confirmed=True,store=False,private_access=False,
             memory_mode='guest_ram_only',input_mode=self.offer.input_mode,requested_version='1.1',actual_version='1')
         self.emit('speaker_readiness',**await asyncio.to_thread(self.speaker.status));self.emit('speaker_segment',segment_id=self.speaker.begin())
@@ -167,7 +180,9 @@ class LiveSession(VoiceVisualSession):
         elif kind=='session.closed':
             usage=event.get('usage',{});await asyncio.to_thread(self.manager.budget.observe,self.id,usage.get('seconds',0),final=True,reason=event.get('reason'))
             self.final_usage_confirmed=True;self.terminal.set()
-            if not self.closing:self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'provider_closed'))
+            if not self.closing:
+                reason={'expired':'session_time_limit','close_requested':'conversation_ended','remote_hangup':'conversation_ended'}.get(event.get('reason'),'provider_closed')
+                self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,reason))
         elif kind=='session.usage.updated':
             await asyncio.to_thread(self.manager.budget.observe,self.id,event.get('usage',{}).get('seconds',0))
             self.emit('usage',model=LIVE_MODEL,voice_seconds=event.get('usage',{}).get('seconds',0),billing='duration_cumulative')
@@ -183,8 +198,10 @@ class LiveSession(VoiceVisualSession):
                 # Visual-only hypotheses are not action permission. Actions wait for delegation/UI.
                 context=self.timeline.context('visual-only',event['end_ms'])
                 if context:
-                    await self.interaction(context.query,context.interaction_id,visual_only=True)
+                    turn=await self.interaction(context.query,context.interaction_id,visual_only=True)
+                    turn.timings['input_end_ms']=event['end_ms']
             elif self.current and event.get('start_ms',0)>=self.current.timings.get('input_start_ms',0):
+                self.current.timings.setdefault('first_output_start_ms',event.get('start_ms',0))
                 self.current.answer+=event['delta'];self.emit('text_delta',text=event['delta'])
                 if self.current.photo:self.current.photo.observe_partial(self.current.answer)
                 if len(self.current.answer)>40:self.spawn(self.check_alignment(self.current))
@@ -372,12 +389,18 @@ class LiveSession(VoiceVisualSession):
             try:
                 result=await self.manager.backend.answer(query,packet,binding=self.owner_test_binding,operation=self.id+':'+operation,
                     developer=self.offer.developer_acceptance,on_text=deliver,is_current=lambda:not self.closed and not self.closing and turn is self.current and self.manager.owner_testing.authorized(self.owner_test_binding) and self.manager.owner_testing.policy().live_backend_enabled)
-                self.emit('backend_status',state='completed',model=result['model'],usage=result['usage'],timings=result['timings'],estimated_usd=result['estimated_usd'])
+                if not self.closed and turn is self.current:self.emit('backend_status',state='completed',model=result['model'],usage=result['usage'],timings=result['timings'],estimated_usd=result['estimated_usd'])
             except asyncio.CancelledError:raise
             except (PermissionError,ValueError,RuntimeError,TimeoutError,httpx.HTTPError) as error:
                 code=str(error) if isinstance(error,(PermissionError,ValueError,RuntimeError)) else 'live_backend_network_error'
                 self.emit('backend_status',state='failed',model='gpt-6-luna',reason=code)
-                await self.append('commentary','Быстрый текстовый backend сейчас не завершил ответ. Автоматического повтора нет. Можно уточнить вопрос или выбрать B.',did)
+                message={'live_backend_busy':'Предыдущий текстовый запрос ещё завершается. Подождите немного; повтор автоматически не запускается.',
+                    'live_backend_input_limit':'Вопрос не помещается в лимит быстрого backend. Сузьте контекст или отдельно поручите подробный разбор эксперту.',
+                    'owner_api_estimate_limit':'Достигнут порог оценочных API-расходов. Владелец может изменить его в Owner Full Test.',
+                    'owner_live_backend_daily_limit':'Достигнута дневная квота быстрого backend. Её можно изменить в Owner Full Test.',
+                    'live_backend_model_mismatch':'Провайдер не подтвердил заказанную текстовую модель. Подменять её молча не буду.'}.get(code,
+                    'Быстрый текстовый backend сейчас не завершил ответ. Автоматического повтора нет. Можно уточнить вопрос или выбрать B.')
+                await self.append('commentary',message,did)
             finally:
                 if self.backend_task is asyncio.current_task():self.backend_task=None
         self.backend_task=self.spawn(compute())
@@ -389,6 +412,7 @@ class LiveSession(VoiceVisualSession):
                 await self.expired_timers()
                 if time.monotonic()-self.started>=self.limit:reason='session_time_limit'
                 elif not self.manager.owner_testing.authorized(self.owner_test_binding) or not self.manager.owner_testing.policy().live_enabled:reason='owner_mode_disabled'
+                elif self.access.confirmed_profile_id and not await asyncio.to_thread(self.manager.identity.family.session_valid,self.access.confirmed_profile_id,self.offer.confirmed_profile_epoch):reason='profile_changed'
                 elif time.monotonic()-self.last_activity>45 and not self.experts.active() and not self.playback_active and not (self.current and self.current.visual_task and not self.current.visual_task.done()):reason='idle_timeout'
                 else:continue
                 await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,reason);return
@@ -425,6 +449,7 @@ class LiveSession(VoiceVisualSession):
             output=await self.experts.cancel(command.job_id);self.emit('expert_job',job=output)
         elif action=='activity':
             was_playing=self.playback_active;self.playback_active=command.playback_active;self.input_active=command.input_active
+            if self.playback_active and not was_playing:self.mark_turn(self.current,'client_playback_seen_ms')
             if self.playback_active or self.input_active:self.last_activity=time.monotonic()
             if was_playing and not self.playback_active and not self.speech_stopped:await self.finish_turn(True)
             if not self.input_active and self.current and time.monotonic()-self.input_seen_at>=1 and self.current.query!=self.closed_phrase:
@@ -469,16 +494,32 @@ class LiveManager:
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in [*self.sessions.values(),*self.realtime.sessions.values()]):raise ValueError('voice_session_already_active')
             for previous,provider,attempted in await asyncio.to_thread(self.budget.pending):
                 if any(s.id==previous and not s.closed for s in self.sessions.values()):continue
+                if not provider:raise RuntimeError('live_previous_finalization_unconfirmed')
                 if attempted or not await asyncio.to_thread(self.budget.cleanup_claim,previous):raise RuntimeError('live_previous_finalization_unconfirmed')
                 try:
                     final=await self.provider.cleanup(provider)
                     await asyncio.to_thread(self.budget.observe,previous,final.get('usage',{}).get('seconds',0),final=True,reason=final.get('reason'))
                 except Exception:raise RuntimeError('live_previous_finalization_unconfirmed') from None
             limit=await asyncio.to_thread(self.budget.reserve,offer)
-            s=LiveSession(self,offer,profile,limit);self.sessions[s.id]=s
+            try:s=LiveSession(self,offer,profile,limit)
+            except BaseException:
+                await asyncio.to_thread(self.budget.not_started,offer.session_id);raise
+            self.sessions[s.id]=s
         async def setup():
             try:return await s.initialize()
-            finally:s.setup_done.set()
+            finally:
+                s.setup_done.set()
+                # A late provider ID still belongs to the cancelled operation, never a new Start.
+                if s.closed:
+                    if s.provider_id and not s.final_usage_confirmed and await asyncio.to_thread(self.budget.cleanup_claim,s.id):
+                        try:
+                            final=await self.provider.cleanup(s.provider_id)
+                            await asyncio.to_thread(self.budget.observe,s.id,final.get('usage',{}).get('seconds',0),final=True,reason=final.get('reason'))
+                            s.final_usage_confirmed=True
+                        except Exception:pass
+                    elif not s.provider_id and (not s.create_attempted or s.create_rejected):
+                        await asyncio.to_thread(self.budget.not_started,s.id);s.final_usage_confirmed=True
+                    await asyncio.to_thread(self.budget.record_report,s,s.close_reason or 'setup_failed')
         s.setup_task=asyncio.create_task(setup())
         try:
             answer=await asyncio.shield(s.setup_task)
@@ -491,11 +532,14 @@ class LiveManager:
         async with s.close_lock:
             if s.closed:return {'closed':True,'final_usage_confirmed':s.final_usage_confirmed}
             s.closing=True;s.ready=False
+            s.close_reason=reason
             s.emit('closing',reason=reason)
             await s.experts.close() # Explicit End cancels application jobs before provider finalization wait.
             if s.setup_task and not s.setup_done.is_set():
                 try:await asyncio.wait_for(s.setup_done.wait(),25)
                 except TimeoutError:pass
+            if s.setup_done.is_set() and not s.provider_id and (not s.create_attempted or s.create_rejected):
+                await asyncio.to_thread(self.budget.not_started,s.id);s.final_usage_confirmed=True
             # Terminal receiver was installed before this request; keep it alive while draining.
             if s.ws and not s.terminal.is_set():
                 try:
@@ -510,6 +554,7 @@ class LiveManager:
                 except Exception:pass
             if s.current and s.current.photo:await s.current.photo.close()
             await s.finish_turn(False)
+            await asyncio.to_thread(self.budget.record_report,s,reason)
             s.closed=True;s.emit('closed',reason=reason,final_usage_confirmed=s.final_usage_confirmed)
             for task in [s.reader,s.timer,*s.tasks]:
                 if task and task is not asyncio.current_task():task.cancel()

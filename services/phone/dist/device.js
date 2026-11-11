@@ -36,6 +36,13 @@
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
       hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.conversationEnded=false;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.answerPlaybackStarted=false;this.audioStreamId=null;this.state('thinking','Готовлю ответ…');};
       hooks.onAnswerPlayback=turn=>{if(turn===this.turn)this.answerPlaybackStarted=true;};
+      hooks.onLivePlayback=({playing,pending})=>{
+        if(!this.enabled||activeVoice()?.engine!=='live')return;
+        this.streamDone=!playing&&!pending;
+        if(playing){this.manager.completed=false;this.manager.returnAt=null;this.state('speaking','Отвечаю. Можно перебить голосом.');}
+        else if(pending)this.state('thinking','Задача ещё выполняется. Микрофон остаётся включён.');
+        else{this.manager.finish(this.turn);this.state('idle','Можно продолжать разговор.');}
+      };
       hooks.onListening=()=>{
         if(this.followupPending&&!this.held){
           this.state('listening','Жду продолжение разговора · '+this.profile.conversation.followup_seconds+' секунд');

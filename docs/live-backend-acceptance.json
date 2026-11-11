@@ -1,0 +1,117 @@
+{
+  "synthetic_only": true,
+  "model": "gpt-6-luna",
+  "test_path": "direct_production_backend",
+  "live_session_created": false,
+  "iphone": false,
+  "acoustic_verified": false,
+  "max_generations": 4,
+  "auto_retries": 0,
+  "results": [
+    {
+      "case": "explanation",
+      "question": "Что такое чёрная дыра? Объясни коротко.",
+      "actual_model": "gpt-6-luna",
+      "text": "Чёрная дыра — область космоса с настолько сильной гравитацией, что из неё не может выбраться даже свет. Обычно она образуется при сжатии очень массивной звезды.",
+      "usage": {
+        "input_tokens": 164,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 47,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 211
+      },
+      "counted_input_tokens": 164,
+      "timings": {
+        "input_count_ms": 1471.96,
+        "first_text_ms": 2813.05,
+        "completed_ms": 2943.22
+      },
+      "estimated_usd": 3.990000000000001e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "continuity",
+      "question": "А расскажи ещё один интересный факт по этой же теме.",
+      "actual_model": "gpt-6-luna",
+      "text": "Интересный факт: у чёрных дыр есть граница, называемая горизонтом событий. Пересёк её — и вернуться наружу уже невозможно, даже если двигаться со скоростью света.",
+      "usage": {
+        "input_tokens": 238,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 49,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 287
+      },
+      "counted_input_tokens": 238,
+      "timings": {
+        "input_count_ms": 580.14,
+        "first_text_ms": 2174.37,
+        "completed_ms": 2714.83
+      },
+      "estimated_usd": 4.8299999999999995e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "numbers_dates",
+      "question": "Перепиши числа словами, сохраняя смысл: встреча 25 декабря 2026 года в 14:35, цена 1250 рублей, скидка 17 процентов.",
+      "actual_model": "gpt-6-luna",
+      "text": "Встреча двадцать пятого декабря две тысячи двадцать шестого года в четырнадцать часов тридцать пять минут, цена — одна тысяча двести пятьдесят рублей, скидка — семнадцать процентов.",
+      "usage": {
+        "input_tokens": 264,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 50,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 314
+      },
+      "counted_input_tokens": 264,
+      "timings": {
+        "input_count_ms": 564.64,
+        "first_text_ms": 1232.68,
+        "completed_ms": 1768.54
+      },
+      "estimated_usd": 5.14e-05,
+      "delivered_chunks": 1
+    },
+    {
+      "case": "semantic_subject",
+      "question": "Чем пауки отличаются от насекомых? Ответь двумя предложениями.",
+      "actual_model": "gpt-6-luna",
+      "text": "У пауков восемь ног и две основные части тела, а у насекомых — шесть ног и три части тела. У насекомых есть усики, а у пауков — нет.",
+      "usage": {
+        "input_tokens": 268,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 46,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 314
+      },
+      "counted_input_tokens": 268,
+      "timings": {
+        "input_count_ms": 548.27,
+        "first_text_ms": 1532.07,
+        "completed_ms": 2023.43
+      },
+      "estimated_usd": 4.98e-05,
+      "delivered_chunks": 2
+    }
+  ],
+  "estimated_usd": 0.0001894
+}

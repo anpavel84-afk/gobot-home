@@ -59,3 +59,21 @@ def test_wrong_model_and_revocation_do_not_leak_output_or_retry(tmp_path):
         with pytest.raises(asyncio.CancelledError):await backend.answer('Вопрос',{},binding='owner',operation='two',developer=True,is_current=lambda:False)
         assert len(requests)==2
     asyncio.run(run())
+
+def test_two_backend_instances_share_one_active_generation_lease(tmp_path):
+    async def run():
+        entered=asyncio.Event();release=asyncio.Event();requests=[]
+        async def handler(request):
+            requests.append(request)
+            if request.url.path.endswith('input_tokens'):
+                entered.set();await release.wait();return httpx.Response(200,json={'input_tokens':100})
+            return httpx.Response(200,text=wire())
+        first,owner=configured(tmp_path,handler)
+        second=LiveBackend(tmp_path/'live',owner,key_loader=lambda:'synthetic-key',transport=httpx.MockTransport(handler))
+        work=asyncio.create_task(first.answer('Первый',{},binding='owner',operation='one',developer=True))
+        await entered.wait()
+        with pytest.raises(PermissionError,match='busy'):await second.answer('Второй',{},binding='owner',operation='two',developer=True)
+        assert len(requests)==1
+        release.set();await work
+        assert len(requests)==2
+    asyncio.run(run())

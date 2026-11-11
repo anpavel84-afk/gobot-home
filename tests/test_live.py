@@ -160,6 +160,8 @@ def test_live_new_profile_closes_and_clears_ram_without_history_transfer(tmp_pat
         await s.handle({'type':'session.output_transcript.delta','event_id':'answer','start_ms':200,'end_ms':1000,'delta':'Синтетический ответ'})
         await m.invalidate_principal('browser-1')
         assert s.closed and not s.timeline.segments and s.current.req is None and not s.current.answer
+        report=m.budget.status()['latest_report']
+        assert report['contains_conversation_content'] is False and 'Синтетический' not in json.dumps(report,ensure_ascii=False)
         with m.brain.memory.connect() as c:assert c.execute('SELECT count(*) FROM turns').fetchone()[0]==0
         await m.realtime.shutdown()
     asyncio.run(run())
@@ -215,4 +217,52 @@ def test_live_general_question_routes_luna_result_to_real_delegation_without_cli
             assert any(e['type']=='backend_status' and e['data']['state']=='completed' for e in s.events)
             assert not any(e['type']=='response.create' for e in s.ws.sent)
         finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())
+
+@pytest.mark.parametrize('rejected',[True,False])
+def test_live_known_rejection_vs_unknown_create_outcome(tmp_path,settings,rejected):
+    async def run():
+        rt,_,_=configured(tmp_path,settings)
+        rt.owner_testing.policy_path.write_text(OwnerTestPolicy(enabled=True,authorization='synthetic',allowed_client_id='client-1',live_enabled=True).model_dump_json())
+        class Failed(Provider):
+            async def create(self,sdp,config):
+                if rejected:raise RuntimeError('live_create_rejected_403')
+                raise TimeoutError('synthetic lost HTTP response')
+        p=Failed();m=LiveManager(rt,provider=p);rt.live=m
+        with pytest.raises((RuntimeError,TimeoutError)):await m.start(offer(),DeviceProfile())
+        assert m.budget.status()['unconfirmed_sessions']==(0 if rejected else 1)
+        assert m.owner_testing.status('client-1')['pending_usage']==(0 if rejected else 1)
+        if rejected:assert m.budget.status()['reserved_seconds_including_pending']==0
+        if not rejected:
+            with pytest.raises(RuntimeError,match='previous_finalization_unconfirmed'):
+                await m.start(offer().model_copy(update={'session_id':'different-operation'}),DeviceProfile())
+        await m.shutdown();await rt.shutdown()
+    asyncio.run(run())
+
+def test_late_create_result_after_local_close_is_still_finalized(tmp_path,settings):
+    async def run():
+        rt,_,_=configured(tmp_path,settings)
+        rt.owner_testing.policy_path.write_text(OwnerTestPolicy(enabled=True,authorization='synthetic',allowed_client_id='client-1',live_enabled=True).model_dump_json())
+        entered=asyncio.Event();release=asyncio.Event()
+        class Slow(Provider):
+            async def create(self,sdp,config):entered.set();await release.wait();return await super().create(sdp,config)
+        p=Slow();m=LiveManager(rt,provider=p);rt.live=m
+        task=asyncio.create_task(m.start(offer(),DeviceProfile()));await entered.wait()
+        # Synthetic local-close deadline elapsed before a provider ID became known.
+        s=m.sessions['live-app-1'];s.closed=True;s.closing=True;s.close_reason='user_stop'
+        release.set()
+        with pytest.raises(RuntimeError,match='setup_cancelled'):await task
+        assert p.cleanup_calls==['opaque-provider-session'] and s.final_usage_confirmed
+        assert m.budget.status()['unconfirmed_sessions']==0
+        await m.shutdown();await rt.shutdown()
+    asyncio.run(run())
+
+def test_expired_confirmed_profile_closes_provider_without_reusing_history(tmp_path,settings):
+    async def run():
+        from dataclasses import replace
+        m,p,s=await native(tmp_path,settings)
+        s.access=replace(s.access,confirmed_profile_id='11111111-1111-1111-1111-111111111111')
+        await asyncio.wait_for(s.timer,2)
+        assert s.closed and s.close_reason=='profile_changed' and s.final_usage_confirmed
+        await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())

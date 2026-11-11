@@ -138,9 +138,14 @@
       ],
       "usage_kind": "api",
       "average_latency_ms": null,
-      "tested_task_categories": [],
+      "tested_task_categories": [
+        "synthetic_short_explanation",
+        "synthetic_continuity",
+        "numbers_dates_text",
+        "semantic_subject_text"
+      ],
       "quality_proven": false,
-      "availability": "project_metadata_200",
+      "availability": "project_real_responses_accepted",
       "supported_reasoning_efforts": [
         "none",
         "low",
@@ -160,7 +165,8 @@
       "known_limitations": [
         "not an independent fact source",
         "not an expert CLI profile"
-      ]
+      ],
+      "acceptance_evidence": "docs/live-backend-acceptance.json"
     }
   ],
   "lite_approved_categories": [],

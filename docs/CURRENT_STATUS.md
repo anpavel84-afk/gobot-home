@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B и Owner Full Test опубликованы и запущены на `d49b57486258c1b5cf8ca5e2c44579b06522861f`.
+  A/B/C и Luna опубликованы и запущены на `1653e86` (последующий release ниже).
   Вне explicit demo routes default пока legacy; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
@@ -1724,7 +1724,7 @@ Backend ledger хранит хэши операций/counts/usage, не дом�
 ведёт Stage2 визуала. Новая тема отменяет старый быстрый backend, а status-вопрос не
 уничтожает экспертную задачу. Доступ к прошлому приватному архиву native пока отсутствует.
 Бесплатные backend/protocol/owner/expert/A tests после интеграции: **34 passed**.
-Полный regression до Luna: **1288 passed /53.40s**. Реальная Luna приёмка пока pending.
+Полный regression до Luna: **1288 passed /53.40s**. Реальная Luna приёмка приведена ниже.
 
 Исправленный [B → Sol High → B](realtime-expert-acceptance.json) на runtime927d3c5:
 один CLI job, queued/running/completed, gpt-6.1-sol/high, число323 в настоящем результате,
@@ -1740,3 +1740,49 @@ VisualService → gpt-image-2.6-flare, 1024square/low, elapsed7245.85ms, три 
 Live developer2/2 использованы, final87s, voice estimate$0.0725, unconfirmed0.
 Всего до Luna: 2 Live sessions, 2 Realtime sessions/5 responses, 1 CLI job, 1 image,
 новых STT/TTS0; резервы/usage не сбрасывались. Физические iPhone/ESP32 pending.
+
+Luna ON в Owner Full Test после нового прямого разрешения. [Четыре реальные пробы](live-backend-acceptance.json)
+завершились gpt-6-luna/effort none, store=false, tools none: input164/238/264/268,
+output47/49/50/46, reasoning0, count endpoint совпал с actual input usage. Объяснение,
+продолжение темы, числа/даты и сравнение пауков/насекомых дали непустой связный текст.
+Суммарная estimate$0.0001894. Exact count занял548–1472ms; первый текст1233–2813ms,
+полный результат1769–2943ms. Всего4 наблюдения, без p95 и без вывода о слышимом TTFA.
+Генерация каждого ответа≤512, один shared SQLite lease; unknown/cancel сохраняет
+резерв и блокирует пересечение нового запроса до ограниченного lease timeout30s.
+Лимит developer Luna4/4 использован, Live2/2 не возобновлялся.
+
+Связь Luna → Live commentary с тем же delegation_id проверена production-session
+fixture; **совместный новый real Luna→Live voice прогон ещё не выполнен**. Реальные
+Live voice/timer/Close и реальные Luna ответы проверены по отдельности. Owner phone
+может тестировать C интерактивно в сохранённом общем допуске. Это не новая developer
+квота и не основание заявлять качество тихой речи или произношение по транскрипту.
+
+После интеграции: полный free **1293 passed /55.56s**, включая cross-instance backend
+concurrency, Stop/очистку output source, нормальное idle, profile close, отсутствие
+текста в диагностическом отчёте. Live закрытие теперь сохраняет только allowlisted
+числовые стадии/счётчики и finalization reason, с указанием разных clock domains;
+не сохраняет transcript/audio/домашние prompts. Исторические сессии не реконструируются.
+
+Личная память C остаётся RAM-only, включая экспертные результаты: offer remember=true
+не превращает непроверенный native speaker в авторизованную долговременную запись.
+Смена настроек/голоса закрывает provider session; восстановление личного архива и
+переходы с персональной памятью не объявлены готовыми. Speaker enrollment/calibration
+и физическая iPhone/ESP32 приёмка по-прежнему отсутствуют. C не заменяет B/default молча.
+
+Почему Luna API вместо CLI на каждом вопросе: Live — speech frontend с backend
+делегацией, а долгий CLI сохранён отдельным экспертом. Решение по API Luna было явно
+предложено и разрешено владельцем, с отдельным учётом. First-text Luna и готовность
+CLI-задачи — разные метрики; 1.23–2.81s и12.23s не доказывают сравнительное ускорение
+одного и того же голосового задания. Полный совместный C voice прогон остаётся за
+телефонной приёмкой/новым developer допуском, старые2 Live и4 Luna не переиспользуются.
+
+Закрытие C дополнительно проверено на race WebRTC EOF → поздний terminal event:
+server-owned status определяет normal idle, mic немедленно закрыт, ошибочный экран
+не появляется. Late setup ID финализируется даже после локального deadline;
+unknown create без ID блокирует новый paid create, known reject освобождает reserve.
+Эти edge cases проверены fixtures/production JS, не новым оплачиваемым прогоном.
+
+Финальная бесплатная проверка этапа: полный1296/59.82s до последних UI/epoch guards;
+после них81 целевой тест/8.69s. Экран C использует собственные playback/backend states,
+не ожидает Realtime response.done и не подписывает Live как Realtime. Возврат к idle
+не означает закрытие continuous mic; End/pagehide/profile revocation закрывают его.

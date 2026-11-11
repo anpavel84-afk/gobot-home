@@ -9,6 +9,7 @@ class LiveBudget:
             c.execute('CREATE TABLE IF NOT EXISTS calls(id TEXT PRIMARY KEY,scope TEXT,provider TEXT,day INTEGER,reserved INTEGER,seconds REAL DEFAULT 0,final INTEGER DEFAULT 0,reason TEXT,owner_reservation TEXT,origin TEXT,cleanup_attempted INTEGER DEFAULT 0)')
             c.execute('CREATE TABLE IF NOT EXISTS commands(session TEXT,id TEXT,PRIMARY KEY(session,id))')
             c.execute('CREATE TABLE IF NOT EXISTS cancelled(id TEXT PRIMARY KEY,scope TEXT)')
+            c.execute('CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,created REAL,payload TEXT)')
     def connect(self):return sqlite3.connect(self.path,timeout=5)
     @staticmethod
     def scope(offer):return hashlib.sha256(json.dumps([offer.device_id,offer.client_id,offer.profile_epoch]).encode()).hexdigest()
@@ -19,13 +20,13 @@ class LiveBudget:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_setup_cancelled')
             if c.execute('SELECT 1 FROM calls WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_session_already_attempted')
-            rows=c.execute('SELECT reserved,seconds,final,origin FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
-            used=sum(max(15,seconds) if final else reserved for reserved,seconds,final,_ in rows)
+            rows=c.execute('SELECT reserved,seconds,final,origin,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            used=sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,_,reason in rows)
             limit=min(p.live_session_seconds,int(p.live_minutes_per_day*60-used))
             origin='developer' if offer.developer_acceptance else 'owner'
             if origin=='developer':
-                all_dev=c.execute("SELECT reserved,seconds,final FROM calls WHERE origin='developer'").fetchall()
-                remaining=p.developer_live_seconds-sum(max(15,seconds) if final else reserved for reserved,seconds,final in all_dev)
+                all_dev=c.execute("SELECT reserved,seconds,final,reason FROM calls WHERE origin='developer'").fetchall()
+                remaining=p.developer_live_seconds-sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,reason in all_dev)
                 limit=min(limit,90,int(remaining))
             if limit<15:raise PermissionError('live_duration_budget_exhausted')
             key=self.owner.reserve(binding,'live',offer.session_id,estimate=limit*.05/60,origin=origin)
@@ -52,14 +53,32 @@ class LiveBudget:
         with self.connect() as c:
             c.execute('INSERT OR IGNORE INTO commands VALUES(?,?)',(session,hashlib.sha256(command.encode()).hexdigest()));return c.total_changes>0
     def pending(self):
-        with self.connect() as c:return c.execute('SELECT id,provider,cleanup_attempted FROM calls WHERE provider IS NOT NULL AND final=0').fetchall()
+        with self.connect() as c:return c.execute('SELECT id,provider,cleanup_attempted FROM calls WHERE final=0').fetchall()
+    def not_started(self,ident):
+        with self.connect() as c:
+            row=c.execute('SELECT owner_reservation FROM calls WHERE id=? AND provider IS NULL',(ident,)).fetchone()
+            if row:c.execute("UPDATE calls SET final=1,reason='not_created',reserved=0 WHERE id=?",(ident,))
+        if row:self.owner.settle(row[0],0)
     def cleanup_claim(self,ident):
         with self.connect() as c:
             c.execute('UPDATE calls SET cleanup_attempted=1 WHERE id=? AND cleanup_attempted=0',(ident,));return c.total_changes>0
     def status(self):
-        with self.connect() as c:rows=c.execute('SELECT seconds,final,reserved FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+        with self.connect() as c:
+            rows=c.execute('SELECT seconds,final,reserved,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            latest=c.execute('SELECT payload FROM reports ORDER BY created DESC LIMIT 1').fetchone()
         return {'model':'gpt-live-1','requested_version':'1.1','model_version_1_1_verified':False,
             'voice_seconds_observed':sum(r[0] for r in rows),'unconfirmed_sessions':sum(not r[1] for r in rows),
-            'reserved_seconds_including_pending':sum(max(15,r[0]) if r[1] else r[2] for r in rows),
+            'reserved_seconds_including_pending':sum((0 if r[3]=='not_created' else max(15,r[0])) if r[1] else r[2] for r in rows),
             'voice_usd_per_minute':.05,'backend_billed_separately':True,'cumulative_usage_not_summed':True,
-            'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False}
+            'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False,'latest_report':json.loads(latest[0]) if latest else None}
+
+    def record_report(self,session,reason):
+        allowed={'user_stop','conversation_ended','idle_timeout','session_time_limit','owner_mode_disabled','page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected','speaker_changed_or_uncertain','server_shutdown','setup_failed','sideband_closed','provider_closed'}
+        keys={'input_start_ms','input_end_ms','first_output_start_ms','client_playback_seen_ms','visual_provisional_scene_sent','visual_provisional_sent','visual_refined_sent'}
+        report={'model':'gpt-live-1','reason':reason if reason in allowed else 'other','final_usage_confirmed':session.final_usage_confirmed,
+            'setup_ms':{k:v for k,v in session.timings.items() if k in {'create_ms','attach_and_ack_ms','total_ms'} and type(v) in (int,float)},
+            'turns':[ {k:v for k,v in turn.timings.items() if k in keys and type(v) in (int,float)} for turn in session.turns[-64:]],
+            'events':{k:v for k,v in session.event_counts.items() if k in {'turn_started','backend_status','expert_job','expert_result','meaning_mismatch','visual_response','visual_status','warning','playback_cleared'}},
+            'contains_conversation_content':False,'client_playback_is_signal_not_useful_word':True,'physical_iphone_verified':False,
+            'clock_domains':{'input_output_offsets':'provider_media_timeline','visual_client_seen':'server_elapsed_since_application_session'}}
+        with self.connect() as c:c.execute('INSERT INTO reports VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',(hashlib.sha256(session.id.encode()).hexdigest(),time.time(),json.dumps(report)))

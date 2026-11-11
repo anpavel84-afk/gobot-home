@@ -347,8 +347,13 @@ consent scope и next_action, повторная проверка после dep
 
 Owner §54: gpt-6-luna явно разрешена для C. Fixed Responses/token-count adapter,
 2048/512, no tools/retries, concurrency1, scoped ContextPacket, отдельный usage и
-developer4. Free backend + C route tests прошли; real Luna pending.
+developer4. Free backend + C route tests и реальные4 Luna responses прошли; joint voice pending.
 B typed handoff после исправления: **одна настоящая SOL_HIGH completed**, карточка
 и native PCM после результата; voice/iPhone не проверены. Shared Image fallback:
 реальная генерация после Wikimedia miss, JPEG1024/480/240 decoded. Эти результаты
 не объявляют C voice expert или физическое устройство принятыми.
+
+Luna real4/4 прошли: exact counts164–268/output46–50, effortnone, tokens/usage,
+непустые ответы и продолжение темы. First text1.23–2.81s включает count0.55–1.47s;
+это не acoustic TTFA. Joint Luna→Live voice пока fixture, физический iPhone pending.
+Полный free1293; код/публикация/runtime и оставшиеся ограничения — паспорт §32.

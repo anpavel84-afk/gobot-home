@@ -39,7 +39,7 @@ def attach_brain_live(app,manager,auth):
         except (ValueError,ValidationError):raise HTTPException(409,'invalid_or_busy_live_session')
         except RuntimeError as error:
             code=str(error)
-            if not re.fullmatch(r'live_create_rejected_[45]\d\d|live_settings_not_confirmed|live_invalid_answer_sdp|live_finalization_unconfirmed',code):code='live_setup_or_provider_admission_failed'
+            if not re.fullmatch(r'live_create_rejected_[45]\d\d|live_settings_not_confirmed|live_invalid_answer_sdp|live_(?:previous_)?finalization_unconfirmed|live_setup_cancelled',code):code='live_setup_or_provider_admission_failed'
             raise HTTPException(502,code)
         except Exception:raise HTTPException(502,'live_setup_or_provider_admission_failed')
     @app.post('/api/v1/live/sessions/{ident}/command',dependencies=[Depends(auth)])
@@ -75,6 +75,11 @@ def attach_brain_live(app,manager,auth):
                 s.subscriber=False
                 await manager.close(s.id,device_id,client_id,profile_epoch or None,'client_events_disconnected')
         return StreamingResponse(generate(),media_type='text/event-stream',headers={'Cache-Control':'no-store','X-Accel-Buffering':'no'})
+    @app.get('/api/v1/live/sessions/{ident}/status',dependencies=[Depends(auth)])
+    async def session_status(ident:str,device_id:str,client_id:str,profile_epoch:str=''):
+        valid_id(ident)
+        s=owned(ident,{'device_id':device_id,'client_id':client_id,'profile_epoch':profile_epoch})
+        return {'closing':s.closing,'closed':s.closed,'reason':s.close_reason,'final_usage_confirmed':s.final_usage_confirmed}
     @app.post('/api/v1/live/identity/close',dependencies=[Depends(auth)])
     async def close_identity(request:Request):
         body=await bounded_json(request,2000)
@@ -153,6 +158,10 @@ def attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
         async with httpx.AsyncClient(trust_env=False,timeout=10) as c:
             r=await c.post(base+'/sessions/'+ident+'/speaker',headers={**auth,'Content-Type':request.headers.get('Content-Type','')},params={k:v or '' for k,v in scope.items()},content=raw)
         return JSONResponse(r.json(),status_code=r.status_code,headers={'Cache-Control':'no-store'})
+    @app.get('/api/live/sessions/{ident}/status')
+    async def session_status(ident:str,request:Request):
+        valid_id(ident)
+        return await forward('GET','/sessions/'+ident+'/status',params={k:v or '' for k,v in (await identity(request)).items()},timeout=3)
     previous=getattr(app.state,'close_realtime_identity',None)
     async def close_identity(request):
         if previous:await previous(request)
