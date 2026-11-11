@@ -211,7 +211,7 @@ def test_expert_status_exposes_blockers_without_private_results_to_guest(tmp_pat
             own=m.expert_status(s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,actor['epoch'],'conv-1')
             assert own['saved_jobs'][0]['result']['numbers']==['42']
             wrong=m.expert_status(s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'wrong-epoch','conv-1')
-            assert wrong['saved_jobs']==[] and not wrong['confirmed_adult']
+            assert wrong['saved_jobs']==[] and wrong['jobs']==[] and not wrong['confirmed_adult']
         finally:await m.shutdown()
     asyncio.run(run())
 

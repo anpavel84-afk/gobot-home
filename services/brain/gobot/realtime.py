@@ -667,7 +667,7 @@ class RealtimeManager:
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
         jobs=[]
         for s in self.sessions.values():
-            if not s.closed and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)==(owner,client,epoch):
+            if (not profile_id or adult) and not s.closed and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)==(owner,client,epoch):
                 jobs.extend(s.experts.public(j) for j in s.experts.jobs.values())
         saved=self.expert_store.list(profile_id,confirmed_epoch,conversation) if adult else []
         return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status(),
