@@ -239,3 +239,5 @@ Runtime 528c866 загружен; A/B HTTP200, owner manual uncapped сохра�
 | Чужие семейные настройки | Explicit Family preferences precedence | Family DB не дублируется; style не означает identity; physical retest pending |
 
 Подробности расследования и границы подтверждения: CURRENT_STATUS.md §22.
+
+Runtime 2c276a6 опубликован и запущен; 1180 regression tests и 50 targeted native/family checks. Deployment evidence: two-stage-silence-deployment.json. Owner style private, marin/ACL/uncapped owner admission сохранены; физический iPhone retest pending.

@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `528c866d2233f5b1e9f972be6bd7aec28792d033`.
+  Native/A-B код с two-stage visuals, круглым cover и silence-close исправлением опубликован и запущен на `2c276a614ce806715d9402b9ab2fd612bb55c067`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1142,3 +1142,22 @@ private memory/expert и отсутствие платного ответа пр
 
 Итоговый бесплатный regression прогон объединённого пакета: **1180 passed / 37.45 s**.
 Новых paid developer calls и синтезов вступлений нет.
+
+
+### 22.3. Опубликовано и запущено
+
+Runtime **2c276a614ce806715d9402b9ab2fd612bb55c067** отправлен в origin/master и
+перезагружен после idle guard: turns/voice/native/pending hangups=0. A/B/panel/status
+и обновлённые JS HTTP200; отдаваемый device renderer совпадает с опубликованным файлом.
+Private owner style применён атомарно, прежний policy сохранён в private history.
+Неограниченный ручной owner budget сохранён; voice=marin, expert/ImageGen OFF.
+Family profiles не создавались, PIN/ACL/биометрия не изменялись. Публичный status
+не содержит персональный промпт. Evidence: `two-stage-silence-deployment.json`.
+
+Перед push весь prospective Git index и вся история проверены gitleaks: 0 findings.
+Полный набор 1180 passed / 37.45 s; после дополнительного исключения Family-профилей
+из phone-owner style отдельно 50 native/family-preferences tests passed / 14.16 s.
+Обновить B в Safari, затем новый Start. Рекомендуемая ручная приёмка: короткий вопрос
+→ ответ → молчание в followup → нейтральное завершение без Error и микрофон OFF;
+потом новый ручной Start и оценка выбранного характера. Это инструкция владельцу,
+не утверждение, что данный физический прогон уже выполнен.
