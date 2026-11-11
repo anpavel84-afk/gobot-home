@@ -1812,3 +1812,13 @@ pending_usage0, Live unconfirmed0. CLI quota отдельно. Историче�
 раз → простой вопрос → продолжение → таймер → Stop → новый вопрос → «нет, спасибо»;
 отдельно тишина45s, pagehide/return и тихая речь. Смотреть фактический voice/backend
 и числовую telemetry; не сохранять домашнюю запись. Новых developer paid calls нет.
+
+## 33. Доступ с iPhone — 11 ноября, после сообщения «A/B/C не открываются»
+
+Проверка [сетевого доступа](phone-connectivity-check.json): Brain health и HTTPS
+`/demo2`, A/B/C device routes отвечали200, сервер Tailscale Running. iPhone был
+offline, один bounded Tailscale ping не получил ответа. На адресе без порта443
+listener отсутствует; рабочий URL — `https://plan.tailffc57c.ts.net:18786/demo2`.
+После включения Tailscale на iPhone владелец подтвердил открытие страницы в Safari.
+Это подтверждение доступа к странице, не приёмка голосовых сценариев. Приложение,
+лимиты, firewall и Serve/Funnel не менялись, сервисы не перезапускались, paid calls0.

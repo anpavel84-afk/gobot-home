@@ -1,0 +1,19 @@
+{
+  "checked_utc": "2026-11-11T16:11:22.929064+00:00",
+  "server_tailnet_running": true,
+  "owner_phone_tailnet_online": true,
+  "https_http_status": {
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/demo2/c/device": 200
+  },
+  "initial_phone_offline": true,
+  "initial_phone_ping": "timeout",
+  "owner_confirmed_open_after_connecting": true,
+  "physical_iphone_voice_acceptance": false,
+  "required_url": "https://plan.tailffc57c.ts.net:18786/demo2",
+  "server_restart_performed": false,
+  "policy_or_firewall_changed": false,
+  "paid_calls": 0
+}
