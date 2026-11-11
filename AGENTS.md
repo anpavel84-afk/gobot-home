@@ -125,3 +125,10 @@ Old C bookmarks must mount the unified coordinator too. Natural direct commands 
 "давай перейдем в экспертный режим A/А" are server actions. Native transcript controls
 must not depend on the model emitting delegation. Wait for audio end or actual answer
 activity, invalidate corrected/stale phrases, and confirm A only after real Live close.
+Native C timer/clock/weather commands also use validated Quick Intents after input-end
+or actual answer evidence, independently of model delegation. Reuse the existing
+executor and operation claim so late/replayed delegation cannot repeat side effects.
+Weather setup retains device-owner permission, explicit city confirmation and source
+verification before saving; timer duration continuations use the existing timer scope.
+Do not redirect supported tools to phone apps. Report actual results via Live commentary
+(null delegation_id for application-initiated work), never invent provider call IDs.

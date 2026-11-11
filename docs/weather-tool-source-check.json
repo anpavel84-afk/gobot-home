@@ -1,0 +1,19 @@
+{
+  "source": "Open-Meteo",
+  "configured_for_bound_owner": true,
+  "previous_owner_location_used": true,
+  "unique_city_region_match": true,
+  "real_source_verified": true,
+  "observed_at": 1794428100.0,
+  "fields_verified": [
+    "temperature",
+    "apparent",
+    "wind_kmh",
+    "weather_code",
+    "observed_at"
+  ],
+  "contains_coordinates_or_principal": false,
+  "new_paid_calls": 0,
+  "automatic_retries": 0,
+  "verified_at": 1794428119.4223459
+}

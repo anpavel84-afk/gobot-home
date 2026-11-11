@@ -400,3 +400,15 @@ Live unconfirmed0, frozen A hashes unchanged; desktop IAB показал нов�
 Code7b4e7ee опубликован/запущен, HTTP200 и coordinator на root/C подтверждены,
 A baseline hashes unchanged, unconfirmed Live0. Free1327/66s; desktop browser
 в этом проходе не предоставлен, iPhone voice после исправления ожидает владельца.
+
+### C: исполнение бытовых команд без delegation — CURRENT_STATUS §36
+
+| Требование | Проверено в реализации | Граница доказательства |
+| --- | --- | --- |
+| Таймер не отправляет человека в приложение телефона | Native transcript → реальный SQLite timer + widget + commentary(null), даже после модельного отказа в fixture | Новый голосовой iPhone-прогон ожидается |
+| Поздняя/конкурирующая delegation не повторяет действие | Общая operation claim; одна запись; реальный ID только от provider event | Модель/сеть подменены |
+| Длительность уточняется в следующей реплике | Pending timer namespace → «на пять минут» → один таймер | Live ASR отдельно |
+| Погода проверяется источником | Реальный Open-Meteo source check и сохранение ранее указанной точки телефона | Не акустический E2E; координаты приватны |
+| Пошаговая настройка и ACL | Реальные SettingsTools, fake HTTP: permission→location→confirmation→ready, запрет без owner | Не новая семейная авторизация |
+| Поправка/close/ошибка не создают скрытые повторы | Отмена pending task, profile invalidation, redacted failure и no retry fixtures | Сбой iPhone/Safari физически отдельно |
+| Нет лишней LLM для быстрых действий | В fixture нет backend/ExpertJobs, используется прежний Quick Intents | Live duration платная; это не обещание бесплатного voice turn |

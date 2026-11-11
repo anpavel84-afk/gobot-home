@@ -90,7 +90,7 @@
   event(event){
    if(event.session_id&&event.session_id!==this.id)return;
    const data=event.data||{};
-   if(event.type==='turn_started'){this.currentTurn=event.turn_id;this.backendPending=false;window.GoBotHooks?.onTurn?.({turn_id:event.turn_id,conversation_id:event.conversation_id});}
+   if(event.type==='turn_started'){this.currentTurn=event.turn_id;this.backendPending=false;this.toolPending=false;window.GoBotHooks?.onTurn?.({turn_id:event.turn_id,conversation_id:event.conversation_id});}
    if(event.type==='ready'){if(this.speakerMirror)this.speakerMirror.ready=false;this.diagnostic({stage:'session_ready',model:data.model,voice:data.voice});}
    if(event.type==='speaker_readiness'&&this.speakerMirror)this.speakerMirror.ready=data.ready===true;
    if(event.type==='speaker_segment')this.speakerMirror?.begin(data.segment_id);
@@ -113,12 +113,18 @@
     void this.close(message,data.reason||'user_stop',true);
    }
    if(event.type==='backend_status'){
-    this.backendPending=data.state==='running';window.GoBotHooks?.onLivePlayback?.({playing:this.playing,pending:this.backendPending||this.expertPending});
+    this.backendPending=data.state==='running';window.GoBotHooks?.onLivePlayback?.({playing:this.playing,pending:this.backendPending||this.expertPending||this.toolPending});
     const text='Backend C · '+data.model+' · '+data.state+(data.reason?' · '+data.reason:'');
     const node=document.getElementById('live-status');if(node)node.textContent=text;
     this.diagnostic({stage:'live_backend',state:data.state,model:data.model,timings:data.timings,usage:data.usage,estimated_usd:data.estimated_usd});
    }
    if(event.type==='expert_job')this.expertPending=['queued','running'].includes(data.job?.state);
+   if(event.type==='local_tool_status'){
+    this.toolPending=data.state==='running';
+    window.GoBotHooks?.onLivePlayback?.({playing:this.playing,pending:this.backendPending||this.expertPending||this.toolPending});
+    if(this.toolPending)this.status(data.tool==='settings'?'Проверяю погодный источник или настройки…':data.tool==='timer'?'Обрабатываю команду таймера…':'Проверяю данные…');
+    this.diagnostic({stage:'local_tool',state:data.state,tool:data.tool,reason:data.reason});
+   }
    window.GoBotExpertUI?.event(event);window.GoBotClient?.applyNativeEvent?.(event);
   }
   meter(generation){
@@ -128,7 +134,7 @@
    if(this.speechBlocked){if(signal<.001){if(!this.stopQuietAt)this.stopQuietAt=now;if(this.inputAfterStop&&now-this.stopQuietAt>=500){this.speechBlocked=false;this.output.srcObject=this.remoteStream;this.output.muted=false;this.output.play().catch(()=>void this.close('Браузер запретил возобновление звука','webrtc_failed'));}}else this.stopQuietAt=0;}
    const wasPlaying=this.playing;this.level=this.output?.muted?0:signal;if(this.level>.002)this.lastAudible=now;this.playing=this.level>.002||!!(this.lastAudible&&now-this.lastAudible<500);
    if(this.playing&&!wasPlaying)window.GoBotHooks?.onAnswerPlayback?.(this.currentTurn);
-   if(this.playing!==wasPlaying)window.GoBotHooks?.onLivePlayback?.({playing:this.playing,pending:this.backendPending||this.expertPending});
+   if(this.playing!==wasPlaying)window.GoBotHooks?.onLivePlayback?.({playing:this.playing,pending:this.backendPending||this.expertPending||this.toolPending});
    if(now-(this.lastHeartbeat||0)>700){this.lastHeartbeat=now;void this.command('activity',{input_active:!this.muted&&input>.003,playback_active:this.playing}).catch(()=>{});this.diagnostic({stage:'level',rms:input,speech_ms:0});}
    requestAnimationFrame(()=>this.meter(generation));
   }
@@ -140,7 +146,7 @@
    const id=this.id;this.generation++;this.ready=false;this.pending=false;this.mic(false);this.abort?.abort();this.events?.close();this.events=null;
    this.stream?.getTracks().forEach(t=>{t.onended=null;t.stop();});this.speakerMirror?.close();this.speakerMirror=null;
    if(this.output){this.output.muted=true;this.output.pause();this.output.srcObject=null;}this.remoteStream=null;this.pc?.close();this.pc=null;
-   this.inputSource?.disconnect();this.context?.close().catch(()=>{});this.releaseLock?.();this.releaseLock=null;this.level=0;this.playing=false;this.backendPending=false;this.expertPending=false;
+   this.inputSource?.disconnect();this.context?.close().catch(()=>{});this.releaseLock?.();this.releaseLock=null;this.level=0;this.playing=false;this.backendPending=false;this.expertPending=false;this.toolPending=false;
    this.status(message);this.diagnostic({stage:'closed'});window.GoBotExpertUI?.clear();
    this.closing=(async()=>{
     await Promise.resolve(); // Publish the shared close promise before a synchronous terminal path clears it.

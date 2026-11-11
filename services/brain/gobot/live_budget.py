@@ -79,7 +79,7 @@ class LiveBudget:
             'unified_mode':getattr(session,'mode_flow',None) is not None,
             'setup_ms':{k:v for k,v in session.timings.items() if k in {'create_ms','attach_and_ack_ms','total_ms'} and type(v) in (int,float)},
             'turns':[ {k:v for k,v in turn.timings.items() if k in keys and type(v) in (int,float)} for turn in session.turns[-64:]],
-            'events':{k:v for k,v in session.event_counts.items() if k in {'conversation_mode_switching','turn_started','backend_status','expert_job','expert_result','meaning_mismatch','visual_response','visual_status','warning','playback_cleared'}},
+            'events':{k:v for k,v in session.event_counts.items() if k in {'local_tool_status','conversation_mode_switching','turn_started','backend_status','expert_job','expert_result','meaning_mismatch','visual_response','visual_status','warning','playback_cleared'}},
             'contains_conversation_content':False,'client_playback_is_signal_not_useful_word':True,'physical_iphone_verified':False,
             'clock_domains':{'input_output_offsets':'provider_media_timeline','visual_client_seen':'server_elapsed_since_application_session'}}
         with self.connect() as c:c.execute('INSERT INTO reports VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',(hashlib.sha256(session.id.encode()).hexdigest(),time.time(),json.dumps(report)))
