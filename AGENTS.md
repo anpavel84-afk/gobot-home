@@ -53,3 +53,11 @@ Reuse VisualService/ImageCache and existing scoped visual memory. No new classif
 Unknown alignment preserves provisional/neutral; mismatches deny refined media/generation.
 Native two-stage uses Wikimedia-first -> separately consented generation-if-missing;
 provisional paid generation waits for stable alignment. Never infer new ImageGen permission.
+
+Expert handoff v2: one processed user confirmation authorizes at most one CLI job.
+Separate finite client/profile/expiry/count grant and confirmed adult Family epoch are required.
+The original expert_start call receives accepted exactly once; completion is a separate
+user-level data notice, not a second function_call_output or an instruction from the expert.
+New questions retain permitted result cards without stale voice interruption; remember=false
+stays RAM-only. Profile change/revocation/close never transfers results or auto-retries jobs.
+Catalog metadata and offline isolation are not real entitlement, latency or iPhone acceptance.

@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B с исправленным bootstrap опубликован и запущен на `1d719136ca451507c1bd47c7ca3a84b42b5440c2`.
+  Native/A-B с Expert Handoff v2 опубликован и запущен на `78d6536fab95b1a7f839d0eace3600d3b9122e13`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1185,6 +1185,7 @@ SettingsTools получает шаги connect/location/confirm/verify, про�
 и чтение pending из правильного device context. Это пока локальный checkpoint,
 не объявленная приёмка и не загруженная версия. Private device_settings_allowed
 ещё не включён. Целевая проверка интеграции/визуала настройки остаётся незавершённой.
+Впоследствии checkpoint опубликован вместе с экспертным проходом §25; это не приёмка настройки погоды.
 
 Следующее явное указание владельца: вариант B принят для обычного разговора;
 сейчас приоритет — завершить Realtime→Expert CLI Handoff. Эту незакоммиченную работу
@@ -1272,3 +1273,26 @@ PIN не присылать в чат. Новый personal client отличае
 Телефонный прогон выполняет владелец: предложение → «да, Sol High» → одна задача →
 тот же голос + полный результат. Отказ и смена темы/профиля проверяются отдельно.
 Пока этот допуск не получен, эксперты остаются OFF; mock не называется iPhone E2E.
+
+### Публикация и развёртывание
+
+`78d6536fab95b1a7f839d0eace3600d3b9122e13` опубликован в master и запущен.
+До обновления: active_turns=0, active_voice_streams=0, active_sessions=0,
+pending_hangups=0. Обе SQLite сохранены штатным online backup, integrity_check=ok,
+в ignored data/backups/before-expert-handoff-20261110T215914; исходный legacy
+backup не изменён. Индекс и вся Git-история: gitleaks 0 findings; private runtime,
+базы и домашние предпочтения не публиковались.
+
+[Deployment evidence](expert-handoff-deployment.json): A/B, device B, expert-ui.js,
+«Семья» HTTP200; handoff_version=2; model/effort metadata и matching isolation
+подтверждены. Owner manual uncapped сохранён, expert_jobs_allowed=false,
+ImageGen=false. Реальных model calls в этом проходе не было.
+В настоящем браузере проверена раскрытая панель на device B: блокеры, пять
+точных профилей/effort, checkbox отдельной квоты и ссылка на существующую «Семью».
+Микрофон оставался выключен. Screenshot: local run/expert-handoff-preview.png.
+Это desktop browser QA, не физический iPhone Expert E2E.
+
+Откат: сохранённый A доступен по /demo2/a/device; отдельный native/legacy выбор
+сохранён. Для экспертов достаточно оставить admission OFF; новые UI/таблица не
+меняют обычный голосовой путь. Не удалять новую таблицу и не откатывать базу поверх
+текущих данных. Полный возврат runtime требует отдельной проверки совместимости.
