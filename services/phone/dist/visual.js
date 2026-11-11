@@ -4,6 +4,8 @@
   const kinds=new Set(['image_card','image_gallery','info_card','timer_widget','weather_card','status_card','music_card','rich_answer']);
   const imagePath=/^\/api\/visual\/assets\/[a-f0-9]{64}\/(browser|preview|device)\.jpg$/;
   const icons={image_card:'↗',image_gallery:'▧',info_card:'✦',timer_widget:'◷',weather_card:'☁',status_card:'◉',music_card:'♫',rich_answer:'◇'};
+  const semanticIcons={image_card:'image',image_gallery:'image',info_card:'info',timer_widget:'timer',weather_card:'sun-cloud',status_card:'info',music_card:'music',rich_answer:'book'};
+  const weatherGlyphs={sun:'sun',partly_cloudy:'sun-cloud',cloud:'cloud',rain:'rain',snow:'snow',storm:'storm',fog:'fog',wind:'wind',unknown:'question'};
   const node=(tag,text,className)=>{const value=document.createElement(tag);if(text!==undefined)value.textContent=String(text);if(className)value.className=className;return value;};
   function sourceURL(value){try{const url=new URL(value);return url.protocol==='https:'&&['commons.wikimedia.org','creativecommons.org','openverse.org','www.openverse.org','api.openverse.org','flickr.com','www.flickr.com','open-meteo.com'].includes(url.hostname)&&!url.username&&!url.password&&!url.port?url.href:null;}catch(_){return null;}}
   class BrowserVisualRenderer {
@@ -45,7 +47,7 @@
       const card=node('article',undefined,'visual-card visual-'+frame.type);card.dataset.visualId=frame.id;
       if(frame.metadata?.visual_stage){card.classList?.add('visual-stage-replace');}
       const replaceStage=()=>{for(const [id,entry] of stagePrevious){entry.card.remove();this.frames.delete(id);}card.hidden=false;};
-      const header=node('div',undefined,'visual-heading');header.append(node('span',frame.metadata?.icon||icons[frame.type],'visual-icon'),node('h3',frame.title||'Визуальный ответ'));card.append(header);
+      const header=node('div',undefined,'visual-heading');header.append(window.GoBotDesign?.domIcon(semanticIcons[frame.type])||node('span',frame.metadata?.icon||icons[frame.type],'visual-icon'),node('h3',frame.title||'Визуальный ответ'));card.append(header);
       if(frame.subtitle)card.append(node('p',frame.subtitle,'visual-subtitle'));
       const body=node('p',frame.text||'','visual-body');card.append(body);
       const images=Array.isArray(frame.images)?frame.images.slice(0,4):[];const gallery=node('div',undefined,'visual-gallery');let count=0;
@@ -67,11 +69,10 @@
       if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
       if(frame.type==='weather_card'&&state.weather){
-        const icons={sun:'☀️',partly_cloudy:'⛅',cloud:'☁️',rain:'🌧️',snow:'❄️',storm:'⛈️',fog:'🌫️',unknown:'?'};
-        const weather=state.weather;card.append(node('div',(icons[weather.icon]||'?')+' '+weather.condition,'weather-condition'));
+        const weather=state.weather,condition=node('div',weather.condition,'weather-condition');const glyph=window.GoBotDesign?.domIcon(weatherGlyphs[weather.icon]||'cloud');if(glyph)condition.append(glyph);card.append(condition);
         if(weather.days?.length){const table=node('table',undefined,'weather-forecast');
           const head=node('tr');for(const label of ['Дата','Погода','°C','Осадки','Ветер'])head.append(node('th',label));table.append(head);
-          for(const day of weather.days.slice(0,16)){const row=node('tr');for(const value of [day.date,(icons[day.icon]||'?')+' '+day.condition,day.low+'…'+day.high,day.rain_percent+'%',day.wind_kmh+' км/ч'])row.append(node('td',value));table.append(row);}card.append(table);
+          for(const day of weather.days.slice(0,16)){const row=node('tr');for(const [index,value] of [day.date,day.condition,day.low+'…'+day.high,day.rain_percent+'%',day.wind_kmh+' км/ч'].entries()){const cell=node('td',value);if(index===1){const glyph=window.GoBotDesign?.domIcon(weatherGlyphs[day.icon]||'cloud');if(glyph)cell.append(glyph);}row.append(cell);}table.append(row);}card.append(table);
         }
       }
       if(state.synthetic)card.append(node('small',state.generation_provider?'ИИ-иллюстрация · '+state.generation_provider+' · детали не подтверждены':'Условная иллюстрация · создана локально · не фотография','visual-state'));

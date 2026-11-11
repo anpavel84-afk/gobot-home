@@ -25,7 +25,7 @@ class DeviceDisplay(Strict):
     shape:Literal['circle']='circle'
     width:int=Field(default=240,ge=128,le=480)
     height:int=Field(default=240,ge=128,le=480)
-    safe_inset:int=Field(default=35,ge=16,le=80)
+    safe_inset:int=Field(default=36,ge=16,le=80)
     @model_validator(mode='after')
     def square(self):
         if self.width!=self.height or self.safe_inset>=self.width/2:raise ValueError('Invalid display geometry')
@@ -34,6 +34,7 @@ class DeviceDisplay(Strict):
 class DeviceSkin(Strict):
     skin_id:Literal['classic','soft','minimal']='classic'
     version:Literal[1]=1
+    expression:Literal['auto','neutral','happy','wink','laugh','love','curious','thoughtful','listening','speaking','speaking-wide','sleepy','sleeping','surprise','uncertain','relieved','proud','apologetic','focused','sparkle','puzzled','bashful','calm','excited','offline']='auto'
     face_color:str=Field(default='#a3e5cd',pattern=r'^#[a-fA-F0-9]{6}$')
     background:str=Field(default='#0c141a',pattern=r'^#[a-fA-F0-9]{6}$')
     eyes:Literal['default','round','oval','line']='default'
@@ -101,8 +102,9 @@ class DeviceProfile(Strict):
                 'display':self.display.model_dump(),'ui_version':2,'input':['push_to_talk','tap_to_toggle'],
                 'audio':['browser_capture','server_stt','server_tts','realtime_webrtc_candidate'],'wake_word':'not_configured',
                 'states':['idle','listening','recognizing','thinking','speaking','error','muted','offline'],
-                'face_primitives':['ellipse','line','arc'],'skin':self.skin.model_dump(),
-                'animation':{'speaking_input':'actual_local_playback_rms','phoneme_sync':False,'blink_period_ms':11938,'listening_pulse_period_ms':1571},
+                'face_primitives':['ellipse','line','arc','validated_svg_path'],'skin':self.skin.model_dump(),
+                'visual_language':{'version':'1.0.0-draft','faces':72,'icons':109,'reference_screens':192,'reference_layouts':34,'demo_screens_are_capabilities':False},
+                'animation':{'speaking_input':'actual_local_playback_rms','phoneme_sync':False,'blink_intervals_ms':[4300,6100,5200,6700],'blink_duration_ms':120,'listening_pulse_period_ms':3600},
                 'assets':{'screensaver_ref':'profile_screensaver' if self.has_screensaver else None,'private':True},
                 'image_generation_provider':self.screen.generation_provider,'screen':self.screen.model_dump(),
                 'conversation_policy':self.conversation.model_dump(),

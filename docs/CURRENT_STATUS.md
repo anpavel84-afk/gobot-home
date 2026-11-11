@@ -2143,3 +2143,72 @@ frozen A hashes unchanged. Browser transport/Brain/Bridge listener и автор
 code rollback этого последнего guard —97d64be после idle, сохраняя usage/settings;
 более ранний source требует совместимой миграции новых developer-policy полей,
 а не восстановления старых ledger/согласий из backup.
+
+
+## 38. Внедрение графического комплекта владельца
+
+База прохода `master@c017a07`, dirty tree был чист; работал code4931c49.
+Новый источник — архив владельца SHA256
+`da28b30238bc7509deadfea319cf0ce32d4b5437d60751db3c22c423adc222f7`.
+[Манифест](../design/visual-language/import-manifest.json) фиксирует сохранённые
+192screen SVG,72face SVG,109icon SVG,25board SVG,34layout,12scenarios, исходные
+токены/guide и Figma importer. Вложенные генераторы/импортёр не исполнялись.
+Наличие source SVG не объявляет готовыми музыку, умный дом, будильники или иные
+отсутствующие backend adapters. Фактический реестр возможностей остаётся прежним.
+
+**Реализовано в текущем продукте:**
+
+* [Импорт данных](../scripts/import_visual_language.py) проверяет ZIP paths,
+  лимит распаковки, XML и активное содержимое SVG; генерирует компактную
+  библиотеку. [design-primitives.js](../services/phone/dist/design-primitives.js)
+  рисует проверенные Path2D и DOM SVG, без eval/HTML от модели/внешнего SVG.
+* [DeviceRenderer](../services/phone/dist/device-renderer.js) использует72
+  каталожных варианта лица/3скина и109semantic icons;53 уникальные геометрии
+  в исходном комплекте сохранены без выдуманного разнообразия. Выбор24 выражений
+  ожидания добавлен в существующие настройки устройства, рядом с eyes/mouth,
+  цветом и reduced motion. Это не Family profile и не новая база пользователей.
+* Настоящие speaking/listening/thinking/offline/error состояния управляют
+  выражением. Рот реагирует на actual playback RMS; микрофон имеет отдельную
+  пиктограмму. Декоративные настройки не меняют права, голос или провайдера.
+* Погода:51px значение,52px vector icon; завтра — диапазон/осадки, прогноз
+  до16 дней —3 читаемые строки на странице. Браузерная таблица использует те же
+  векторы. Значения только из существующего WeatherDisplay/Open-Meteo, не из
+  макетов. Timer50px с реальным deadline, progress ring лишь при известной
+  duration_ms; восстановленный deadline не получает выдуманную долю готовности.
+* Истёкший таймер удерживается до «Таймер услышал»; новая реплика/idle не
+  скрывает сигнал. Кнопка закрывает UI-сигнал, не останавливает иной звук/задачи.
+  Scope/profile invalidation очищает таймеры как прежде. Нет фиктивных pause/+1.
+* Локальный Noto Sans, OFL, Font Awesome attribution и18цветовых токенов.
+  Critical safe box36..204; круглый photo cover, diagram contain, stale guards
+  и фактический image-presented ACK сохранены. Error image не заменяет лицо.
+* [Read-only atlas](https://plan.tailffc57c.ts.net:18786/visual-atlas.html) открывается
+  из настроек экрана.192 макета, поиск/разделы, лица/скины и пиктограммы; никаких
+  обращений к микрофону, платным API или настройкам серверных прав. Большой
+  reference bundle грузится только при открытии атласа, не на каждом turn.
+
+**Проверки и границы:** новое офлайн Skia-растерирование использует тот же
+production JS, локальный шрифт и реальные Canvas/Path2D, не картинки из атласа.
+Проверяются72варианта/109glyphs, поведение таймера при expiry/dismiss/new turn/
+scope clear, reduced motion и отсутствие visual-error на круге. PNG проверены
+визуально локально. Это сильнее fake canvas, но не Safari/iPhone или ESP32.
+Сохранённые приватные настройки/биометрия/аудио/ledger в Git не добавляются.
+Новых model/Live/CLI/Image API вызовов в этом проходе0, бюджеты не повышались.
+Окончательный результат suite/публикация/backup фиксируются ниже после выпуска.
+
+Дальнейшие привязки192 макетов требуют реальных инструментов: playback музыки,
+Home Assistant, alarms/calendar/sensors остаются соответствующими readiness
+разделами. Source Figma plugin сохранён; настоящий запуск/визуальная приёмка
+в Figma не выполнены. Не заявляется, что все34 reference layouts уже имеют
+производственные источники данных. A/B/C transports и Brain не переписаны.
+
+Проверено перед выпуском: **1814 passed /111.57s**; после изменения только формата
+checksum manifest —8/3.62s. DOM atlas fixture проверяет192screens, фильтрацию12
+состояний раздела,24expressions/skin,109icons и освобождение Blob URL.
+[Офлайн растры состояний](visual-language-states.png),
+[лица](visual-language-faces.png), [сводка](visual-language-check.json).
+Исправлен TOCTOU в старом тесте process cleanup: уже завершившийся child между
+pid_exists и Process() больше не считается ошибкой; runtime CLI isolation не
+менялась. Secret audit index/history0 findings. Checksum design tokens записан
+отдельным sha256-полем, чтобы не выглядеть как API token; сканер не ослаблялся.
+Private WAL-aware backup перед изменением runtime:
+`data/backups/before-unified-20261111T195519`, integrity=ok.

@@ -1,0 +1,1 @@
+{"name":"gobot-visual-qa","private":true,"description":"Offline production Canvas raster checks; no server or paid API","devDependencies":{"@napi-rs/canvas":"1.1.0"}}

@@ -92,6 +92,9 @@ vm.runInContext(fs.readFileSync('services/phone/dist/device.js','utf8'),sandbox)
   app.manager.gallery=[{id:'unconfirmed-a'},{id:'unconfirmed-b'}];app.manager.galleryAt=0;
   app.event({type:'meaning_mismatch',turn_id:app.turn,data:{}});app.manager.tick(true);
   assert.equal(app.manager.visual,null);assert.equal(app.manager.gallery.length,0);
+  app.manager.timers.set('old-scope',{id:'expired',type:'timer_widget',metadata:{state:'expired'}});app.manager.visual={id:'private-result'};app.manager.gallery=[{id:'private-picture'}];
+  sandbox.window.GoBotHooks.onNativeClosed({reason:'speaker_changed_or_uncertain',message:'Гостевой режим',error:false});
+  assert.equal(app.manager.timers.size,0);assert.equal(app.manager.visual,null);assert.equal(app.manager.scene,null);assert.equal(app.manager.gallery.length,0);assert.equal(app.renderer.image,null);
   // Short taps and cancelled pointers during speech must never touch the old audio.
   const guards=[];sandbox.setTimeout=(callback,ms)=>{guards.push({callback,ms});return guards.length;};
   let nativeStarts=0,ends=0,cancels=0;

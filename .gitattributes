@@ -1,2 +1,8 @@
 * text=auto eol=lf
 *.patch -whitespace
+# Verbatim owner sources and upstream license; retain their intentional line breaks.
+design/visual-language/** -text
+design/visual-language/import-manifest.json text eol=lf
+design/visual-language/font-source.json text eol=lf
+design/visual-language/STYLEGUIDE.md whitespace=-blank-at-eol,-blank-at-eof
+design/visual-language/docs/NOTO_SANS_OFL.txt whitespace=-blank-at-eol

@@ -441,3 +441,18 @@ canaries проверен targeted328; платные пробы не повто
 проверены; unconfirmed Live0. Weather semantics307 дополнительно исключает неверную
 маршрутизацию научных/медицинских вопросов в погоду. iPhone/реальный просмотр Canvas
 после выпуска не подтверждены. Полный актуальный статус — CURRENT_STATUS §37.
+
+
+### Графический комплект владельца — CURRENT_STATUS §38
+
+| Требование | Фактическая привязка | Граница приёмки |
+| --- | --- | --- |
+|192 экрана/34layout, editable sources | Валидированный source archive,SVG/token registry, read-only atlas | Референсы с demo values, не192 работающих интеграции |
+|72 лица/3скина, hearts/stars | Общая vector library, выбор24idle expressions в существующем appearance UI |53distinct source geometries; не распознавание личности |
+|109 semantic icons | Shared Path2D/DOM SVG, weather/timer/status/scene icons | FA Free6.7.2 attribution/CC BY4.0 сохранены |
+| Крупные значения и безопасный круг | Noto Sans local/OFL, safe36..204, photo cover/diagram contain | Старые настройки не сброшены; physical readability отдельно |
+| Настоящая погода/таймер | Existing WeatherDisplay/deadline/duration;16day paging;expiry latch/dismiss | Нет фальшивых pause/+minute; не background alarm iOS |
+| Рот/микрофон/личность разделены | Mouth actual playback RMS; separate actual microphone status | Сердечки/voice match не предоставляют ACL |
+| Reduced motion/late result | Stable reduced raster; existing decode ACK/turn/profile guards | Skia offline + DOM fixtures; не hardware/Safari proof |
+| Figma | Source native importer retained unexecuted | Файл в Figma и visual acceptance отсутствуют |
+| Цена внедрения | Графика/шрифты локально; atlas не вызывает APIs | Новых платных вызовов0, прежние лимиты сохранены |

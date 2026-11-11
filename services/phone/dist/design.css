@@ -1,0 +1,5 @@
+/* Local Noto Sans (SIL OFL 1.1); Font Awesome vectors: CC BY 4.0, Fonticons. */
+@font-face{font-family:"Noto Sans";src:url('/noto-sans.ttf') format('truetype');font-weight:100 900;font-style:normal;font-display:swap}
+:root{--gobot-bg:#0c141a;--gobot-surface:#15232c;--gobot-ink:#eef5f4;--gobot-muted:#9cafb7;--gobot-mint:#a3e5cd;--gobot-blue:#93c9f4;--gobot-lilac:#c2b7f5;--gobot-amber:#efc98f;--gobot-coral:#ffb3a9;--gobot-line:#2a3d47;font-family:"Noto Sans",system-ui,sans-serif}
+body,button,input,select,textarea{font-family:"Noto Sans",system-ui,sans-serif}canvas{font-variant-numeric:tabular-nums}.gobot-vector-icon{width:1.5em;height:1.5em;vertical-align:middle;fill:currentColor;flex:none}.gobot-design-note{color:var(--gobot-muted);font-size:12px}#timer-dismiss{border-color:var(--gobot-amber)}
+@media(prefers-reduced-motion:reduce){.visual-card,.device-stage{animation:none!important;transition:none!important}}

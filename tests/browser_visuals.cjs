@@ -11,14 +11,15 @@ class Element{
 }
 const all=(root,tag)=>[...(root.tagName===tag?[root]:[]),...root.children.flatMap(c=>all(c,tag))];
 let clock=1_700_000_000_000,serial=0;const ticks=new Map(),requests=[];
-const sandbox={URL,window:{},document:{createElement:tag=>new Element(tag)},Date:{now:()=>clock},
+const sandbox={URL,window:{},document:{createElement:tag=>new Element(tag),createElementNS:(ns,tag)=>new Element(tag)},Date:{now:()=>clock},
   setInterval:callback=>{ticks.set(++serial,callback);return serial;},clearInterval:id=>ticks.delete(id),
   fetch:async(url,options)=>{requests.push([url,JSON.parse(options.body)]);return {ok:true};}};
-vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/visual.js','utf8'),sandbox);
+vm.createContext(sandbox);for(const file of ['design-data.js','design-primitives.js','visual.js'])vm.runInContext(fs.readFileSync('services/phone/dist/'+file,'utf8'),sandbox);
 const root=new Element('section'),renderer=new sandbox.window.GoBotVisual.BrowserVisualRenderer(root);
 const image=(id='a'.repeat(64))=>({asset_id:id,url:`/api/visual/assets/${id}/browser.jpg`,preview_variant:`/api/visual/assets/${id}/preview.jpg`,alt:'Fixture image',caption:'Подпись',attribution:'Test author',source:{label:'Источник',url:'https://commons.wikimedia.org/wiki/File:Test.jpg'},license:'CC BY-SA 4.0',license_url:'https://creativecommons.org/licenses/by-sa/4.0/'});
 const frame={namespace:'gobot.ui',version:2,id:'one',type:'image_card',title:'Изображение',text:'Пояснение',images:[image()],metadata:{state:'ready'}};
 assert.equal(renderer.render(frame),true);assert.equal(all(root,'img').length,1);assert.equal(all(root,'article').length,1);
+assert.equal(all(root,'svg').length,1);assert(all(root,'path').length>0);
 assert.equal(renderer.render(frame),true);assert.equal(all(root,'article').length,1);
 renderer.render({...frame,id:'facts',metadata:{state:'ready',facts:{entity_source:'INTERNAL',query_basis:'INTERNAL',identification:'INTERNAL','Источник':'доступен'}}});
 assert(!root.textContent.includes('INTERNAL'));assert(root.textContent.includes('доступен'));

@@ -13,7 +13,12 @@ assert.equal(manager.frame({id:'late-photo',type:'image_card',metadata:{visual_s
 manager.newTurn('b');assert.equal(manager.activeTimer().id,'timer-frame');
 const days=Array.from({length:16},(_,i)=>({date:'2026-11-'+String(i+1).padStart(2,'0'),icon:i%2?'sun':'rain',condition:'дождь',low:18,high:25,rain_percent:70}));
 manager.frame({id:'weather',type:'weather_card',subtitle:'Synthetic',metadata:{state:'ready',facts:{temperature:'25'},weather:{kind:'forecast',condition:'дождь',icon:'rain',days}}},'b');
-texts.length=0;renderer.draw(manager,0,5000);assert(texts.includes('Прогноз · Open-Meteo'));assert(texts.includes('Осадки 70%'));assert(texts.includes('◷ 0:11'));assert(arcs>8);
+texts.length=0;renderer.draw(manager,0,5000);assert(texts.includes('Прогноз · Open-Meteo'));assert(texts.includes('01.11'));assert(texts.includes('18…25°'));assert(texts.includes('◷ 0:11'));assert(arcs>8);
+manager.visual.metadata.weather.days=[days[0]];texts.length=0;renderer.draw(manager,0,5000);assert(texts.includes('Осадки 70%'));manager.visual.metadata.weather.days=days;
+const pageManager=new SceneManager(defaults,()=>now);pageManager.newTurn('forecast');pageManager.frame({id:'pages',type:'weather_card',metadata:{state:'ready',facts:{temperature:'25'},weather:{icon:'rain',days}}},'forecast');
+pageManager.state='idle';texts.length=0;renderer.draw(pageManager,0,900000);assert(texts.includes('01.11'));now+=6000;texts.length=0;renderer.draw(pageManager,0,1);assert(texts.includes('04.11'));
+pageManager.finish('forecast');pageManager.tick(false);assert.equal(pageManager.returnAt-now,36000);
+const exact='-89.4…-60.1°';texts.length=0;renderer.number(exact,162,94,17,78);assert(texts.includes(exact));
 let expired=0;manager.onTimerExpired=()=>expired++;now+=12000;manager.tick(false);manager.tick(false);assert.equal(expired,1);assert.equal(manager.activeTimer(),undefined);
 manager.newTurn('c');const second={...timer,id:'second',metadata:{...timer.metadata,timer_id:'timer-2',deadline:now/1000+100}};manager.frame(second,'c');
 manager.frame({...second,metadata:{...second.metadata,state:'cancelled',deadline:null}},'c');assert.equal(manager.activeTimer(),undefined);

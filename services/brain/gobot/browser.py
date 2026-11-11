@@ -539,6 +539,7 @@ def create_browser_app(settings=None):
         assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','live.js','realtime-speaker.js','expert-ui.js','owner-test-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
         assets['unified.js']='text/javascript'
+        assets.update({'design-data.js':'text/javascript','design-primitives.js':'text/javascript','design-reference.js':'text/javascript','visual-atlas.js':'text/javascript','visual-atlas.html':'text/html','visual-atlas.css':'text/css','design.css':'text/css','noto-sans.ttf':'font/ttf'})
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'
         if asset not in assets:

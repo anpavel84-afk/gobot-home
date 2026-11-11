@@ -1,0 +1,46 @@
+{
+  "production_renderer": true,
+  "offline_skia_raster": true,
+  "face_variants": 72,
+  "distinct_face_rasters": 53,
+  "vector_icons": 109,
+  "scenes": 17,
+  "expired_timer_latch": true,
+  "scope_clear": true,
+  "reduced_motion_stable": true,
+  "paid_api_calls": 0,
+  "physical_iphone": false,
+  "figma_import": false,
+  "source_archive_sha256": "da28b30238bc7509deadfea319cf0ce32d4b5437d60751db3c22c423adc222f7",
+  "reference_screens": 192,
+  "reference_layouts": 34,
+  "source_boards": 25,
+  "source_journeys": 12,
+  "initial_full_suite": {
+    "passed": 1811,
+    "seconds": 109.97
+  },
+  "targeted_after_csp": {
+    "passed": 416,
+    "seconds": 24.38
+  },
+  "new_visual_tests": 8,
+  "backup": "data/backups/before-unified-20261111T195519",
+  "browser_render_verified": false,
+  "current_deployment": "pending",
+  "A_baseline_preserved": "pending_http_check",
+  "source_privacy": "synthetic mock data only; no household recordings/preferences",
+  "final_full_suite": {
+    "passed": 1814,
+    "seconds": 111.57
+  },
+  "source_manifest_after_format_change": {
+    "passed": 8,
+    "seconds": 3.62
+  },
+  "secret_audit": {
+    "index_findings": 0,
+    "history_findings": 0
+  },
+  "test_fixture_race": "NoSuchProcess after successful child cleanup; test TOCTOU fixed, isolation unchanged"
+}

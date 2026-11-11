@@ -88,10 +88,13 @@ def test_child_cleanup_stderr_and_exit(tmp_path,mode):
         assert 'hidden-value' not in runner.stderr
         import psutil
         pid=int(child_pid.read_text())
-        if psutil.pid_exists(pid):
+        try:
             p=psutil.Process(pid)
-            try:p.wait(timeout=2)
-            except psutil.TimeoutExpired:raise AssertionError('Fixture child survived cleanup')
+            p.wait(timeout=2)
+        except psutil.NoSuchProcess:
+            pass  # The cleaned-up child may disappear between observation and wait.
+        except psutil.TimeoutExpired:
+            raise AssertionError('Fixture child survived cleanup')
     asyncio.run(exercise())
 
 def test_redaction():

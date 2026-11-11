@@ -12,11 +12,12 @@
   class DeviceApp{
     constructor(){this.enabled=false;this.held=false;this.profile=null;this.turn=null;this.sent=new Set();this.generation=0;this.streamDone=true;this.releaseLock=null;this.captureAbort=null;this.sessionActive=false;this.serverAudioEnded=false;this.followupPending=false;this.sessionEpoch=0;}
     status(text){document.getElementById('device-status').textContent=text;}
-    state(value,text){this.conversationState={idle:'STANDBY',muted:'STANDBY',listening:'LISTENING',recognizing:'PROCESSING',thinking:'PROCESSING',speaking:'SPEAKING',error:'ERROR',offline:'OFFLINE'}[value]||'STANDBY';if(this.manager)this.manager.state=value;if(text)this.status(text);const voice=activeVoice();document.getElementById('device-mic').textContent=voice?.engine==='live'&&voice.ready?(voice.recording?'● C: микрофон включён · непрерывный разговор':'○ C: микрофон заглушён · сессия оплачивается'):value==='listening'?'● Микрофон записывает вопрос':this.enabled?'○ Режим активен · микрофон по нажатию':'● Микрофон выключен';}
+    state(value,text){this.conversationState={idle:'STANDBY',muted:'STANDBY',listening:'LISTENING',recognizing:'PROCESSING',thinking:'PROCESSING',speaking:'SPEAKING',error:'ERROR',offline:'OFFLINE'}[value]||'STANDBY';if(this.manager){this.manager.state=value;this.manager.micActive=!!window.GoBotClient?.isRecording?.();}if(text)this.status(text);const voice=activeVoice();document.getElementById('device-mic').textContent=voice?.engine==='live'&&voice.ready?(voice.recording?'● C: микрофон включён · непрерывный разговор':'○ C: микрофон заглушён · сессия оплачивается'):value==='listening'?'● Микрофон записывает вопрос':this.enabled?'○ Режим активен · микрофон по нажатию':'● Микрофон выключен';}
     async init(){
       const response=await fetch('/api/device/profile');if(!response.ok)throw Error('Не удалось загрузить профиль устройства');const data=await response.json();this.profile=data.profile;
       const {DeviceRenderer,SceneManager}=window.GoBotDeviceRenderer;this.manager=new SceneManager(this.profile);this.renderer=new DeviceRenderer(document.getElementById('device-screen'),this.profile);
       this.manager.onTimerExpired=()=>{this.status('Время таймера вышло.');window.GoBotClient.timerAlert?.();};
+      const dismiss=document.getElementById('timer-dismiss');if(dismiss)dismiss.onclick=()=>{this.manager.dismissTimer();dismiss.hidden=!this.manager.expiredTimer();};
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
       this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
       this.renderer.onImageError=(id,turn)=>{if(turn!==this.turn)return;this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();activeVoice()?.visualFailed?.(id,turn);};
@@ -24,7 +25,7 @@
       this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();activeVoice()?.visualPresented?.(id,turn);}};
       const hooks=window.GoBotHooks;
       hooks.onNativeClosed=({reason,message,error})=>{
-        if(['profile_changed','speaker_changed_or_uncertain'].includes(reason))this.manager.timers.clear();
+        if(['profile_changed','speaker_changed_or_uncertain'].includes(reason)){this.manager.timers.clear();this.manager.visual=null;this.manager.scene=null;this.manager.gallery=[];this.manager.galleryAt=null;this.renderer.clearImage();}
         this.cancelTapGuard();
         this.generation++;this.enabled=false;this.held=false;this.endConversation();this.streamDone=true;
         clearInterval(this.timerPoll);this.releaseLock?.();this.releaseLock=null;
@@ -80,7 +81,7 @@
       this.diagnostics={client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation};
       document.getElementById('device-diagnostics').textContent=JSON.stringify({client_id:this.profile.client_id,capabilities:data.capabilities,activation:data.activation},null,2);
       if(this.profile.interaction_mode==='toggle')document.getElementById('device-hint').textContent='Нажми круг для начала записи, ещё раз — для завершения. Затем вопрос отправится автоматически.';
-      let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=(audio.playing||audio.feedback_playing)&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
+      let previous=0;const draw=now=>{if(now-previous>=(this.profile.skin.reduced_motion?150:33)){previous=now;const audio=window.GoBotClient.audioSnapshot();if(this.enabled&&['suspended','interrupted','closed'].includes(audio.state))this.pause('Аудио приостановлено браузером. Нажми «Возобновить GoBot».');if(this.enabled&&!['listening','recognizing','error','offline'].includes(this.manager.state)){this.manager.state=(audio.playing||audio.feedback_playing)&&audio.level>.003?'speaking':this.streamDone?'idle':'thinking';}this.checkFollowup(audio);this.manager.micActive=!!window.GoBotClient?.isRecording?.();const dismissTimer=document.getElementById('timer-dismiss');if(dismissTimer)dismissTimer.hidden=!this.manager.expiredTimer();this.manager.tick(audio.playing);this.renderer.draw(this.manager,audio.level,now);}requestAnimationFrame(draw);};requestAnimationFrame(draw);
     }
     event(item){
       if(activeVoice()?.selected()&&['closed','error','warning'].includes(item.type))return;

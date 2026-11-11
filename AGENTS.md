@@ -141,3 +141,14 @@ Owner separately approved this acceptance: at most 3 new Live sessions /180 seco
 total, at most10 Luna calls, $2 additional estimate, no CLI/ImageGen/retries. Append
 finite grant to existing usage; do not reset old developer attempts or owner limits.
 Synthetic local voice is transport evidence, not quiet-human/iPhone acoustic proof.
+
+OWNER DIRECT visual-language package: reuse design/visual-language source vectors
+through the existing DeviceRenderer/BrowserVisualRenderer, not another Brain or scene stack.
+The 192 reference screens /34 layouts contain illustrative values, not capabilities.
+Never bind their demo weather, people, music or home state to production. Keep 72
+catalogued face variants (53 distinct source geometries),109 licensed vector icons,
+local Noto Sans/OFL, critical safe box36..204 and real playback-driven mouth.
+Decorative hearts/stars do not identify a person or authorize memory. Mic state is
+independent. Expired timers latch until dismissed; profile invalidation clears them.
+Preserve photo cover/diagram contain, decode ACK, two-stage alignment and avatar on
+missing images. Figma importer is a retained source artifact, not verified Figma output.

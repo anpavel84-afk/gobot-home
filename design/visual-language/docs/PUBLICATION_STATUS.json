@@ -1,0 +1,11 @@
+{
+  "figma_file_created": false,
+  "figma_file_url": null,
+  "reason": "create_new_file returned Invalid planKey twice for the sole whoami plan",
+  "native_importer_prepared": true,
+  "native_importer_run_in_figma": false,
+  "svg_rasterization_checked": true,
+  "html_tested_in_chromium": true,
+  "physical_device_tested": false,
+  "required_to_continue_direct_publication": "An editable Figma Design file URL, or a working create_new_file plan"
+}
