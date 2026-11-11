@@ -280,3 +280,15 @@ Bootstrap owner/family preferences: generated item IDs now 32 characters, produc
 Полная регрессия 1251 passed; источники, тайминги и границы — CURRENT_STATUS.md §26.
 Runtime 7b1d925 опубликован и запущен; A/B и оба cached device JPEG HTTP200,
 декодирование 240×240 подтверждено через штатный HTTPS. iPhone/native audio pending.
+
+## Owner §50 — разрешение image fallback
+
+| Критерий | Реализация / приёмка |
+| --- | --- |
+| Разрешено 20/day на owner phone | Separate server cap + existing DeviceStore profile; activation evidence в CURRENT_STATUS §27 |
+| Wikimedia не запирается после 80 HTTP | Private shared budget 60/min, 2000/24h; existing counters preserved |
+| Remote limits сохраняются | 429/Retry-After unchanged; unit backoff survives local quota increase |
+| Старый quota failure cache не мешает | Negative key includes policy revision, positive assets stable; integration fixture |
+| «Сколько у человека волос» | Quantified possessor grammar, три порядка слов; real Wikimedia hair illustration decoded |
+| Тишина не отменяет pending image | Mic closes; bounded worker stays; cancellation/profile/pagehide unchanged; native fixture |
+| Подписка и API различаются | Codex image-only blocked; OpenAI metadata200, real paid generation не выполнялась |

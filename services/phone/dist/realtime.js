@@ -171,7 +171,7 @@
       if(item.type==='playback_cleared'||item.type==='interrupted'){this.playing=false;this.level=0;this.heard=false;}
       if(item.type==='listening'){this.status('Слушаю…');}
       if(item.type==='turn_complete'){void this.followup();}
-      if(item.type==='followup_closed'){clearTimeout(this.followupTimer);this.mic(false);this.status('Эксперт работает · микрофон закрыт. Для нового вопроса удерживайте круг.');}
+      if(item.type==='followup_closed'){clearTimeout(this.followupTimer);this.mic(false);this.status(item.data.reason==='visual_running'?'Изображение готовится · микрофон закрыт. Для нового вопроса удерживайте круг.':'Эксперт работает · микрофон закрыт. Для нового вопроса удерживайте круг.');}
       if(item.type==='response_incomplete')this.status('Ответ ограничен лимитом длины тестовой пробы.');
       if(item.type==='turn_incomplete')this.status('Лимита не хватило для голосового ответа. Можно задать более короткий вопрос нажатием.');
       if(item.type==='closed'){const end=this.termination(item.data.reason);void this.close(end.message,'server_closed',end.error);}

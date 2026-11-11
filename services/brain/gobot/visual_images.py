@@ -29,6 +29,8 @@ MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=3
 FETCH_POLICY_VERSION=11
+SOURCE_BUDGET=ROOT/'run/visual-source-budget.json'
+WIKI_HOSTS=IMAGE_HOSTS|{'commons.wikimedia.org','ru.wikipedia.org','en.wikipedia.org'}
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -304,9 +306,10 @@ def normalize(data,*,browser_size=960):
     except Exception:raise ImageUnavailable('image_decode_failed') from None
 
 class ImageCache:
-    def __init__(self,root=None,*,ttl=7*86400,max_bytes=128*1024*1024,max_entries=128,clock=time.time):
+    def __init__(self,root=None,*,ttl=7*86400,max_bytes=128*1024*1024,max_entries=128,clock=time.time,request_policy_loader=None):
         self.root=Path(root or ROOT/'data/visual-cache').resolve();self.root.mkdir(parents=True,exist_ok=True)
         self.ttl=ttl;self.max_bytes=max_bytes;self.max_entries=max_entries;self.clock=clock;self.lock=threading.RLock()
+        self.request_policy_loader=request_policy_loader or (self.saved_request_policy if self.root==(ROOT/'data/visual-cache').resolve() else lambda:{})
         self.db=self.root/'index.sqlite'
         with self.connect() as c:c.executescript('''CREATE TABLE IF NOT EXISTS assets(id TEXT PRIMARY KEY,source_key TEXT UNIQUE,metadata TEXT,size INTEGER,expires REAL,accessed REAL);
 CREATE TABLE IF NOT EXISTS queries(id TEXT PRIMARY KEY,assets TEXT,reason TEXT,expires REAL);
@@ -406,14 +409,34 @@ CREATE TABLE IF NOT EXISTS source_backoff(provider TEXT PRIMARY KEY,until REAL);
 
     def reserve_request(self,provider):
         now=self.clock()
+        limits=self.request_limits(provider);hosts=sorted(WIKI_HOSTS) if limits['shared_wikimedia_budget'] else [provider]
+        placeholders=','.join('?' for _ in hosts)
         with self.lock,self.connect() as c:
             c.execute('BEGIN IMMEDIATE');c.execute('DELETE FROM source_requests WHERE created<?',(now-86400,))
             blocked=c.execute('SELECT until FROM source_backoff WHERE provider=?',(provider,)).fetchone()
             if blocked and blocked[0]>now:return False
-            day=c.execute('SELECT count(*) FROM source_requests WHERE provider=?',(provider,)).fetchone()[0]
-            burst=c.execute('SELECT count(*) FROM source_requests WHERE provider=? AND created>?',(provider,now-60)).fetchone()[0]
-            if day>=80 or burst>=8:return False
+            day=c.execute('SELECT count(*) FROM source_requests WHERE provider IN ('+placeholders+')',hosts).fetchone()[0]
+            burst=c.execute('SELECT count(*) FROM source_requests WHERE provider IN ('+placeholders+') AND created>?',(*hosts,now-60)).fetchone()[0]
+            if day>=limits['requests_per_day'] or burst>=limits['requests_per_minute']:return False
             c.execute('INSERT INTO source_requests VALUES(?,?)',(provider,now));return True
+
+    @staticmethod
+    def saved_request_policy():
+        try:return json.loads(SOURCE_BUDGET.read_text(encoding='utf-8'))
+        except (OSError,ValueError):return {}
+
+    def request_limits(self,provider):
+        default={'requests_per_minute':8,'requests_per_day':80,'shared_wikimedia_budget':False}
+        try:
+            row=self.request_policy_loader().get('wikimedia',{})
+            minute,day=row.get('requests_per_minute'),row.get('requests_per_day')
+            if provider in WIKI_HOSTS and type(minute) is int and type(day) is int and 1<=minute<=120 and 1<=day<=5000:
+                return {'requests_per_minute':minute,'requests_per_day':day,'shared_wikimedia_budget':True}
+        except (AttributeError,TypeError,ValueError):pass
+        return default
+
+    def request_policy_revision(self):
+        return hashlib.sha256(json.dumps(self.request_limits('commons.wikimedia.org'),sort_keys=True).encode()).hexdigest()[:16]
 
     def delay_source(self,provider,seconds):
         with self.connect() as c:c.execute('INSERT OR REPLACE INTO source_backoff VALUES(?,?)',(provider,self.clock()+seconds))

@@ -80,6 +80,8 @@ class NativeSession:
         self.manager=manager;self.offer=offer;self.profile=profile.model_copy(deep=True);self.policy=policy
         if not policy.image_generation_allowed:
             self.profile.screen=self.profile.screen.model_copy(update={'generation_allowed':False,'generation_consent':False,'generation_mode':'off','generation_daily_limit':0})
+        else:
+            self.profile.screen=self.profile.screen.model_copy(update={'generation_daily_limit':min(self.profile.screen.generation_daily_limit,policy.image_generation_daily_limit)})
         self.id=offer.session_id;self.call_id=None;self.ws=None;self.reader=None;self.expiry=None
         self.closed=False;self.ready=False;self.state='connecting';self.started=time.monotonic()
         self.lock=asyncio.Lock();self.send_lock=asyncio.Lock();self.response_lock=asyncio.Lock()
@@ -205,17 +207,18 @@ class NativeSession:
             while not self.closed:
                 await asyncio.sleep(1)
                 reason=None
+                visual_pending=bool(self.current and self.current.photo and self.current.photo.generation_attempted and self.current.photo.workers)
                 if self.personalization and not await asyncio.to_thread(self.manager.identity.family.session_valid,self.access.confirmed_profile_id,self.offer.confirmed_profile_epoch):reason='profile_authorization_revoked'
                 try:policy=await asyncio.to_thread(self.manager.budget.policy)
                 except (ValueError,OSError):
                     await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'budget_expired');return
                 if self.policy.max_session_seconds is not None and time.monotonic()-self.started>=self.policy.max_session_seconds:reason='session_time_limit'
                 elif not self.manager.budget.active(policy) or policy.authorization!=self.policy.authorization:reason='budget_expired'
-                elif time.monotonic()-self.last_activity>45 and not self.generating and not self.speaking and not self.experts.active():reason='idle_timeout'
+                elif time.monotonic()-self.last_activity>45 and not self.generating and not self.speaking and not self.experts.active() and not visual_pending:reason='idle_timeout'
                 elif self.followup_deadline and time.monotonic()>self.followup_deadline:
-                    if self.experts.active():
-                        await self.update_input(None);self.input_mode='waiting_expert';self.followup_deadline=None
-                        self.emit('followup_closed',reason='expert_running',microphone=False)
+                    if self.experts.active() or visual_pending:
+                        await self.update_input(None);self.input_mode='waiting_expert' if self.experts.active() else 'waiting_visual';self.followup_deadline=None
+                        self.emit('followup_closed',reason='expert_running' if self.experts.active() else 'visual_running',microphone=False)
                     else:reason='followup_timeout'
                 if reason:await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,reason);return
         except asyncio.CancelledError:pass

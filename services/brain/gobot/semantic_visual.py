@@ -26,6 +26,7 @@ def noun_phrase(text,*,answer=False):
         text=re.sub(r'^(?:(?:гобот|слушай|подскажи|скажи|пожалуйста)[, !]+)+','',text,flags=re.I)
         text=re.sub(r'^(?:а\s+)?(?:расскажи|объясни|поговорим)(?:\s+мне)?\s+(?:о|об|про)\s+','',text,flags=re.I)
     morph=morphology();words=list(re.finditer(r'[А-Яа-яЁёA-Za-z]+(?:-[А-Яа-яЁёA-Za-z]+)*',text))
+    quantified=not answer and bool(re.match(r'^(?:а\s+)?сколько\b',text,re.I))
     # An interrogative prepositional adjunct describes a property, not the
     # depicted subject: «с какой скоростью летает ...», «при какой температуре ...».
     # Drop its grammatical noun group; retain the subject on either side of a verb.
@@ -60,6 +61,7 @@ def noun_phrase(text,*,answer=False):
         # A word inside a leading location adjunct is not the subject of
         # «В Бразилии растут ...». An explicit «расскажи о ...» was stripped above.
         if index and forms[index-1][1].tag.POS=='PREP' and forms[index-1][0][0].casefold() in {'в','на','при'}:continue
+        if quantified and index and forms[index-1][0][0].casefold()=='у':continue # Possessor, not the counted object.
         prefix=[]
         for j in range(index-1,max(-1,index-4),-1):
             prev,form,alternatives=forms[j]
@@ -68,7 +70,7 @@ def noun_phrase(text,*,answer=False):
             agreement={'nomn','plur'} if 'Pltm' in head.tag else {'nomn','sing'}|({head.tag.gender} if head.tag.gender else set())
             inflected=adj.inflect(agreement)
             prefix.insert(0,inflected.word if inflected else adj.normal_form)
-        nominal=head.inflect({'nomn','plur' if 'Pltm' in head.tag else 'sing'})
+        nominal=head.inflect({'nomn','plur' if 'Pltm' in head.tag or quantified and head.tag.number=='plur' else 'sing'})
         label=' '.join([*prefix,nominal.word if nominal else head.normal_form])
         # Preserve dependent genitive noun groups: «система человека»,
         # «кольца Сатурна», «двигатель внутреннего сгорания».

@@ -369,9 +369,16 @@ def test_client_and_server_playback_ack_both_required_and_followup_no_response(t
 def test_no_thanks_closes_without_response_or_legacy_tts(tmp_path,settings):
     async def run():
         m,p,b=configured(tmp_path,settings)
-        s=await start(m);await command(s,'text',text='Нет, спасибо');await tick()
-        assert s.closed and not any(x['type']=='response.create' for x in s.ws.sent)
-        await m.shutdown()
+        s=await start(m)
+        try:
+            await command(s,'text',text='Нет, спасибо')
+            # Close is asynchronous and its SQLite reservation runs in a worker;
+            # a single 10 ms scheduling tick is not a deterministic completion signal.
+            for _ in range(100):
+                if s.closed:break
+                await asyncio.sleep(.01)
+            assert s.closed and not any(x['type']=='response.create' for x in s.ws.sent)
+        finally:await m.shutdown()
     asyncio.run(run())
 
 def test_tool_is_idempotent_and_model_cannot_mutate_unconfirmed_request(tmp_path,settings):

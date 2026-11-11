@@ -65,3 +65,9 @@ user-level data notice, not a second function_call_output or an instruction from
 New questions retain permitted result cards without stale voice interruption; remember=false
 stays RAM-only. Profile change/revocation/close never transfers results or auto-retries jobs.
 Catalog metadata and offline isolation are not real entitlement, latency or iPhone acceptance.
+
+OWNER DIRECT 2026-11-11 separately permits OpenAI Image API fallback on the existing
+bound owner phone: at most 20 attempts per UTC day, 1024x1024 low quality/complexity,
+Wikimedia first, no automatic retries. This does not permit paid developer trials,
+global profile activation, CLI calls or unsafe Codex image tools. Enforce the server cap
+as well as profile consent; keep raw credentials and household settings out of Git/logs.

@@ -115,6 +115,7 @@ class RealtimeBudget:
                 'max_responses_per_session':p.max_responses_per_session,'max_output_tokens':p.max_output_tokens,
                 'client_bound':bool(p.allowed_client_id),'expert_jobs_allowed':p.expert_jobs_allowed,
                 'image_generation_allowed':p.image_generation_allowed,'latest_report':self.latest_report(),
+                'image_generation_daily_limit':p.image_generation_daily_limit,
                 'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False}
 
 def estimate_usd(usage):

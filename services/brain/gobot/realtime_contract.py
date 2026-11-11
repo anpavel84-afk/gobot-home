@@ -57,6 +57,7 @@ class RealtimePolicy(Strict):
     allowed_client_id: str|None = Field(default=None,pattern=ID)
     expert_jobs_allowed: bool = False
     image_generation_allowed: bool = False
+    image_generation_daily_limit:int=Field(default=0,ge=0,le=20)
     device_settings_allowed: bool = False
     owner_assistant_preferences:dict|None=None
 

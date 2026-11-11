@@ -58,7 +58,8 @@ class VisualService:
     def available(self):
         from .image_generation import generation_status
         config=self.config_loader()
-        return {'generation':generation_status(),'image_source':'wikimedia' if config else 'disabled','allowed_secondary_source':'openverse' if config.get('provider')=='openverse' else None,'default_source_policy':'wikimedia_generate','configured':bool(config),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':8,'source_requests_per_day':80,'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
+        limits=self.cache.request_limits('commons.wikimedia.org')
+        return {'generation':generation_status(),'image_source':'wikimedia' if config else 'disabled','allowed_secondary_source':'openverse' if config.get('provider')=='openverse' else None,'default_source_policy':'wikimedia_generate','configured':bool(config),'query_dictionary':{'installed':DICTIONARY.is_file(),'version':QUERY_VERSION,'local_only':True},'cache_bytes_limit':self.cache.max_bytes,'cache_entries_limit':self.cache.max_entries,'asset_ttl_seconds':self.cache.ttl,'query_ttl_seconds':86400,'failure_ttl_seconds':600,'source_requests_per_minute':limits['requests_per_minute'],'source_requests_per_day':limits['requests_per_day'],'source_budget_shared_across_wikimedia':limits['shared_wikimedia_budget'],'public_images_only':True,'weather_source':'not_configured','music_source':'not_configured'}
 
     def fallback(self,req,title,code,kind='info_card',text=None):
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
@@ -178,7 +179,7 @@ class VisualService:
         if intent.speculative:base+=['prefetch_subject_title_v1']
         if _quality:base+=['wikimedia_first_quality_v1']
         def hashed(parts):return hashlib.sha256(json.dumps(parts,ensure_ascii=False,sort_keys=True).encode()).hexdigest()
-        positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file()])
+        positive_key=hashed(base);legacy_key=hashed(base+[2]);key=hashed(base+[FETCH_POLICY_VERSION,QUERY_VERSION,DICTIONARY.is_file(),self.cache.request_policy_revision()])
         # Bound coordination state; active tasks remain protected by the global slots.
         if key not in self.locks:
             if len(self.locks)>=128:self.locks={k:v for k,v in self.locks.items() if v.locked()}
