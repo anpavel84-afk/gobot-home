@@ -17,15 +17,25 @@ class RealtimeBudget:
     def connect(self):return sqlite3.connect(self.path,timeout=5)
     def policy(self):
         if not self.policy_path.exists():return RealtimePolicy()
-        return RealtimePolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8'))
+        p=RealtimePolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8'))
+        path=self.root.parent/'owner-testing/policy.json'
+        if p.owner_full_test and not path.exists():raise PermissionError('owner_test_policy_missing')
+        if p.owner_full_test and path.exists():
+            from .owner_testing import OwnerTestPolicy
+            owner=OwnerTestPolicy.model_validate_json(path.read_text(encoding='utf-8'))
+            if owner.allowed_client_id!=p.allowed_client_id:raise PermissionError('owner_device_binding_changed')
+            p=p.model_copy(update={'enabled':owner.enabled,'model':owner.realtime_model,'expert_jobs_allowed':owner.enabled and owner.experts_enabled,
+                'image_generation_allowed':owner.enabled and owner.images_enabled,'image_generation_daily_limit':owner.image_attempts_per_day,
+                'device_settings_allowed':owner.enabled and owner.device_settings_enabled})
+        return p
     @staticmethod
     def key(ident):return hashlib.sha256(ident.encode()).hexdigest()
     @staticmethod
     def active(policy):return policy.enabled and bool(policy.authorization) and (policy.expires_at is None or policy.expires_at>time.time())
-    def reserve_session(self,ident,consent,client_id=None):
+    def reserve_session(self,ident,consent,client_id=None,owner_test_binding=None):
         p=self.policy()
         if not (self.active(p) and consent):raise PermissionError('realtime_budget_or_consent_required')
-        if p.allowed_client_id and p.allowed_client_id!=client_id:raise PermissionError('realtime_trial_client_not_allowed')
+        if p.allowed_client_id and p.allowed_client_id!=client_id and not (p.owner_full_test and owner_test_binding==p.allowed_client_id):raise PermissionError('realtime_trial_client_not_allowed')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(self.key(ident),)).fetchone():raise ValueError('realtime_session_cancelled')
@@ -59,19 +69,20 @@ class RealtimeBudget:
         with self.connect() as c:
             c.execute('INSERT OR IGNORE INTO commands VALUES(?,?)',(self.key(session),self.key(ident)))
             return c.total_changes>0
-    def record(self,session,response,usage):
+    def record(self,session,response,usage,model='gpt-realtime-2.1-mini'):
         # Keep only numeric provider accounting. No arbitrary strings, transcripts or raw events.
         def numeric(obj):
             return {k:numeric(v) if isinstance(v,dict) else v for k,v in obj.items()
                     if isinstance(k,str) and (isinstance(v,dict) or type(v) in (int,float))}
         clean=numeric(usage)
+        if model in {'gpt-realtime-2.1-mini','gpt-realtime-2.1'}:clean['_model']=model
         with self.connect() as c:
             c.execute('INSERT OR IGNORE INTO usage VALUES(?,?,?)',(self.key(session),self.key(response),json.dumps(clean)))
             return c.total_changes>0
     def total_tokens(self,session):
         with self.connect() as c:rows=c.execute('SELECT usage FROM usage WHERE session=?',(self.key(session),)).fetchall()
         return sum(json.loads(row[0]).get('total_tokens',0) for row in rows)
-    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None,alignment_counts=None,control_failure=None,expert_activity=None,expert_blocked_reasons=None):
+    def record_report(self,session,timings,turns,*,close_reason='unknown',lifetime_ms=None,provider_errors=None,completion_counts=None,alignment_counts=None,control_failure=None,expert_activity=None,expert_blocked_reasons=None,model=None,audio_preset=None):
         # Explicit allowlist: captions, queries, speaker IDs and raw audio cannot enter this ledger.
         setup_keys={'call_created','sideband_connected','settings_acknowledged'}
         turn_keys={'input_ended','response_created','answer_transcript','output_buffer_started','client_playback','client_playback_stopped'}
@@ -98,6 +109,10 @@ class RealtimeBudget:
             from .expert_jobs import EXPERT_ACTIVITY,EXPERT_BLOCKERS
             report['expert_activity']={k:v for k,v in (expert_activity or {}).items() if k in EXPERT_ACTIVITY and type(v) is int and 0<v<=1000}
             report['expert_blocked_reasons']={k:v for k,v in (expert_blocked_reasons or {}).items() if k in EXPERT_BLOCKERS and type(v) is int and 0<v<=1000}
+            if model in {'gpt-realtime-2.1-mini','gpt-realtime-2.1'}:report['model']=model
+            from .realtime_contract import AudioPreset
+            from typing import get_args
+            if audio_preset in get_args(AudioPreset):report['audio_preset']=audio_preset
             if control_failure:
                 action=control_failure.get('action');kind=control_failure.get('kind')
                 report['control_failure']={'action':action if action in {'text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','visual_presented'} else 'other',
@@ -113,7 +128,8 @@ class RealtimeBudget:
         return {'enabled':self.active(p),'audience':p.audience,'sessions_reserved':count,
                 'max_sessions':p.max_sessions,'expires_at':p.expires_at,'accepted_as_default':p.accepted_as_default,
                 'sessions_remaining':None if p.max_sessions is None else max(0,p.max_sessions-count),
-                'unlimited_manual_testing':p.audience=='owner_interactive' and p.max_sessions is None and p.max_responses_per_session is None,
+                'unlimited_manual_testing':not p.owner_full_test and p.audience=='owner_interactive' and p.max_sessions is None and p.max_responses_per_session is None,
+                'owner_full_test':p.owner_full_test,
                 'input_transcription':p.input_transcription,'max_session_seconds':p.max_session_seconds,
                 'max_responses_per_session':p.max_responses_per_session,'max_output_tokens':p.max_output_tokens,
                 'client_bound':bool(p.allowed_client_id),'expert_jobs_allowed':p.expert_jobs_allowed,
@@ -128,4 +144,5 @@ def estimate_usd(usage):
     values=(i.get('text_tokens',0),i.get('audio_tokens',0),cached.get('text_tokens',0),cached.get('audio_tokens',0),o.get('text_tokens',0),o.get('audio_tokens',0))
     if any(type(v) not in (int,float) or v<0 for v in values):raise ValueError('invalid_usage')
     ti,ai,tc,ac,to,ao=values
-    return (max(0,ti-tc)*.6+max(0,ai-ac)*10+tc*.06+ac*.3+to*2.4+ao*20)/1_000_000
+    rates=(4,32,.4,.4,24,64) if usage.get('_model')=='gpt-realtime-2.1' else (.6,10,.06,.3,2.4,20)
+    return sum(a*b for a,b in zip((max(0,ti-tc),max(0,ai-ac),tc,ac,to,ao),rates))/1_000_000

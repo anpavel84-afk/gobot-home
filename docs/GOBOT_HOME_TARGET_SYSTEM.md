@@ -2579,3 +2579,45 @@ Speech Formatter не переписывать. Readiness не вызывает 
 не начинает платное действие. Явно разрешённый bound owner manual bootstrap действует
 однократно и сохраняет последующий отказ пользователя. Он не разрешает developer
 trials или expert jobs B и не заменяет отдельный экспертный лимит.
+
+## 52. Owner Full Test
+
+Один постоянный экономический допуск авторизованного устройства: readiness, квоты,
+usage и увеличение limits через UI вместо JSON-edit перед каждой задачей. Public expert
+tasks не требуют права на личную историю, но требуют task confirmation. Child/private
+ACL, tool isolation и запрет shell сохраняются. Developer trials конечны и отделены.
+Cost threshold — оценка с резервом, не абсолютный предел счёта; Image default 20/day,
+увеличение только явным действием владельца. Не объявлять отсутствующий модуль включённым.
+
+## 53. GPT-Live в C, сохранение A/B
+
+Новое решение заменяет конечную Realtime-цель: GPT-Live после версии и приёмки.
+Желаемая версия 1.1; если API подтверждает только gpt-live-1, это явно выбранный
+кандидат Live 1, не замена default молча. A — legacy, B — текущий Realtime Mini без
+автоматической смены модели/DSP, C — Live через те же Brain/Family/Memory/Visual/Bridge.
+Не использовать guessed 1.1 ID, ChatGPT cookies или внутренние API.
+
+Отдельный Live protocol adapter: /v1/live/sessions, sideband attach, store=false,
+startup model/voice/input, client event allowlists. Не переносить Realtime commit,
+response.create/done, function_call_output или VAD/NR. Delegation.id/offset — не
+готовая задача: нужны раздельные input/output Timeline, timestamp alignment, typed
+intent, task revisions и operation IDs. Delta/сетевая пауза не являются подтверждением.
+Replay не повторяет действия; намеренную повторённую речь по тексту не удалять.
+Append данных — до 500 токенов с настоящим delegation ID; ACK не доказывает playback.
+
+Client delegation: простое → existing Tool Executor, актуальное → источник, visual →
+existing pipeline, память → ACL retrieval, сложное → подтверждённый ExpertJobs.
+Не подключать скрытую платную LLM/CLI для всех обычных вопросов; пробел быстрого
+информационного backend отражать отдельно с вариантами.
+
+C full-duplex: микрофон не закрывается на каждый ответ; разные Start/Mute/Stop speech/
+Cancel task/End. Stop локально глушит звук, не отменяя таймеры/экспертов автоматически.
+Idle и экспертная задача имеют разные сроки. До Close зарегистрировать terminal
+handler, ограниченно дождаться final usage, отметить unknown finalization и выполнить
+документированный cleanup. C не перезапускает оплаченный turn после неизвестного исхода.
+
+Live billing — cumulative duration: 12 → 15 секунд = 15. Не применять token formula
+Realtime или тариф Live 1 к неподтверждённой 1.1. Mute не прекращает расходы.
+Не загружать private context без авторизации; embeddings локальны, при смене человека
+новая provider session. store=false не заменяет память Brain. iPhone/биометрия/ESP32 —
+отдельные испытания; не объявлять их готовыми по fixtures.

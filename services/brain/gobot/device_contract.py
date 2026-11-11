@@ -14,7 +14,7 @@ class ScreenPreferences(Strict):
     generation_mode:Literal['off','missing','helpful']='off'
     generation_provider:Literal['codex','openai']='openai'
     generation_consent:bool=False
-    generation_daily_limit:int=Field(default=0,ge=0,le=20)
+    generation_daily_limit:int=Field(default=0,ge=0,le=100)
     source_preference:Literal['auto','photos','illustrations']='auto'
     visual_source_policy:Literal['wikimedia_first','wikimedia_only','wikimedia_generate']='wikimedia_generate'
     thematic_icons:bool=True
@@ -68,6 +68,8 @@ class WeatherPreferences(Strict):
         return self
 
 class VoicePreferences(Strict):
+    realtime_model:Literal['gpt-realtime-2.1-mini','gpt-realtime-2.1']='gpt-realtime-2.1-mini'
+    audio_preset:Literal['baseline','quiet_ptt','browser_ns_off','browser_ec_off','browser_agc_on','browser_agc_off','server_noise_off','server_far_field','server_strength_half','vad_sensitive']='baseline'
     expert_quota_consent:bool=False
     engine:Literal['legacy','realtime']='legacy'
     realtime_consent:bool=False

@@ -3,6 +3,7 @@
   'use strict';const node=(tag,text)=>{const el=document.createElement(tag);if(text!==undefined)el.textContent=text;return el;};
   const reasons={native_experts_disabled:'Экспертная делегация ещё не включена владельцем',confirmed_adult_profile_required:'Нужен подтверждённый взрослый PIN-профиль',expert_budget_missing_or_expired:'Не задан действующий отдельный лимит CLI',expert_budget_exhausted:'Выделенный лимит CLI использован',expert_budget_other_device:'Лимит выдан другому устройству',expert_quota_consent_required:'Нет отдельного согласия на экспертную квоту',isolation_not_verified:'Изоляция CLI не подтверждена',confirmation_transcript_pending:'Ожидается расшифровка согласия',current_user_confirmation_required:'Нужно согласие на актуальное предложение'};
   const states={awaiting_confirmation:'Ждёт согласия',queued:'В очереди',running:'Эксперт работает',completed:'Разбор готов',failed:'Эксперт завершился с ошибкой',timed_out:'Время ожидания истекло',cancelled:'Отменено',interrupted:'Прервано · автоматически не повторяется'};
+  Object.assign(reasons,{owner_expert_daily_limit:'Достигнута дневная квота CLI; владелец может увеличить её в Owner Full Test',owner_api_estimate_limit:'Достигнут порог оценочных API-расходов',owner_test_not_authorized:'Режим владельца сейчас выключен'});
   class ExpertPanel{
     constructor(){this.cards=new Map();this.epoch=0;}
     mount(){

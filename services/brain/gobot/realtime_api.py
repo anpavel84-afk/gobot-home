@@ -19,12 +19,22 @@ async def bounded_json(request,limit=70000):
     except (ValueError,TypeError):raise HTTPException(422,'invalid_realtime_request')
 
 def attach_brain_realtime(app,manager,auth):
+    @app.get('/api/v1/realtime/owner-test',dependencies=[Depends(auth)])
+    async def owner_test_status(binding:str):
+        return await asyncio.to_thread(manager.owner_status,binding)
+    @app.post('/api/v1/realtime/owner-test',dependencies=[Depends(auth)])
+    async def owner_test_update(request:Request):
+        body=await bounded_json(request,4000)
+        if set(body)!={'binding','patch'}:raise HTTPException(422,'invalid_owner_settings')
+        try:return await asyncio.to_thread(manager.owner_testing.update,body['binding'],body['patch'])
+        except PermissionError:raise HTTPException(403,'owner_device_required')
+        except ValueError:raise HTTPException(422,'invalid_owner_settings')
     @app.get('/api/v1/realtime/status',dependencies=[Depends(auth)])
     async def status():return manager.status()
 
     @app.get('/api/v1/realtime/experts',dependencies=[Depends(auth)])
-    async def expert_status(device_id:str,client_id:str,profile_epoch:str='',confirmed_profile_epoch:str='',conversation_id:str|None=None):
-        try:result=await asyncio.to_thread(manager.expert_status,device_id,client_id,profile_epoch or None,confirmed_profile_epoch or None,conversation_id)
+    async def expert_status(device_id:str,client_id:str,profile_epoch:str='',confirmed_profile_epoch:str='',conversation_id:str|None=None,owner_test_binding:str|None=None):
+        try:result=await asyncio.to_thread(manager.expert_status,device_id,client_id,profile_epoch or None,confirmed_profile_epoch or None,conversation_id,owner_test_binding)
         except PermissionError:raise HTTPException(403,'confirmed_profile_required')
         return JSONResponse(result,headers={'Cache-Control':'no-store'})
 
@@ -116,6 +126,21 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
         owner=await subject(request)
         profile=await asyncio.to_thread(devices.profile,device_scope(request,owner))
         return {'device_id':owner,'client_id':profile.client_id,'profile_epoch':profile_epoch(request,owner)}
+    async def owner_binding(request):
+        # Device authentication is independent of who is currently speaking/has a PIN cookie.
+        guest='browser-'+request.client.host.replace('.','-')
+        return (await asyncio.to_thread(devices.profile,device_scope(request,guest))).client_id
+    @app.get('/api/realtime/owner-test')
+    async def owner_status(request:Request):
+        async with httpx.AsyncClient(trust_env=False,timeout=8) as c:
+            r=await c.get(base+'/owner-test',headers=auth,params={'binding':await owner_binding(request)})
+        return JSONResponse(r.json(),status_code=r.status_code,headers={'Cache-Control':'no-store'})
+    @app.post('/api/realtime/owner-test')
+    async def owner_update(request:Request):
+        patch=await bounded_json(request,4000)
+        async with httpx.AsyncClient(trust_env=False,timeout=8) as c:
+            r=await c.post(base+'/owner-test',headers=auth,json={'binding':await owner_binding(request),'patch':patch})
+        return JSONResponse(r.json(),status_code=r.status_code,headers={'Cache-Control':'no-store'})
     async def close_identity(request):
         scope=await identity(request)
         async with httpx.AsyncClient(trust_env=False,timeout=20) as c:
@@ -142,6 +167,7 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
     @app.get('/api/realtime/experts')
     async def expert_status(request:Request,conversation_id:str|None=None):
         scope=await identity(request)
+        scope['owner_test_binding']=await owner_binding(request)
         if conversation_id and not re.fullmatch(ID,conversation_id):raise HTTPException(422,'invalid_conversation_id')
         if scope['device_id'].startswith('personal:'):
             import base64
@@ -156,9 +182,16 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
     @app.post('/api/realtime/sessions')
     async def create(request:Request):
         body=await bounded_json(request)
-        allowed={'session_id','conversation_id','sdp','consent','remember','speak','client_kind','expert_quota_consent','requested_expert_profile','personalization_mode','speaker_consent','requested_voice'}
+        allowed={'session_id','conversation_id','sdp','consent','remember','speak','client_kind','expert_quota_consent','requested_expert_profile','personalization_mode','speaker_consent','requested_voice','requested_model','audio_preset'}
         if set(body)-allowed:raise HTTPException(422,'client_configuration_denied')
         body.update(await identity(request))
+        binding=await owner_binding(request)
+        body['owner_test_binding']=binding
+        async with httpx.AsyncClient(trust_env=False,timeout=5) as c:
+            state=await c.get(base+'/owner-test',headers=auth,params={'binding':binding})
+        owner_state=state.json() if state.status_code==200 else {}
+        if owner_state.get('enabled'):
+            body['expert_quota_consent']=owner_state['policy']['experts_enabled']
         if body['device_id'].startswith('personal:'):
             import base64
             payload=request.cookies['gobot_profile'].rsplit('.',1)[0]

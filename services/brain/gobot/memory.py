@@ -103,6 +103,15 @@ class Memory:
                 value=getattr(req,kind)
                 if value:c.execute('INSERT INTO request_keys VALUES(?,?,?,?)',(req.device_id,kind,value,req.turn_id))
             self.archive.begin(c,req,message)
+    def complete_native_continuation(self,req,text,provider,trace):
+        # A later expert summary belongs to the same user turn, only after actual playback.
+        # Native guest history stays RAM-only; this is not permission for durable personal memory.
+        if req.remember:raise ValueError('native_continuation_requires_transient_scope')
+        with self.transient_lock:
+            row=self.transient.get(req.turn_id)
+            if row and row['owner']==req.device_id and row['conversation']==req.conversation_id and row['status']=='completed':
+                row.update(result=text,provider=provider,trace=json.dumps(trace),updated=time.time())
+
     def finish(self,req,status,text,provider,trace):
         if not req.remember:
             with self.transient_lock:

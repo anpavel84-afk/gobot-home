@@ -12,13 +12,18 @@ class ExpertPolicy(RealtimePolicy):
     max_context_tokens:int=Field(default=3000,ge=500,le=6000)
     @model_validator(mode='after')
     def bounded_expert_grant(self):
-        if self.enabled and (not self.allowed_profiles or not self.allowed_client_id or self.max_sessions is None or self.expires_at is None):
+        if self.enabled and (not self.allowed_profiles or not self.allowed_client_id or not self.owner_full_test and (self.max_sessions is None or self.expires_at is None)):
             raise ValueError('Expert grant needs explicit profiles, client, expiry and finite job count')
         return self
 
 class ExpertBudget(RealtimeBudget):
     def policy(self):
-        return ExpertPolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8')) if self.policy_path.exists() else ExpertPolicy()
+        p=ExpertPolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8')) if self.policy_path.exists() else ExpertPolicy()
+        if p.owner_full_test:
+            from .owner_testing import OwnerTesting
+            owner=OwnerTesting(self.root.parent/'owner-testing')
+            p=p.model_copy(update={'enabled':owner.authorized(p.allowed_client_id) and owner.policy().experts_enabled})
+        return p
     def record_cli_usage(self,job_id,usage):
         allowed={'inputTokens','outputTokens','totalTokens','cachedInputTokens','reasoningOutputTokens','input_tokens','output_tokens','total_tokens'}
         clean={k:v for k,v in usage.items() if k in allowed and type(v) is int and v>=0}

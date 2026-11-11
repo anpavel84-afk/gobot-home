@@ -1,0 +1,2 @@
+# Optional real WebRTC acceptance only; install in project .venv, not runtime.
+aiortc==1.16.0

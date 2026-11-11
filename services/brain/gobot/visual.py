@@ -364,7 +364,15 @@ class VisualService:
                 def settle(status,usage=None,asset=None):
                     with self.cache.connect() as c:c.execute('UPDATE generation_lineage SET status=?,usage=?,asset_id=? WHERE cache_key=? AND day=? AND status=?',(status,json.dumps(usage or {}),asset,key,generation_day,'reserved'))
                 try:
+                    owner_budget=getattr(req,'_owner_test_budget',None);owner_reservation=None
+                    if owner_budget:
+                        try:owner_reservation=await asyncio.to_thread(owner_budget.reserve,req._owner_test_binding,'image',key,estimate=.25,origin=getattr(req,'_owner_test_origin','owner'))
+                        except PermissionError:
+                            await asyncio.to_thread(settle,'blocked_owner_budget')
+                            return self.fallback(req,'Иллюстрация','image_generation_daily_limit')
                     data,usage=await adapter.generate(prompt,consent=True)
+                    if owner_budget and owner_reservation:
+                        await asyncio.to_thread(owner_budget.settle,owner_reservation,(usage.get('input_tokens',0)*8+usage.get('output_tokens',0)*30)/1_000_000)
                     candidate=ImageCandidate(key,'ИИ-иллюстрация: '+subject,None,'OpenAI · '+MODEL,'AI-generated',None,'GoBot · ИИ-иллюстрация')
                     record=await asyncio.to_thread(self.cache.put,candidate,data)
                 except asyncio.CancelledError:

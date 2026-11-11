@@ -1560,3 +1560,60 @@ ignored data/backups/before-expert-handoff-20261111T061141.
 **«Пока оставить экспертные запуски выключенными»**. Новый expert grant не создаётся;
 реальная CLI-приёмка отложена по этому решению. Ручное сравнение A — отдельный
 обычный legacy conversation path, не экспертная делегация из B.
+
+## 29. Owner Full Test — реализация до активации
+
+Новый OWNER DIRECT заменил прежнее решение expert OFF. Добавлены owner_testing.py,
+защищённые gateway/Brain endpoints, SQLite reservation ledger и панель в существующем
+интерфейсе. Подготовлены увеличиваемые через UI начальные limits: API estimate $10/day,
+500 Realtime responses/day, 20 CLI jobs/day и прежние 20 Image API attempts/day.
+Это оценка с резервом unknown usage, не абсолютный предел счёта; транскрипция отдельно,
+CLI quota не API USD. Ручной owner и разовый developer расход учитываются отдельно.
+Для нового developer acceptance подготовлены до 24 responses в двух Realtime sessions,
+3 CLI tasks, 2 коротких STT и 1 image с expiry и без auto retry.
+**Runtime ещё прежний, новые экономические разрешения не активированы. Paid calls=0.**
+
+Public expert task на bound owner device отделён от права читать личный архив.
+Child/private ACL и task confirmation сохраняются. Без подтверждённого профиля result
+RAM-only. Native private retrieval пока не реализован; offer remember=true не означает
+долговременную память. Семейных профилей/калибровки в установке пока нет.
+
+Mini/full: [оба API ID metadata200](realtime-model-metadata.json); strict config ACK,
+model-specific pricing и новая session при смене. Только услышанный RAM context может
+переходить при явном изменении настроек в тот же client/profile epoch. Поздний audio
+continuation эксперта имеет отдельный playback lifecycle; непрослушанный хвост не
+считается услышанным. Реальный voice/expert E2E ещё не выполнен.
+
+Для B baseline сохранены прежние DSP/near_field/VAD .55. RMS .012 / 180 ms способны
+целиком отменить тихий PTT: одинаковый synthetic RMS .003 отвергается baseline,
+проходит opt-in quiet_ptt в production JS test. Это не доказательство качества шёпота.
+Диагностические presets меняют по одному browser NS/EC/AGC, server NR/strength или
+VAD параметру; track settings, config ACK, Transcribe и фактический answer различаются.
+Raw audio не сохраняется. Автоматической смены B на full/quiet нет.
+
+Полный free regression до continuation guard: **1275 passed / 50.98 s**;
+после guard targeted **82 passed / 24.06 s**. aiortc 1.16.0 установлен только в project
+.venv для будущей WebRTC приёмки; optional requirements-acceptance.txt, runtime deps
+не обновлялись. Новый deployment и его evidence фиксируются после этапа.
+
+## 30. Новая цель C — GPT-Live, сохранение A/B
+
+Следующий OWNER DIRECT и уточнение: **A — legacy, B — текущий Realtime Mini,
+C — GPT-Live в общем Brain**. Конечная Live-цель заменяет прежнюю Realtime-цель;
+B не переключается на другой движок/настройки автоматически.
+
+[API-проект](live-model-access.json) вернул gpt-live-1 и отдельный gpt-live-transcribe.
+Публичная документация описывает gpt-live-1. Live 1.1 API **не подтверждён**; ID не
+выдумывается, ChatGPT cookies/internal API не используются. Metadata — не voice session.
+Live session ещё не запускалась; C не объявлен принятым/default.
+
+Client delegation маршрутизируется в existing Quick Intents/Tool Executor, источники,
+Visual Pipeline и только подтверждённый ExpertJobs/Bridge. Дополнительная платная
+текстовая LLM не подключается скрытно. Если для обычного delegated вопроса нет
+обработчика/источника, это функциональный пробел; обязательный долгий CLI недопустим.
+
+Следующий этап: Live transport/session, timeline/delegation, full-duplex C в существующем
+UI, duration billing/finalization, ограниченные реальные пробы. Работа §29 сохраняется.
+Опубликованный HEAD 34976fb и запущенный eb4e4c8 не откатываются. A compatibility fix
+также пока не deployed; после сообщения владельца «ничего не происходит» добавлены
+явная стадия включения/ожидания Safari и пояснение Enable → удержать круг → вопрос.

@@ -527,7 +527,7 @@ def create_browser_app(settings=None):
 
     @app.get("/{asset}")
     async def static(asset: str):
-        assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','realtime-speaker.js','expert-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
+        assets = {name:'text/javascript' for name in ['app.js','browser.js','realtime.js','realtime-speaker.js','expert-ui.js','owner-test-ui.js','visual.js','key.js','google-login.js','capture.js','pcm-worklet.js','family.js','family-preferences.js','turn-trace.js','device.js','device-renderer.js','device-settings.js']}
         assets['style.css']='text/css'
         assets['device.css']='text/css';assets['manifest.webmanifest']='application/manifest+json'
         assets['device-icon-192.png']='image/png';assets['device-icon-512.png']='image/png'

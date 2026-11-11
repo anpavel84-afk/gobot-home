@@ -30,6 +30,15 @@
         localStorage.setItem('gobot.demo2.a.applied-grant',ready.grant_revision);
       }
       status.textContent=ready.manual_authorized?(ready.cli_ready&&ready.openai_key_configured?'A разрешён для ручных проб: OpenAI STT → Antigravity Flash → прежний Speech Formatter → OpenAI голос. Нажмите «Включить GoBot».':'Разрешение A сохранено, но провайдер ещё не готов: '+(ready.cli_reason||'OpenAI key required')):'Для A нужны отдельные согласия STT, CLI и TTS в настройках ниже.';
+      const device=window.goBotDevice;
+      if(device&&typeof device.enable==='function'){
+        const enable=device.enable.bind(device);
+        device.enable=async()=>{
+          status.textContent='Включаю A: проверяю разрешения и микрофон Safari…';panel.open=true;
+          const watch=setTimeout(()=>{if(device.enabling)status.textContent='A ожидает готовность аудио или разрешение микрофона. Проверьте запрос Safari; B в другой вкладке должен быть выключен.';},8000);
+          try{await enable();status.textContent=device.enabled?'A готов. Удерживайте круг, задайте вопрос и отпустите. Само включение не произносит ответ.':(document.getElementById('device-status')?.textContent||'A не включился; проверьте разрешения ниже.');}finally{clearTimeout(watch);}
+        };
+      }
       const hint=document.createElement('p');hint.textContent='Перед включением A выключите GoBot в другой вкладке B. Одновременно микрофон использует только один режим. Настройки и разговор A хранятся отдельно от B.';panel.append(hint);
     }catch(_){status.textContent='Готовность A проверить не удалось. Проверьте согласия STT/CLI/TTS; автоматический запуск не выполнялся.';}
   });

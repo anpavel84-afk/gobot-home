@@ -11,7 +11,7 @@ Browser uses audio-only WebRTC and authenticated server sideband controls. Brain
 context, visual scenes, budgets and confirmed expert jobs. No provider credentials/data channel in browser.
 Do not enable it by default before acceptance; keep explicit legacy STT/CLI/TTS rollback.
 Antigravity/Codex remain optional confirmed experts. Ordinary Realtime turns must not invoke legacy
-STT, Speech Formatter, separate TTS or CLI. No GPT-Live migration or silent model/voice fallback.
+STT, Speech Formatter, separate TTS or CLI. No silent model/voice fallback.
 Legacy AUTO/FAST use registered Antigravity Flash only. Unavailability must not trigger a
 heavy agent or mock. Expensive fallback requires explicit per-request approval.
 OpenAI STT and TTS remain primary for legacy. Whisper and Denis are explicit manual offline choices only.
@@ -78,3 +78,18 @@ bound owner phone: at most 20 attempts per UTC day, 1024x1024 low quality/comple
 Wikimedia first, no automatic retries. This does not permit paid developer trials,
 global profile activation, CLI calls or unsafe Codex image tools. Enforce the server cap
 as well as profile consent; keep raw credentials and household settings out of Git/logs.
+
+OWNER DIRECT 2026-11-11 FULL PROTOTYPE supersedes the previous expert-OFF decision:
+one bound Owner Full Test controls expenses/readiness. Public expert tasks on the authorized
+owner device do not require personal-history access; keep task confirmation, child/private
+ACL, CLI isolation and finite developer quotas. Device expense authorization is not speaker
+identity or private-memory authorization. Image default stays 20/day; increase only by owner UI.
+OWNER DIRECT GPT-Live migration supersedes the earlier Realtime-only product target:
+A remains legacy, B remains current Realtime Mini, C is GPT-Live using the SAME Brain/product.
+Do not silently alter B's default model/audio settings; diagnostic full/quiet choices are opt-in.
+Desired Live version is 1.1; current official API/catalog evidence only establishes gpt-live-1.
+Never invent a 1.1 slug or use ChatGPT cookies/internal endpoints. C must say Live 1 until verified.
+Use Live client delegation with real delegation IDs, separate protocol/SDP validation,
+server sideband, native timeline transcripts and cumulative duration billing, not Realtime events.
+Keep C explicitly selected until verified version/acceptance permits a documented default switch.
+No household recording, hidden backend LLM, or CLI on every turn. Preserve current dirty work.

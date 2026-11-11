@@ -11,6 +11,7 @@ from .expert_store import ExpertBudget
 
 EXPERT_ACTIVITY={'explicit_request','proposal_requested','proposal_created','start_requested','accepted','blocked','completed','failed','timed_out','cancel_requested'}
 EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','expert_quota_consent_required',
+    'owner_expert_daily_limit','owner_api_estimate_limit','owner_test_not_authorized',
     'expert_budget_missing_or_expired','expert_budget_exhausted','expert_budget_other_device',
     'confirmation_transcript_pending','current_user_confirmation_required','expert_confirmation_already_used',
     'expert_context_changed','confirmed_adult_required_for_expert','expert_not_in_session_budget',
@@ -101,14 +102,27 @@ class ExpertJobs:
         from .expert_profiles import profile_status
         policy=self.budget.policy();usage=self.budget.status();reasons=[]
         if not getattr(self.session.policy,'expert_jobs_allowed',False):reasons.append('native_experts_disabled')
-        if not getattr(self.session,'expert_authorized',False):reasons.append('confirmed_adult_profile_required')
+        owner_public=self.owner_public_allowed()
+        if not getattr(self.session,'expert_authorized',False) and not owner_public:reasons.append('confirmed_adult_profile_required')
         if not self.session.offer.expert_quota_consent:reasons.append('expert_quota_consent_required')
         if not self.budget.active(policy):reasons.append('expert_budget_missing_or_expired')
-        elif policy.allowed_client_id and policy.allowed_client_id!=getattr(self.session.offer,'client_id',None):reasons.append('expert_budget_other_device')
+        elif policy.allowed_client_id and policy.allowed_client_id!=getattr(self.session.offer,'client_id',None) and not owner_public:reasons.append('expert_budget_other_device')
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
+        if owner_public:
+            owner_state=self.session.manager.owner_testing.status(self.session.owner_test_binding)
+            if owner_state['attempts_today'].get('expert',0)>=owner_state['policy']['expert_jobs_per_day']:reasons.append('owner_expert_daily_limit')
         return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status() if include_profiles else [],
                 'allowed_profiles':getattr(policy,'allowed_profiles',[]),'jobs_remaining':usage['sessions_remaining'],
                 'timeout_seconds':getattr(policy,'job_timeout_seconds',90),'jobs':[self.public(j) for j in self.jobs.values()]}
+
+    def owner_public_allowed(self):
+        s=self.session
+        if not getattr(s,'owner_test_authorized',False) or not s.manager.owner_testing.authorized(s.owner_test_binding):return False
+        if s.access.confirmed_profile_id:
+            family=s.manager.identity.family
+            return bool(family and family.session_valid(s.access.confirmed_profile_id,s.offer.confirmed_profile_epoch)
+                        and family.preferences.profile(s.access.confirmed_profile_id)['age']=='adult')
+        return True # Device expense authorization, guest/public context only; never person authentication.
 
     def propose(self,task,profile,turn):
         if not isinstance(task,str) or not 1<=len(task)<=8000:raise ValueError('invalid_expert_task')
@@ -126,7 +140,8 @@ class ExpertJobs:
         job.already_explained=turn.answer[:2000]
         # Explicit user request can authorize precisely this task, never a model's paraphrase.
         explicit=profile_in_text(turn.query)==profile and bool(re.search(r'спроси|подключи|передай|пусть.*(?:разбер|провер)',turn.query,re.I))
-        job.confirmed=bool(explicit and task==turn.query)
+        previous=getattr(self.session.turns[-2],'query',None) if len(self.session.turns)>1 else None
+        job.confirmed=bool(explicit and (task==turn.query or previous and task==previous))
         if job.confirmed:job.confirmation_turn_id=getattr(turn,'id',None)
         self.jobs[job.id]=job;self.pending=job
         return self.public(job)
@@ -167,7 +182,7 @@ class ExpertJobs:
             if confirmation_key in self.used_confirmation_turns:raise PermissionError('expert_confirmation_already_used')
             if any(j.state in {'queued','running'} for j in self.jobs.values()):raise PermissionError('one_active_expert_job_only')
             if not self.session.offer.expert_quota_consent:raise PermissionError('expert_quota_consent_required')
-            if not getattr(self.session,'expert_authorized',False):raise PermissionError('confirmed_adult_required_for_expert')
+            if not getattr(self.session,'expert_authorized',False) and not self.owner_public_allowed():raise PermissionError('confirmed_adult_required_for_expert')
             if not getattr(getattr(self.session,'policy',None),'expert_jobs_allowed',False):raise PermissionError('expert_not_in_session_budget')
             policy=await asyncio.to_thread(self.budget.policy)
             if job.profile['profile'] not in getattr(policy,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
@@ -183,7 +198,9 @@ class ExpertJobs:
             job.context_token_limit=getattr(policy,'max_context_tokens',3000)
             if hasattr(self.session,'manager'):job.packet=await self.prepare_packet(job)
             if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
-            reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None))
+            if getattr(policy,'owner_full_test',False):
+                await asyncio.to_thread(self.session.manager.owner_testing.reserve,self.session.owner_test_binding,'expert',job.id,origin='developer' if getattr(self.session.offer,'developer_acceptance',False) else 'owner')
+            reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session,'owner_test_binding',None))
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=len(self.session.turns):raise PermissionError('expert_context_changed')
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.call_id=call_id;job.state='queued'

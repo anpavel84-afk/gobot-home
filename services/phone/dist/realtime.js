@@ -35,6 +35,8 @@
       this.status('Подключаю Realtime. Говори после сигнала готовности.');
       try{
         const admission=await (await this.fetcher('/api/realtime/status')).json();
+        this.model=document.getElementById('realtime-model')?.value||admission.model||'gpt-realtime-2.1-mini';
+        this.audioPreset=document.getElementById('realtime-audio-preset')?.value||'baseline';
         if(!admission.budget?.enabled)throw Error('Доступ к Realtime не активирован владельцем.');
         if(admission.budget.sessions_remaining===0||(typeof admission.budget.max_sessions==='number'&&admission.budget.sessions_reserved>=admission.budget.max_sessions))throw Error('Разрешённая проба уже использована. Для следующей нужен новый серверный лимит.');
         await this.acquire();if(epoch!==this.generation)throw Error('Запуск отменён');
@@ -61,9 +63,10 @@
         await this.gather(pc,this.abort.signal);
         const config=window.GoBotClient.getSettings();
         this.creationAttempted=true;
-        const answer=await this.api('sessions',{session_id:id,sdp:pc.localDescription.sdp,conversation_id:window.GoBotClient.conversationId(),consent:true,requested_voice:config.voice||'marin',expert_quota_consent:document.getElementById('realtime-expert-consent')?.checked===true,...(admission.expert_handoff_version>=2?{requested_expert_profile:document.getElementById('realtime-expert-profile')?.value||null}:{}),speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',remember:config.remember,speak:config.speak,client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
+        const answer=await this.api('sessions',{session_id:id,sdp:pc.localDescription.sdp,conversation_id:window.GoBotClient.conversationId(),consent:true,requested_voice:config.voice||'marin',expert_quota_consent:document.getElementById('realtime-expert-consent')?.checked===true,...(admission.expert_handoff_version>=2?{requested_expert_profile:document.getElementById('realtime-expert-profile')?.value||null}:{}),...(admission.configuration_version>=3?{requested_model:this.model,audio_preset:this.audioPreset}:{}),speaker_consent:document.getElementById('realtime-speaker-enabled')?.checked===true,personalization_mode:document.getElementById('realtime-personalization')?.value||'guest',remember:config.remember,speak:config.speak,client_kind:window.GoBotHooks?.clientKind||'panel'},this.abort.signal);
         if(epoch!==this.generation)throw Error('Запуск отменён');
-        if(!answer.configuration_confirmed||answer.model!=='gpt-realtime-2.1-mini')throw Error('Сервер не подтвердил выбранную модель');
+        if(!answer.configuration_confirmed||answer.model!==this.model)throw Error('Сервер не подтвердил выбранную модель');
+        this.diag({stage:'session_ready',model:answer.model,voice:answer.voice,audio_preset:answer.audio_preset});
         await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});if(this.speakerMirror)this.speakerMirror.ready=answer.speaker_readiness?.ready===true;
         this.events=new EventSource('/api/realtime/sessions/'+id+'/events');
         this.events.onmessage=e=>{if(epoch===this.generation)this.event(JSON.parse(e.data));};
@@ -73,10 +76,13 @@
     }
     async ensureMicrophone(epoch=this.generation){
       if(this.stream?.active)return;
-      const stream=await this.media.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:false});
+      const audio={echoCancellation:this.audioPreset!=='browser_ec_off',noiseSuppression:this.audioPreset!=='browser_ns_off'};
+      if(['browser_agc_on','browser_agc_off'].includes(this.audioPreset))audio.autoGainControl=this.audioPreset==='browser_agc_on';
+      const stream=await this.media.getUserMedia({audio,video:false});
       if(epoch!==this.generation){stream.getTracks().forEach(t=>t.stop());throw Error('Запуск отменён');}
       this.stream=stream;
       const track=stream.getAudioTracks()[0];track.enabled=false;
+      this.diag({stage:'capture_settings',requested:audio,effective:track.getSettings?.()||{},supported:this.media.getSupportedConstraints?.()||{}});
       track.onended=()=>{if(epoch===this.generation)void this.close('Микрофон отключён браузером.','microphone_ended',true).catch(()=>{});};
       await this.sender.replaceTrack(track);
       if(epoch!==this.generation){stream.getTracks().forEach(t=>t.stop());throw Error('Запуск отменён');}
@@ -123,7 +129,7 @@
         await this.ensureMicrophone();if(!this.held||this.captureToken!==capture)return false;
         const reply=await this.command('ptt_start');if(!this.held||this.captureToken!==capture)return false;
         this.speakerMirror?.begin(reply.speaker_segment_id);
-        this.startedAt=performance.now();this.meterAt=this.startedAt;this.speechMs=0;this.recording=true;this.mic(true);
+        this.startedAt=performance.now();this.meterAt=this.startedAt;this.speechMs=0;this.inputPeak=0;this.recording=true;this.mic(true);this.diag({stage:'ptt_capture_started'});
         this.status('Слушаю. Отпусти, когда закончишь.');window.GoBotHooks?.onListening?.();return true;
       }catch(e){if(this.captureToken===capture){this.held=false;this.status(e.message);}return false;}
     }
@@ -133,7 +139,9 @@
       if(this.pending&&!this.ready){await this.close('Нажатие завершилось до готовности соединения');return;}
       if(!this.recording)return;
       this.recording=false;
-      if(performance.now()-this.startedAt<350||this.speechMs<180){await this.command('ptt_cancel');this.status('Слишком короткое или тихое нажатие.');return;}
+      const duration=performance.now()-this.startedAt,minimumSpeech=this.audioPreset==='quiet_ptt'?40:180;
+      if(duration<350||this.speechMs<minimumSpeech){await this.command('ptt_cancel');this.diag({stage:'locally_cancelled',duration_ms:duration,speech_ms:this.speechMs,peak_rms:this.inputPeak||0,reason:duration<350?'too_short':'below_local_threshold'});this.status('Запись локально отменена: '+(duration<350?'слишком короткая.':'сигнал ниже выбранного порога. В диагностике можно выбрать «Тихий PTT».'));return;}
+      this.diag({stage:'ptt_sent',duration_ms:duration,speech_ms:this.speechMs,peak_rms:this.inputPeak||0});
       await this.command('ptt_end');this.status('Готовлю ответ…');
     }
     async sendText(text){
@@ -146,6 +154,10 @@
     }
     event(item){
       if(item.session_id&&item.session_id!==this.id)return;
+      if(item.type==='audio_diagnostic')this.diag(item.data);
+      if(item.type==='input_transcript')this.diag({stage:'gpt_transcribe',text:item.data.text});
+      if(item.type==='text_delta')this.diag({stage:'answer_delta',text:item.data.text});
+      if(item.type==='usage')this.diag({stage:'usage',...item.data});
       if(item.type==='speaker_readiness'){
         if(this.speakerMirror)this.speakerMirror.ready=item.data.ready===true;
         if(!item.data.ready)this.speakerStatus('Локальный Speaker ID: '+(item.data.reason==='no_enrolled_consenting_profiles'?'нужны профили и образцы в разделе «Семья»':item.data.reason==='calibration_required'?'нужна калибровка':item.data.reason||'не готов'));
@@ -197,10 +209,10 @@
       let level=0;
       if(this.analyser){const a=new Uint8Array(this.analyser.fftSize);this.analyser.getByteTimeDomainData(a);level=Math.sqrt(a.reduce((s,x)=>s+((x-128)/128)**2,0)/a.length);}
       this.level=this.output?.muted?0:level;
-      if(this.recording&&this.inputAnalyser){const input=new Uint8Array(this.inputAnalyser.fftSize);this.inputAnalyser.getByteTimeDomainData(input);const rms=Math.sqrt(input.reduce((n,x)=>n+((x-128)/128)**2,0)/input.length);const now=performance.now();if(rms>.012)this.speechMs+=Math.min(100,now-this.meterAt);this.meterAt=now;}
+      if(this.recording&&this.inputAnalyser){const input=new Float32Array(this.inputAnalyser.fftSize);if(this.inputAnalyser.getFloatTimeDomainData)this.inputAnalyser.getFloatTimeDomainData(input);else{const bytes=new Uint8Array(input.length);this.inputAnalyser.getByteTimeDomainData(bytes);for(let i=0;i<input.length;i++)input[i]=(bytes[i]-128)/128;}const rms=Math.sqrt(input.reduce((n,x)=>n+x*x,0)/input.length);this.inputPeak=Math.max(this.inputPeak||0,rms);const now=performance.now();if(rms>(this.audioPreset==='quiet_ptt'?.0005:.012))this.speechMs+=Math.min(100,now-this.meterAt);this.meterAt=now;this.diag({stage:'level',rms,speech_ms:this.speechMs});}
       if(this.playing&&this.level>.004){
         this.quietAt=performance.now();
-        if(!this.heard&&this.response){this.heard=true;void this.command('playback_started',{response_id:this.response});window.GoBotHooks?.onAnswerPlayback?.(window.goBotDevice?.turn);}
+        if(!this.heard&&this.response){this.heard=true;this.diag({stage:'first_client_audio'});void this.command('playback_started',{response_id:this.response});window.GoBotHooks?.onAnswerPlayback?.(window.goBotDevice?.turn);}
       }
       if(this.playing&&this.drained&&this.heard&&performance.now()-this.quietAt>300){
         this.playing=false;void this.command('playback_stopped',{response_id:this.response});
@@ -209,6 +221,7 @@
       requestAnimationFrame(()=>this.meter(epoch));
     }
     snapshot(){return {level:this.level,playing:this.playing,feedback_playing:false,state:this.context?.state||'closed'};}
+    diag(data){window.GoBotOwnerTest?.diagnostic(data);}
     transportEnded(reason,message){
       if(this.transportEnding)return this.transportEnding;
       if(this.closing||!this.id)return this.closing||Promise.resolve();
@@ -235,6 +248,7 @@
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
       this.clearReview();
+      this.diag({stage:'closed'});
       this.visualStatus('');
       window.GoBotExpertUI?.clear();
       this.abort?.abort();clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);this.mic(false);

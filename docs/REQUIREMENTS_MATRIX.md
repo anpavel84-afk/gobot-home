@@ -311,3 +311,18 @@ Full 1263 + final targeted 87; paid output/iPhone generation pending.
 | Платные и аппаратные проверки | 1269 free tests passed; новых paid calls=0; phone expert E2E / A speech pending |
 
 Runtime и публикация фиксируются в CURRENT_STATUS.md §28.
+
+## Owner §52–53 — Full Test и C / GPT-Live
+
+| Требование | Фактический этап |
+| --- | --- |
+| Unified owner expenses/readiness | Server/SQLite/UI implemented, free fixtures; activation pending |
+| Mini/full | Два metadata200, requested ID/config ACK, новая session; voice comparison pending |
+| Тихий PTT | Production JS: baseline и quiet на одном RMS .003; B default baseline |
+| Private ACL отдельно | Public owner route не открывает личный архив; native private retrieval ещё отсутствует |
+| A/B сохраняются | Immutable A + compat; B Realtime Mini; C в общем продукте |
+| Live 1.1 | Не подтверждена API/catalog; gpt-live-1 metadata only, не voice acceptance |
+| Live protocol/timeline/full duplex | Следующий этап; не отмечен работающим по Realtime tests |
+| Реальная приёмка | Новых paid calls=0; iPhone/C/ESP32 pending |
+
+Текущий этап и runtime — CURRENT_STATUS.md §29–30.

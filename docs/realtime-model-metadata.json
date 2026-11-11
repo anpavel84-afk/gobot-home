@@ -1,0 +1,16 @@
+{
+  "models": [
+    {
+      "model": "gpt-realtime-2.1-mini",
+      "http": 200,
+      "metadata_available": true
+    },
+    {
+      "model": "gpt-realtime-2.1",
+      "http": 200,
+      "metadata_available": true
+    }
+  ],
+  "model_generation_calls": 0,
+  "metadata_is_not_end_to_end_acceptance": true
+}

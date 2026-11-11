@@ -75,6 +75,8 @@ class NativeTurn:
     alignment_pending:bool=False
     alignment_checked_length:int=0
     expert_intent_seen:bool=False
+    active_response_id:str|None=None
+    continuation:bool=False
 
 class NativeSession:
     def __init__(self,manager,offer,profile,policy):
@@ -102,6 +104,16 @@ class NativeSession:
         self.personalization=None;self.preference_ack=None;self.preference_item=None;self.audio_ever_started=False
         self.owner_preferences=None
         self.expert_authorized=False
+        self.owner_test_binding=offer.owner_test_binding or offer.client_id
+        self.owner_test_authorized=bool(policy.owner_full_test and manager.owner_testing.authorized(self.owner_test_binding))
+        self.response_reservations={};self.pending_reservation=None
+        requested=offer.requested_model or policy.model
+        if requested not in policy.allowed_models:raise PermissionError('realtime_model_not_allowed')
+        self.policy=self.policy.model_copy(update={'model':requested})
+        if self.owner_test_authorized and self.experts.owner_public_allowed():
+            op=manager.owner_testing.policy()
+            self.profile.screen=self.profile.screen.model_copy(update={'generation_allowed':op.images_enabled,'generation_consent':op.images_enabled,
+                'generation_mode':'missing' if op.images_enabled else 'off','generation_daily_limit':op.image_attempts_per_day})
         from .realtime_speaker import NativeSpeakerIdentity
         self.speaker=NativeSpeakerIdentity(self)
         self.ptt_committing=False
@@ -150,6 +162,9 @@ class NativeSession:
         req=self.request('Начало активного разговора',self.id)
         # Do not query the authenticated owner's archive before the speaker is authorized.
         context={'messages':[],'summary':'','facts':[],'retrieved':[],'topic':{}}
+        transition_key=(self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,self.offer.conversation_id)
+        transition=self.manager.transition_context.pop(transition_key,None)
+        if transition and time.monotonic()-transition['at']<60:context['messages']=transition['messages']
         packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,req.text,context,'FAST_CHAT')
         # Existing ACL/context builder provides bounded, scoped facts. No development instructions.
         seed={k:packet[k] for k in ('messages','summary','facts','topic','active_visual_subject','runtime_environment') if packet.get(k)}
@@ -177,7 +192,7 @@ class NativeSession:
         availability=await asyncio.to_thread(self.experts.status,include_profiles=False)
         instructions+='\nСерверный допуск экспертного запуска сейчас: '+json.dumps({k:availability[k] for k in ('enabled','blocked_reasons','allowed_profiles','jobs_remaining')})
         tools=TOOLS if availability['enabled'] else [tool for tool in TOOLS if tool['name']!='expert_start']
-        self.config=session_config(self.policy,instructions,tools,speak=self.offer.speak)
+        self.config=session_config(self.policy,instructions,tools,speak=self.offer.speak,audio_preset=self.offer.audio_preset)
         self.call_id,answer=await self.manager.provider.create(self.offer.sdp,self.config,self.offer.device_id)
         await asyncio.to_thread(self.manager.budget.register_call,self.call_id)
         self.mark('call_created');audio_only_sdp(answer)
@@ -194,7 +209,7 @@ class NativeSession:
             await self.send({'type':'conversation.item.create','item':{'id':self.preference_item,'type':'message','role':'user',
                 'content':[{'type':'input_text','text':'Не вопрос. Не отвечай на это сообщение. Только пользовательские предпочтения общения низшего приоритета: '+preference_user_data(self.personalization['preferences'] if self.personalization else self.owner_preferences)}]}})
             await asyncio.wait_for(self.preference_ack.wait(),5)
-        self.mark('settings_acknowledged');self.state='ready';self.emit('ready',model=MODEL,voice=self.policy.voice,
+        self.mark('settings_acknowledged');self.state='ready';self.emit('ready',model=self.policy.model,voice=self.policy.voice,audio_preset=self.offer.audio_preset,
             input_transcription=self.policy.input_transcription,configuration_confirmed=True,
             personalization='manual_pin_ux' if self.personalization else 'owner_device_style' if self.owner_preferences else 'guest',private_access=False)
         self.emit('speaker_readiness',**await asyncio.to_thread(self.speaker.status))
@@ -202,15 +217,20 @@ class NativeSession:
         return answer
 
     def request(self,text,turn):
-        return ChatRequest(text=text,turn_id=turn,request_id=turn,conversation_id=self.access.context_conversation,
+        req=ChatRequest(text=text,turn_id=turn,request_id=turn,conversation_id=self.access.context_conversation,
             device_id=self.access.effective_scope,profile_epoch=self.offer.profile_epoch,client_id=self.offer.client_id,
             client_kind=self.offer.client_kind,remember=False,screen_preferences=self.profile.screen)
+        if self.owner_test_authorized:
+            req._owner_test_budget=self.manager.owner_testing;req._owner_test_binding=self.owner_test_binding
+            req._owner_test_origin='developer' if self.offer.developer_acceptance else 'owner'
+        return req
 
     def settings_request(self,text,turn):
         return self.request(text,turn).model_copy(update={'device_id':self.offer.device_id})
 
     def can_configure_device(self):
         if self.expert_authorized:return True # Existing confirmed adult Family authorization.
+        if self.owner_test_authorized and self.experts.owner_public_allowed():return self.manager.budget.policy().device_settings_allowed
         if self.access.confirmed_profile_id:return False
         policy=self.manager.budget.policy()
         return bool(policy.enabled and policy.authorization==self.policy.authorization and policy.device_settings_allowed
@@ -280,7 +300,7 @@ class NativeSession:
         if turn is not self.current:return
         if turn.stored and turn.req:
             await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'cancelled' if turn.cancelled else 'incomplete' if turn.truncated else 'completed',turn.answer if not turn.cancelled else '',
-                                    'openai:'+MODEL,turn.trace)
+                                    'openai:'+self.policy.model,turn.trace)
         from .quick_intents import resolve_quick
         self.emit('input_transcript',text=text,final=True,confirm_text_allowed=resolve_quick(text,{}) is None)
         if turn.answer:self.spawn(self.check_alignment(turn))
@@ -387,7 +407,7 @@ class NativeSession:
             await turn.photo.task
             turn.trace.append({'visual_decision':dict(turn.photo.diagnostics)})
             if turn.stored and turn.req and not turn.truncated and not turn.cancelled and not self.closed:
-                await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'completed',turn.answer,'openai:'+MODEL,turn.trace)
+                await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'completed',turn.answer,'openai:'+self.policy.model,turn.trace)
         except Exception:
             if turn is self.current:self.emit('visual_status',status='unavailable')
         finally:
@@ -399,7 +419,9 @@ class NativeSession:
             if self.closed:return
             if self.generating or self.response_requested or self.speaking:
                 self.pending_response=True;return
-            try:await asyncio.to_thread(self.manager.budget.reserve_response,self.id,self.policy)
+            try:
+                if self.owner_test_authorized:self.pending_reservation=await asyncio.to_thread(self.manager.owner_testing.reserve,self.owner_test_binding,'realtime',str(uuid4()),estimate=.5,origin='developer' if self.offer.developer_acceptance else 'owner')
+                await asyncio.to_thread(self.manager.budget.reserve_response,self.id,self.policy)
             except PermissionError:
                 await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'response_budget_exhausted')
                 return
@@ -427,6 +449,7 @@ class NativeSession:
             self.emit('error',code='realtime_provider_error') # No raw messages, values or transcripts.
             if not self.ready:self.config_ack.set()
         elif kind=='input_audio_buffer.speech_started':
+            self.emit('audio_diagnostic',stage='server_vad_started')
             if self.input_mode=='followup':self.emit('speaker_segment',segment_id=self.speaker.begin())
             if self.input_mode=='followup':self.followup_deadline=None
             self.last_activity=time.monotonic();self.emit('listening',active=True)
@@ -434,6 +457,7 @@ class NativeSession:
             self.input_ended=round((time.monotonic()-self.started)*1000,2)
             self.emit('speaker_segment_end',segment_id=self.speaker.current)
         elif kind=='input_audio_buffer.committed':
+            self.emit('audio_diagnostic',stage='server_audio_committed')
             item_id=obj.get('item_id','')
             if any(t.input_id==item_id for t in self.turns if item_id):return
             if self.input_mode not in {'ptt','followup'}:
@@ -449,8 +473,13 @@ class NativeSession:
             if turn and text:await self.input_text(turn,text[:8000])
         elif kind=='response.created':
             response_id=obj.get('response',{}).get('id')
+            if self.pending_reservation:self.response_reservations[response_id]=self.pending_reservation;self.pending_reservation=None
             self.generating=True;self.response_requested=False;self.live_response=response_id
-            if self.current:self.response_turn[response_id]=self.current;self.current.response_ids.add(response_id)
+            if self.current:
+                turn=self.current
+                if turn.stored:turn.continuation=True;turn.stored=False
+                turn.active_response_id=response_id;turn.generation_done=False;turn.drained=False;turn.client_started=False;turn.client_stopped=False
+                self.response_turn[response_id]=turn;turn.response_ids.add(response_id)
             self.mark_turn(self.current,'response_created')
             self.mark('first_response_created');self.emit('processing',response_id=response_id)
         elif kind in {'response.output_audio_transcript.delta','response.output_text.delta'}:
@@ -474,7 +503,12 @@ class NativeSession:
         elif kind=='response.done':
             r=obj.get('response',{});ident=r.get('id','')
             if ident and isinstance(r.get('usage'),dict):
-                await asyncio.to_thread(self.manager.budget.record,self.id,ident,r['usage'])
+                from .realtime_budget import estimate_usd
+                fresh=await asyncio.to_thread(self.manager.budget.record,self.id,ident,r['usage'],self.policy.model)
+                cost=estimate_usd({**r['usage'],'_model':self.policy.model})
+                if fresh and self.owner_test_authorized and ident in self.response_reservations:
+                    await asyncio.to_thread(self.manager.owner_testing.settle,self.response_reservations[ident],cost)
+                self.emit('usage',model=self.policy.model,estimated_usd=cost,transcription_included=False)
                 if self.policy.observed_token_limit is not None and await asyncio.to_thread(self.manager.budget.total_tokens,self.id)>=self.policy.observed_token_limit:
                     self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'observed_token_limit'))
             if ident==self.live_response:self.generating=False;self.response_requested=False
@@ -637,6 +671,8 @@ class NativeSession:
                 output['spoken_value']=spoken_fields(evidence['display'],kind='time')['spoken_text']
         except (ValueError,PermissionError,TimeoutError) as error:
             known={'explicit_visual_request_required','current_user_confirmation_required','expert_confirmation_already_used','expert_context_changed','expert_quota_consent_required','confirmed_adult_required_for_expert','expert_not_in_session_budget','expert_profile_not_in_budget','expert_budget_or_consent_required','realtime_budget_or_consent_required','isolation_not_verified','quota_consent_required','expert_profile_unavailable','explicit_expert_profile_mismatch','expert_context_limit','expert_job_already_started','one_active_expert_job_only','realtime_session_budget_exhausted','realtime_trial_client_not_allowed'}
+            from .expert_jobs import EXPERT_BLOCKERS
+            known|=EXPERT_BLOCKERS
             code='confirmation_transcript_pending' if isinstance(error,TimeoutError) and name.startswith('expert_') else str(error) if str(error) in known else 'tool_validation_or_execution_failed'
             output={'error':code,'executed':False,'ordinary_conversation_available':True}
             if name.startswith('expert_'):
@@ -660,8 +696,11 @@ class NativeSession:
         if not heard and turn.photo:await turn.photo.close()
         if turn.req:
             # Interrupted audio is not archived as if it was heard. User question remains scoped.
-            await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'incomplete' if heard and turn.truncated else 'completed' if heard else 'cancelled',turn.answer if heard else '',
-                                    'openai:'+MODEL,turn.trace)
+            if turn.continuation:
+                if heard:await asyncio.to_thread(self.manager.brain.memory.complete_native_continuation,turn.req,turn.answer,'openai:'+self.policy.model,turn.trace)
+            else:
+                await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'incomplete' if heard and turn.truncated else 'completed' if heard else 'cancelled',turn.answer if heard else '',
+                                        'openai:'+self.policy.model,turn.trace)
         if heard and turn is self.current:self.emit('turn_complete',heard=True,incomplete=turn.truncated)
 
     async def interrupt(self):
@@ -706,7 +745,7 @@ class NativeSession:
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='idle';self.ptt_committing=False
             elif action=='followup':
                 if self.speaking or self.generating or not self.current or not self.current.stored or self.current.cancelled:raise ValueError('playback_not_finished')
-                detection={'type':'server_vad','threshold':.55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
+                detection={'type':'server_vad','threshold':.30 if self.offer.audio_preset=='vad_sensitive' else .55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
                 self.mark_turn(self.current,'followup_requested')
                 await self.update_input(detection);self.input_mode='followup'
                 self.mark_turn(self.current,'followup_acknowledged')
@@ -732,7 +771,7 @@ class NativeSession:
                             self.emit('visual_status',status='delivery_failed',message=fallback.frame.text,reason='image_delivery_failed')
             elif action in {'playback_started','playback_stopped'}:
                 turn=self.response_turn.get(command.response_id)
-                if turn and turn is self.current and not turn.cancelled:
+                if turn and turn is self.current and not turn.cancelled and command.response_id==turn.active_response_id:
                     if action=='playback_started':turn.client_started=True;self.mark('first_client_playback')
                     else:turn.client_stopped=True
                     self.mark_turn(turn,'client_playback' if action=='playback_started' else 'client_playback_stopped')
@@ -748,23 +787,27 @@ class RealtimeManager:
         self.identity=identity or IdentityAccessManager(None)
         from .expert_store import ExpertStore
         self.expert_store=ExpertStore(brain.memory,self.identity.family)
+        from .owner_testing import OwnerTesting
+        self.owner_testing=OwnerTesting(self.budget.root.parent/'owner-testing')
+        self.transition_context={}
 
     def owned(self,ident,owner,client,epoch):
         s=self.sessions.get(ident)
         if not s or (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)!=(owner,client,epoch):raise KeyError('realtime_session_not_found')
         return s
 
-    def expert_status(self,owner,client,epoch,confirmed_epoch=None,conversation=None):
+    def expert_status(self,owner,client,epoch,confirmed_epoch=None,conversation=None,owner_test_binding=None):
         from .expert_profiles import profile_status
         from .expert_store import ExpertBudget
         policy=self.budget.policy();budget=ExpertBudget(self.budget.root.parent/'realtime-experts');expert_policy=budget.policy();usage=budget.status()
         reasons=[];profile_id=owner.split(':',1)[1] if owner.startswith('personal:') else None
         confirmed=bool(profile_id and self.identity.family and self.identity.family.session_valid(profile_id,confirmed_epoch))
         adult=confirmed and self.identity.family.preferences.profile(profile_id)['age']=='adult'
-        if not policy.expert_jobs_allowed or policy.allowed_client_id and policy.allowed_client_id!=client:reasons.append('native_experts_disabled')
-        if not adult:reasons.append('confirmed_adult_profile_required')
+        owner_public=bool(policy.owner_full_test and self.owner_testing.authorized(owner_test_binding or client) and (not profile_id or adult))
+        if not policy.expert_jobs_allowed or policy.allowed_client_id and policy.allowed_client_id!=client and not owner_public:reasons.append('native_experts_disabled')
+        if not adult and not owner_public:reasons.append('confirmed_adult_profile_required')
         if not budget.active(expert_policy):reasons.append('expert_budget_missing_or_expired')
-        elif expert_policy.allowed_client_id!=client:reasons.append('expert_budget_other_device')
+        elif expert_policy.allowed_client_id!=client and not owner_public:reasons.append('expert_budget_other_device')
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
         jobs=[]
         for s in self.sessions.values():
@@ -773,7 +816,29 @@ class RealtimeManager:
         saved=self.expert_store.list(profile_id,confirmed_epoch,conversation) if adult else []
         return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status(),
                 'allowed_profiles':expert_policy.allowed_profiles,'jobs_remaining':usage['sessions_remaining'],
-                'jobs':jobs,'saved_jobs':saved,'confirmed_adult':bool(adult),'automatic_retry':False}
+                'jobs':jobs,'saved_jobs':saved,'confirmed_adult':bool(adult),'automatic_retry':False,
+                'owner_public_testing':owner_public,'private_memory_authorized':False}
+
+    def owner_status(self,binding):
+        state=self.owner_testing.status(binding)
+        if not state['authorized']:return state
+        from .secrets_store import openai_key_present
+        family=self.identity.family;profiles=family.profiles() if family else []
+        state['readiness']={
+            'realtime':{'implemented':True,'configured':openai_key_present(),'acceptance':'owner_reports_conversation_works; acoustic_comparison_pending'},
+            'ptt_followup_stop':{'implemented':True,'configured':True,'acceptance':'fixtures_and_owner_use; iOS_edges_pending'},
+            'experts':{'implemented':True,'configured':self.budget.policy().expert_jobs_allowed,'acceptance':'mock_passed; real_e2e_pending'},
+            'visuals':{'implemented':True,'configured':True,'acceptance':'real_Wikimedia_and_renderers; phone_comparison_pending'},
+            'image_api':{'implemented':True,'configured':openai_key_present() and state['policy']['images_enabled'],'acceptance':'provider_metadata_verified; real_output_pending'},
+            'weather':{'implemented':True,'configured':True,'acceptance':'Open-Meteo adapter; confirmed_location_required'},
+            'clock_timers_calendar':{'implemented':True,'configured':True,'acceptance':'local_clock/date_and_real_timer_actions; no_external_calendar_integration'},
+            'family_preferences':{'implemented':True,'configured':bool(profiles),'acceptance':'server_and_UI_tests; real_voice_profiles_not_enrolled'},
+            'speaker_identity':{'implemented':True,'configured':bool(profiles and family.calibration()),'acceptance':'experimental; enrollment_and_real_calibration_required'},
+            'private_memory_native':{'implemented':False,'configured':False,'acceptance':'guest_RAM_works; authorized_native_private_retrieval_not_enabled'},
+            'spacex_schedule':{'implemented':False,'configured':False,'acceptance':'source_not_connected'},
+            'esp32':{'implemented':False,'configured':False,'acceptance':'hardware_not_received_or_flashed'}}
+        state['realtime_usage']=self.budget.status()
+        return state
 
     def prune_lifecycle(self):
         for ident,s in list(self.sessions.items()):
@@ -799,7 +864,7 @@ class RealtimeManager:
             if len(self.tombstones)+len(self.sessions)>=1024:raise ValueError('realtime_lifecycle_capacity')
             if offer.session_id in self.sessions or offer.session_id in self.tombstones:raise ValueError('realtime_session_id_reused')
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in self.sessions.values()):raise ValueError('realtime_audio_session_already_active')
-            p=await asyncio.to_thread(self.budget.reserve_session,offer.session_id,offer.consent,offer.client_id)
+            p=await asyncio.to_thread(self.budget.reserve_session,offer.session_id,offer.consent,offer.client_id,offer.owner_test_binding)
             if self.profile_loader:profile=await self.profile_loader(offer)
             else:
                 from .device_store import DeviceStore
@@ -810,7 +875,7 @@ class RealtimeManager:
         try:
             answer=await s.initialize()
             if s.closed:raise RuntimeError('realtime_setup_cancelled')
-            return {'session_id':s.id,'sdp':answer,'model':MODEL,'voice':s.policy.voice,'configuration_confirmed':True,
+            return {'session_id':s.id,'sdp':answer,'model':s.policy.model,'voice':s.policy.voice,'audio_preset':s.offer.audio_preset,'configuration_confirmed':True,
                     'memory_mode':s.access.memory_mode,'private_access':False,'speaker_readiness':await asyncio.to_thread(s.speaker.status)}
         except BaseException:
             await asyncio.shield(self.close(s.id,offer.device_id,offer.client_id,offer.profile_epoch,'setup_failed'))
@@ -828,6 +893,15 @@ class RealtimeManager:
             self.tombstones[ident]=identity
             if not s:return {'closed':True}
             already_closed=s.closed
+            if not already_closed and reason=='settings_changed' and not s.access.private_access:
+                messages=[]
+                for turn in s.turns[-2:]:
+                    if turn.stored and not turn.cancelled and not turn.truncated and turn.query and turn.answer:
+                        messages.extend([{'role':'user','content':turn.query[:800]},{'role':'assistant','content':turn.answer[:1600]}])
+                if messages:
+                    self.transition_context={k:v for k,v in self.transition_context.items() if time.monotonic()-v['at']<60}
+                    if len(self.transition_context)>=32:self.transition_context.pop(next(iter(self.transition_context)))
+                    self.transition_context[(owner,client,epoch,s.offer.conversation_id)]={'at':time.monotonic(),'messages':messages}
             s.closed=True;s.ready=False
             if not already_closed:s.close_reason=reason
             if not already_closed:s.emit('closed',reason=reason)
@@ -853,7 +927,7 @@ class RealtimeManager:
         s.events=[item for item in s.events if item['type']=='closed']
         await asyncio.to_thread(self.budget.record_report,s.id,s.timings,[t.timings for t in s.turns],
                                 close_reason=s.close_reason,lifetime_ms=(time.monotonic()-s.started)*1000,provider_errors=s.provider_errors,completion_counts=s.completion_counts,alignment_counts=s.alignment_counts,control_failure=s.control_failure,
-                                expert_activity=s.expert_activity,expert_blocked_reasons=s.expert_blocked_reasons)
+                                expert_activity=s.expert_activity,expert_blocked_reasons=s.expert_blocked_reasons,model=s.policy.model,audio_preset=s.offer.audio_preset)
         return {'closed':True,'hangup_confirmed':s.call_id not in self.hangups}
 
     async def shutdown(self):
@@ -876,7 +950,8 @@ class RealtimeManager:
         speaker={'integration_enabled':True,'model_installed':bool(engine and engine.engine.installed()),
                  'profile_count':len(profiles),'calibrated':bool(self.identity.family and self.identity.family.calibration()),
                  'external_stt_calls':0,'embeddings_external':False,'per_turn_pcm_mirror':True,'accuracy_verified':False}
-        return {'target_engine':'realtime','default_engine':'legacy','model':MODEL,'expert_handoff_version':2,'expert_handoff_diagnostics_version':1,'key_configured':openai_key_present(),
+        policy=self.budget.policy()
+        return {'target_engine':'realtime','default_engine':'realtime' if policy.accepted_as_default and policy.enabled else 'legacy','model':policy.model,'allowed_models':policy.allowed_models,'configuration_version':3,'expert_handoff_version':2,'expert_handoff_diagnostics_version':1,'key_configured':openai_key_present(),
                 'budget':self.budget.status(),'active_sessions':sum(not s.closed for s in self.sessions.values()),
                 'pending_hangups':len(self.hangups),'real_provider_verified':False,'iphone_verified':False,
                 'mandatory_audio_fact_gate_verified':False,'legacy_fallback':'explicit_only','identity':self.identity.status(),'speaker':speaker}

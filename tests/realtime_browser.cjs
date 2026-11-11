@@ -45,6 +45,11 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
  await client.pttEnd();assert.equal(requests.filter(r=>r.body?.action==='ptt_end').length,1);
  await client.pttStart();client.startedAt=performance.now()-500;client.speechMs=0;await client.pttEnd();
  assert(requests.some(r=>r.body?.action==='ptt_cancel'));
+ // Identical quiet samples fail baseline's RMS filter but pass the opt-in quiet PTT filter.
+ await client.pttStart();client.startedAt=performance.now()-500;client.meterAt=performance.now()-70;client.speechMs=0;
+ client.inputAnalyser={fftSize:512,getFloatTimeDomainData:a=>a.fill(.003)};client.audioPreset='baseline';client.meter(client.generation);assert.equal(client.speechMs,0);
+ client.audioPreset='quiet_ptt';client.meterAt=performance.now()-70;client.meter(client.generation);assert(client.speechMs>=40);
+ await client.pttEnd();assert.equal(requests.filter(r=>r.body?.action==='ptt_end').length,2);
  assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,1);
  const closing=client.close(),sameClosing=client.close();assert.equal(closing,sameClosing);await closing;
  assert.equal(track.stopped,true);assert.equal(client.id,null);assert(peers.every(p=>p.closed));
