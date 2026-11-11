@@ -1,0 +1,273 @@
+{
+  "synthetic_only": true,
+  "model": "gpt-6-luna",
+  "test_path": "direct_production_backend",
+  "live_session_created": false,
+  "iphone": false,
+  "acoustic_verified": false,
+  "max_generations": 10,
+  "auto_retries": 0,
+  "results": [
+    {
+      "case": "garden",
+      "question": "Что такое мульчирование?",
+      "actual_model": "gpt-6-luna",
+      "text": "Мульчирование — это покрытие почвы вокруг растений слоем материала: например, соломой, корой, листьями или компостом. Оно помогает удерживать влагу, сдерживать сорняки и защищать почву от перегрева и эрозии.",
+      "usage": {
+        "input_tokens": 157,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 62,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 219
+      },
+      "counted_input_tokens": 157,
+      "timings": {
+        "input_count_ms": 1075.9,
+        "first_text_ms": 2174.49,
+        "completed_ms": 2718.97
+      },
+      "estimated_usd": 4.6700000000000003e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "cooking",
+      "question": "Чем заменить разрыхлитель?",
+      "actual_model": "gpt-6-luna",
+      "text": "Разрыхлитель можно заменить содой, если в тесте есть кислый ингредиент: кефир, йогурт, лимонный сок или уксус. На 1 чайную ложку разрыхлителя возьмите примерно ¼ чайной ложки соды; без кислоты тесто может не подняться.",
+      "usage": {
+        "input_tokens": 241,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 73,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 314
+      },
+      "counted_input_tokens": 241,
+      "timings": {
+        "input_count_ms": 619.92,
+        "first_text_ms": 2410.18,
+        "completed_ms": 3111.72
+      },
+      "estimated_usd": 6.06e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "language",
+      "question": "Объясни разницу между say и tell",
+      "actual_model": "gpt-6-luna",
+      "text": "Say — «сказать»: обычно указывает, что именно произнесли: say something, say hello. Tell — «рассказать» или «сказать кому-то»: после него обычно называют собеседника — tell me, tell Anna a story.",
+      "usage": {
+        "input_tokens": 255,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 56,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 311
+      },
+      "counted_input_tokens": 255,
+      "timings": {
+        "input_count_ms": 566.05,
+        "first_text_ms": 2200.28,
+        "completed_ms": 2879.72
+      },
+      "estimated_usd": 5.35e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "science",
+      "question": "Почему лёд плавает?",
+      "actual_model": "gpt-6-luna",
+      "text": "Лёд плавает, потому что при замерзании вода расширяется и её плотность становится ниже, чем у жидкой воды. Поэтому лёд вытесняется вверх и держится на поверхности.",
+      "usage": {
+        "input_tokens": 236,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 46,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 282
+      },
+      "counted_input_tokens": 236,
+      "timings": {
+        "input_count_ms": 623.31,
+        "first_text_ms": 2288.02,
+        "completed_ms": 2809.34
+      },
+      "estimated_usd": 4.66e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "learning",
+      "question": "Объясни дроби ребёнку",
+      "actual_model": "gpt-6-luna",
+      "text": "Дробь показывает, сколько частей целого мы взяли. Например, если пиццу разделили на 4 равные части и взяли одну, это одна четверть: 1/4. Нижнее число показывает, на сколько частей разделили, а верхнее — сколько частей взяли.",
+      "usage": {
+        "input_tokens": 224,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 66,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 290
+      },
+      "counted_input_tokens": 224,
+      "timings": {
+        "input_count_ms": 546.77,
+        "first_text_ms": 1615.91,
+        "completed_ms": 2293.78
+      },
+      "estimated_usd": 5.5400000000000005e-05,
+      "delivered_chunks": 3
+    },
+    {
+      "case": "home",
+      "question": "Как организовать кабели на столе?",
+      "actual_model": "gpt-6-luna",
+      "text": "Закрепите кабели под столешницей с помощью клипс или кабельного лотка, а лишнюю длину соберите липучками. Подпишите провода и оставьте небольшой запас у устройств, чтобы кабели не натягивались.",
+      "usage": {
+        "input_tokens": 247,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 59,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 306
+      },
+      "counted_input_tokens": 247,
+      "timings": {
+        "input_count_ms": 559.26,
+        "first_text_ms": 1792.69,
+        "completed_ms": 2578.45
+      },
+      "estimated_usd": 5.42e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "writing",
+      "question": "Напиши короткое приглашение на ужин",
+      "actual_model": "gpt-6-luna",
+      "text": "Приглашаю тебя на ужин! Буду рад провести вечер вместе. Когда тебе удобно?",
+      "usage": {
+        "input_tokens": 242,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 24,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 266
+      },
+      "counted_input_tokens": 242,
+      "timings": {
+        "input_count_ms": 545.2,
+        "first_text_ms": 1688.46,
+        "completed_ms": 2037.47
+      },
+      "estimated_usd": 3.6200000000000006e-05,
+      "delivered_chunks": 3
+    },
+    {
+      "case": "games",
+      "question": "Загадай короткую загадку про Луну",
+      "actual_model": "gpt-6-luna",
+      "text": "Ночью светит высоко,  \nА днём прячется далеко.  \nЧто это?",
+      "usage": {
+        "input_tokens": 208,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 26,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 234
+      },
+      "counted_input_tokens": 208,
+      "timings": {
+        "input_count_ms": 601.46,
+        "first_text_ms": 1826.39,
+        "completed_ms": 1844.14
+      },
+      "estimated_usd": 3.3799999999999995e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "technical",
+      "question": "Зачем нужна идемпотентность?",
+      "actual_model": "gpt-6-luna",
+      "text": "Идемпотентность нужна, чтобы повторный запрос не менял результат: например, при сетевом сбое его можно безопасно отправить ещё раз. Это помогает избегать дублирующих платежей и повторного создания записей.",
+      "usage": {
+        "input_tokens": 215,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 55,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 270
+      },
+      "counted_input_tokens": 215,
+      "timings": {
+        "input_count_ms": 559.84,
+        "first_text_ms": 1764.59,
+        "completed_ms": 2054.18
+      },
+      "estimated_usd": 4.9e-05,
+      "delivered_chunks": 2
+    },
+    {
+      "case": "planning",
+      "question": "Составь черновой список покупок для овощного супа",
+      "actual_model": "gpt-6-luna",
+      "text": "Картофель, морковь, лук, капуста, помидоры, зелень и овощной бульон или вода. Количество зависит от объёма супа; сколько порций планируете?",
+      "usage": {
+        "input_tokens": 244,
+        "input_tokens_details": {
+          "cache_write_tokens": 0,
+          "cached_tokens": 0
+        },
+        "output_tokens": 50,
+        "output_tokens_details": {
+          "reasoning_tokens": 0
+        },
+        "total_tokens": 294
+      },
+      "counted_input_tokens": 244,
+      "timings": {
+        "input_count_ms": 558.6,
+        "first_text_ms": 1272.04,
+        "completed_ms": 1858.25
+      },
+      "estimated_usd": 4.940000000000001e-05,
+      "delivered_chunks": 2
+    }
+  ],
+  "estimated_usd": 0.00048540000000000003
+}

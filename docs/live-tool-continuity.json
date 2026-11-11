@@ -1,0 +1,83 @@
+{
+  "synthetic_only": true,
+  "requested_model": "gpt-live-1",
+  "requested_version": "1.1",
+  "actual_model": "gpt-live-1",
+  "session_started": true,
+  "physical_iphone": false,
+  "acoustic_quality_verified": false,
+  "auto_retries": 0,
+  "separate_stt_tts_calls": 0,
+  "setup_measurement_scope": "backend_create_and_attach_excludes_local_ICE_and_microphone",
+  "test_kind": "synthetic_voice_continuity",
+  "create_http": 200,
+  "cold_setup_ms": 1236.32,
+  "voice": "marin",
+  "webrtc_connected": true,
+  "synthetic_input_source": "local_piper_denis_not_household_audio",
+  "input_transcript": " Засеки таймер на одну минуту Сколько осталось на таймере Отмени таймер",
+  "output_transcript": " Сейчас, подожди. Готово, таймер запущен на одну минуту. Сейчас посмотрю. Проверяю. Осталось примерно пятьдесят одна секунда. Сейчас. Всё, таймер отменён.",
+  "timer_widget": true,
+  "timer_expired": false,
+  "forecast_card": false,
+  "forecast_days": [],
+  "cancel_confirmed": true,
+  "tool_stages": [
+    {
+      "state": "running",
+      "tool": "timer",
+      "intent": "timer_start"
+    },
+    {
+      "state": "completed",
+      "tool": "timer",
+      "has_widget": true,
+      "has_source": false
+    },
+    {
+      "state": "running",
+      "tool": "timer_status",
+      "intent": "timer_remaining"
+    },
+    {
+      "state": "completed",
+      "tool": "timer_status",
+      "has_widget": false,
+      "has_source": true
+    },
+    {
+      "state": "running",
+      "tool": "timer",
+      "intent": "timer_cancel"
+    },
+    {
+      "state": "completed",
+      "tool": "timer",
+      "has_widget": false,
+      "has_source": true
+    }
+  ],
+  "expert_jobs": 0,
+  "backend_calls_started": 0,
+  "decoded_audible_frames": 383,
+  "first_decoded_audio_after_input_ms": 3554.84,
+  "useful_word_ms": null,
+  "event_types": [
+    "input_transcript",
+    "live_input_delta",
+    "local_tool_status",
+    "ready",
+    "screen_scene",
+    "speaker_readiness",
+    "speaker_segment",
+    "text_delta",
+    "timer_state",
+    "turn_started",
+    "usage",
+    "visual_response"
+  ],
+  "close": {
+    "closed": true,
+    "final_usage_confirmed": true
+  }
+}

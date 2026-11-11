@@ -12,9 +12,9 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  C↔A с исполнением таймера/погоды опубликован и запущен на `f9b1f1e61501c2f15ce2c204cf9b7f7896f405d7`;
+  C↔A с прогнозом и графическими таймерами опубликован и запущен на `97d64beab17b9e738613fa16c16ef01922515a8b`;
   прежние A/B/C и Luna сохранены.
-  Последнее исправление и фактическое развёртывание — §36 ниже; B остаётся Realtime Mini/baseline.
+  Последнее исправление и фактическое развёртывание — §37 ниже; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -1964,8 +1964,8 @@ namespace, а читалась из device settings namespace. Теперь уч
 «на пять минут» и погодный мастер используют правильные серверные состояния.
 
 Проверка реальной конфигурации телефона выявила weather.enabled=false.
-По прежнему прямому поручению владельца восстановлена основная точка Ибиракера,
-Санта-Катарина, Бразилия. Единственный кандидат Open-Meteo проверен, текущие данные
+По прежнему прямому поручению владельца восстановлена основная точка погоды.
+Единственный кандидат Open-Meteo проверен, текущие данные
 реально получены и валидированы до атомарного сохранения. Это бесплатные реальные
 HTTP-запросы источнику, не модельный/голосовой E2E. Координаты/идентификаторы не
 публикуются: [безопасный отчёт](weather-tool-source-check.json).
@@ -2074,3 +2074,54 @@ Computer Use не смог надёжно определить URL Chrome и о�
 `data/backups/before-unified-20261111T180602`, integrity=ok; active turns/B/C0.
 До применения нового developer grant Owner policy совпадала с сохранённой рабочей;
 owner daily caps и старые usage rows не изменялись этим кодом.
+
+**Реальные оплачиваемые пробы — code97d64be, только synthetic input.**
+Через настоящий WebRTC/Live gpt-live-1, marin, локальный Piper Denis исключительно
+как источник тестовой русской фразы (не голос ответа и не домашний микрофон):
+
+* [Таймер5s](live-tool-timer.json): native input «Можешь засечь таймер на5секунд»,
+  SQLite timer/widget, server expiry, output transcript «Таймер на пять секунд
+  запущен. Время вышло»,177 decoded audible frames. Prefix вызвал сначала
+  clarification, затем выполнена одна команда; это не второй timer.
+* [Прогноз завтра](live-tool-forecast.json): actual source-backed forecast card на1
+  день; Live начала «По прогнозу на двенадцатое ноября…».188 decoded frames.
+  Canary был закрыт до полного чтения всех чисел: это подтверждение начала озвучки
+  и карточки, не доказательство точного акустического произношения всего прогноза.
+* [Одна сессия: создать→остаток→отменить](live-tool-continuity.json): Live сказала
+  «таймер запущен на одну минуту», «примерно пятьдесят одна секунда», «таймер отменён»;
+  реальные timer_status и timer_state.cancelled_ids,383 decoded frames. Voice/session
+  не переключались. Ни CLI, ни Luna для этих трёх инструментальных сценариев не было.
+
+Во всех3 final_usage_confirmed=true. Backend create+attach1.236–1.970s;
+input queued→first decoded audio3.113–3.555s **включает произнесение вопроса и
+служебные фразы**, не равно end-of-speech→useful-word. Полезное слово и акустика
+iPhone не измерены, p95 не заявлен. Playable PCM/transcript не означают проверку
+слуха или Safari autoplay. Графика подтверждена production JS/canvas fixtures,
+реальный просмотр Chrome заблокирован указанным выше UI guard.
+
+[10 настоящих Luna-вызовов](skills-luna-acceptance.json) завершились, фактическая
+модель gpt-6-luna, input157–255 токенов, output24–73, estimated$0.0004854.
+Темы: сад, готовка, язык, наука, обучение, дом, письмо, игра, техника, планирование.
+Это direct production text backend без Live voice; качество всех400 ответов и
+factcheck источниками этими десятью примерами не подтверждены.
+[Сверка ledger](weather-timer-real-usage.json):3Live/53provider seconds,10Luna,
+total estimate$0.04465207, pending0, новыхCLI/Image0; old attempt/call IDs сохранены.
+Тестовые timer rows ровно2: completed1 и cancelled1. Повторов платных canaries нет.
+
+**Дополнительное ужесточение после наблюдения early delegation:** backend больше
+не исполняет префикс составной timer duration только по delegation offset. Он ждёт
+input-end/activity либо фактический output после input и берёт полную выросшую
+реплику; timeout не запускает действие. Новый fixture: «пять минут» + early
+delegation + «и тридцать секунд» → ровно1 timer330s. Финальные targeted328/45.19s
+прошли. Это последнее изменение проверено бесплатно; реальные3canaries выше
+выполнены до него, developer session/call quota не возобновлялась ради повторения.
+Фактический финальный runtime фиксируется ниже после idle guard и публикации.
+Погодный intent дополнительно исключает объяснения о снеге/солнечном ветре и
+температуре тела/кипении: это не запрос текущей погоды. Финальный weather/tool набор
+**307/23.98s** прошёл. Source-backed данные и scoped timer state не подменяют
+общие научные/медицинские вопросы. Public canary report скрывает место настройки;
+в Git не добавлены координаты, household audio, биометрия или личные preferences.
+Перед финальным restart сохранён ещё один private WAL-aware backup с уже
+учтёнными paid trials: `data/backups/before-unified-20261111T183143`, integrity=ok,
+Brain/B/C/pending hangups0. Лимиты владельца Image20/day, Live60min/day, estimate$10/day
+и baseline A сохраняются; developer allowance не продлевался.

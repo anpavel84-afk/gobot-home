@@ -78,6 +78,11 @@ def test_additional_weather_phrasings_keep_requested_date(query,offset):
 def test_unsupported_date_never_silently_becomes_current_weather(query):
     assert resolve_quick(query).slots['operation']=='weather_unsupported'
 
+@pytest.mark.parametrize('query',['Какая температура тела нормальная?','Какая температура ребёнка сейчас?','Какая температура кипения воды?','Как образуется снег?','Расскажи про солнечный ветер','Расскажи про дождь'])
+def test_weather_does_not_capture_science_or_health_questions(query):
+    quick=resolve_quick(query)
+    assert not quick or quick.executor!='settings' or not quick.slots.get('operation','').startswith('weather_')
+
 def test_native_forecast_and_short_followup_use_actual_adapter(tmp_path,settings):
     async def run():
         manager,s=await start(tmp_path,settings);source,_,today=forecast_source()
@@ -114,6 +119,24 @@ def test_early_backchannel_does_not_hide_later_actual_answer_boundary(tmp_path,s
             await s.handle({'type':'session.output_transcript.delta','event_id':'actual-answer','start_ms':1900,'end_ms':2400,'delta':'Проверяю.'})
             await s.mode_control_task
             assert count_timers(manager)==1 and s.current.timings['first_output_start_ms']==750
+        finally:await manager.shutdown();await manager.realtime.shutdown()
+    asyncio.run(run())
+
+def test_early_delegation_cannot_create_two_timers_from_compound_duration(tmp_path,settings):
+    from gobot.live_contract import LiveCommand
+    async def run():
+        manager,s=await start(tmp_path,settings)
+        try:
+            s.input_active=True;s.activity_at=time.monotonic()
+            await s.handle({'type':'session.input_transcript.delta','event_id':'prefix-timer','start_ms':0,'end_ms':1000,'delta':'Поставь таймер на пять минут'})
+            await s.handle({'type':'session.delegation.created','event_id':'early-timer','offset_ms':1000,'delegation':{'id':'early-delegation','target':'client'}})
+            await asyncio.sleep(.1);assert count_timers(manager)==0
+            await s.handle({'type':'session.input_transcript.delta','event_id':'tail-timer','start_ms':1100,'end_ms':1800,'delta':' и тридцать секунд'})
+            await s.command(LiveCommand(command_id='compound-end',action='activity',input_active=False,playback_active=False))
+            await s.delegation_tasks['early-delegation'];await s.mode_control_task
+            assert count_timers(manager)==1
+            with manager.brain.memory.connect() as c:deadline=c.execute('SELECT deadline FROM timers').fetchone()['deadline']
+            assert abs(deadline-time.time()-330)<2
         finally:await manager.shutdown();await manager.realtime.shutdown()
     asyncio.run(run())
 

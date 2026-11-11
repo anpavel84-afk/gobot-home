@@ -1,5 +1,5 @@
 {
-  "runtime_code_commit": "f9b1f1e61501c2f15ce2c204cf9b7f7896f405d7",
+  "runtime_code_commit": "97d64beab17b9e738613fa16c16ef01922515a8b",
   "http": {
     "/": 200,
     "/device": 200,
@@ -32,15 +32,31 @@
   "C_bookmarks_unified": true,
   "image_fallback": "speaking_avatar_no_error_card",
   "native_mode_control": "input_transcript_audio_or_actual_answer",
-  "input_action_bridge_version": 2,
+  "input_action_bridge_version": 3,
   "native_tools": [
     "clock",
     "timer",
     "weather_current",
-    "weather_setup"
+    "weather_forecast",
+    "weather_setup",
+    "utility",
+    "skill_readiness"
   ],
-  "free_tests_passed": 1337,
-  "free_tests_seconds": 84.25,
+  "free_tests_passed": 1791,
+  "free_tests_seconds": 108.53,
+  "final_targeted_tests": 339,
   "real_voice_after_fix_verified": false,
+  "weather_forecast_days": 16,
+  "skill_catalogue": {
+    "scenarios": 400,
+    "readiness": {
+      "local_path": 100,
+      "conditional_path": 240,
+      "not_connected_or_restricted": 60
+    },
+    "all_integrations_enabled": false,
+    "acoustic_parity_verified": false,
+    "inventory_is_not_permission": true
+  },
   "owner_weather_configured": true
 }

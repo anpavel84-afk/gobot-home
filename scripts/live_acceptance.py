@@ -102,7 +102,12 @@ async def run(voice_expert=False,tool_case=None):
                     ready=any(e['type']=='timer_expired' for e in events) if tool_case=='timer' else any((f.get('metadata',{}).get('weather') or {}).get('kind')=='forecast' for f in cards()) if tool_case=='forecast' else any(f.get('type')=='timer_widget' for f in cards())
                     if ready:break
                     await asyncio.sleep(.2)
-                await asyncio.sleep(4)
+                async def playback_settled(maximum=10):
+                    waiting=time.monotonic()
+                    while time.monotonic()-waiting<maximum:
+                        if time.monotonic()-waiting>2 and received and time.monotonic()-received[-1]>1:break
+                        await asyncio.sleep(.2)
+                await playback_settled()
                 if tool_case=='continuity' and ready:
                     for phrase,tool in [('Сколько осталось на таймере?','timer_status'),('Отмени таймер.','timer')]:
                         pcm,rate=await asyncio.to_thread(Speech().denis_sync,phrase)
@@ -112,10 +117,14 @@ async def run(voice_expert=False,tool_case=None):
                         while time.monotonic()<until:
                             if any(e['type']=='local_tool_status' and e.get('data',{}).get('state')=='completed' and e['data'].get('tool')==tool for e in events[seen:]):break
                             await asyncio.sleep(.2)
-                        await asyncio.sleep(2)
+                        await playback_settled(7)
+                report['synthetic_input_source']='local_piper_denis_not_household_audio'
                 report['input_transcript']=''.join(e.get('data',{}).get('text','') for e in events if e['type']=='live_input_delta')
                 output=''.join(e.get('data',{}).get('text','') for e in events if e['type']=='text_delta')
                 report['output_transcript']=output.replace(profile.weather.location_name,'<configured location>')[:1800]
+                if tool_case=='forecast':
+                    report['output_transcript']=report['output_transcript'].split(' в ',1)[0]+' [location and following text redacted]'
+                    report['location_redacted']=True
                 report['timer_widget']=any(f.get('type')=='timer_widget' for f in cards())
                 report['timer_expired']=any(e['type']=='timer_expired' for e in events)
                 report['forecast_card']=any((f.get('metadata',{}).get('weather') or {}).get('kind')=='forecast' for f in cards())

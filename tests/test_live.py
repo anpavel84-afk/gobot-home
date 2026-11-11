@@ -88,6 +88,7 @@ def test_live_timer_delegation_is_real_action_and_replay_does_not_duplicate(tmp_
             for event in [
                 {'type':'session.input_transcript.delta','event_id':'speech','start_ms':0,'end_ms':1000,'delta':'Поставь таймер на пять секунд'},
                 {'type':'session.delegation.created','event_id':'delegated','offset_ms':1000,'delegation':{'id':'real-delegation','target':'client'}}]:await s.handle(event)
+            await s.command(LiveCommand(command_id='timer-input-ended',action='activity',input_active=False,playback_active=False))
             await s.delegation_tasks['real-delegation']
             await s.handle({'type':'session.delegation.created','event_id':'replayed-other-event','offset_ms':1000,'delegation':{'id':'real-delegation','target':'client'}})
             with m.brain.memory.connect() as c:assert c.execute('SELECT count(*) FROM timers').fetchone()[0]==1

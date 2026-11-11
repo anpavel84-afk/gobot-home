@@ -1,4 +1,4 @@
-"""At most four separately owner-approved Luna generation calls, sequential, no retries.
+"""Finite separately approved Luna calls: original four, or tools-suite ten.
 Only fixed synthetic questions/context. No Live voice session or household audio.
 """
 import argparse,asyncio,json,sys

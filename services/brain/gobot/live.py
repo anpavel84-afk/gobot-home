@@ -291,6 +291,24 @@ class LiveSession(VoiceVisualSession):
             await asyncio.sleep(.1)
         if not context or not context.complete:
             await self.append('commentary','Не удалось уверенно восстановить поручение. Коротко уточните, что именно нужно сделать.',did);return
+        from .quick_intents import resolve_quick
+        quick=resolve_quick(context.query,await self.tool_context(self.current)) if self.current else None
+        if quick and quick.executor in {'timer','timer_status','quick_clarify'}:
+            # Delegation may precede the rest of a compound duration. An offset
+            # alone is not input-end: keep the task attached to the growing turn.
+            for _ in range(120):
+                if self.closed or self.closing:return
+                if not self.current or self.interaction_id!=context.interaction_id:
+                    await self.append('thinking','Это поручение относится к прежней реплике; новое действие не запускалось.',did);return
+                fresh=time.monotonic()-self.activity_at<2
+                ended=fresh and self.activity_at>=self.input_seen_at and not self.input_active
+                answered=bool(self.current.answer.strip()) and self.current.timings.get('latest_output_start_ms',0)>=self.current.timings.get('input_end_ms',0)
+                if (ended or answered) and time.monotonic()-self.input_seen_at>=.35:
+                    context=replace(context,query=self.current.query);break
+                await asyncio.sleep(.1)
+            else:
+                self.emit('warning',code='live_timer_waiting_for_input_end')
+                await self.append('thinking','Полный ввод команды таймера ещё не подтверждён. Действие пока не выполнено.',did);return
         if self.current and self.current.timings.get('input_start_ms',0)>int(context.interaction_id[7:]):
             # A delayed delegation must not restore an older UI turn or its tools.
             await self.append('thinking','Этот запрос относится к прежней реплике. Новое действие не запускалось; текущий разговор сохранён.',did);return

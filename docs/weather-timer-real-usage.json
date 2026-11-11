@@ -1,0 +1,25 @@
+{
+  "new_developer_calls": {
+    "live": 3,
+    "live_backend": 10
+  },
+  "live_provider_seconds": 53.0,
+  "live_final_confirmed": 3,
+  "estimated_usd_including_pending": 0.04465207,
+  "pending_usage": 0,
+  "within_new_live_180s_and_usd2_estimate": true,
+  "canary_timer_records": {
+    "cancelled": 1,
+    "completed": 1
+  },
+  "new_cli_calls": 0,
+  "new_image_calls": 0,
+  "old_usage_rows_preserved": true,
+  "synthetic_audio_source": "local_piper_denis_not_household_audio",
+  "actual_voice": "marin",
+  "actual_live_model": "gpt-live-1",
+  "physical_iphone": false,
+  "acoustic_verified": false,
+  "auto_retries": 0,
+  "verified_at": 1794432536.1723986
+}

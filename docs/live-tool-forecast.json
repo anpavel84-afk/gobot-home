@@ -1,0 +1,60 @@
+{
+  "synthetic_only": true,
+  "requested_model": "gpt-live-1",
+  "requested_version": "1.1",
+  "actual_model": "gpt-live-1",
+  "session_started": true,
+  "physical_iphone": false,
+  "acoustic_quality_verified": false,
+  "auto_retries": 0,
+  "separate_stt_tts_calls": 0,
+  "setup_measurement_scope": "backend_create_and_attach_excludes_local_ICE_and_microphone",
+  "test_kind": "synthetic_voice_forecast",
+  "create_http": 200,
+  "cold_setup_ms": 1529.04,
+  "voice": "marin",
+  "webrtc_connected": true,
+  "input_transcript": " Какая будет погода завтра",
+  "output_transcript": " Сейчас проверю. По прогнозу на двенадцатое ноября [location and following text redacted]",
+  "location_redacted": true,
+  "timer_widget": false,
+  "timer_expired": false,
+  "forecast_card": true,
+  "forecast_days": [
+    1
+  ],
+  "cancel_confirmed": false,
+  "tool_stages": [
+    {
+      "state": "running",
+      "tool": "settings",
+      "intent": "settings"
+    },
+    {
+      "state": "completed",
+      "tool": "settings",
+      "has_widget": false,
+      "has_source": true
+    }
+  ],
+  "expert_jobs": 0,
+  "backend_calls_started": 0,
+  "decoded_audible_frames": 188,
+  "first_decoded_audio_after_input_ms": 3112.62,
+  "useful_word_ms": null,
+  "event_types": [
+    "input_transcript",
+    "live_input_delta",
+    "local_tool_status",
+    "ready",
+    "speaker_readiness",
+    "speaker_segment",
+    "text_delta",
+    "turn_started",
+    "visual_response"
+  ],
+  "close": {
+    "closed": true,
+    "final_usage_confirmed": true
+  }
+}

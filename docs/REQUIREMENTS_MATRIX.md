@@ -430,3 +430,10 @@ clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84
 | Отмена реально прекращает графику | Actual DB cancellation→timer_state IDs→DOM/Canvas | Phone network/acoustics отдельно |
 |400 сценариев | Inventory+free routing checks:100 local/240conditional/60blocked; зависимости явные | Не400 независимых integrations и не доказательство полного parity |
 | Расход новых trials конечный | Отдельное3Live/180s/10Luna/$2estimate; server grants preserve counters | Финальные фактические usage/результаты фиксируются после canaries |
+
+Реальные canaries97d64be: timer5s/widget/expiry, tomorrow forecast card + начало
+озвучки, одна Live-сессия timer→status→cancel прошли;3final usage confirmations.
+10 отдельных Luna text calls completed. Общий developer estimate$0.04465207,
+53provider seconds Live, новыхCLI/Image0, pending0. Это synthetic local Piper
+input/decoded PCM, не акустическая iPhone-приёмка. Фикс ранней delegation после
+canaries проверен targeted328; платные пробы не повторялись и scope не расширялся.

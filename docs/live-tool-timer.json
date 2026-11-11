@@ -1,0 +1,69 @@
+{
+  "synthetic_only": true,
+  "requested_model": "gpt-live-1",
+  "requested_version": "1.1",
+  "actual_model": "gpt-live-1",
+  "session_started": true,
+  "physical_iphone": false,
+  "acoustic_quality_verified": false,
+  "auto_retries": 0,
+  "separate_stt_tts_calls": 0,
+  "setup_measurement_scope": "backend_create_and_attach_excludes_local_ICE_and_microphone",
+  "test_kind": "synthetic_voice_timer",
+  "create_http": 200,
+  "cold_setup_ms": 1970.09,
+  "voice": "marin",
+  "webrtc_connected": true,
+  "input_transcript": " Можешь засечь таймер на 5 секунд",
+  "output_transcript": " Сейчас, запускаю. Таймер на пять секунд запущен. Время вышло.",
+  "timer_widget": true,
+  "timer_expired": true,
+  "forecast_card": false,
+  "forecast_days": [],
+  "cancel_confirmed": false,
+  "tool_stages": [
+    {
+      "state": "running",
+      "tool": "quick_clarify",
+      "intent": "timer_start"
+    },
+    {
+      "state": "completed",
+      "tool": "quick_clarify",
+      "has_widget": false,
+      "has_source": false
+    },
+    {
+      "state": "running",
+      "tool": "timer",
+      "intent": "timer_start"
+    },
+    {
+      "state": "completed",
+      "tool": "timer",
+      "has_widget": true,
+      "has_source": false
+    }
+  ],
+  "expert_jobs": 0,
+  "backend_calls_started": 0,
+  "decoded_audible_frames": 177,
+  "first_decoded_audio_after_input_ms": 3494.74,
+  "useful_word_ms": null,
+  "event_types": [
+    "input_transcript",
+    "live_input_delta",
+    "local_tool_status",
+    "ready",
+    "speaker_readiness",
+    "speaker_segment",
+    "text_delta",
+    "timer_expired",
+    "turn_started",
+    "visual_response"
+  ],
+  "close": {
+    "closed": true,
+    "final_usage_confirmed": true
+  }
+}
