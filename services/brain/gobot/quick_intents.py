@@ -20,11 +20,20 @@ class QuickIntent:
 def normalize(text):
     value=' '.join(text.casefold().replace('ё','е').strip().rstrip('.!?').split())
     for _ in range(2):value=re.sub(r'^(?:гобот[, ]+|пожалуйста[, ]+|(?:скажи|подскажи)[, ]+пожалуйста[, ]+)','',value)
+    value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|не мог бы ты|не могли бы вы|давай(?: ка)?)[, ]+','',value)
     return re.sub(r'[, ]+пожалуйста$','',value)
 
 def resolve_quick(text,context=None):
     if len(text)>200:return None
     value=normalize(text)
+    from .quick_utilities import intent as utility_intent
+    utility=utility_intent(value)
+    if utility:
+        if utility.get('operation')=='text':utility['text']=text.rsplit(': ',1)[-1].strip()
+        return QuickIntent('utility_'+utility['operation'],'utility',utility)
+    from .skill_catalogue import unavailable_request
+    unavailable=unavailable_request(value,context)
+    if unavailable:return QuickIntent('integration_unavailable','skill_readiness',unavailable,'unavailable')
     from .settings_tools import settings_intent
     setting=settings_intent(value,context)
     if setting:return QuickIntent('settings','settings',setting)
@@ -58,7 +67,7 @@ def resolve_quick(text,context=None):
     if unique:return next(iter(unique.values()))
     # Command-shaped but unsupported timer syntax is a clarification, never a
     # second permissive route into the executor. Questions are not commands.
-    if re.match(r'^(?:(?:поставь|установи|запусти|включи|отмени|останови|выключи|убери)\b.*таймер|таймер\b|(?:засеки|отсчитай)\b)',value):
+    if re.match(r'^(?:(?:поставь|поставить|установи|установить|запусти|запустить|включи|включить|отмени|останови|выключи|убери)\b.*таймер|таймер\b|(?:засеки|засечь|засекай|отсчитай|отсчитать)\b)',value):
         return QuickIntent('timer_ambiguous','quick_clarify',{},'rejected','whole_command_not_validated')
     return None
 

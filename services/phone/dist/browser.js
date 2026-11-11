@@ -254,6 +254,7 @@ async function send(options={}) {
         else if (item.type === 'audio_chunk') await play(data, runEpoch);
         else if (item.type === 'tts_error') {feedback?.cancel();turnTrace?.mark('error');$('voice-status').textContent = explain(data.code);}
         else if(item.type==='audio_stop'&&data.reason!=='finished')feedback?.cancel();
+        else if (item.type === 'timer_state') {visuals?.cancelTimers(data.cancelled_ids);}
         else if (item.type === 'widget_command') {if(!visuals?.hasTimer(data.command?.payload?.timer_id)){$('timer').hidden = false;const seconds=Math.ceil((data.command?.payload?.duration_ms||300000)/1000);$('timer').textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')+' · таймер';} }
         else if (item.type === 'final') {
           terminal = true; if(turnTrace){window.gobotLastTrace={client:turnTrace.snapshot(),stt:turnTrace.stt,gateway_stt:turnTrace.gatewayStt,brain:data.telemetry,bridge:data.bridge_telemetry,visual:data.trace?.find(entry=>entry.visual_decision)?.visual_decision};turnTrace.flush();renderTiming(window.gobotLastTrace);window.GoBotHooks?.onTrace?.(window.gobotLastTrace);} $('result-badge').textContent = data.mock ? 'Mock · диагностика' : 'Ответ · ' + data.provider;
@@ -439,6 +440,12 @@ $('forget-conversation').onclick=()=>{if(window.confirm('Удалить сооб
 window.addEventListener('storage', event=>{if(event.key==='gobot.conversation'){stop();recording?.cancel();recording=null;liveSocket?.close();$('answer').textContent='';$('history').replaceChildren();conversation=localStorage.getItem('gobot.conversation')||uuid();window.GoBotHooks?.onScopeChanged?.();}});
 window.addEventListener('pagehide', () => { stop(); recording?.cancel();liveSocket?.close(); });
 window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,unlockAudio,startRecording,endRecording,explain,applyServerProfile,refreshServerSettings,
+  timerAlert(){
+    if(!audio||audio.state!=='running'||Number($('volume').value)<=0||document.hidden)return false;
+    const buffer=audio.createBuffer(1,Math.round(audio.sampleRate*.65),audio.sampleRate),pcm=buffer.getChannelData(0);
+    for(let i=0;i<pcm.length;i++){const time=i/audio.sampleRate,phase=time%.22;pcm[i]=phase<.12?Math.sin(2*Math.PI*880*time)*.25*Math.sin(Math.PI*phase/.12):0;}
+    const source=audio.createBufferSource();source.buffer=buffer;source.connect(gain);source.onended=()=>source.disconnect();source.start();return true;
+  },
   conversationId:()=>conversation,
   applyNativeEvent(item){
     const data=item.data||{};
@@ -447,6 +454,7 @@ window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,un
     if(item.type==='input_transcript')$('question').value=data.text;
     if(item.type==='turn_complete')window.GoBotHooks?.onStreamEnd?.({turn_id:item.turn_id});
     if(item.type==='visual_response')visuals?.render(data.presentation);
+    if(item.type==='timer_state')visuals?.cancelTimers(data.cancelled_ids);
     if(item.type==='screen_scene'&&!data.scene?.preserve_visual&&['icon','info_card'].includes(data.scene?.scene_type)){
       const scene=data.scene,payload=scene.visual_payload||{};
       visuals?.render({namespace:'gobot.ui',version:2,id:'scene-'+currentTurn,type:'info_card',title:payload.title||scene.visual_subject,

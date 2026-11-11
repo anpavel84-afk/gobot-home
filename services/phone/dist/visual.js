@@ -13,6 +13,7 @@
     interrupt(){this.loadingNow=false;if(!this.frames.size){this.root.replaceChildren();this.root.hidden=true;}}
     syncDisplay(text){for(const entry of this.frames.values())entry.body.hidden=!!text&&text.trim()===(entry.frame.text||'').trim();}
     hasTimer(id){return this.timerCards.has(id)||this.currentTimer===id;}
+    cancelTimers(ids){for(const id of ids||[]){const timer=this.timerCards.get(id);if(timer){clearInterval(timer.ticker);this.intervals.delete(timer.ticker);timer.output.textContent='Таймер остановлен';timer.frame.metadata.state='cancelled';}}}
     clearScene(){for(const [id,entry] of this.frames){if(entry.frame.metadata?.transient_scene){entry.card.remove();this.frames.delete(id);}}}
     render(frame){
       if(frame?.metadata?.backend==='answer_map')return false;
@@ -65,6 +66,14 @@
       if(stagePrevious.length){if(count)card.hidden=true;else replaceStage();}
       if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
+      if(frame.type==='weather_card'&&state.weather){
+        const icons={sun:'☀️',partly_cloudy:'⛅',cloud:'☁️',rain:'🌧️',snow:'❄️',storm:'⛈️',fog:'🌫️',unknown:'?'};
+        const weather=state.weather;card.append(node('div',(icons[weather.icon]||'?')+' '+weather.condition,'weather-condition'));
+        if(weather.days?.length){const table=node('table',undefined,'weather-forecast');
+          const head=node('tr');for(const label of ['Дата','Погода','°C','Осадки','Ветер'])head.append(node('th',label));table.append(head);
+          for(const day of weather.days.slice(0,16)){const row=node('tr');for(const value of [day.date,(icons[day.icon]||'?')+' '+day.condition,day.low+'…'+day.high,day.rain_percent+'%',day.wind_kmh+' км/ч'])row.append(node('td',value));table.append(row);}card.append(table);
+        }
+      }
       if(state.synthetic)card.append(node('small',state.generation_provider?'ИИ-иллюстрация · '+state.generation_provider+' · детали не подтверждены':'Условная иллюстрация · создана локально · не фотография','visual-state'));
       if(state.selection_basis==='source_metadata_search_unverified')card.append(node('small','Результаты поиска по метаданным; точное соответствие объекту не подтверждено.','visual-state'));
       if(frame.type==='timer_widget'&&Number.isFinite(state.deadline)){

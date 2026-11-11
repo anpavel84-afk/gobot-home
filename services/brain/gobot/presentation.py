@@ -53,6 +53,23 @@ class VisualAction(Strict):
     asset_id:str|None=Field(default=None,pattern=r'^[a-f0-9]{64}$')
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
 
+class WeatherDay(Strict):
+    date:str=Field(pattern=r'^\d{4}-\d{2}-\d{2}$')
+    low:float=Field(ge=-100,le=70,allow_inf_nan=False)
+    high:float=Field(ge=-100,le=70,allow_inf_nan=False)
+    rain_percent:float=Field(ge=0,le=100,allow_inf_nan=False)
+    wind_kmh:float=Field(ge=0,le=500,allow_inf_nan=False)
+    weather_code:int
+    icon:Literal['sun','partly_cloudy','cloud','rain','snow','storm','fog','unknown']
+    condition:str=Field(max_length=80)
+
+class WeatherDisplay(Strict):
+    kind:Literal['current','forecast']
+    icon:Literal['sun','partly_cloudy','cloud','rain','snow','storm','fog','unknown']
+    condition:str=Field(max_length=80)
+    timezone:str=Field(default='',max_length=80)
+    days:list[WeatherDay]=Field(default_factory=list,max_length=16)
+
 class VisualMetadata(Strict):
     avatar_fallback:bool=False
     visual_stage:Literal['provisional','refined']|None=None
@@ -78,6 +95,7 @@ class VisualMetadata(Strict):
     duration_ms:int|None=Field(default=None,ge=1,le=86400000)
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
     facts:dict[str,str]=Field(default_factory=dict,max_length=12)
+    weather:WeatherDisplay|None=None
     diagram_labels:list[DiagramLabel]=Field(default_factory=list,max_length=3)
     device_width:Literal[240]=240
     device_height:Literal[240]=240

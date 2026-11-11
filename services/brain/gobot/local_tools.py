@@ -18,6 +18,13 @@ class LocalTools:
     def execute(self,tool,req,slots=None):
         text=req.text.lower()
         slots=slots or {}
+        if tool=='utility':
+            from .quick_utilities import execute
+            answer=execute(slots)
+            return ToolResult(answer,evidence={'method':'local_utility','verified':True,'canonical_answer':answer})
+        if tool=='skill_readiness':
+            from .skill_catalogue import unavailable_text
+            return ToolResult(unavailable_text(slots.get('category')),evidence={'abstained':True})
         if tool=='dialogue_end':
             self.memory.settle_pending(req,'cancelled')
             return ToolResult('Хорошо.',evidence={'method':'dialogue_control','verified':True,'canonical_answer':'Хорошо.'})
@@ -42,7 +49,7 @@ class LocalTools:
             answer=('Таймеры по ближайшему срабатыванию: '+'; '.join(str(i+1)+': '+duration_text(max(1,int(row['deadline']-time.time()))) for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет активных таймеров.'
             return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'active_count':len(rows)})
         if tool=='quick_clarify':return ToolResult('Уточни одну команду таймеру: одну длительность без альтернатив или конкретный таймер для отмены.' if slots.get('intent','').startswith('timer_') and slots.get('intent')!='timer_or_stopwatch' else 'Нужен таймер с длительностью или секундомер? Секундомер пока не подключён.')
-        if tool=='quick_help':return ToolResult('Могу назвать время и дату, поставить таймер, проверить оставшееся время или посчитать выражение. Личная история доступна после подтверждения профиля.')
+        if tool=='quick_help':return ToolResult('Могу назвать время и дату, поставить и показать таймер, проверить погоду и дневной прогноз до 16 дней, перевести единицы или посчитать проценты. Фото и эксперты доступны через разрешённые серверные каналы. Личная история требует подключённого и подтверждённого доступа; в гостевом Live личный архив закрыт.')
         if tool=='calculator':
             try:
                 value=calculate(arithmetic_expression(req.text));return ToolResult('Получается '+value+'.',evidence={'method':'calculator','verified':True,'canonical_answer':value})
@@ -103,7 +110,8 @@ class LocalTools:
                 else:selected=[r for r in rows if r['id']==value]
             if not selected:return ToolResult('Сначала попроси показать таймеры, затем назови номер из списка; можно указать идентификатор или явно сказать «все таймеры».')
             for row in selected:c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=? AND status='running'",(row['id'],req.device_id))
-        return ToolResult('Все твои активные таймеры остановлены.' if value in {'все','все мои','мои все'} else 'Выбранный таймер остановлен.')
+        answer='Все твои активные таймеры остановлены.' if value in {'все','все мои','мои все'} else 'Выбранный таймер остановлен.'
+        return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'timer_cancelled_ids':[row['id'] for row in selected]})
 
 async def text_stream(text):
     yield text

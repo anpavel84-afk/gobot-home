@@ -132,3 +132,12 @@ Weather setup retains device-owner permission, explicit city confirmation and so
 verification before saving; timer duration continuations use the existing timer scope.
 Do not redirect supported tools to phone apps. Report actual results via Live commentary
 (null delegation_id for application-initiated work), never invent provider call IDs.
+OWNER DIRECT weather/timer expansion: preserve C/A/B; daily Open-Meteo forecast
+up to 16 local-calendar days, actual weather graphics and persistent countdown.
+Weather.com needs official account/API access; never scrape a consumer key or claim
+the source was switched. A 400-scenario inventory is not 400 working integrations:
+retain explicit readiness/ACL/budget/source dependencies and honest missing adapters.
+Owner separately approved this acceptance: at most 3 new Live sessions /180 seconds
+total, at most10 Luna calls, $2 additional estimate, no CLI/ImageGen/retries. Append
+finite grant to existing usage; do not reset old developer attempts or owner limits.
+Synthetic local voice is transport evidence, not quiet-human/iPhone acoustic proof.

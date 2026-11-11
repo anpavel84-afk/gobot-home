@@ -418,3 +418,15 @@ clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84
 Новый платный Live/iPhone-прогон не выполнялся; акустика и реальное срабатывание
 виджета на телефоне остаются отдельной приёмкой. Исторический runtime §35 выше
 сохранён как история, актуальный паспорт — CURRENT_STATUS.md §36.
+
+### Прогноз и таймеры — CURRENT_STATUS §37
+
+| Требование | Реализация/проверка | Оставшаяся граница |
+| --- | --- | --- |
+| Завтра/неделя/до16 дней | Validated Open-Meteo daily, IANA place timezone, реальный source check16 дней | Weather.com требует официальный API-доступ; hourly/month пока отсутствуют |
+| Солнце/облака/осадки графически | Production canvas vector primitives, DOM icon/table,16day scene paging | Живой Chrome просмотр заблокирован Computer Use; iPhone отдельно |
+| Естественная команда засечь таймер |250 формулировок + настоящие SQLite timer records; original duration guard preserved | ASR real canaries после отдельного допуска |
+| Счётчик между вопросами и после idle | SceneManager timer state + small overlay; cloud idle не продлевается ради timer | Suspended/closed Safari не системный будильник |
+| Отмена реально прекращает графику | Actual DB cancellation→timer_state IDs→DOM/Canvas | Phone network/acoustics отдельно |
+|400 сценариев | Inventory+free routing checks:100 local/240conditional/60blocked; зависимости явные | Не400 независимых integrations и не доказательство полного parity |
+| Расход новых trials конечный | Отдельное3Live/180s/10Luna/$2estimate; server grants preserve counters | Финальные фактические usage/результаты фиксируются после canaries |

@@ -1,0 +1,13 @@
+{
+  "source": "Open-Meteo",
+  "actual_http": true,
+  "forecast_days": 16,
+  "timezone": "America/Sao_Paulo",
+  "first_date": "2026-11-11",
+  "last_date": "2026-11-26",
+  "weather_graphic_codes_present": true,
+  "coordinates_or_principal_in_report": false,
+  "new_paid_calls": 0,
+  "auto_retries": 0,
+  "verified_at": 1794430866.6011894
+}

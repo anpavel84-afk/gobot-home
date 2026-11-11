@@ -178,6 +178,7 @@ class Service:
                         tool_req=req.model_copy(update={'device_id':'realtime-device:'+mode_flow.client}) if mode_flow and decision.tool in {'timer','timer_status'} else req
                         tool_result=await self.configuration.execute(settings_req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,tool_req,decision.slots)
                         widget=tool_result.widget
+                        if (tool_result.evidence or {}).get('timer_cancelled_ids'):yield event(req,'timer_state',cancelled_ids=tool_result.evidence['timer_cancelled_ids'])
                         if decision.tool=='settings':
                             if decision.quality.get('verification_required') and not tool_result.evidence:tool_result.evidence={'abstained':True}
                             if tool_result.profile:yield event(req,'tool_status',status='settings_applied',profile=tool_result.profile)

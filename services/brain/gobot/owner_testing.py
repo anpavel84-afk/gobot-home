@@ -31,11 +31,13 @@ class OwnerTestPolicy(BaseModel):
     live_enabled:bool=False
     live_minutes_per_day:int=Field(default=60,ge=1,le=1440)
     live_session_seconds:int=Field(default=600,ge=30,le=3600)
-    developer_live_limit:int=Field(default=0,ge=0,le=2)
-    developer_live_seconds:int=Field(default=0,ge=0,le=180)
+    developer_live_limit:int=Field(default=0,ge=0,le=5)
+    developer_live_seconds:int=Field(default=0,ge=0,le=360)
+    developer_live_session_seconds:int=Field(default=90,ge=15,le=90)
+    developer_estimate_usd_limit:float|None=Field(default=None,ge=0,le=10,allow_inf_nan=False)
     live_backend_enabled:bool=False
     live_backend_requests_per_day:int=Field(default=500,ge=1,le=10000)
-    developer_live_backend_limit:int=Field(default=0,ge=0,le=4)
+    developer_live_backend_limit:int=Field(default=0,ge=0,le=14)
 
 class OwnerTesting:
     def __init__(self,root):
@@ -74,6 +76,8 @@ class OwnerTesting:
                 if time.time()>p.developer_acceptance_expires_at:raise PermissionError('developer_acceptance_expired')
                 count=c.execute("SELECT count(*) FROM attempts WHERE kind=? AND origin='developer'",(kind,)).fetchone()[0]
                 if count>=getattr(p,'developer_'+kind+'_limit'):raise PermissionError('developer_acceptance_limit')
+                spent_dev=c.execute("SELECT coalesce(sum(cost),0) FROM attempts WHERE origin='developer'").fetchone()[0]
+                if p.developer_estimate_usd_limit is not None and spent_dev+estimate>p.developer_estimate_usd_limit:raise PermissionError('developer_estimate_limit')
             elif origin!='owner' or kind=='transcription':raise PermissionError('developer_acceptance_required')
             count=c.execute('SELECT count(*) FROM attempts WHERE day=? AND kind=?',(day,kind)).fetchone()[0]
             spent=c.execute('SELECT coalesce(sum(cost),0) FROM attempts WHERE day=?',(day,)).fetchone()[0]
@@ -92,7 +96,8 @@ class OwnerTesting:
             cost,pending=c.execute('SELECT coalesce(sum(cost),0),coalesce(sum(pending),0) FROM attempts WHERE day=?',(int(time.time()//86400),)).fetchone()
             origins={origin:count for origin,count in c.execute('SELECT origin,count(*) FROM attempts WHERE day=? GROUP BY origin',(int(time.time()//86400),))}
         safe=p.model_dump(exclude={'authorization','allowed_client_id'})
-        return {'authorized':True,'enabled':p.enabled,'policy':safe,'attempts_today':counts,
+        from .skill_catalogue import summary
+        return {'authorized':True,'enabled':p.enabled,'policy':safe,'attempts_today':counts,'skill_catalogue':summary(),
                 'estimated_usd_including_pending_reserves':round(cost,6),'pending_usage':pending,
                 'owner_vs_developer_attempts_today':origins,
                 'hard_dollar_cap_guaranteed':False,'provider_invoice':False,

@@ -42,7 +42,7 @@ class VoiceRequest(ChatRequest):
     tts_character_limit: int | None = Field(default=None,ge=0,le=32000,strict=True)
 
 class Event(BaseModel):
-    type: Literal["text_delta","sentence_ready","tool_status","widget_command","visual_response","screen_scene","final","error","cancelled"]
+    type: Literal["text_delta","sentence_ready","tool_status","widget_command","timer_state","visual_response","screen_scene","final","error","cancelled"]
     correlation_id: str
     device_id: str
     conversation_id: str

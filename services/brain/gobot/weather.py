@@ -1,6 +1,19 @@
 """Bounded on-demand Open-Meteo data; no keys, model calls or background polling."""
 import asyncio,time,math
 import httpx
+from datetime import datetime,date,timedelta
+from zoneinfo import ZoneInfo
+
+def condition(code):
+    if code==0:return 'sun','ясно'
+    if code in {1,2}:return 'partly_cloudy','переменная облачность'
+    if code==3:return 'cloud','пасмурно'
+    if code in {45,48}:return 'fog','туман'
+    if code in {51,53,55,56,57}:return 'rain','морось'
+    if code in {61,63,65,66,67,80,81,82}:return 'rain','дождь'
+    if code in {71,73,75,77,85,86}:return 'snow','снег'
+    if code in {95,96,99}:return 'storm','гроза'
+    return 'unknown','состояние не определено'
 
 class WeatherError(Exception):pass
 
@@ -50,3 +63,29 @@ class WeatherClient:
             if not -900<=self.clock()-stamp<=5400:raise WeatherError('weather_data_not_fresh')
             return {'temperature':temperature,'apparent':apparent,'wind_kmh':wind,'weather_code':int(row['weather_code']),'observed_at':stamp,'fetched_at':self.clock()}
         except (KeyError,TypeError,ValueError):raise WeatherError('weather_invalid_data')
+
+    async def forecast(self,place,*,offset=0,days=7,weekday=None):
+        if type(offset) is not int or type(days) is not int or not 0<=offset<=15 or not 1<=days<=16 or offset+days>16:raise WeatherError('weather_forecast_horizon')
+        data=await self.data('weather',{'latitude':place.latitude,'longitude':place.longitude,
+            'daily':'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max',
+            'temperature_unit':'celsius','wind_speed_unit':'kmh','forecast_days':16,'timezone':'auto'},900)
+        try:
+            zone=ZoneInfo(data['timezone']);today=datetime.fromtimestamp(self.clock(),zone).date()
+            if weekday is not None:
+                if type(weekday) is not int or not 0<=weekday<=6:raise ValueError()
+                offset=(weekday-today.weekday())%7
+            daily=data['daily'];names=['time','weather_code','temperature_2m_min','temperature_2m_max','precipitation_probability_max','wind_speed_10m_max']
+            size=len(daily['time'])
+            if not 1<=size<=16 or any(len(daily[k])!=size for k in names):raise ValueError()
+            rows=[]
+            for i in range(size):
+                stamp=date.fromisoformat(daily['time'][i]);code=int(daily['weather_code'][i])
+                low=float(daily['temperature_2m_min'][i]);high=float(daily['temperature_2m_max'][i]);wind=float(daily['wind_speed_10m_max'][i]);rain=float(daily['precipitation_probability_max'][i])
+                if stamp!=today+timedelta(days=i):raise WeatherError('weather_forecast_not_fresh')
+                if not all(math.isfinite(v) for v in [low,high,wind,rain]) or not -100<=low<=high<=70 or not 0<=wind<=500 or not 0<=rain<=100:raise ValueError()
+                icon,label=condition(code)
+                rows.append({'date':stamp.isoformat(),'low':low,'high':high,'rain_percent':rain,'wind_kmh':wind,'weather_code':code,'icon':icon,'condition':label})
+            selected=rows[offset:offset+days]
+            if len(selected)!=days:raise WeatherError('weather_forecast_incomplete')
+            return {'timezone':data['timezone'],'days':selected,'fetched_at':self.clock(),'horizon_days':16}
+        except (KeyError,TypeError,ValueError,IndexError):raise WeatherError('weather_invalid_data')

@@ -65,7 +65,10 @@ class SmartRouter:
         quick=local_intent or resolve_quick(req.text,context)
         if quick:
             if quick.executor in {'clock','timer_status'}:assessment=Assessment(tool_execution=True,verification_required=True,method='server_clock' if quick.executor=='clock' else 'timer_state',basis='read_actual_server_state')
-            if quick.executor=='settings':assessment=Assessment(tool_execution=True,verification_required=quick.slots.get('operation')=='weather_current',external_verification=quick.slots.get('operation')=='weather_current',method='weather_api' if quick.slots.get('operation')=='weather_current' else 'settings_store',basis='typed_server_settings_tool')
+            if quick.executor=='settings':
+                weather=quick.slots.get('operation') in {'weather_current','weather_forecast'}
+                assessment=Assessment(tool_execution=True,verification_required=weather,external_verification=weather,method='weather_forecast_api' if quick.slots.get('operation')=='weather_forecast' else 'weather_api' if weather else 'settings_store',basis='typed_server_settings_tool')
+            if quick.executor=='utility':assessment=Assessment(tool_execution=True,verification_required=True,method='local_utility',basis='deterministic_local_utility')
             decision=result('TOOL','local',None,'quick_intent_'+quick.intent,'local',quick.executor)
             decision.slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
             return decision

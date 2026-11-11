@@ -4,9 +4,12 @@
   const avatarFallback=frame=>!!frame&&(frame.metadata?.avatar_fallback===true||
     frame.metadata?.state==='unavailable'&&(/^(?:image_|generation_|optional_visual_|private_image_)/.test(frame.metadata?.reason||'')||frame.metadata?.facts?.visual_fulfillment==='fallback'));
   class SceneManager{
-    constructor(profile,clock=()=>Date.now()){this.profile=profile;this.clock=clock;this.turn=null;this.visual=null;this.scene=null;this.state='idle';this.completed=false;this.returnAt=null;}
+    constructor(profile,clock=()=>Date.now()){this.profile=profile;this.clock=clock;this.turn=null;this.visual=null;this.scene=null;this.state='idle';this.completed=false;this.returnAt=null;this.timers=new Map();}
+    activeTimer(){return [...this.timers.values()].filter(f=>f.metadata?.state!=='cancelled'&&f.metadata?.deadline>this.clock()/1000).sort((a,b)=>a.metadata.deadline-b.metadata.deadline)[0];}
     newTurn(turn){this.turn=turn;this.visual=null;this.scene=null;this.completed=false;this.returnAt=null;this.state='thinking';this.gallery=[];this.galleryAt=null;}
     frame(frame,turn){if(frame?.metadata?.backend==='answer_map')return false;if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;
+      if(frame.type==='timer_widget'&&frame.metadata?.timer_id){this.timers.set(frame.metadata.timer_id,frame);if(this.timers.size>16)this.timers.delete(this.timers.keys().next().value);}
+      if(this.visual?.type==='timer_widget'&&this.visual.metadata?.deadline>this.clock()/1000&&frame.metadata?.visual_stage)return false;
       if(avatarFallback(frame)){if(this.visual?.images?.length)return false;this.visual=null;this.scene=null;this.gallery=[];this.galleryAt=null;return false;}
       if(frame.metadata?.visual_stage&&this.visual?.metadata?.visual_stage&&(frame.metadata.visual_revision||0)<(this.visual.metadata.visual_revision||0))return false;
       this.visual=frame;this.returnAt=null;
@@ -18,13 +21,14 @@
     compose(scene,turn){if(turn!==this.turn||!scene||typeof scene!=='object')return false;if(!scene.preserve_visual||!this.visual)this.scene=scene;return true;}
     finish(turn){if(turn===this.turn)this.completed=true;}
     tick(playing){
+      for(const [id,frame] of this.timers){if(frame.metadata?.state!=='cancelled'&&frame.metadata?.state!=='expired'&&frame.metadata?.deadline<=this.clock()/1000){frame.metadata.state='expired';this.onTimerExpired?.(id);}}
       if(this.gallery?.length>1&&this.galleryAt!==null&&this.clock()>=this.galleryAt){
         const index=this.gallery.findIndex(item=>item.id===this.visual?.id);
         this.visual=this.gallery[(index+1)%this.gallery.length];this.galleryAt=this.clock()+5000;
         this.onVisualChanged?.(this.visual,this.turn);
       }
       if(this.visual?.type==='timer_widget'&&this.visual.metadata?.deadline>this.clock()/1000){this.returnAt=null;return;}
-      if(this.completed&&!playing&&this.returnAt===null){this.returnAt=this.clock()+this.profile.screen.hold_after_response_seconds*1000;}
+      if(this.completed&&!playing&&this.returnAt===null){this.returnAt=this.clock()+Math.max(this.profile.screen.hold_after_response_seconds*1000,Math.ceil((this.visual?.metadata?.weather?.days?.length||0)/4)*6000);}
       if(this.returnAt!==null&&this.clock()>=this.returnAt&&this.profile.screen.return_to_idle){this.visual=null;this.scene=null;this.returnAt=null;this.completed=false;this.gallery=[];this.galleryAt=null;}
     }
   }
@@ -116,10 +120,26 @@
       }else{for(let i=0;i<90;i++){const a=i/9,r=3+i*.63;this.circle(120+Math.cos(a)*r,123+Math.sin(a)*r*.6,2,'#99bbd5');}}
       this.text('Условная схема',120,213,10,130,'#9cafb7');
     }
+    weatherIcon(kind,x=120,y=80,scale=1){
+      const c=this.ctx;c.save();c.translate(x,y);c.scale(scale,scale);
+      if(['sun','partly_cloudy'].includes(kind)){
+        const sx=kind==='sun'?0:-13;this.circle(sx,-6,13,'#f6cf61');
+        for(let i=0;i<8;i++){const a=i*Math.PI/4;this.line([[sx+Math.cos(a)*18,-6+Math.sin(a)*18],[sx+Math.cos(a)*24,-6+Math.sin(a)*24]],'#f6cf61',2);}
+      }
+      if(kind!=='sun'){
+        for(const [cx,cy,r] of [[-14,0,12],[0,-7,16],[15,2,11]])this.circle(cx,cy,r,'#b4c9d8');
+        c.fillStyle='#b4c9d8';c.fillRect(-15,0,31,13);
+      }
+      if(['rain','storm'].includes(kind))for(const dx of [-13,0,13])this.line([[dx,18],[dx-4,26]],'#71bbee',3);
+      if(kind==='storm')this.line([[8,13],[1,24],[9,24],[3,33]],'#f6cf61',3);
+      if(kind==='snow')for(const dx of [-14,0,14]){this.line([[dx,18],[dx,28]],'#fff',2);this.line([[dx-4,21],[dx+4,25]],'#fff',2);this.line([[dx+4,21],[dx-4,25]],'#fff',2);}
+      if(kind==='fog')for(const yy of [18,25])this.line([[-24,yy],[24,yy]],'#9cafb7',2);
+      c.restore();
+    }
     draw(manager,level=0,t=0){
       const c=this.ctx,p=this.profile;c.setTransform(p.display.width/240,0,0,p.display.height/240,0,0);c.clearRect(0,0,240,240);c.save();c.beginPath();c.arc(120,120,120,0,Math.PI*2);c.clip();c.fillStyle=p.skin.background;c.fillRect(0,0,240,240);
       const inset=Math.max(35,p.display.safe_inset*240/p.display.width),contentScale=(240-2*inset)/170;
-      let frame=manager.visual;const state=manager.state;
+      let frame=manager.visual||manager.activeTimer?.();const state=manager.state;
       const faceOnly=avatarFallback(frame)||frame?.images?.length&&frame.id!==this.imageId&&!(this.imageFrame&&this.imageTurn===manager.turn)||
         !frame&&manager.scene?.source_metadata?.planned_strategy==='retrieve_photo';
       if(faceOnly)frame=null;
@@ -133,8 +153,17 @@
         const digits=hours?`${hours}:${String(Math.floor(seconds/60)%60).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${String(Math.floor(seconds/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`;
         this.text('Таймер',120,77,15);this.text(digits,120,135,hours?30:43,175,p.skin.face_color);this.text(seconds?'Идёт отсчёт':'Время вышло',120,174,12);
       }else if(frame?.type==='weather_card'&&frame.metadata?.state==='ready'&&Number.isFinite(Number(frame.metadata?.facts?.temperature))){
-        this.text('Погода',120,62,14,145);this.text(frame.metadata.facts.temperature+' °C',120,116,36,170,p.skin.face_color);
-        this.text(frame.subtitle,120,155,12,160);this.text('Open-Meteo',120,181,11,145);
+        const weather=frame.metadata.weather,rows=weather?.days||[];
+        this.text(rows.length?'Прогноз · Open-Meteo':'Погода',120,43,12,145);this.weatherIcon(weather?.icon||'cloud',120,78,.85);
+        this.text(frame.metadata.facts.temperature+' °C',120,127,29,170,p.skin.face_color);
+        if(rows.length){
+          const day=rows[0];this.text(day.date.slice(8,10)+'.'+day.date.slice(5,7)+' · '+day.low+'…'+day.high+'°',120,149,12,160);
+          this.text('Осадки '+day.rain_percent+'%',120,168,11,155);
+          if(rows.length>1){
+            const page=Math.floor(t/6000)%Math.ceil(rows.length/4),slice=rows.slice(page*4,page*4+4);
+            for(let i=0;i<slice.length;i++){const x=62+i*39,d=slice[i];this.weatherIcon(d.icon,x,184,.26);this.text(d.date.slice(8,10),x,208,9,30);}
+          }else this.text(weather.condition,120,194,11,160);
+        }else {this.text(weather?.condition||'',120,151,12,160);this.text(frame.subtitle,120,173,11,160);this.text('Open-Meteo',120,196,10,145);}
       }else if(frame?.metadata?.backend==='device_setup'){
         this.text('Настройка погоды',120,76,14,155);this.text(frame.subtitle,120,117,13,160,p.skin.face_color);
         this.text('Шаг '+frame.metadata.facts.step+' из '+frame.metadata.facts.steps,120,156,12,145);
@@ -151,6 +180,8 @@
       }else if(state==='idle'&&p.skin.idle_screen==='clock'){this.text(new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}),120,130,40,170,p.skin.face_color);}
       else if(state==='idle'&&p.skin.idle_screen==='image'&&this.wallpaper){c.drawImage(this.wallpaper,20,20,200,200);}
       else this.face(state,level,t);
+      const running=manager.activeTimer?.();
+      if(running&&frame?.type!=='timer_widget'){const seconds=Math.max(0,Math.ceil(running.metadata.deadline-manager.clock()/1000));this.text('◷ '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'),120,214,11,140,p.skin.face_color);}
       if(state==='speaking'&&frame)this.circle(120,225,Math.min(5,2+level*12),p.skin.face_color);
       c.restore();
     }

@@ -29,6 +29,7 @@ Backend tools:
 Generate <|SpawnThinking|> when:
 - Нужны содержательный ответ, расчёт, инструмент, источник актуальных данных, картинка, настройка, память, отмена задачи или завершение разговора.
 - Любая просьба поставить/проверить/отменить таймер, назвать время или проверить погоду: Generate <|SpawnThinking|>. Таймер исполняется сервером GoBot и имеет собственный виджет; не отправляй человека ставить его в приложении телефона. Open-Meteo подключён как серверный адаптер; если место ещё не настроено, backend предложит пошаговую настройку. Не советуй смотреть погоду на телефоне вместо вызова backend.
+- Доступен дневной прогноз Open-Meteo на завтра, неделю и до 16 дней с погодными значками. Weather.com и почасовой прогноз пока не подключены; не выдавай их за работающие. Команды «засечь таймер», «можешь засечь» поддерживаются; длительность при её отсутствии уточняет Brain. Перевод единиц, проценты, календарные расчёты и простые текстовые утилиты также обрабатывает Brain. Не обещай отсутствующие внешние сервисы из каталога сценариев.
 - Пользователь просит эксперта/глубокий разбор; поправка меняет выполняемое поручение.
 Do not generate <|SpawnThinking|> when:
 - Приветствие, короткое уточнение или повтор уже полученного актуального результата; обычный разговор не требует CLI.
@@ -126,6 +127,8 @@ class LiveSession(VoiceVisualSession):
         timer_context=await asyncio.to_thread(self.manager.brain.memory.context,timer_req)
         pending=[x for x in (context.get('pending_action'),timer_context.get('pending_action')) if x]
         if pending:context['pending_action']=max(pending,key=lambda x:x['expires'])
+        context['weather_followup']=getattr(self,'weather_topic',False)
+        context['native_live_guest']=not self.access.private_access
         return context
     def can_configure_device(self):return self.experts.owner_public_allowed() and self.manager.owner_testing.policy().device_settings_enabled
     def expert_audit(self,stage,reasons=()):self.emit('expert_progress',stage=stage,reasons=list(reasons))
@@ -228,7 +231,9 @@ class LiveSession(VoiceVisualSession):
                     self.schedule_input_action(turn)
             elif self.current and event.get('start_ms',0)>=self.current.timings.get('input_start_ms',0):
                 self.current.timings.setdefault('first_output_start_ms',event.get('start_ms',0))
+                self.current.timings['latest_output_start_ms']=event.get('start_ms',0)
                 self.current.answer+=event['delta'];self.emit('text_delta',text=event['delta'])
+                if not self.mode_control_task or self.mode_control_task.done():self.schedule_input_action(self.current)
                 if self.current.photo:self.current.photo.observe_partial(self.current.answer)
                 if len(self.current.answer)>40:self.spawn(self.check_alignment(self.current))
         elif kind=='session.delegation.created':
@@ -388,6 +393,7 @@ class LiveSession(VoiceVisualSession):
         quick=resolve_quick(query,context)
         if quick:
             await self.execute_quick(turn,operation,did,quick);return
+        self.weather_topic=False
         from .quality import RiskAssessment,arithmetic_expression
         assessment=RiskAssessment().assess(query,context)
         if re.search(r'расписани|(?:ближайш|следующ|предстоящ).*?(?:запуск|рейс|вылет|поезд)',query,re.I):
@@ -436,7 +442,7 @@ class LiveSession(VoiceVisualSession):
 
     @staticmethod
     def proactive_quick(quick):
-        return bool(quick and (quick.executor in {'clock','timer','timer_status','quick_clarify'} or
+        return bool(quick and (quick.executor in {'clock','timer','timer_status','quick_clarify','quick_help','utility','skill_readiness'} or
             quick.executor=='settings' and (quick.slots.get('operation','').startswith('weather_') or quick.slots.get('operation')=='help')))
 
     async def execute_quick(self,turn,operation,did,quick):
@@ -448,7 +454,7 @@ class LiveSession(VoiceVisualSession):
         slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
         try:
             if quick.executor=='settings':
-                if not self.can_configure_device() and slots.get('operation') not in {'weather_current','weather_status','help'}:
+                if not self.can_configure_device() and slots.get('operation') not in {'weather_current','weather_forecast','weather_unsupported','weather_status','help'}:
                     self.operations[operation]='blocked'
                     self.emit('local_tool_status',state='blocked',tool=quick.executor,reason='owner_device_permission_required')
                     await self.append('commentary','Для изменения настроек нужно разрешение владельца устройства.',did);return
@@ -467,7 +473,9 @@ class LiveSession(VoiceVisualSession):
                 await self.append('commentary','Серверный инструмент не подтвердил результат. Автоматического повтора нет.',did)
             return
         if not result or not current():return
+        self.weather_topic=quick.executor=='settings' and quick.slots.get('operation') in {'weather_current','weather_forecast'}
         if result.widget:self.emit('visual_response',presentation=self.manager.brain.visual.timer(turn.req,result.widget).model_dump())
+        if (result.evidence or {}).get('timer_cancelled_ids'):self.emit('timer_state',cancelled_ids=result.evidence['timer_cancelled_ids'])
         if getattr(result,'frame',None):self.emit('visual_response',presentation=result.frame.model_dump())
         if getattr(result,'setup',None):self.emit('tool_setup',setup=result.setup)
         self.operations[operation]='completed'
@@ -496,6 +504,7 @@ class LiveSession(VoiceVisualSession):
     def schedule_input_action(self,turn):
         # Reuse the typed Quick Intents and the same route executor. Never run an
         # expert/LLM here. A network fragment gap alone does not authorize action.
+        if getattr(turn,'native_action_checked_query',None)==turn.query:return
         if self.mode_control_task and not self.mode_control_task.done():self.mode_control_task.cancel()
         query=turn.query
         async def settled():
@@ -503,7 +512,9 @@ class LiveSession(VoiceVisualSession):
             for _ in range(12):
                 if self.closed or self.closing or turn is not self.current or turn.query!=query or turn.cancelled:return
                 fresh=time.monotonic()-self.activity_at<2
-                answer_started=bool(turn.answer.strip()) and not (fresh and self.input_active)
+                # Client RMS is activity, not an authoritative speech-end detector:
+                # background noise must not suppress a complete, validated command.
+                answer_started=bool(turn.answer.strip()) and turn.timings.get('latest_output_start_ms',0)>=turn.timings.get('input_end_ms',0)
                 audio_silence=fresh and self.activity_at>=self.input_seen_at and not self.input_active
                 if audio_silence or answer_started:
                     if mode_intent(query):await self.mode_control(query);return
@@ -511,6 +522,7 @@ class LiveSession(VoiceVisualSession):
                     context=await self.tool_context(turn)
                     if self.closed or self.closing or turn is not self.current or turn.query!=query or turn.cancelled:return
                     quick=resolve_quick(query,context)
+                    turn.native_action_checked_query=query
                     if self.proactive_quick(quick):await self.route(turn,'native-input',None,quick_only=True)
                     return
                 await asyncio.sleep(.25)

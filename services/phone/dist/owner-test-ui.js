@@ -29,6 +29,7 @@
   apply(state){
    this.state=state;this.info.textContent=(state.enabled?'Owner Full Test включён. ':'Owner Full Test выключен. ')+'Оценка за сегодня с резервами: $'+state.estimated_usd_including_pending_reserves+' · вызовы '+JSON.stringify(state.attempts_today);
    this.readiness.replaceChildren();for(const [name,value] of Object.entries(state.readiness||{}))this.readiness.append(el('li',(labels[name]||name)+': '+(value.configured?'настроено':value.implemented?'нужна настройка/приёмка':'пока не готово')+' · '+value.acceptance));
+   if(state.skill_catalogue){const s=state.skill_catalogue;this.readiness.append(el('li','Каталог сценариев: '+s.scenarios+' · локальные маршруты '+(s.readiness.local_path||0)+' · с условиями '+(s.readiness.conditional_path||0)+' · требуют интеграции/прав '+(s.readiness.not_connected_or_restricted||0)+'. Это не заявление о 400 готовых сервисах.'));}
    const consent=document.getElementById('realtime-expert-consent');if(consent&&state.enabled){consent.checked=state.policy.experts_enabled;consent.disabled=true;}
    if(state.enabled){const c=document.getElementById('realtime-consent');if(c)c.checked=true;}
   }

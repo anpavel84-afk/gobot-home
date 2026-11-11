@@ -40,6 +40,9 @@ assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer
   persistent.render({...persistentFrame,metadata:{...persistentFrame.metadata,state:'cancelled',deadline:null}});assert.equal(all(tray,'output')[0].textContent,'Таймер остановлен');assert.equal(ticks.size,0);
   for(const type of ['weather_card','music_card','status_card','info_card','rich_answer']){renderer.begin();assert(renderer.render({...frame,id:type,type,images:[],metadata:{state:'unavailable',facts:{'Источник':'не настроен'}}}));assert.match(root.textContent,/Данные недоступны/);}
   renderer.begin();
+  renderer.render({...frame,id:'weather-forecast',type:'weather_card',images:[],metadata:{state:'ready',weather:{icon:'rain',condition:'дождь',days:[{date:'2026-11-12',icon:'rain',condition:'дождь',low:18,high:25,rain_percent:70,wind_kmh:12}]}}});
+  assert.equal(all(root,'table').length,1);assert(root.textContent.includes('70%'));assert(root.textContent.includes('18…25'));
+  renderer.begin();
   renderer.render({...frame,id:'pending-scene',type:'info_card',images:[],metadata:{transient_scene:true}});
   assert.equal(all(root,'article').length,1);
   renderer.render({...frame,id:'resolved-photo'});

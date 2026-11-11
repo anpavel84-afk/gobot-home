@@ -16,6 +16,7 @@
     async init(){
       const response=await fetch('/api/device/profile');if(!response.ok)throw Error('Не удалось загрузить профиль устройства');const data=await response.json();this.profile=data.profile;
       const {DeviceRenderer,SceneManager}=window.GoBotDeviceRenderer;this.manager=new SceneManager(this.profile);this.renderer=new DeviceRenderer(document.getElementById('device-screen'),this.profile);
+      this.manager.onTimerExpired=()=>{this.status('Время таймера вышло.');window.GoBotClient.timerAlert?.();};
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
       this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
       this.renderer.onImageError=(id,turn)=>{if(turn!==this.turn)return;this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();activeVoice()?.visualFailed?.(id,turn);};
@@ -23,6 +24,7 @@
       this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();activeVoice()?.visualPresented?.(id,turn);}};
       const hooks=window.GoBotHooks;
       hooks.onNativeClosed=({reason,message,error})=>{
+        if(['profile_changed','speaker_changed_or_uncertain'].includes(reason))this.manager.timers.clear();
         this.cancelTapGuard();
         this.generation++;this.enabled=false;this.held=false;this.endConversation();this.streamDone=true;
         clearInterval(this.timerPoll);this.releaseLock?.();this.releaseLock=null;
@@ -32,7 +34,7 @@
         this.state(error?'error':'muted',message);document.getElementById('device-enable').textContent='Возобновить GoBot';
       };
       hooks.onSettingsApplied=profile=>{this.profile=profile;this.manager.profile=profile;this.renderer.setProfile(profile);if(!profile.conversation.followup_enabled)this.endConversation();};
-      hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
+      hooks.onScopeChanged=()=>{this.manager.visual=null;this.manager.scene=null;this.manager.timers.clear();this.renderer.clearImage();this.renderer.wallpaper=null;this.pause('Разговор или профиль изменён. Возобнови GoBot.');};
       hooks.onStopped=()=>{this.endConversation();if(this.enabled)this.state('idle');};
       hooks.onTurn=({turn_id,continuation})=>{const previous=continuation?this.manager.visual:null;this.conversationEnded=false;this.turn=turn_id;this.manager.newTurn(turn_id);this.renderer.clearImage();this.preservedVisual=!!previous;if(previous){this.manager.visual=previous;this.renderer.load(previous,turn_id,id=>id===this.turn);}this.streamDone=false;this.sessionActive=true;this.serverAudioEnded=false;this.answerPlaybackStarted=false;this.audioStreamId=null;this.state('thinking','Готовлю ответ…');};
       hooks.onAnswerPlayback=turn=>{if(turn===this.turn)this.answerPlaybackStarted=true;};
@@ -83,6 +85,7 @@
     event(item){
       if(activeVoice()?.selected()&&['closed','error','warning'].includes(item.type))return;
       if(item.turn_id!==this.turn)return;const data=item.data||{};
+      if(item.type==='timer_state')for(const id of data.cancelled_ids||[]){const frame=this.manager.timers.get(id);if(frame){frame.metadata.state='cancelled';frame.metadata.deadline=null;}}
       if(item.type==='meaning_mismatch'){
         this.manager.visual=null;this.manager.scene=null;this.manager.gallery=[];this.manager.galleryAt=null;this.renderer.clearImage();
         this.diagnostics.subject_alignment='needs_user_confirmation';
@@ -143,6 +146,7 @@
       try{
         if(this.profile.interaction_mode==='wake')throw Error('Русская активация «ГоБот» ещё не настроена. Выбери удержание или нажатие в панели.');
         if(activeVoice()?.selected()){
+          window.GoBotClient.unlockAudio().catch(()=>{});
           await activeVoice().start();this.enabled=true;this.state('idle',activeVoice().engine==='live'?'C · GPT-Live 1 готов. Можно говорить.':'Realtime готов. Удерживай круг и говори.');document.getElementById('device-enable').textContent='GoBot включён';return;
         }
         const settings=window.GoBotClient.getSettings();

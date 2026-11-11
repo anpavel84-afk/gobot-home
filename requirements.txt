@@ -12,3 +12,4 @@ pywinpty==3.1.2; sys_platform == "win32"
 num2words==0.5.14
 pymorphy3==2.0.6
 tiktoken==0.14.0
+tzdata==2026.6

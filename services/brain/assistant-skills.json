@@ -1,0 +1,5711 @@
+{
+  "version": 1,
+  "sources": {
+    "alice": "https://alice.yandex.ru/support/ru/station/skills/",
+    "alexa": "https://digprjsurvey.amazon.com/csad/help/node/GGYT25QXMYBECH2E",
+    "alexa_widgets": "https://digprjsurvey.amazon.com/csad/help/node/GGVNRBH8CKP9PRC2"
+  },
+  "note": "400 authored scenarios, not 400 unique executable tools or a claim of Alice/Alexa parity. Runtime ACL, budgets and actual integrations remain authoritative. Conditional language tasks are not 200 real model tests.",
+  "scenarios": [
+    {
+      "id": "timers-01",
+      "category": "timers",
+      "request": "Поставь таймер на пять минут",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-02",
+      "category": "timers",
+      "request": "Можешь засечь таймер на десять секунд?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-03",
+      "category": "timers",
+      "request": "Засечь таймер",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-04",
+      "category": "timers",
+      "request": "Засеки полторы минуты",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-05",
+      "category": "timers",
+      "request": "Засеки две минуты и тридцать секунд",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-06",
+      "category": "timers",
+      "request": "Таймер на полчаса",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-07",
+      "category": "timers",
+      "request": "Поставь таймер на четверть часа",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-08",
+      "category": "timers",
+      "request": "Запусти таймер на одну секунду",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-09",
+      "category": "timers",
+      "request": "Поставь таймер на двадцать пять минут",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-10",
+      "category": "timers",
+      "request": "Сколько осталось на таймере?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer_status",
+      "intent": "timer_remaining",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-11",
+      "category": "timers",
+      "request": "Покажи мои таймеры",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer_status",
+      "intent": "timer_remaining",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-12",
+      "category": "timers",
+      "request": "Когда сработает таймер?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer_status",
+      "intent": "timer_remaining",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-13",
+      "category": "timers",
+      "request": "Есть активный таймер?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer_status",
+      "intent": "timer_remaining",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-14",
+      "category": "timers",
+      "request": "Отмени таймер",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_cancel",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-15",
+      "category": "timers",
+      "request": "Отмени все таймеры",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_cancel",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-16",
+      "category": "timers",
+      "request": "Останови первый таймер",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_cancel",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-17",
+      "category": "timers",
+      "request": "Останови второй таймер",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_cancel",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-18",
+      "category": "timers",
+      "request": "Выключи таймер",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_cancel",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-19",
+      "category": "timers",
+      "request": "Отсчитай минуту",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "timers-20",
+      "category": "timers",
+      "request": "Поставить таймер на 1,5 минуты",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "timer",
+      "intent": "timer_start",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-01",
+      "category": "weather",
+      "request": "Какая погода?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-02",
+      "category": "weather",
+      "request": "Посмотри погоду",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-03",
+      "category": "weather",
+      "request": "Какая погода завтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-04",
+      "category": "weather",
+      "request": "Какая погода послезавтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-05",
+      "category": "weather",
+      "request": "Покажи прогноз на неделю",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-06",
+      "category": "weather",
+      "request": "Покажи погоду на две недели",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-07",
+      "category": "weather",
+      "request": "Погода на 16 дней",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-08",
+      "category": "weather",
+      "request": "Будет ли дождь завтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-09",
+      "category": "weather",
+      "request": "Нужен ли зонт завтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-10",
+      "category": "weather",
+      "request": "Какая температура завтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-11",
+      "category": "weather",
+      "request": "Какой ветер завтра?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-12",
+      "category": "weather",
+      "request": "Покажи прогноз на выходных",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-13",
+      "category": "weather",
+      "request": "Погода в субботу",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-14",
+      "category": "weather",
+      "request": "Какая погода сегодня?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-15",
+      "category": "weather",
+      "request": "Какая погода сейчас?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-16",
+      "category": "weather",
+      "request": "Настрой погоду",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-17",
+      "category": "weather",
+      "request": "Какой город выбран для погоды?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-18",
+      "category": "weather",
+      "request": "Выключи погоду",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-19",
+      "category": "weather",
+      "request": "Покажи погоду на месяц",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "weather-20",
+      "category": "weather",
+      "request": "Покажи погоду с weather.com",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-01",
+      "category": "local_utilities",
+      "request": "Переведи 5 км в м",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-02",
+      "category": "local_utilities",
+      "request": "Переведи 30 см в мм",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-03",
+      "category": "local_utilities",
+      "request": "Переведи 1000 г в кг",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-04",
+      "category": "local_utilities",
+      "request": "Переведи 2 фунтов в кг",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-05",
+      "category": "local_utilities",
+      "request": "Переведи 3 л в мл",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-06",
+      "category": "local_utilities",
+      "request": "Переведи 2 м3 в литров",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-07",
+      "category": "local_utilities",
+      "request": "Переведи 2 гектаров в м2",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-08",
+      "category": "local_utilities",
+      "request": "Переведи 3 часов в минут",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-09",
+      "category": "local_utilities",
+      "request": "Переведи 2 дней в секунд",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-10",
+      "category": "local_utilities",
+      "request": "Переведи 2 гигабайт в мегабайт",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_convert",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-11",
+      "category": "local_utilities",
+      "request": "Сколько будет 15 процентов от 240",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_percent",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-12",
+      "category": "local_utilities",
+      "request": "Переведи 32 градусов фаренгейта в цельсий",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_temperature",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-13",
+      "category": "local_utilities",
+      "request": "Сколько дней между 2026-01-01 и 2026-12-31",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_date_diff",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-14",
+      "category": "local_utilities",
+      "request": "Какой день недели 2026-11-11",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_weekday",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-15",
+      "category": "local_utilities",
+      "request": "2028 год високосный?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_leap",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-16",
+      "category": "local_utilities",
+      "request": "Сколько дней в 2 месяце 2028 года",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_month_days",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-17",
+      "category": "local_utilities",
+      "request": "Подбрось монетку",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_coin",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-18",
+      "category": "local_utilities",
+      "request": "Брось кубик",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_dice",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-19",
+      "category": "local_utilities",
+      "request": "Выбери случайное число от 1 до 100",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_random",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "local_utilities-20",
+      "category": "local_utilities",
+      "request": "Посчитай слова: один два три",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_text",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-01",
+      "category": "device_settings",
+      "request": "Громкость 40 процентов",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-02",
+      "category": "device_settings",
+      "request": "Громкость 0 процентов",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-03",
+      "category": "device_settings",
+      "request": "Громкость 100 процентов",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-04",
+      "category": "device_settings",
+      "request": "Выбери голос marin",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-05",
+      "category": "device_settings",
+      "request": "Выбери голос cedar",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-06",
+      "category": "device_settings",
+      "request": "Выключи вступления",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-07",
+      "category": "device_settings",
+      "request": "Включи вступления",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-08",
+      "category": "device_settings",
+      "request": "Включи продолжение разговора",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-09",
+      "category": "device_settings",
+      "request": "Выключи продолжение разговора",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-10",
+      "category": "device_settings",
+      "request": "Включи иллюстрации",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-11",
+      "category": "device_settings",
+      "request": "Выключи иллюстрации",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-12",
+      "category": "device_settings",
+      "request": "Выбери минимальный визуальный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-13",
+      "category": "device_settings",
+      "request": "Выбери сбалансированный визуальный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-14",
+      "category": "device_settings",
+      "request": "Выбери насыщенный визуальный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-15",
+      "category": "device_settings",
+      "request": "Включи быстрый режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-16",
+      "category": "device_settings",
+      "request": "Включи автоматический режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-17",
+      "category": "device_settings",
+      "request": "Включи подробный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-18",
+      "category": "device_settings",
+      "request": "Настрой лицо",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-19",
+      "category": "device_settings",
+      "request": "Какие настройки ты можешь менять?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "device_settings-20",
+      "category": "device_settings",
+      "request": "Подключи погоду",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "settings",
+      "intent": "settings",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-01",
+      "category": "time_and_control",
+      "request": "Сколько времени?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_time",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-02",
+      "category": "time_and_control",
+      "request": "Который час?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_time",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-03",
+      "category": "time_and_control",
+      "request": "Какое сейчас время?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_time",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-04",
+      "category": "time_and_control",
+      "request": "Назови текущее время",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_time",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-05",
+      "category": "time_and_control",
+      "request": "Какое сегодня число?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_date",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-06",
+      "category": "time_and_control",
+      "request": "Какая сегодня дата?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_date",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-07",
+      "category": "time_and_control",
+      "request": "Какой сегодня день недели?",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_weekday",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-08",
+      "category": "time_and_control",
+      "request": "Назови сегодняшнюю дату",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "clock",
+      "intent": "clock_date",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-09",
+      "category": "time_and_control",
+      "request": "Стоп",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-10",
+      "category": "time_and_control",
+      "request": "Заверши разговор",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-11",
+      "category": "time_and_control",
+      "request": "Нет, спасибо",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-12",
+      "category": "time_and_control",
+      "request": "Экспертный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-13",
+      "category": "time_and_control",
+      "request": "Давай разберём подробно",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-14",
+      "category": "time_and_control",
+      "request": "Давай перейдём в экспертный режим A",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-15",
+      "category": "time_and_control",
+      "request": "Живой разговор",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-16",
+      "category": "time_and_control",
+      "request": "Вернись в обычный режим",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "conversation_modes",
+      "intent": null,
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-17",
+      "category": "time_and_control",
+      "request": "Сделай заглавными: привет",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_text",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-18",
+      "category": "time_and_control",
+      "request": "Сделай строчными: ПРИВЕТ",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_text",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-19",
+      "category": "time_and_control",
+      "request": "Переверни текст: кот",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_text",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "time_and_control-20",
+      "category": "time_and_control",
+      "request": "Посчитай символы: привет",
+      "path": "native",
+      "readiness": "local_path",
+      "executor": "utility",
+      "intent": "utility_text",
+      "requirements": [],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-01",
+      "category": "language",
+      "request": "Переведи привет на английский",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-02",
+      "category": "language",
+      "request": "Объясни разницу между say и tell",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-03",
+      "category": "language",
+      "request": "Как вежливо попросить кофе по-португальски?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-04",
+      "category": "language",
+      "request": "Исправь фразу: я хотеть чай",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-05",
+      "category": "language",
+      "request": "Дай синоним слова красивый",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-06",
+      "category": "language",
+      "request": "Дай антоним слова горячий",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-07",
+      "category": "language",
+      "request": "Объясни слово эмпатия",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-08",
+      "category": "language",
+      "request": "Разбери слово подснежник по составу",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-09",
+      "category": "language",
+      "request": "Где ставить запятую в если то?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-10",
+      "category": "language",
+      "request": "Объясни разницу между ты и вы иностранцу",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-11",
+      "category": "language",
+      "request": "Как произнести thanks?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-12",
+      "category": "language",
+      "request": "Придумай мнемонику для английских времён",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-13",
+      "category": "language",
+      "request": "Потренируй со мной испанское знакомство",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-14",
+      "category": "language",
+      "request": "Объясни португальское obrigado",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-15",
+      "category": "language",
+      "request": "Сравни английские house и home",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-16",
+      "category": "language",
+      "request": "Напиши три варианта извинения",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-17",
+      "category": "language",
+      "request": "Перефразируй в деловом стиле: я не успею",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-18",
+      "category": "language",
+      "request": "Объясни пословицу тише едешь дальше будешь",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-19",
+      "category": "language",
+      "request": "Придумай пять рифм к слову дом",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "language-20",
+      "category": "language",
+      "request": "Проверь фразу: their going home",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-01",
+      "category": "learning",
+      "request": "Объясни дроби ребёнку",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-02",
+      "category": "learning",
+      "request": "Помоги выучить таблицу умножения на семь",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-03",
+      "category": "learning",
+      "request": "Придумай упражнение на проценты",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-04",
+      "category": "learning",
+      "request": "Объясни теорему Пифагора без доказательства",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-05",
+      "category": "learning",
+      "request": "Как запоминать иностранные слова?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-06",
+      "category": "learning",
+      "request": "Составь план изучения геометрии",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-07",
+      "category": "learning",
+      "request": "Дай упражнение на логику",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-08",
+      "category": "learning",
+      "request": "Задай мне вопрос по истории",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-09",
+      "category": "learning",
+      "request": "Объясни разницу между массой и весом",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-10",
+      "category": "learning",
+      "request": "Как вести конспект?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-11",
+      "category": "learning",
+      "request": "Научи читать нотный стан",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-12",
+      "category": "learning",
+      "request": "Объясни десятичные дроби",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-13",
+      "category": "learning",
+      "request": "Дай задачу на вероятность для новичка",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-14",
+      "category": "learning",
+      "request": "Как устроить домашний опыт с магнитом?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-15",
+      "category": "learning",
+      "request": "Составь короткий учебный квиз о воде",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-16",
+      "category": "learning",
+      "request": "Объясни отрицательные числа",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-17",
+      "category": "learning",
+      "request": "Помоги разобраться с делением в столбик",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-18",
+      "category": "learning",
+      "request": "Как научиться печатать вслепую?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-19",
+      "category": "learning",
+      "request": "Придумай тренировку памяти без медсоветов",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "learning-20",
+      "category": "learning",
+      "request": "Объясни правило буравчика",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-01",
+      "category": "science",
+      "request": "Что такое атом?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-02",
+      "category": "science",
+      "request": "Почему небо голубое?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-03",
+      "category": "science",
+      "request": "Чем пауки отличаются от насекомых?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-04",
+      "category": "science",
+      "request": "Что такое лунный кратер?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-05",
+      "category": "science",
+      "request": "Как устроено человеческое сердце?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-06",
+      "category": "science",
+      "request": "Что такое чёрная дыра?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-07",
+      "category": "science",
+      "request": "Почему Луна меняет форму?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-08",
+      "category": "science",
+      "request": "Как работает фотосинтез?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-09",
+      "category": "science",
+      "request": "Почему лёд плавает?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-10",
+      "category": "science",
+      "request": "Что такое электрическое сопротивление?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-11",
+      "category": "science",
+      "request": "Объясни закон сохранения энергии",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-12",
+      "category": "science",
+      "request": "Чем бактерии отличаются от вирусов?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-13",
+      "category": "science",
+      "request": "Как появляется радуга?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-14",
+      "category": "science",
+      "request": "Что такое экосистема?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-15",
+      "category": "science",
+      "request": "Как работает компас?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-16",
+      "category": "science",
+      "request": "Почему возникают приливы?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-17",
+      "category": "science",
+      "request": "Что такое геологическая плита?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-18",
+      "category": "science",
+      "request": "Почему металл расширяется при нагревании?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-19",
+      "category": "science",
+      "request": "Как работает линза?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "science-20",
+      "category": "science",
+      "request": "Чем скорость отличается от ускорения?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-01",
+      "category": "cooking",
+      "request": "Как сварить рис?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-02",
+      "category": "cooking",
+      "request": "Чем заменить разрыхлитель?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-03",
+      "category": "cooking",
+      "request": "Как приготовить омлет?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-04",
+      "category": "cooking",
+      "request": "Как уменьшить остроту супа?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-05",
+      "category": "cooking",
+      "request": "Предложи ужин из риса и фасоли",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-06",
+      "category": "cooking",
+      "request": "Как сделать тесто для блинов?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-07",
+      "category": "cooking",
+      "request": "Чем отличается тушение от варки?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-08",
+      "category": "cooking",
+      "request": "Как нарезать лук безопаснее?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-09",
+      "category": "cooking",
+      "request": "Как приготовить овощи на пару?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-10",
+      "category": "cooking",
+      "request": "Предложи вегетарианский завтрак",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-11",
+      "category": "cooking",
+      "request": "Объясни зачем замачивать бобовые",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-12",
+      "category": "cooking",
+      "request": "Как обжарить грибы?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-13",
+      "category": "cooking",
+      "request": "Придумай салат без майонеза",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-14",
+      "category": "cooking",
+      "request": "Как исправить пересоленное блюдо?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-15",
+      "category": "cooking",
+      "request": "Как сделать домашний лимонад?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-16",
+      "category": "cooking",
+      "request": "Предложи рецепт без молочных продуктов",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-17",
+      "category": "cooking",
+      "request": "Как хранить сухие специи?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-18",
+      "category": "cooking",
+      "request": "Что такое пассеровка?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-19",
+      "category": "cooking",
+      "request": "Предложи начинку для печёного картофеля",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "cooking-20",
+      "category": "cooking",
+      "request": "Как подобрать специи к тыкве?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-01",
+      "category": "gardening",
+      "request": "Что такое мульчирование?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-02",
+      "category": "gardening",
+      "request": "Как выбрать горшок для рассады?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-03",
+      "category": "gardening",
+      "request": "Объясни разницу между компостом и перегноем",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-04",
+      "category": "gardening",
+      "request": "Зачем нужен дренаж?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-05",
+      "category": "gardening",
+      "request": "Как понять что грунт слишком плотный?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-06",
+      "category": "gardening",
+      "request": "Как укоренить черенок базилика?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-07",
+      "category": "gardening",
+      "request": "Что такое севооборот?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-08",
+      "category": "gardening",
+      "request": "Предложи план маленького огорода",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-09",
+      "category": "gardening",
+      "request": "Чем отличаются детерминантные томаты?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-10",
+      "category": "gardening",
+      "request": "Как подготовить почвенную смесь для рассады?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-11",
+      "category": "gardening",
+      "request": "Для чего прищипывают растение?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-12",
+      "category": "gardening",
+      "request": "Как устроить капельный полив?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-13",
+      "category": "gardening",
+      "request": "Как ухаживать за домашней мятой?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-14",
+      "category": "gardening",
+      "request": "Объясни признаки перелива растения",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-15",
+      "category": "gardening",
+      "request": "Что такое пикировка?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-16",
+      "category": "gardening",
+      "request": "Как выращивать микрозелень?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-17",
+      "category": "gardening",
+      "request": "Как подвязать томат?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-18",
+      "category": "gardening",
+      "request": "Чем отличается тень от полутени?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-19",
+      "category": "gardening",
+      "request": "Как собирать семена фасоли?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "gardening-20",
+      "category": "gardening",
+      "request": "Как уменьшить испарение воды из почвы?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-01",
+      "category": "home_advice",
+      "request": "Как убрать запах из холодильника без смешивания химии?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-02",
+      "category": "home_advice",
+      "request": "Как организовать хранение инструментов?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-03",
+      "category": "home_advice",
+      "request": "Составь план уборки одной комнаты",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-04",
+      "category": "home_advice",
+      "request": "Как экономить воду дома?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-05",
+      "category": "home_advice",
+      "request": "Как сортировать домашний мусор по общим принципам?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-06",
+      "category": "home_advice",
+      "request": "Как выбрать место для рабочего стола?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-07",
+      "category": "home_advice",
+      "request": "Как аккуратно упаковать посуду для переезда?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-08",
+      "category": "home_advice",
+      "request": "Предложи систему маркировки коробок",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-09",
+      "category": "home_advice",
+      "request": "Как ухаживать за деревянной разделочной доской?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-10",
+      "category": "home_advice",
+      "request": "Как проветривать комнату без сквозняка?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-11",
+      "category": "home_advice",
+      "request": "Как уменьшить бытовой шум без ремонта?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-12",
+      "category": "home_advice",
+      "request": "Как разложить аптечку без советов о лечении?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-13",
+      "category": "home_advice",
+      "request": "Как организовать кабели на столе?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-14",
+      "category": "home_advice",
+      "request": "Как бережно разморозить холодильник по инструкции производителя?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-15",
+      "category": "home_advice",
+      "request": "Составь список вещей для уборки",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-16",
+      "category": "home_advice",
+      "request": "Как очистить ситечко от сухих остатков?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-17",
+      "category": "home_advice",
+      "request": "Как организовать полку для обуви?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-18",
+      "category": "home_advice",
+      "request": "Как подготовить гостевую комнату?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-19",
+      "category": "home_advice",
+      "request": "Как создать спокойное освещение для чтения?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "home_advice-20",
+      "category": "home_advice",
+      "request": "Как не забывать о бытовых расходниках?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-01",
+      "category": "technical_explanations",
+      "request": "Объясни что такое DNS",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-02",
+      "category": "technical_explanations",
+      "request": "Чем Wi-Fi отличается от Bluetooth?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-03",
+      "category": "technical_explanations",
+      "request": "Что такое HTTP?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-04",
+      "category": "technical_explanations",
+      "request": "Как работает очередь задач?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-05",
+      "category": "technical_explanations",
+      "request": "Зачем нужны резервные копии?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-06",
+      "category": "technical_explanations",
+      "request": "Объясни что такое SQLite",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-07",
+      "category": "technical_explanations",
+      "request": "Что такое транзакция базы данных?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-08",
+      "category": "technical_explanations",
+      "request": "Чем поток отличается от процесса?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-09",
+      "category": "technical_explanations",
+      "request": "Что такое кэш?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-10",
+      "category": "technical_explanations",
+      "request": "Объясни принцип WebRTC",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-11",
+      "category": "technical_explanations",
+      "request": "Что такое TLS?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-12",
+      "category": "technical_explanations",
+      "request": "Зачем нужна идемпотентность?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-13",
+      "category": "technical_explanations",
+      "request": "Что означает ошибка тайм-аута?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-14",
+      "category": "technical_explanations",
+      "request": "Чем JSON отличается от CSV?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-15",
+      "category": "technical_explanations",
+      "request": "Как устроен простой датчик температуры?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-16",
+      "category": "technical_explanations",
+      "request": "Что такое PWM?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-17",
+      "category": "technical_explanations",
+      "request": "Объясни разницу между постоянным и переменным током",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-18",
+      "category": "technical_explanations",
+      "request": "Что такое контрольная сумма?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-19",
+      "category": "technical_explanations",
+      "request": "Зачем нужны автоматические тесты?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "technical_explanations-20",
+      "category": "technical_explanations",
+      "request": "Что такое ограничение параллельности?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-01",
+      "category": "writing",
+      "request": "Придумай заголовок для заметки о саде",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-02",
+      "category": "writing",
+      "request": "Напиши короткое приглашение на ужин",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-03",
+      "category": "writing",
+      "request": "Сократи текст: встреча состоится завтра утром",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-04",
+      "category": "writing",
+      "request": "Сделай письмо дружелюбнее: пришлите документ",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-05",
+      "category": "writing",
+      "request": "Придумай три названия для домашнего проекта",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-06",
+      "category": "writing",
+      "request": "Напиши поздравление с днём рождения",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-07",
+      "category": "writing",
+      "request": "Предложи структуру небольшого отчёта",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-08",
+      "category": "writing",
+      "request": "Составь черновик благодарности соседу",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-09",
+      "category": "writing",
+      "request": "Сделай короткое описание домашней библиотеки",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-10",
+      "category": "writing",
+      "request": "Придумай начало рассказа о роботе",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-11",
+      "category": "writing",
+      "request": "Перепиши фразу без канцелярита: осуществить выполнение",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-12",
+      "category": "writing",
+      "request": "Напиши шуточную подпись к фото кота",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-13",
+      "category": "writing",
+      "request": "Предложи слоган домашней мастерской",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-14",
+      "category": "writing",
+      "request": "Составь план выступления о космосе",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-15",
+      "category": "writing",
+      "request": "Напиши короткую загадку о Луне",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-16",
+      "category": "writing",
+      "request": "Придумай диалог двух садовников",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-17",
+      "category": "writing",
+      "request": "Объясни как сделать текст яснее",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-18",
+      "category": "writing",
+      "request": "Предложи вежливый отказ от приглашения",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-19",
+      "category": "writing",
+      "request": "Напиши короткую открытку другу",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "writing-20",
+      "category": "writing",
+      "request": "Придумай название для овощной грядки",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-01",
+      "category": "games",
+      "request": "Загадай загадку",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-02",
+      "category": "games",
+      "request": "Давай играть в города",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-03",
+      "category": "games",
+      "request": "Проведи словесный квиз о космосе",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-04",
+      "category": "games",
+      "request": "Придумай игру без экрана для двоих",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-05",
+      "category": "games",
+      "request": "Задай вопрос с тремя вариантами ответа",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-06",
+      "category": "games",
+      "request": "Давай играть в двадцать вопросов",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-07",
+      "category": "games",
+      "request": "Придумай логическую загадку для взрослого",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-08",
+      "category": "games",
+      "request": "Загадай животное и дай подсказку",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-09",
+      "category": "games",
+      "request": "Предложи игру для поездки",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-10",
+      "category": "games",
+      "request": "Составь короткую викторину о растениях",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-11",
+      "category": "games",
+      "request": "Давай придумывать историю по очереди",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-12",
+      "category": "games",
+      "request": "Назови слово на последнюю букву слова робот",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-13",
+      "category": "games",
+      "request": "Придумай шараду",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-14",
+      "category": "games",
+      "request": "Предложи игру на внимание",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-15",
+      "category": "games",
+      "request": "Составь загадку со словами море и ветер",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-16",
+      "category": "games",
+      "request": "Давай играть в ассоциации",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-17",
+      "category": "games",
+      "request": "Придумай домашний квест из трёх подсказок",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-18",
+      "category": "games",
+      "request": "Задай шуточный вопрос",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-19",
+      "category": "games",
+      "request": "Предложи игру на запоминание слов",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "games-20",
+      "category": "games",
+      "request": "Объясни правила шахматной рокировки",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-01",
+      "category": "planning",
+      "request": "Составь черновой план выходного дня",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-02",
+      "category": "planning",
+      "request": "Помоги разбить уборку на короткие этапы",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-03",
+      "category": "planning",
+      "request": "Предложи список вещей для пикника",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-04",
+      "category": "planning",
+      "request": "Составь план подготовки к гостям",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-05",
+      "category": "planning",
+      "request": "Помоги расставить приоритеты: почта уборка прогулка",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-06",
+      "category": "planning",
+      "request": "Сделай чеклист сборов в поездку",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-07",
+      "category": "planning",
+      "request": "Предложи план изучения новой темы",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-08",
+      "category": "planning",
+      "request": "Как разбить большой проект на задачи?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-09",
+      "category": "planning",
+      "request": "Составь черновой список покупок для супа",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-10",
+      "category": "planning",
+      "request": "Предложи план семейной настольной игры",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-11",
+      "category": "planning",
+      "request": "Составь план ухода за комнатными растениями",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-12",
+      "category": "planning",
+      "request": "Как подготовиться к переезду?",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-13",
+      "category": "planning",
+      "request": "Предложи структуру семейного совещания",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-14",
+      "category": "planning",
+      "request": "Составь план сортировки фотографий",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-15",
+      "category": "planning",
+      "request": "Помоги придумать вечер без экрана",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-16",
+      "category": "planning",
+      "request": "Составь шаблон еженедельного обзора дел",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-17",
+      "category": "planning",
+      "request": "Предложи список тем для семейного разговора",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-18",
+      "category": "planning",
+      "request": "Составь план организации рабочего места",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-19",
+      "category": "planning",
+      "request": "Помоги подготовить вопросы мастеру по ремонту",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "planning-20",
+      "category": "planning",
+      "request": "Сделай чеклист перед отключением воды",
+      "path": "conversation",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "owner_live_backend_budget",
+        "quality_policy"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-01",
+      "category": "visuals",
+      "request": "Покажи орла",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-02",
+      "category": "visuals",
+      "request": "Покажи кратер Луны",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-03",
+      "category": "visuals",
+      "request": "Покажи паука",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-04",
+      "category": "visuals",
+      "request": "Как выглядит помидор бычье сердце?",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-05",
+      "category": "visuals",
+      "request": "Покажи муравья",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-06",
+      "category": "visuals",
+      "request": "Покажи Луну",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-07",
+      "category": "visuals",
+      "request": "Покажи сердце человека",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-08",
+      "category": "visuals",
+      "request": "Покажи вулкан",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-09",
+      "category": "visuals",
+      "request": "Покажи ракету",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-10",
+      "category": "visuals",
+      "request": "Покажи лабрадора",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-11",
+      "category": "visuals",
+      "request": "Покажи ретривера",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-12",
+      "category": "visuals",
+      "request": "Покажи белый гриб",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-13",
+      "category": "visuals",
+      "request": "Покажи томатное растение",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-14",
+      "category": "visuals",
+      "request": "Покажи схему солнечного затмения",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-15",
+      "category": "visuals",
+      "request": "Покажи схему Земля Луна",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-16",
+      "category": "visuals",
+      "request": "Покажи схему вулкана",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-17",
+      "category": "visuals",
+      "request": "Покажи морскую черепаху",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-18",
+      "category": "visuals",
+      "request": "Покажи коралловый риф",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-19",
+      "category": "visuals",
+      "request": "Покажи иллюстрацию вымышленной планеты",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "visuals-20",
+      "category": "visuals",
+      "request": "Сгенерируй иллюстрацию орла",
+      "path": "visual",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "source_availability",
+        "image_consent_if_generated",
+        "render_ack"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-01",
+      "category": "experts",
+      "request": "Спроси Sol: сравни очередь и стек",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-02",
+      "category": "experts",
+      "request": "Спроси Astra: оцени два варианта структуры программы",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-03",
+      "category": "experts",
+      "request": "Передай Argon: разберись в плане теплицы",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-04",
+      "category": "experts",
+      "request": "Подключи Sol для глубокого анализа",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-05",
+      "category": "experts",
+      "request": "Спроси Sol High: проверь аргументы",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-06",
+      "category": "experts",
+      "request": "Спроси Astra Medium: найди слабые места плана",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-07",
+      "category": "experts",
+      "request": "Нужен более глубокий разбор",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-08",
+      "category": "experts",
+      "request": "Подключи более сильную модель",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-09",
+      "category": "experts",
+      "request": "Проверь расчёт у Sol",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-10",
+      "category": "experts",
+      "request": "Попроси Argon проанализировать ограничения",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-11",
+      "category": "experts",
+      "request": "Спроси Astra про компромиссы архитектуры",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-12",
+      "category": "experts",
+      "request": "Попроси Sol сравнить два предложенных решения",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-13",
+      "category": "experts",
+      "request": "Подключи Argon для подробного разбора",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-14",
+      "category": "experts",
+      "request": "Ты ещё работаешь?",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-15",
+      "category": "experts",
+      "request": "Отмени эксперта",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-16",
+      "category": "experts",
+      "request": "Отмени разбор",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-17",
+      "category": "experts",
+      "request": "Не надо эксперта",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-18",
+      "category": "experts",
+      "request": "Покажи полный результат эксперта",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-19",
+      "category": "experts",
+      "request": "Спроси Sol Extra High",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "experts-20",
+      "category": "experts",
+      "request": "Сравни мнения двух экспертов",
+      "path": "expert",
+      "readiness": "conditional_path",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "verified_model",
+        "task_confirmation",
+        "cli_quota",
+        "isolation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-01",
+      "category": "smart_home",
+      "request": "Включи свет в гостиной",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-02",
+      "category": "smart_home",
+      "request": "Выключи свет на кухне",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-03",
+      "category": "smart_home",
+      "request": "Сделай свет теплее",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-04",
+      "category": "smart_home",
+      "request": "Уменьши яркость лампы",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-05",
+      "category": "smart_home",
+      "request": "Установи термостат на 23 градуса",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-06",
+      "category": "smart_home",
+      "request": "Открой шторы",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-07",
+      "category": "smart_home",
+      "request": "Закрой шторы",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-08",
+      "category": "smart_home",
+      "request": "Включи розетку у окна",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-09",
+      "category": "smart_home",
+      "request": "Выключи вентилятор",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-10",
+      "category": "smart_home",
+      "request": "Покажи камеру у двери",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-11",
+      "category": "smart_home",
+      "request": "Закрой умный замок",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-12",
+      "category": "smart_home",
+      "request": "Открой дверь",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-13",
+      "category": "smart_home",
+      "request": "Запусти робот-пылесос",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-14",
+      "category": "smart_home",
+      "request": "Отправь пылесос на базу",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-15",
+      "category": "smart_home",
+      "request": "Проверь датчик протечки",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-16",
+      "category": "smart_home",
+      "request": "Проверь влажность в спальне",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-17",
+      "category": "smart_home",
+      "request": "Проверь качество воздуха",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-18",
+      "category": "smart_home",
+      "request": "Включи кондиционер",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-19",
+      "category": "smart_home",
+      "request": "Запусти сценарий я дома",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "smart_home-20",
+      "category": "smart_home",
+      "request": "Выключи все устройства умного дома",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-01",
+      "category": "connected_services",
+      "request": "Включи любимую музыку",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-02",
+      "category": "connected_services",
+      "request": "Включи радио",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-03",
+      "category": "connected_services",
+      "request": "Поставь песню на паузу",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-04",
+      "category": "connected_services",
+      "request": "Включи следующую песню",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-05",
+      "category": "connected_services",
+      "request": "Покажи фильм на телевизоре",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-06",
+      "category": "connected_services",
+      "request": "Прочитай свежие новости",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-07",
+      "category": "connected_services",
+      "request": "Узнай курс доллара",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-08",
+      "category": "connected_services",
+      "request": "Проверь ближайший рейс",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-09",
+      "category": "connected_services",
+      "request": "Покажи ближайшие запуски SpaceX",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-10",
+      "category": "connected_services",
+      "request": "Закажи такси",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-11",
+      "category": "connected_services",
+      "request": "Закажи продукты",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-12",
+      "category": "connected_services",
+      "request": "Проверь статус доставки",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-13",
+      "category": "connected_services",
+      "request": "Позвони другу",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-14",
+      "category": "connected_services",
+      "request": "Отправь сообщение маме",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-15",
+      "category": "connected_services",
+      "request": "Найди мой телефон",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-16",
+      "category": "connected_services",
+      "request": "Проложи маршрут до аэропорта",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-17",
+      "category": "connected_services",
+      "request": "Проверь пробки",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-18",
+      "category": "connected_services",
+      "request": "Узнай расписание автобуса",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-19",
+      "category": "connected_services",
+      "request": "Прочитай почту",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "connected_services-20",
+      "category": "connected_services",
+      "request": "Создай встречу в моём календаре",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-01",
+      "category": "private_and_scheduled",
+      "request": "Напомни завтра полить цветы",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-02",
+      "category": "private_and_scheduled",
+      "request": "Поставь будильник на семь утра",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-03",
+      "category": "private_and_scheduled",
+      "request": "Повторяй напоминание каждый понедельник",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-04",
+      "category": "private_and_scheduled",
+      "request": "Добавь молоко в постоянный список покупок",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-05",
+      "category": "private_and_scheduled",
+      "request": "Прочитай мои личные заметки",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-06",
+      "category": "private_and_scheduled",
+      "request": "Вернись к нашей личной беседе неделю назад",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-07",
+      "category": "private_and_scheduled",
+      "request": "Запомни мой паспорт",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-08",
+      "category": "private_and_scheduled",
+      "request": "Прочитай личную память ребёнка",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-09",
+      "category": "private_and_scheduled",
+      "request": "Измени PIN профиля голосом",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-10",
+      "category": "private_and_scheduled",
+      "request": "Узнай меня по голосу без образцов",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-11",
+      "category": "private_and_scheduled",
+      "request": "Подтверди мою личность только голосом",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-12",
+      "category": "private_and_scheduled",
+      "request": "Разбуди меня словом ГоБот в браузерном standby",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-13",
+      "category": "private_and_scheduled",
+      "request": "Позвони в экстренную службу",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-14",
+      "category": "private_and_scheduled",
+      "request": "Переведи деньги",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-15",
+      "category": "private_and_scheduled",
+      "request": "Купи билет",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-16",
+      "category": "private_and_scheduled",
+      "request": "Полей грядки автоматически утром",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-17",
+      "category": "private_and_scheduled",
+      "request": "Включай музыку по будням в семь",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-18",
+      "category": "private_and_scheduled",
+      "request": "Сохрани домашнюю аудиозапись постоянно",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-19",
+      "category": "private_and_scheduled",
+      "request": "Покажи чужую переписку",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    },
+    {
+      "id": "private_and_scheduled-20",
+      "category": "private_and_scheduled",
+      "request": "Измени системные файлы компьютера",
+      "path": "integration",
+      "readiness": "not_connected_or_restricted",
+      "executor": null,
+      "intent": null,
+      "requirements": [
+        "specific_service_or_privacy_implementation"
+      ],
+      "acoustic_verified": false,
+      "competitor_reference_scope": "category_inspiration_not_individual_equivalence"
+    }
+  ]
+}

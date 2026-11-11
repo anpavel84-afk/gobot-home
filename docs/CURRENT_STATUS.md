@@ -2002,3 +2002,75 @@ Image20/day, Live60min/day и общий estimate$10/day прежние. Supervi
 Это оставшаяся физическая/акустическая приёмка, а не уже выполненный тест.
 Откат к предыдущему коду7b4e7ee возможен управляемым выпуском после idle guard;
 согласия, usage ledgers и актуальные пользовательские настройки не откатываются.
+
+## 37. Прогноз, погодная графика, естественные таймеры и 400 сценариев
+
+Новая жалоба iPhone на runtimef9b1f1e: текущая погода отображается без weather icon;
+завтрашняя недоступна; Live снова не завершила таймер. Предыдущие1337 fixtures не
+доказали полный живой маршрут. По коду точно подтверждены: weather_unsupported на
+любой будущий период, renderer выводил только число; парсер не принимал ряд
+инфинитивов/вежливых форм; SceneManager очищал timer scene при новом turn. Точную
+распознанную фразу жалобы восстановить нельзя: домашние транскрипты не сохранялись.
+
+Добавлены WeatherClient.forecast, bounded daily fields и typed WeatherDisplay/Day.
+Сегодня/завтра/выходные выбираются по IANA timezone места, max16 дней, TTL15мин;
+source arrays/date continuity/числа/диапазоны проверяются. Другой город проходит
+существующее подтверждение; новый запрос не меняет его молча. Временная пометка
+weather_followup разрешает «а завтра?» только после погодного инструмента.
+Источник для нынешнего места реально вернул16 дней, America/Sao_Paulo, 11–26 ноября:
+[source evidence](weather-forecast-source-check.json), бесплатно, без координат/ID.
+Установлен и закреплён только tzdata2026.6: Windows не имела IANA timezone database.
+
+Weather.com проверен по [официальному Getting Started](https://developer-dev.weather.com/docs/getting-started):
+нужен отдельный ключ/аккаунт API; доступа в проекте нет. Он не подключён и не выдаётся
+за источник. Open-Meteo [официально поддерживает16 дней](https://open-meteo.com/en/docs).
+Почасовой, исторический и месячный прогноз остаются явным пробелом этого выпуска.
+
+В production Canvas добавлены векторные погодные значки, даты/осадки и листание
+нескольких дней; DOM — полная таблица. ImageGen для weather graphics не вызывается.
+SceneManager хранит активные device timers между turn, защищает full timer от
+позднего speculative visual, рисует малый countdown поверх новой сцены. Local expiry
+однократно подаёт сигнал через уже разблокированный AudioContext, без STT/TTS/CLI.
+При закрытом/замороженном Safari звук не гарантирован. Profile/speaker scope change
+очищает timer UI; явная отмена из Brain передаёт timer_state теми же IDs в DOM/Canvas.
+
+Парсер принимает «можешь засечь таймер…», инфинитивы, полторы/четверть, составные
+длительности и десятки с единицами; unsupported «сто пять» не сокращается до пяти.
+Громкость фона в client RMS не считается надёжным speech-end: фактический ответ
+с media timestamp после входа может завершить ожидание validated command. Output
+также возобновляет проверку, если прежнее bounded ожидание закончилось; одна query
+проверяется однократно до её исправления. Вызов модели не заменяет operation claim.
+
+[400 авторских сценариев](../services/brain/assistant-skills.json) собраны по
+[категориям Алисы](https://alice.yandex.ru/support/ru/station/skills/) и
+[Alexa](https://digprjsurvey.amazon.com/csad/help/node/GGYT25QXMYBECH2E).
+100 local paths (включая уточнения/честные неподдерживаемые периоды), 240 conditional
+conversation/visual/expert paths, 60 not connected/restricted. Это не400 реализованных
+API и не400 настоящих модельных испытаний. Добавлены детерминированные перевод единиц,
+проценты, календарные операции, текстовые операции, монетка/кубик. Все идут через
+прежние Quick Intents/LocalTools/Brain. Каталог сам не повышает ACL и не входит целиком
+в каждый prompt. В Owner Full Test отображаются counts/readiness. Отсутствующие
+умный дом/музыка/покупки/календарный аккаунт/приватные действия не получают false success.
+
+Бесплатная приёмка включает250 формулировок таймера с реальными временными SQLite
+записями, отрицания/цитаты/неоднозначность, forecast timezone/cache/malformed payload,
+native weather followup, noisy activity, cancel IDs, production DOM/Canvas и400
+записей inventory; проверяются160 local/blocker routes, а240 conditional записей
+не считаются240 новыми модельными тестами. 747 первоначальных целевых проверок
+после исправлений прошли; после удаления чисто декларативных проверок используется
+более короткий функциональный набор. Общий прогон,
+real voice canaries и запущенный commit фиксируются ниже по завершении.
+
+Computer Use не смог надёжно определить URL Chrome и остановил Windows UI-действия;
+обход не выполнялся. Реальная браузерная визуальная и физическая iPhone-проверка
+нового вида пока не подтверждены; canvas/DOM fixtures не приравниваются к ним.
+Владелец отдельно разрешил3 новые Live-сессии/180s суммарно,10 Luna,$2estimate,
+без CLI/ImageGen/retries. Допуск добавляется к существующим счётчикам, не сбрасывая их.
+Итоговый общий функциональный прогон: **1791 passed /108.53s**. Перед ним удалены240
+чисто декларативных per-entry assertions из числа тестов; данные400 сохранились.
+После последних добавлений future-date phrasing выполнены **339 passed /45.47s**
+(weather/native tools/mode controls), ранее timer/legacy целевые360/44.25s.
+`pip check` прошёл. Private WAL-aware backup перед выпуском:
+`data/backups/before-unified-20261111T180602`, integrity=ok; active turns/B/C0.
+До применения нового developer grant Owner policy совпадала с сохранённой рабочей;
+owner daily caps и старые usage rows не изменялись этим кодом.

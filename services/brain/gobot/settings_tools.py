@@ -6,6 +6,8 @@ from .weather import WeatherClient,WeatherError
 from .presentation import Presentation,VisualMetadata,VisualSource,frame_id
 from .local_tools import ToolResult
 from .device_contract import WeatherPreferences
+from .weather_queries import weather_query
+from .weather import condition
 
 HELP='Могу настроить город для погоды, громкость и голос OpenAI, режим модели, вступления, продолжение разговора, иллюстрации и лицо. Например: «Настрой погоду для моего города», «Громкость 40 процентов», «Выключи вступления».'
 
@@ -13,6 +15,8 @@ def settings_intent(value,context=None):
     """Returns a typed operation; no fuzzy state-changing matches."""
     pending=(context or {}).get('pending_action')
     def op(name,**slots):return {'operation':name,**slots}
+    if (context or {}).get('weather_followup') and re.fullmatch(r'(?:а )?(?:завтра|послезавтра|сегодня|на (?:неделю|две недели|выходных|\d{1,2} дней))',value):
+        return weather_query('погода '+re.sub(r'^а ','',value))
     if pending and pending.get('expires',0)>time.time() and pending.get('kind','').startswith('weather_'):
         payload=pending.get('payload',{})
         if value in {'нет','нет спасибо','не надо','отмена','отмени','отмени настройку','отмени подключение','не подключай'}:return op('weather_cancel',pending_id=pending['id'])
@@ -34,18 +38,15 @@ def settings_intent(value,context=None):
         return op('weather_location')
     if value in {'выключи погоду','удали место для погоды','забудь местоположение для погоды'}:return op('patch',patch={'weather':{'enabled':False,'location_name':'','latitude':None,'longitude':None}})
     weather_value=re.sub(r'[?.!]\s*(?:объясни для семьи|ответь кратко|укажи ограничения)$','',value).strip()
-    if re.fullmatch(r'(?:сейчас )?(?:(?:какая|как\w*|покажи|проверь|узнай|посмотри|что).{0,35}погод[ауы]?[^.]*|погода)',weather_value):
-        value=weather_value
-        if re.search(r'завтра|вчера|недел|прогноз|вечером|утром|ночью',value):return op('weather_unsupported')
-        if re.search(r'\b(?:в|для)\s+(?!моем городе\b|нашем городе\b)\S',value):return op('weather_other_place')
-        return op('weather_current')
+    weather=weather_query(weather_value)
+    if weather:return weather
     match=re.fullmatch(r'(?:установи |поставь |сделай )?громкость(?: на)? (\d{1,3})(?:\s*%| процентов| процента| процент)?',value)
     if match:return op('patch',patch={'voice':{'volume':int(match[1])/100}})
     match=re.fullmatch(r'(?:выбери|поставь|измени|смени)(?: мне)? голос(?: openai)?(?: на)? (marin|марин|cedar|седар|сидар|alloy|ash|ballad|coral|echo|sage|shimmer|verse)',value)
     if match:return op('patch',patch={'voice':{'voice':{'марин':'marin','седар':'cedar','сидар':'cedar'}.get(match[1],match[1])}})
-    match=re.fullmatch(r'(включи|выключи|отключи) (?:голосовые )?(вступления|озвучку|автоматические иллюстрации|продолжение разговора)',value)
+    match=re.fullmatch(r'(включи|выключи|отключи) (?:голосовые )?(вступления|озвучку|(?:автоматические )?иллюстрации|продолжение разговора)',value)
     if match:
-        field={'вступления':('feedback','filler_enabled'),'озвучку':('voice','speak'),'автоматические иллюстрации':('screen','automatic_illustrations'),'продолжение разговора':('conversation','followup_enabled')}[match[2]]
+        field={'вступления':('feedback','filler_enabled'),'озвучку':('voice','speak'),'автоматические иллюстрации':('screen','automatic_illustrations'),'иллюстрации':('screen','automatic_illustrations'),'продолжение разговора':('conversation','followup_enabled')}[match[2]]
         return op('patch',patch={field[0]:{field[1]:match[1]=='включи'}})
     match=re.fullmatch(r'(?:слушай продолжение|жди продолжение|продолжай слушать после ответа) (\d{1,2}) секунд',value)
     if match:return op('patch',patch={'conversation':{'followup_seconds':int(match[1]),'followup_enabled':True}})
@@ -91,7 +92,8 @@ class SettingsTools:
         operation=slots['operation'];profile=self.devices.profile(scope)
         if operation=='help':return SettingsResult(HELP)
         if operation=='restricted':return SettingsResult('Расходы, доступ к файлам и семейные права этой голосовой командой не изменены. Для них нужно подтверждение владельца в панели. Обычные настройки звука, экрана и погоды доступны через диалог.')
-        if operation=='weather_unsupported':return SettingsResult('Сейчас подключена только текущая погода. Прогноз на другое время этим инструментом пока не поддерживается.')
+        if operation=='weather_provider_unavailable':return SettingsResult('Weather.com пока не подключён: нужен ключ официального API The Weather Company. Сейчас работает Open-Meteo с прогнозом до 16 дней. Могу показать его данные.',evidence={'abstained':True})
+        if operation=='weather_unsupported':return SettingsResult('Сейчас доступен дневной прогноз до 16 дней вперёд; почасовой прогноз и историческая погода в GoBot пока не подключены. Могу показать завтра, неделю или 16 дней.',evidence={'abstained':True})
         if operation=='weather_other_place':
             self.pending(req,'weather_location')
             return self.setup_result(req,2,'awaiting_location','Для этого места назовите город и регион. Проверю источник и попрошу подтвердить, прежде чем менять основное место для погоды.',next_action='provide_location',subtitle='Назовите город')
@@ -108,7 +110,7 @@ class SettingsTools:
             names={'voice':'Голос и звук','feedback':'Вступления','screen':'Экран','conversation':'Продолжение разговора','skin':'Лицо','weather':'Погода'}
             text='Сохранено на сервере: '+', '.join(names[k] for k in slots['patch'])+'.'
             return SettingsResult(text,profile=saved.model_dump(),silent=saved.voice.speak is False or saved.voice.volume==0)
-        if operation in {'weather_status','weather_current'} and not profile.weather.enabled:
+        if operation in {'weather_status','weather_current','weather_forecast'} and not profile.weather.enabled:
             self.pending(req,'weather_connect')
             return self.setup_result(req,1,'awaiting_permission','Погода ещё не подключена к этому устройству. Могу настроить Open-Meteo: уточним город, проверю данные и сохраню настройки. Подключить?',next_action='confirm_setup',subtitle='Подключить источник?')
         if operation=='weather_cancel':
@@ -158,6 +160,11 @@ class SettingsTools:
                 result.setup={'tool':'weather','provider':'open_meteo','step':4,'total_steps':4,'status':'ready','next_action':'ask_weather'}
                 return result
         if operation=='weather_status':return SettingsResult('Для погоды выбран '+profile.weather.location_name+'. Источник — Open-Meteo; домашние датчики не подключены.')
+        if operation=='weather_forecast':
+            try:forecast=await self.weather.forecast(profile.weather,offset=slots.get('offset',0),days=slots.get('days',7),weekday=slots.get('weekday'))
+            except WeatherError:return SettingsResult('Не удалось получить проверенный прогноз. Температуру или осадки выдумывать не буду.',evidence={'abstained':True})
+            if not is_current():return SettingsResult('Запрос отменён.')
+            return self.forecast_result(req,profile,forecast)
         if operation=='weather_current':
             try:weather=await self.weather.current(profile.weather)
             except WeatherError:return SettingsResult('Погодный источник сейчас недоступен или данные устарели. Не буду подставлять выдуманную температуру.',evidence={'abstained':True})
@@ -165,8 +172,20 @@ class SettingsTools:
         return SettingsResult('Эта настройка через голос пока не поддерживается. '+HELP)
 
     def weather_result(self,req,profile,weather):
-        text='По данным Open-Meteo для '+profile.weather.location_name+': '+str(weather['temperature']).replace('.',',')+' °C, ощущается как '+str(weather['apparent']).replace('.',',')+' °C. Ветер '+str(weather['wind_kmh']).replace('.',',')+' км/ч.'
+        icon,label=condition(weather['weather_code'])
+        text='По данным Open-Meteo для '+profile.weather.location_name+': '+label+', '+str(weather['temperature']).replace('.',',')+' °C, ощущается как '+str(weather['apparent']).replace('.',',')+' °C. Ветер '+str(weather['wind_kmh']).replace('.',',')+' км/ч.'
         frame=Presentation(id=frame_id(req.turn_id,'weather'),type='weather_card',title='Погода',subtitle=profile.weather.location_name,text=text,
             source=VisualSource(label='Open-Meteo · CC BY 4.0',url='https://open-meteo.com/'),
-            metadata=VisualMetadata(backend='open_meteo',facts={k:str(v) for k,v in weather.items()}),expires_at=weather['observed_at']+5400)
+            metadata=VisualMetadata(backend='open_meteo',icon={'sun':'☀','cloud':'☁','partly_cloudy':'⛅','rain':'🌧','storm':'⛈','snow':'❄','fog':'🌫','unknown':'?' }[icon],weather={'kind':'current','icon':icon,'condition':label},facts={k:str(v) for k,v in weather.items()}),expires_at=weather['observed_at']+5400)
         return SettingsResult(text,evidence={'method':'weather_api','verified':True,'canonical_answer':text},frame=frame)
+
+    def forecast_result(self,req,profile,forecast):
+        rows=forecast['days'];first=rows[0];last=rows[-1]
+        from datetime import date
+        display_date=lambda row:date.fromisoformat(row['date']).strftime('%d.%m.%Y')
+        def line(row):return 'На '+display_date(row)+': '+row['condition']+', от '+str(row['low'])+' до '+str(row['high'])+' °C, вероятность осадков '+str(row['rain_percent'])+' процентов, ветер до '+str(row['wind_kmh'])+' км/ч.'
+        text='Прогноз Open-Meteo для '+profile.weather.location_name+'. '+(line(first) if len(rows)==1 else 'Период '+display_date(first)+' — '+display_date(last)+'. '+line(first)+' В периоде температура от '+str(min(r['low'] for r in rows))+' до '+str(max(r['high'] for r in rows))+' °C. Полный прогноз на экране. Дальний прогноз может меняться.')
+        frame=Presentation(id=frame_id(req.turn_id,'weather-forecast'),type='weather_card',title='Прогноз погоды',subtitle=profile.weather.location_name,text=text,
+            source=VisualSource(label='Open-Meteo · CC BY 4.0',url='https://open-meteo.com/'),
+            metadata=VisualMetadata(backend='open_meteo',weather={'kind':'forecast','icon':first['icon'],'condition':first['condition'],'timezone':forecast['timezone'],'days':rows},facts={'temperature':str(first['high']),'low':str(first['low']),'date':first['date'],'days':str(len(rows)),'rain_percent':str(first['rain_percent'])}),expires_at=forecast['fetched_at']+900)
+        return SettingsResult(text,evidence={'method':'weather_forecast_api','verified':True,'canonical_answer':text},frame=frame)

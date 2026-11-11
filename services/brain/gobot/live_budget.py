@@ -27,7 +27,7 @@ class LiveBudget:
             if origin=='developer':
                 all_dev=c.execute("SELECT reserved,seconds,final,reason FROM calls WHERE origin='developer'").fetchall()
                 remaining=p.developer_live_seconds-sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,reason in all_dev)
-                limit=min(limit,90,int(remaining))
+                limit=min(limit,p.developer_live_session_seconds,int(remaining))
             if limit<15:raise PermissionError('live_duration_budget_exhausted')
             key=self.owner.reserve(binding,'live',offer.session_id,estimate=limit*.05/60,origin=origin)
             c.execute('INSERT INTO calls(id,scope,day,reserved,owner_reservation,origin) VALUES(?,?,?,?,?,?)',(offer.session_id,self.scope(offer),int(time.time()//86400),limit,key,origin))
