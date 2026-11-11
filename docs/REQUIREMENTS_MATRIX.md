@@ -437,3 +437,7 @@ clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84
 53provider seconds Live, новыхCLI/Image0, pending0. Это synthetic local Piper
 input/decoded PCM, не акустическая iPhone-приёмка. Фикс ранней delegation после
 canaries проверен targeted328; платные пробы не повторялись и scope не расширялся.
+Финальный deployed code4931c49, HTTP200, bridge3/forecast/400 inventory и frozen A
+проверены; unconfirmed Live0. Weather semantics307 дополнительно исключает неверную
+маршрутизацию научных/медицинских вопросов в погоду. iPhone/реальный просмотр Canvas
+после выпуска не подтверждены. Полный актуальный статус — CURRENT_STATUS §37.

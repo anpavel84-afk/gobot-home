@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  C↔A с прогнозом и графическими таймерами опубликован и запущен на `97d64beab17b9e738613fa16c16ef01922515a8b`;
+  C↔A с прогнозом и графическими таймерами опубликован и запущен на `4931c49b76d6968a599249e3c197876e97adb003`;
   прежние A/B/C и Luna сохранены.
   Последнее исправление и фактическое развёртывание — §37 ниже; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
@@ -2125,3 +2125,21 @@ delegation + «и тридцать секунд» → ровно1 timer330s. Ф�
 учтёнными paid trials: `data/backups/before-unified-20261111T183143`, integrity=ok,
 Brain/B/C/pending hangups0. Лимиты владельца Image20/day, Live60min/day, estimate$10/day
 и baseline A сохраняются; developer allowance не продлевался.
+
+**Финальный code `4931c49b76d6968a599249e3c197876e97adb003` опубликован и запущен.**
+Supervisor20720. Fresh idle guard перед restart: Brain turns/voice, B/C, pending
+hangups0. [Runtime/HTTP evidence](unified-conversation-check.json): bridge3,
+native forecast/utility/readiness,400 scenarios, owner weather configured;
+root/device/A/B/C/JS HTTP200, все C URL unified, defaultC/idle10, unconfirmedLive0,
+frozen A hashes unchanged. Browser transport/Brain/Bridge listener и авторизация
+не менялись. Paid evidence относится к97d64be; последний streamed timer guard
+проверен отдельно бесплатно, финальную акустику не объявляем принятой.
+
+Для проверки владельцем: обновить `/device`, «можешь засечь таймер на десять секунд»,
+наблюдать отсчёт/срабатывание; «какая погода завтра», затем «а на неделю»; запустить
+минутный timer, спросить остаток, отменить — круг должен прекратить отсчёт.
+Настоящий iPhone/тихая речь/фоновое поведение Safari остаются отдельной приёмкой.
+Откат интерфейсом — сохранённый A, без уничтожения текущих данных. Управляемый
+code rollback этого последнего guard —97d64be после idle, сохраняя usage/settings;
+более ранний source требует совместимой миграции новых developer-policy полей,
+а не восстановления старых ledger/согласий из backup.

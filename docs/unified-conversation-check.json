@@ -1,5 +1,5 @@
 {
-  "runtime_code_commit": "97d64beab17b9e738613fa16c16ef01922515a8b",
+  "runtime_code_commit": "4931c49b76d6968a599249e3c197876e97adb003",
   "http": {
     "/": 200,
     "/device": 200,
@@ -18,7 +18,7 @@
   "B_model": "gpt-realtime-2.1-mini",
   "A_baseline_unchanged": true,
   "A_auto_models": "existing Antigravity Flash Low/Medium",
-  "new_paid_developer_calls": 0,
+  "new_paid_developer_calls": 13,
   "wake_word_ready": false,
   "physical_iphone_switch_verified": false,
   "guest_ram_only": true,
@@ -44,7 +44,8 @@
   ],
   "free_tests_passed": 1791,
   "free_tests_seconds": 108.53,
-  "final_targeted_tests": 339,
+  "final_targeted_tests": 328,
+  "final_weather_tests": 307,
   "real_voice_after_fix_verified": false,
   "weather_forecast_days": 16,
   "skill_catalogue": {
@@ -58,5 +59,10 @@
     "acoustic_parity_verified": false,
     "inventory_is_not_permission": true
   },
-  "owner_weather_configured": true
+  "owner_weather_configured": true,
+  "real_voice_tools_commit": "97d64beab17b9e738613fa16c16ef01922515a8b",
+  "real_live_tool_cases": 3,
+  "real_luna_text_cases": 10,
+  "developer_trial_estimated_usd": 0.04465207,
+  "final_gate_real_audio_retested": false
 }
