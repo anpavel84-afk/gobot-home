@@ -472,3 +472,9 @@ null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отд
 | Источник вместо догадки | Existing WeatherClient/SettingsTools, source-backed cards/voice text | Реальные2free HTTP, Live speech после фикса отдельно |
 | Правила домашних разговоров |10reviewed rules в существующем400catalogue, используются Live | Не400working integrations, правила не заменяют ACL |
 | Приватность истории | remember=false/RAM; old protocol не придуман | Новая постоянная запись не включена |
+
+Финальный runtime faa4186 published/running, home_dialogue v1/10rules
+подтверждён HTTP;1942full +161final affected tests. Реальный free Open-Meteo
+current/tomorrow2calls; paid developer0. Все существующие policy/profile rows
+сохранены по byte-сверке с WAL backup202742. Новые Live voice/iPhone trials
+не выполнялись; прежние реальные canaries не названы проверкой нового prompt.

@@ -1,5 +1,5 @@
 {
-  "runtime_code_commit": "04d8999e1180fe1d717f2bdbdc89a6cf8834e979",
+  "runtime_code_commit": "faa41869fd40adf624edad562ff7c86eaeed6b0c",
   "http": {
     "/": 200,
     "/device": 200,
@@ -50,12 +50,19 @@
     "utility",
     "skill_readiness"
   ],
-  "free_tests_passed": 1814,
-  "free_tests_seconds": 111.57,
-  "final_targeted_tests": 416,
+  "free_tests_passed": 1942,
+  "free_tests_seconds": 116.45,
+  "final_targeted_tests": 161,
   "final_weather_tests": 307,
   "real_voice_after_fix_verified": false,
   "weather_forecast_days": 16,
+  "home_dialogue": {
+    "version": 1,
+    "rules": 10,
+    "weather_default": "configured_device_home",
+    "weather_followups": "scoped_current_topic",
+    "live_gps": false
+  },
   "skill_catalogue": {
     "scenarios": 400,
     "readiness": {

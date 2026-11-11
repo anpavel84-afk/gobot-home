@@ -41,11 +41,26 @@
   "paid_developer_calls": 0,
   "new_real_live_voice_acceptance": false,
   "iphone": false,
-  "backup": "data/backups/before-unified-20261111T202407",
-  "runtime_deployment": "pending",
+  "backup": "data/backups/before-unified-20261111T202742",
+  "runtime_deployment": "published_and_running",
   "final_weather_inflight_acceptance": {
     "passed": 161,
     "seconds": 31.86
   },
-  "inflight_date_correction_stale_result_blocked": true
+  "inflight_date_correction_stale_result_blocked": true,
+  "runtime_code_commit": "faa41869fd40adf624edad562ff7c86eaeed6b0c",
+  "supervisor_pid": 14700,
+  "http_verified": true,
+  "runtime_home_dialogue": {
+    "version": 1,
+    "rules": 10,
+    "weather_default": "configured_device_home",
+    "weather_followups": "scoped_current_topic",
+    "live_gps": false
+  },
+  "A_baseline_unchanged": true,
+  "active_sessions_at_deploy": 0,
+  "unconfirmed_live_sessions": 0,
+  "policies_byte_preserved": true,
+  "existing_profile_rows_byte_preserved_this_release": true
 }
