@@ -1305,3 +1305,98 @@ owner manual unlimited сохранён, experts/ImageGen OFF; deployment eviden
 сохранён. Для экспертов достаточно оставить admission OFF; новые UI/таблица не
 меняют обычный голосовой путь. Не удалять новую таблицу и не откатывать базу поверх
 текущих данных. Полный возврат runtime требует отдельной проверки совместимости.
+
+## 26. Visual fulfillment: от темы до файла или конкретной причины отказа
+
+База: фактический HEAD `e69c880`, runtime `597d699`, master. Рабочее дерево перед
+началом чистое. Сохранены Realtime B, Expert Handoff v2, незавершённая настройка
+погоды, память/ACL, A и backup. Новых CLI/Realtime/STT/TTS/ImageGen проб **0**.
+
+### Причины разрыва
+
+* Noun extractor выбирал первое существительное: «скорость» вместо «орёл».
+  Теперь снимается грамматический начальный вопросительный предложный оборот;
+  предмет сохраняется до/после глагола. Explicit parser отделяет команду/«фото»
+  от предмета, поддерживает show/find/generate/look-like.
+* TwoStageVisual публиковал только frames с images. Miss/error отбрасывался,
+  предварительный badge оставался без результата. Теперь miss — fallback
+  Presentation с причиной, asset_delivered=false; topic label не success.
+* Реальная проверка источника выявила дополнительные отказы: словарь «орел»
+  содержит Aquila/Oryol/eagle, «луна» — Luna/moon. Раньше любое число значений >1
+  блокировало EN-нормализацию. Теперь собственные имена не скрывают единственное
+  нарицательное значение; несколько нарицательных смыслов остаются ambiguous.
+  «Кратер Луны» не принимал статью «Лунный кратер»: добавлено регулярное RU
+  сопоставление с сохранением главного noun и всех qualifiers. Нерегулярные связи
+  не угадываются. Negative fetch policy повышена до 11, годный positive cache сохранён.
+* Realtime не имела visual_request, а инструкция «web недоступен» не различала
+  произвольный браузер и встроенный поиск. Теперь есть инструмент, alias из
+  gobot_tool и capability/settings. Точная прежняя устная реплика не восстанавливалась
+  из домашнего аудио: это аудит кода, не выдуманный raw provider forensic log.
+
+### Реализация
+
+[NativeSession](../services/brain/gobot/realtime.py) запускает explicit action по
+финальному input transcript. Tool call присоединяется к одной turn-local задаче,
+не создаёт отдельный visual stack. Аргументы не подменяют пользовательский предмет.
+Поздний transcript ожидается только инструментом; обычный нативный голос не идёт
+через дополнительный STT/CLI/TTS. Auto visual OFF / Minimal / answer-only не
+блокируют явную просьбу; source/generation policy продолжают действовать.
+
+[TwoStageVisual](../services/brain/gobot/visual_prefetch.py) публикует файл либо
+recoverable fallback через прежний VisualService/ImageCache. Wikimedia-first;
+explicit public subject после miss допускает уже разрешённую генерацию без ожидания
+ответа модели. Неявная гипотеза ждёт alignment; mismatch/old turn/cancel блокируют
+обновление. Реальный Stage 1 не заменяется неудачной Stage 2 карточкой.
+
+visual_status показывает поиск, готовность и fallback. Browser/круглый renderer
+показывают понятный текст; reason-коды скрыты из пользовательских facts.
+Download/decode failure → scoped visual_failed → карточка без автоматического
+retry/повторной оплаты. visual_presented проверяет текущий frame/turn; поздний ack
+после ошибки игнорируется. Готовый файл не является подтверждённым показом на iPhone.
+
+### Реальные настройки без их изменения
+
+| Параметр | Сохранённое значение |
+| --- | --- |
+| native image_generation_allowed | false |
+| profile generation_allowed | false |
+| generation_consent | false |
+| generation_mode | off |
+| generation_daily_limit | 0 |
+| generation_provider | codex |
+| visual_source_policy | wikimedia_generate |
+| automatic_illustrations | true |
+| visual_strategy | отсутствует в старом JSON; validator default question_then_refine |
+
+Генерация заблокирована серверной политикой и настройками; Wikimedia и локальные
+карточки доступны. Codex ImageGen всё ещё не принят как isolated image-only
+provider; оплачиваемый Image API не включался. Mode/consent/limit/provider и
+unknown previous attempt имеют отдельные причины, не общее «картинки невозможны».
+
+### Проверки и ограничения
+
+* Полная итоговая регрессия: **1251 passed / 47.12 s**. Новые
+  tests/test_visual_fulfillment.py и production Node checks. Промежуточный targeted
+  native/visual/UI набор: 95 passed / 11.92 s.
+* Fixtures: grammatical subject, explicit формы, late ASR, shared worker/tool,
+  miss/error, policy/mode/consent/day-limit, permitted generation fallback без текста
+  модели, current frame ack/failure, запрет подмены, explicit при auto-visual OFF,
+  отменённые/старые turn. Generation/provider/audio здесь синтетические.
+* Бесплатная настоящая Wikimedia: [evidence](visual-fulfillment-source-check.json).
+  Орёл → article Eagle, CC BY-SA 4.0, реальный коллаж орлов; кратер Луны → article
+  «Лунный кратер», LRO Tycho mosaic, Public domain, явно overview. Иллюстрация темы
+  не подтверждает вид конкретного орла/место наблюдения или все факты ответа.
+* Asset preparation без cache hit: орлы **1687.94 ms**, кратер **2599.90 ms**.
+  JPEG 240×240 декодированы. Это два серверных наблюдения, не TTFA/iPhone/p95.
+  Сопоставимого нового голосового before/after нет.
+* Desktop browser QA: временный loopback fixture с production BrowserVisualRenderer
+  и DeviceRenderer, public cached фото, без Realtime/API генерации. Изображения
+  реально показаны в браузере и полном круге; fallback state проверен. Screenshots
+  local run/visual-fulfillment-eagle.png, -crater.png, -fallback.png. Fixture остановлен.
+  Это не native голосовой E2E и не физический телефон; устное отсутствие ложных
+  обещаний остаётся отдельной приёмкой владельца, prompt не даёт такой гарантии.
+
+Ручная проверка iPhone B: «С какой скоростью летает орёл?» → «Покажи орла» →
+«Покажи кратер Луны». Ожидается фото; при source miss — конкретный generation
+policy denial и карточка повторяемого запроса. Expert E2E из §25 всё ещё требует
+отдельного допуска; в этом проходе он не выполнялся.

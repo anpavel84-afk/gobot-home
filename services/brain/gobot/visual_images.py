@@ -28,7 +28,7 @@ API='https://commons.wikimedia.org/w/api.php'
 MAX_DOWNLOAD=8*1024*1024
 MAX_PIXELS=16_000_000
 NORMALIZATION_VERSION=3
-FETCH_POLICY_VERSION=10
+FETCH_POLICY_VERSION=11
 LICENSES={'CC BY-SA 4.0','CC BY-SA 3.0','CC BY 4.0','CC BY 3.0','CC0','Public domain'}
 
 class ImageUnavailable(Exception):
@@ -135,6 +135,25 @@ def entity_words(value):
     from .speech_formatter import morphology
     return {morphology().parse(word)[0].normal_form for word in re.findall(r'[а-яёa-z0-9-]+',value.casefold())}
 
+def article_title_matches(query,title):
+    """Conservative RU genitive/relative-adjective match with the noun head kept.
+
+    This is lexical grounding, not pixel recognition or universal semantics.
+    Both sides must account for every word; qualifiers cannot disappear.
+    """
+    from .speech_formatter import morphology
+    morph=morphology()
+    def forms(text):return [morph.parse(word)[0] for word in re.findall(r'[а-яёa-z0-9-]+',text.casefold())]
+    requested,named=forms(query),forms(title)
+    if not requested or not named:return False
+    def related(a,b):
+        if a.normal_form==b.normal_form:return True
+        noun,adj=(a,b) if a.tag.POS=='NOUN' else (b,a)
+        root=noun.normal_form.rstrip('аяоеьй')
+        return noun.tag.POS=='NOUN' and adj.tag.POS=='ADJF' and len(root)>=3 and adj.normal_form.startswith(root)
+    exact_head=any(a.tag.POS=='NOUN' and b.tag.POS=='NOUN' and a.normal_form==b.normal_form for a in requested for b in named)
+    return exact_head and all(any(related(a,b) for b in named) for a in requested) and all(any(related(a,b) for a in requested) for b in named)
+
 class CommonsImages:
     def __init__(self,client):self.client=client
     async def search(self,query,limit=3):
@@ -183,7 +202,8 @@ class CommonsImages:
             dish_match=('блюдо' in requested and bool(named&culinary)
                         and bool(named-culinary) and named-culinary<=requested-{'блюдо'})
             alias_match=title in canonical_titles
-            if not alias_match and not dish_match and (not named or not named<=requested or (named!=requested and len(named)<2)):continue
+            grammatical_match=await asyncio.to_thread(article_title_matches,query,title)
+            if not alias_match and not dish_match and not grammatical_match and (not named or not named<=requested or (named!=requested and len(named)<2)):continue
             metadata,_=await self.client.get(API,api=True,params={'action':'query','format':'json','titles':'File:'+filename,
                 'prop':'imageinfo','iiprop':'url|extmetadata|size|mime','iiurlwidth':960,'iiextmetadatafilter':'Artist|LicenseShortName|LicenseUrl|ImageDescription'})
             candidates=self.candidates(metadata,limit)

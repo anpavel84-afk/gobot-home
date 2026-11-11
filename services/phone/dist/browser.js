@@ -32,6 +32,7 @@ async function refreshServerSettings(){
 const sources = new Set(), seen = new Set(), audioSequences=new Map(),playedSegments=new Map();
 const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($('visual-response'),$('active-timers')):null;
 let currentTurn=null,currentTopic=null;
+if(visuals&&window.GoBotHooks?.clientKind!=='device')visuals.onImageError=id=>window.GoBotRealtime?.visualFailed?.(id,currentTurn);
 if(visuals&&window.GoBotHooks?.clientKind!=='device')visuals.onImageReady=(id,img)=>{
   const trace=requestTrace,turn=currentTurn,expectedEpoch=epoch;
   if(!img.naturalWidth||!turn)return;

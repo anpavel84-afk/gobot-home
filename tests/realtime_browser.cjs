@@ -1,6 +1,6 @@
 /* Executes the production client with fake media/network; no API or microphone. */
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const elements={'conversation-engine':{value:'realtime'},'realtime-consent':{checked:true},'realtime-speaker-enabled':{checked:true},'realtime-personalization':{value:'guest'}};
+const elements={'conversation-engine':{value:'realtime'},'realtime-consent':{checked:true},'realtime-speaker-enabled':{checked:true},'realtime-personalization':{value:'guest'},'realtime-visual-status':{textContent:'',hidden:true}};
 const requests=[],tracks=[],peers=[],callbacks={},closures=[];let uuid=0,raf=0,exhausted=false,unlimited=false,mediaCalls=0,terminalReason=null;
 const track={enabled:true,onended:null,stop(){this.stopped=true;}};
 class Peer{
@@ -35,6 +35,9 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/r
 (async()=>{
  const client=new window.GoBotNativeVoice({fetcher,Peer,media:sandbox.navigator.mediaDevices});
  await client.start();assert(client.ready);assert.equal(track.enabled,false);assert.equal(requests.filter(r=>r.url.endsWith('/sessions')).length,1);
+ client.currentTurn='visual-current';client.event({type:'visual_status',turn_id:'visual-current',data:{status:'searching',message:'Ищу изображение в Wikimedia.'}});
+ assert.equal(elements['realtime-visual-status'].textContent,'Ищу изображение в Wikimedia.');
+ client.event({type:'visual_status',turn_id:'old-turn',data:{message:'STALE_PRIVATE_TEXT'}});assert(!elements['realtime-visual-status'].textContent.includes('STALE'));
  assert(!('requested_expert_profile' in requests.find(r=>r.url.endsWith('/sessions')).body)); // Compatible with an older running backend.
  await client.pttStart();assert.equal(track.enabled,true);client.startedAt=performance.now()-1000;client.speechMs=250;
  await client.pttEnd();assert.equal(track.enabled,false);

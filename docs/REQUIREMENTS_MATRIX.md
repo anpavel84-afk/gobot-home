@@ -262,3 +262,19 @@ Bootstrap owner/family preferences: generated item IDs now 32 characters, produc
 
 Текущие факты требуют источников: мнение эксперта само по себе не является проверкой.
 Подробности, публикация и реальные блокеры — CURRENT_STATUS.md §25.
+
+## Owner §49 — visual fulfillment
+
+| Критерий | Код / проверка | Подтверждение |
+| --- | --- | --- |
+| Скорость орла → орёл | semantic_visual + extract_entity | Грамматический объект, не свойство; настоящий Wikimedia asset |
+| Explicit show/find/generate | PresentationDecision + visual_request / gobot_tool alias | Shared task, late ASR, coalescing; без второго pipeline |
+| Explicit независимо от auto visual | Composer / TwoStageVisual | OFF/Minimal/answer-only fixtures; policy/consent сохраняются |
+| Badge не success | TwoStage result / diagnostics | Missing/error → fallback frame, asset_delivered=false |
+| Wikimedia → permitted generation | Existing VisualService / generated | Source-first mocks + real Wikimedia; платная генерация только mocks, live OFF |
+| Конкретные причины | generation_blocker + tool output | Отдельно policy/mode/consent/limit/provider/source; настройки не менялись |
+| RU/EN/составное название | Common noun sense + article_title_matches | Eagle; кратер Луны/Лунный кратер; ambiguous meanings не угадываются |
+| Показ и failure | Current visual_presented / visual_failed | Decode failure card, late/stale ack guards, no paid retry |
+| Browser и circle | Production Node + desktop QA fixture | Реальные cached public фото и fallback; физический iPhone pending |
+
+Полная регрессия 1251 passed; источники, тайминги и границы — CURRENT_STATUS.md §26.

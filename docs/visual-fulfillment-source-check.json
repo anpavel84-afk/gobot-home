@@ -1,0 +1,92 @@
+{
+  "source_checks": [
+    {
+      "question": "С какой скоростью летает орёл?",
+      "subject": "орел",
+      "query_plan": [
+        "eagle",
+        "орел"
+      ],
+      "elapsed_ms": 1687.94,
+      "asset_ready": true,
+      "cache_hit": false,
+      "reason": null,
+      "generation_reason": null,
+      "source": "Wikimedia",
+      "generation_calls": 0,
+      "browser_presented": false,
+      "physical_iphone_verified": false,
+      "asset_id": "37568e4718531b83e8ade048d9c325b558f1ceaadd5aad91ea78a70cd442f454",
+      "title": "орел",
+      "caption": "Images taken from: SOURCE and AUTHOR User:Tomfriedel SOURCE and AUTHOR Bernard DUPONT 150px 150px User:Kalyanvarma",
+      "license": "CC BY-SA 4.0",
+      "source_url": "https://commons.wikimedia.org/wiki/File:Eagles_together.jpg",
+      "entity_title": "Eagle",
+      "device_decoded_size": [
+        240,
+        240
+      ]
+    },
+    {
+      "question": "Покажи кратер Луны",
+      "subject": "кратер луны",
+      "query_plan": [
+        "crater moon",
+        "кратер луны"
+      ],
+      "elapsed_ms": 2599.9,
+      "asset_ready": true,
+      "cache_hit": false,
+      "reason": null,
+      "generation_reason": null,
+      "source": "Wikimedia",
+      "generation_calls": 0,
+      "browser_presented": false,
+      "physical_iphone_verified": false,
+      "asset_id": "23d345348b68625b5b06bcb84646056f73b9138b8446f70e3d5c722af05b06b1",
+      "title": "кратер луны · обзор",
+      "caption": "LROC WAC mosaic of Tycho crater with lighting similar to that when the NAC oblique image was taken. Mosaic is 130 km wide, north is up [NASA/GSFC/Arizona State University].",
+      "license": "Public domain",
+      "source_url": "https://commons.wikimedia.org/wiki/File:LRO_WAC_Tycho_crater_mosaic.jpg",
+      "entity_title": "Лунный кратер",
+      "device_decoded_size": [
+        240,
+        240
+      ]
+    }
+  ],
+  "configuration_audit": {
+    "native_policy_image_generation_allowed": false,
+    "owner_phone_profile_found": true,
+    "saved_screen": {
+      "generation_allowed": false,
+      "generation_consent": false,
+      "generation_mode": "off",
+      "generation_daily_limit": 0,
+      "generation_provider": "codex",
+      "visual_source_policy": "wikimedia_generate",
+      "automatic_illustrations": true,
+      "visual_strategy": null
+    },
+    "effective_native_generation": "blocked_by_server_policy",
+    "policy_changed": false,
+    "new_paid_calls": 0
+  },
+  "paid_generation_calls": 0,
+  "real_realtime_developer_calls": 0,
+  "browser_qa": {
+    "production_renderers": true,
+    "transport": "loopback QA fixture using public cached files",
+    "eagle_image_rendered": true,
+    "lunar_crater_rendered": true,
+    "fallback_rendered": true,
+    "round_240x240": true,
+    "native_audio_session": false,
+    "physical_iphone": false
+  },
+  "regression": {
+    "passed": 1251,
+    "seconds": 47.12
+  },
+  "cost_permissions_changed": false
+}

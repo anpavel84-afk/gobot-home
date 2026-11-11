@@ -17,7 +17,7 @@
       const {DeviceRenderer,SceneManager}=window.GoBotDeviceRenderer;this.manager=new SceneManager(this.profile);this.renderer=new DeviceRenderer(document.getElementById('device-screen'),this.profile);
       if(this.profile.has_screensaver)this.renderer.loadWallpaper();
       this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
-      this.renderer.onImageError=()=>this.status('Изображение не загрузилось. Ответ продолжается.');
+      this.renderer.onImageError=(id,turn)=>{if(turn!==this.turn)return;this.status('Изображение не загрузилось. Ответ продолжается.');window.GoBotRealtime?.visualFailed?.(id,turn);};
       this.renderer.onImageReady=(_,turn)=>{if(turn===this.turn&&this.enabled)window.GoBotClient.trace?.()?.mark('visual_decoded');};
       this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();window.GoBotRealtime?.visualPresented?.(id,turn);}};
       const hooks=window.GoBotHooks;

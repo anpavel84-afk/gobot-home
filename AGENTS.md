@@ -52,7 +52,11 @@ show explicitly provisional question-topic scenes, then bounded answer-aligned r
 Reuse VisualService/ImageCache and existing scoped visual memory. No new classifier LLM.
 Unknown alignment preserves provisional/neutral; mismatches deny refined media/generation.
 Native two-stage uses Wikimedia-first -> separately consented generation-if-missing;
-provisional paid generation waits for stable alignment. Never infer new ImageGen permission.
+Implicit provisional paid generation waits for stable alignment. Never infer new ImageGen permission.
+Explicit public image requests join the same visual worker; Wikimedia first, then only already
+consented/budgeted generation. Auto accompaniment OFF is not an explicit-action ban.
+Topic recognition/badges are not image fulfillment. Publish a real asset or a recoverable,
+specific source/policy/consent/limit failure card; decoded client-presented differs from scene_sent.
 
 Expert handoff v2: one processed user confirmation authorizes at most one CLI job.
 Separate finite client/profile/expiry/count grant and confirmed adult Family epoch are required.

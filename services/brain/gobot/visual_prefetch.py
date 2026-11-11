@@ -52,7 +52,10 @@ SKIP={'вопрос','ответ','вид','род','герой','персона
 def extract_entity(question):
     """Only a short public noun phrase can leave the host, never a raw question."""
     if PRIVATE_QUERY.search(question) or PRIVATE.search(question) or social(question):return None
-    text=normal(question)
+    from .presentation import PresentationDecision
+    intent=PresentationDecision().detect(question)
+    public_subject=intent.query if intent and intent.kind=='image' else question
+    text=normal(public_subject)
     if re.search(r'человеч\w*\s+сердц|сердц\w*\s+человек',text):
         return Entity('Сердце человека','Сердце человека',('сердце человека','человеческое сердце'))
     if re.search(r'\bлисич(?:к\w*|ек)\b',text):
@@ -69,7 +72,7 @@ def extract_entity(question):
         return Entity('Белый гриб','Белый гриб',('белый гриб',),'porcini')
     if re.search(r'\braspberry\s+pi\b',text) and not re.search(r'\b(?:zero|pico|[0-9]+)\b',text):
         return Entity('Raspberry Pi','Raspberry Pi',('Raspberry Pi',))
-    phrase=noun_phrase(question)
+    phrase=noun_phrase(public_subject)
     if not phrase:return None
     # An adjectival head is also an anchor when the answer drops a genitive
     # qualifier already explicit in the question; keep the full search subject.
@@ -267,11 +270,16 @@ class TwoStageVisual:
     deferred until a stable aligned answer, and at most once per turn. Stage 2
     cannot overwrite the question with an unbound noun from the model's prose.
     """
-    def __init__(self,req,entity,plan,fetch,publish,timeout=8,on_mismatch=None):
+    def __init__(self,req,entity,plan,fetch,publish,timeout=8,on_mismatch=None,on_status=None):
         from .device_contract import ScreenPreferences
         self.req=req;self.plan=plan;self.fetch=fetch;self.publish=publish;self.timeout=timeout
         self.on_mismatch=on_mismatch
+        from .presentation import PresentationDecision
+        intent=PresentationDecision().detect(req.text)
+        self.explicit=bool(intent and intent.kind=='image')
+        self.on_status=on_status
         self.pref=req.screen_preferences or ScreenPreferences();self.mode=self.pref.visual_strategy
+        if self.explicit and self.mode=='answer_only':self.mode='question_then_refine'
         # New owner policy supersedes the old optional secondary-source chain.
         if self.pref.visual_source_policy=='wikimedia_first':self.pref=self.pref.model_copy(update={'visual_source_policy':'wikimedia_generate'})
         self.req=req.model_copy(update={'screen_preferences':self.pref})
@@ -286,6 +294,7 @@ class TwoStageVisual:
             'candidate_ready':False,'scene_sent':False,'scene_presented':'unavailable',
             'candidate_rejected_reason':None,'fallback_reason':None,'topic_alignment_status':'pending',
             'refinement_updates':0}
+        self.diagnostics.update(visual_intent='explicit' if self.explicit else 'implicit',asset_delivered=False,fulfillment_state='requested')
         self.task=asyncio.create_task(self.run())
 
     def observe_partial(self,text):self.observe(text)
@@ -298,6 +307,9 @@ class TwoStageVisual:
         if self.plan.template or self.plan.reason=='ai_illustration':return self.plan
         return self.state.question_topic.plan() if self.state.question_topic else self.plan if self.plan.visual_needed and self.plan.visual_query else None
 
+    def status(self,status,message,**details):
+        if not self.closed and self.on_status:self.on_status({'status':status,'message':message,'explicit':self.explicit,**details})
+
     def schedule(self,plan,stage,revision,*,generation=False):
         task=asyncio.create_task(self.lookup(plan,stage,revision,generation=generation))
         self.workers.add(task)
@@ -308,16 +320,39 @@ class TwoStageVisual:
             # Same Wikimedia-first cache/search path. No speculative paid work.
             request=self.req if generation else self.req.model_copy(update={'screen_preferences':self.pref.model_copy(update={'generation_allowed':False,'generation_consent':False,'generation_mode':'off'})})
             self.diagnostics['retrieval_started']=True
+            self.diagnostics['fulfillment_state']='searching'
+            self.status('searching','Ищу изображение в Wikimedia.',visual_subject=plan.subject_label or plan.visual_query)
             mark('visual_prefetch_start',visual_stage=stage)
-            result=await self.fetch(request,plan,timeout=self.timeout)
+            try:result=await self.fetch(request,plan,timeout=self.timeout,progress=lambda event:self.status(**event))
+            except asyncio.CancelledError:raise
+            except Exception:
+                from .visual import VisualResult
+                from .presentation import Presentation,VisualMetadata
+                result=VisualResult(Presentation(id=frame_id(self.req.turn_id,'missing'),type='info_card',title='Изображение',metadata=VisualMetadata(state='unavailable',reason='image_source_unavailable')),'','')
             if stage==1:self.initial_result=result;self.initial_done=True
             if self.closed or self.state.topic_alignment_status=='mismatch':return
             if stage==2 and revision!=self.revision:return
             if stage==1 and self.published_revision>0:return
-            if not result or result.frame.metadata.state=='unavailable' or not result.frame.images:
-                self.diagnostics['fallback_reason']=result.frame.metadata.reason if result else 'no_candidate';return
-            self.diagnostics['candidate_ready']=True;mark('visual_candidate_ready',visual_stage=stage,cache_hit=result.frame.metadata.cache_hit)
-            if self.result and [x.asset_id for x in result.frame.images]==[x.asset_id for x in self.result.frame.images]:return
+            if not result:
+                from .visual import VisualResult
+                from .presentation import Presentation,VisualMetadata
+                result=VisualResult(Presentation(id=frame_id(self.req.turn_id,'missing'),type='info_card',title='Изображение',metadata=VisualMetadata(state='unavailable',reason='image_not_found')),'','')
+            if not result.frame.images:
+                from .visual import VisualService
+                self.diagnostics['fallback_reason']=result.frame.metadata.reason or 'no_candidate'
+                if self.result and self.result.frame.images:return # A failed refinement keeps the real provisional asset.
+                if not generation:
+                    result.frame.metadata.facts.pop('generation_fallback_reason',None)
+                    # The temporary no-generation prefetch preference is not the owner's policy.
+                    if not VisualService.generation_blocker(self.req) and self.explicit:return
+                result=VisualService.describe_missing(self.req,plan,result)
+                self.diagnostics['fulfillment_state']='fallback'
+                self.status('fallback',result.frame.text,reason=result.frame.metadata.reason,
+                            generation_reason=result.frame.metadata.facts.get('generation_fallback_reason'))
+            else:
+                self.diagnostics['candidate_ready']=True;mark('visual_candidate_ready',visual_stage=stage,cache_hit=result.frame.metadata.cache_hit)
+                if self.result and [x.asset_id for x in result.frame.images]==[x.asset_id for x in self.result.frame.images]:return
+                self.status('asset_ready','Сгенерированная иллюстрация готова.' if result.frame.metadata.generation_provider else 'Нашёл изображение. Загружаю на экран.',generated=bool(result.frame.metadata.generation_provider))
             if plan.visual_type=='diagram':result.frame.metadata.image_fit='contain'
             result.frame.id=frame_id(self.req.turn_id,f'visual-stage-{stage}-{revision}')
             result.frame.metadata.visual_stage='provisional' if stage==1 else 'refined'
@@ -328,9 +363,13 @@ class TwoStageVisual:
             else:self.state.refined_visual=result.frame
             if await self.publish(result,stage,revision) is False:return
             self.result=result;self.published_revision=revision
+            self.diagnostics['asset_delivered']=bool(result.frame.images)
+            self.diagnostics['fulfillment_state']='asset_delivered' if result.frame.images else 'fallback'
             self.diagnostics['scene_sent']=True;mark('visual_scene_sent',visual_stage=stage,revision=revision)
         except asyncio.CancelledError:raise
-        except Exception:self.diagnostics['fallback_reason']='optional_visual_unavailable'
+        except Exception:
+            self.diagnostics['fallback_reason']='optional_visual_unavailable'
+            self.status('fallback','Источник изображения временно недоступен. Можно повторить запрос.',reason='optional_visual_unavailable')
         finally:
             if stage==1:self.initial_done=True
 
@@ -356,7 +395,7 @@ class TwoStageVisual:
                         self.state.answer_topic=entity
                         self.diagnostics.update(visual_subject=entity.query,subject_resolution_method=entity.method,
                             subject_confirmed=status=='aligned',anchors=list(entity.anchors))
-                entity=self.state.question_topic if self.mode=='question_only' else self.state.answer_topic
+                entity=self.state.question_topic if self.mode=='question_only' or self.explicit and not self.state.answer_topic else self.state.answer_topic
                 if entity and self.state.topic_alignment_status!='mismatch' and self.revision<2:
                     target=entity.plan()
                     if entity.method=='answer_process_diagram':target=target.model_copy(update={'visual_type':'diagram'})
@@ -366,7 +405,7 @@ class TwoStageVisual:
                     # No duplicate retrieval/generation for a slight restatement.
                     missing=self.initial_done and not (self.initial_result and self.initial_result.frame.images)
                     permitted=self.pref.visual_source_policy!='wikimedia_only' and self.pref.generation_allowed and self.pref.generation_consent and self.pref.generation_mode!='off' and self.pref.generation_daily_limit>0
-                    generation=missing and permitted and self.state.topic_alignment_status=='aligned' and not self.generation_attempted
+                    generation=missing and permitted and (self.state.topic_alignment_status=='aligned' or self.explicit) and not self.generation_attempted
                     if key not in self.keys and (different and self.mode!='question_only' or self.mode=='answer_only' or generation):
                         self.keys.add(key);self.revision+=1
                         self.diagnostics['refinement_updates']=self.revision if self.mode!='question_only' else 0

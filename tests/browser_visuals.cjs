@@ -53,7 +53,11 @@ assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer
   assert(!renderer.frames.has('stage-one'));assert.equal(renderer.frames.get('stage-two').card.hidden,false);
   assert.equal(renderer.render({...frame,id:'late-stage-one',metadata:{visual_stage:'provisional',visual_revision:0}}),false);
   renderer.render({...frame,id:'stage-three-failed',metadata:{visual_stage:'refined',visual_revision:2}});
+  const deliveryFailures=[];renderer.onImageError=id=>deliveryFailures.push(id);
   all(renderer.frames.get('stage-three-failed').card,'img')[0].onerror();
+  assert.deepEqual(deliveryFailures,['stage-three-failed']);
   assert(renderer.frames.has('stage-two'));assert(!renderer.frames.has('stage-three-failed'));
+  renderer.begin();renderer.render({...frame,id:'fulfillment-fallback',type:'info_card',images:[],text:'Генерация отключена. Можно повторить запрос.',metadata:{state:'unavailable',facts:{visual_fulfillment:'fallback',generation_fallback_reason:'image_generation_policy_denied',source_failure_reason:'image_not_found'}}});
+  assert(root.textContent.includes('Генерация отключена'));assert(!root.textContent.includes('image_generation_policy_denied'));assert(!root.textContent.includes('visual_fulfillment'));
   console.log('Visual DOM units: card, gallery, partial payload, dedupe, safe paths, countdown, cancel and all 8 types passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -76,16 +76,24 @@ class ImageQueryPlanner:
     def plan(self,query):
         original=' '.join(query.split())[:180];clean=normal(original)
         entries=self.entries if self.entries is not None else installed_entries()
+        common_sense=False
         if not re.search('[а-я]',clean):return ImageQueryPlan((original,),'original')
         def translation(word):
+            nonlocal common_sense
             if word in ALIASES:return ALIASES[word],False
             row=entries.get(word,{})
             senses=row.get('senses',[])
-            if len(senses)>1:return None,True
+            if len(senses)>1:
+                # Proper names in a lexicon must not hide its sole common-noun
+                # sense (e.g. a city/constellation alongside an animal). Multiple
+                # common senses remain ambiguous; never guess between them.
+                common=[sense for sense in senses if sense and isinstance(sense[0],str) and sense[0][:1].islower()]
+                if len(common)!=1:return None,True
+                senses=common;common_sense=True
             term=senses[0][0] if senses and senses[0] else None
             return (term if isinstance(term,str) and re.fullmatch(r"[A-Za-z][A-Za-z '-]{0,79}",term) else None),False
         translated,ambiguous=translation(normal(canonical_subject(clean)))
-        if translated:return ImageQueryPlan((translated,original),'local_dictionary')
+        if translated:return ImageQueryPlan((translated,original),'common_noun_sense' if common_sense else 'local_dictionary')
         if ambiguous:return ImageQueryPlan((original,),'ambiguous_dictionary',True)
         # Preserve every modifier: if any word is unknown, do not drop it to get hits.
         tokens=re.findall(r"[\w-]+",clean);output=[]
@@ -105,4 +113,4 @@ class ImageQueryPlanner:
         translated=' '.join(output)
         # Punctuation other than hyphens is meaningful (e.g. names, relations).
         if re.sub(r'[\w\s-]','',clean):return ImageQueryPlan((original,),'original')
-        return ImageQueryPlan((translated,original),'local_dictionary')
+        return ImageQueryPlan((translated,original),'common_noun_sense' if common_sense else 'local_dictionary')

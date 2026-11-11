@@ -104,6 +104,15 @@
       if(this.sentVisual.size>32)this.sentVisual.clear();this.sentVisual.add(key);
       void this.command('visual_presented',{frame_id:frame,turn_id:turn}).catch(()=>{});
     }
+    visualFailed(frame,turn){
+      if(!this.ready||turn!==this.currentTurn)return;
+      this.visualStatus('Изображение не загрузилось. Можно повторить запрос; голосовой ответ продолжается.');
+      void this.command('visual_failed',{frame_id:frame,turn_id:turn}).catch(()=>{});
+    }
+    visualStatus(text){
+      const el=document.getElementById('realtime-visual-status');if(!el)return;
+      el.textContent=text||'';el.hidden=!text;
+    }
     mic(enabled){this.stream?.getAudioTracks().forEach(t=>t.enabled=enabled);if(this.speakerMirror){this.speakerMirror.active=enabled;if(!enabled)this.speakerMirror.ring=[];}document.getElementById('device-mic')?.replaceChildren(document.createTextNode(enabled?'● Микрофон включён · аудио в OpenAI, локальный Speaker ID':'○ Микрофон закрыт'));}
     async pttStart(){
       if(this.recording||this.held)return false;
@@ -144,7 +153,8 @@
       if(item.type==='speaker_segment')this.speakerMirror?.begin(item.data.segment_id);
       if(item.type==='speaker_segment_end')void this.speakerMirror?.flush();
       if(item.type==='speaker_identity')this.speakerStatus(item.data.state==='recognized'?'Предположительное совпадение голоса · личная память не разрешена':'Говорящий неизвестен · гостевой контекст');
-      if(item.type==='turn_started'){this.clearReview();this.currentTurn=item.turn_id;this.mic(false);this.heard=false;this.drained=false;this.response=null;window.GoBotHooks?.onTurn?.({turn_id:item.turn_id,conversation_id:item.conversation_id});}
+      if(item.type==='turn_started'){this.clearReview();this.currentTurn=item.turn_id;this.visualStatus('');this.mic(false);this.heard=false;this.drained=false;this.response=null;window.GoBotHooks?.onTurn?.({turn_id:item.turn_id,conversation_id:item.conversation_id});}
+      if(item.type==='visual_status'&&item.turn_id===this.currentTurn)this.visualStatus(item.data.message||'Визуальный источник временно недоступен.');
       if(item.type==='input_transcript'){
         if(item.turn_id!==this.currentTurn)return;
         this.lastInputText=item.data.text;this.reviewTurn=item.turn_id;
@@ -225,6 +235,7 @@
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
       this.clearReview();
+      this.visualStatus('');
       window.GoBotExpertUI?.clear();
       this.abort?.abort();clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);this.mic(false);
       this.stream?.getTracks().forEach(t=>{t.onended=null;t.stop();});this.events?.close();this.events=null;
@@ -273,6 +284,7 @@
       if(anchor)anchor.before(section);else (document.querySelector('main details')||document.querySelector('main'))?.append(section);
     }
     select.value=document.body.dataset.conversationEngine||'legacy';
+    if(!document.getElementById('realtime-visual-status')){const visual=document.createElement('p');visual.id='realtime-visual-status';visual.className='hint';visual.hidden=true;visual.setAttribute('role','status');(document.getElementById('device-status')||document.getElementById('realtime-status'))?.after(visual);}
     fetch('/api/realtime/status').then(r=>r.json()).then(data=>{
       if(data.budget?.enabled&&data.budget.unlimited_manual_testing)document.getElementById('realtime-status').textContent='Ручное тестирование владельца: число запусков и ответов не ограничено. API-расход учитывается; CLI и ImageGen имеют отдельные разрешения.';
     }).catch(()=>{});

@@ -53,6 +53,7 @@ class VisualResponseComposer:
         plan=self.planner.plan(req.text,route=route,context=context)
         pref=req.screen_preferences or ScreenPreferences()
         if plan.reason=='user_disabled_visual':return plan
+        if plan.origin=='explicit':return plan # Explicit image requests use the real-source-first action path.
         if (pref.automatic_illustrations and pref.style!='minimal'
                 and re.search(r'придумай|сказочн|фантастическ',req.text,re.I)
                 and re.search(r'планет|город|пейзаж|мир|дракон',req.text,re.I)):

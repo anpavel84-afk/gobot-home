@@ -32,7 +32,7 @@ class RealtimeOffer(Strict):
 
 class RealtimeCommand(Strict):
     command_id: str = Field(pattern=ID)
-    action: Literal['text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','visual_presented','close']
+    action: Literal['text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','visual_presented','visual_failed','close']
     frame_id: str|None=Field(default=None,pattern=ID)
     turn_id: str|None=Field(default=None,pattern=ID)
     text: str|None = Field(default=None,min_length=1,max_length=8000)

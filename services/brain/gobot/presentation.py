@@ -119,12 +119,12 @@ class PresentationDecision:
         if re.search(r'(?:какая|как\w*|покажи|что).{0,35}погод|^погода\??$',lower):return VisualIntent('weather')
         if re.search(r'что (?:сейчас )?играет|текущ\w* трек|покажи.*(?:плеер|музык)',lower):return VisualIntent('music')
         if re.search(r'покажи.*(?:статус|состояни[ея]).*(?:гобот|систем|сервер)|^статус (?:гобот|системы)',lower):return VisualIntent('status')
-        if not re.search(r'\b(?:покажи|показать|покажите|показывай|покажешь|увидеть)\b|как выгляд(?:ит|ят)|^(?:фото|фотография|изображение|картинка|галерея)\s|(?:пришли|скинь|выведи).*?(?:фото|картин|изображен)',lower):return None
+        if not re.search(r'\b(?:покажи|показать|покажите|показывай|покажешь|увидеть|сгенерируй|нарисуй)\b|как выгляд(?:ит|ят)|^(?:фото|фотография|изображение|картинка|галерея)\s|(?:найди|найдите|пришли|скинь|выведи).*?(?:фото|картин|изображен)',lower):return None
         if re.search(r'истори|памят|факт[ыо]|настройк|список|парол|ключ|файл|таймер',lower):return None
         if re.search(r'схем|диаграм',lower):
             return VisualIntent('diagram',query=text[:160],catalog_id='gobot-pipeline' if re.search(r'гобот|gobot|голосов\w* (?:контур|конвейер)',lower) else None)
         if re.search(r'карточк.*(?:результат|ответ)',lower):return VisualIntent('info',query=text[:160])
-        query=re.sub(r'^.*?\b(?:покажи(?:те)?|показать|показывай|покажешь|увидеть|пришли|скинь|выведи)\b[,\s:]*','',text,flags=re.I)
+        query=re.sub(r'^.*?\b(?:покажи(?:те)?|показать|показывай|покажешь|увидеть|пришли|скинь|выведи|найди(?:те)?|сгенерируй|нарисуй)\b[,\s:]*','',text,flags=re.I)
         query=re.sub(r'^мне\s+','',query,flags=re.I)
         query=re.sub(r'^(?:мне\s+)?(?:как выгляд(?:ит|ят)|фото(?:графии|графию)?|картинк[иу]|изображени[ея]|примеры?|галерею)\s*','',query,flags=re.I).strip(' .?!«»"')[:180]
         if not query:return VisualIntent('image',query='',gallery=False)

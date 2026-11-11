@@ -46,7 +46,7 @@
         const figure=node('figure');const open=node('a');open.href=image.url;open.target='_blank';open.rel='noopener';open.setAttribute('aria-label','Открыть изображение крупнее');
         const img=node('img');img.src=image.preview_variant;img.alt=image.alt||image.caption||frame.title||'Изображение';img.loading=frame.metadata?.visual_stage?'eager':'lazy';img.decoding='async';img.width=480;img.height=360;
         img.onload=()=>{if(this.frames.has(frame.id)){replaceStage();this.onImageReady?.(frame.id,img);}};
-        img.onerror=()=>{if(stagePrevious.length){card.remove();this.frames.delete(frame.id);return;}img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
+        img.onerror=()=>{if(!this.frames.has(frame.id))return;this.onImageError?.(frame.id);if(stagePrevious.length){card.remove();this.frames.delete(frame.id);return;}img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
         open.append(img);figure.append(open);if(image.caption)figure.append(node('figcaption',image.caption));
         const credit=node('p',undefined,'visual-credit');credit.append(node('span',(image.attribution||'')+' · '));
         for(const [label,value] of [[image.source?.label||'Источник',image.source?.url],[image.license||'Лицензия',image.license_url]]){
@@ -71,7 +71,7 @@
         }
       }
       if(state.facts&&typeof state.facts==='object'){
-        const internal=new Set(['presentation_group','entity_title','entity_source','entity_match','subject','query_basis','identification']);
+        const internal=new Set(['presentation_group','entity_title','entity_source','entity_match','subject','query_basis','identification','visual_fulfillment','source_failure_reason','generation_fallback_reason','retrieval_fallback_reason','source_policy']);
         const entries=Object.entries(state.facts).filter(([key])=>!internal.has(key)).slice(0,12);
         if(entries.length){const facts=node('dl',undefined,'visual-facts');for(const [key,value] of entries)facts.append(node('dt',key),node('dd',String(value)));card.append(facts);}
       }

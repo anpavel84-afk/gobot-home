@@ -37,7 +37,7 @@
       });if(!path)return;
       const token=++this.loadToken,image=new Image();
       image.onload=()=>{if(token===this.loadToken&&isCurrent(turn)){this.image=image;this.imageId=frame.id;this.imageFrame=frame;this.imageTurn=turn;this.imageReadyAt=Date.now();this.imagePadded=path.endsWith('/device.jpg');this.onImageReady?.(frame.id,turn);}};
-      image.onerror=()=>{if(token===this.loadToken)this.onImageError?.();};image.src=path;
+      image.onerror=()=>{if(token===this.loadToken&&isCurrent(turn))this.onImageError?.(frame.id,turn);};image.src=path;
     }
     clearImage(){this.loadToken++;this.image=null;this.imageId=null;this.imageFrame=null;this.imageTurn=null;this.imagePadded=false;this.presentedId=null;}
     imageFit(frame){
@@ -135,7 +135,10 @@
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
       else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.save();const alpha=!p.skin.reduced_motion&&this.imageReadyAt?Math.min(1,Math.max(0,(Date.now()-this.imageReadyAt)/180)):1;c.globalAlpha=alpha;this.drawFittedImage(frame,this.imageFit(frame));c.restore();c.fillStyle='rgba(12,20,26,.82)';c.fillRect(0,180,240,60);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(frame.metadata?.generation_provider?'ИИ-иллюстрация':overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,Math.min(155,240-2*inset));
         if(alpha>=.1&&this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
-      else if(frame&&!frame.images?.length){this.text(frame.title,120,83,15,165);this.text(frame.metadata?.state==='unavailable'?(frame.metadata?.visual_strategy==='retrieve'?'Фото недоступно':'Нет данных'):frame.metadata?.state==='cancelled'?'Остановлен':'Готово',120,126,18,165);}
+      else if(frame&&!frame.images?.length){this.text(frame.title,120,76,15,165);this.text(frame.metadata?.state==='unavailable'?(frame.metadata?.visual_strategy==='retrieve'||/^image_/.test(frame.metadata?.reason||'')?'Фото недоступно':'Нет данных'):frame.metadata?.state==='cancelled'?'Остановлен':'Готово',120,112,16,165);
+        const reason=frame.metadata?.facts?.generation_fallback_reason;
+        if(reason){this.text(/consent/.test(reason)?'Нет согласия на ИИ':/daily_limit/.test(reason)?'Лимит ИИ исчерпан':/disabled|policy|mode_off/.test(reason)?'Генерация отключена':'ИИ недоступен',120,146,11,165);this.text('Можно повторить запрос',120,172,10,155);}
+        else if(frame.metadata?.reason==='image_delivery_failed'){this.text('Ошибка загрузки фото',120,146,11,165);this.text('Повторите запрос',120,172,10,155);}}
       else if(manager.scene&&['icon','info_card'].includes(manager.scene.scene_type)){
         const payload=manager.scene.visual_payload||{};this.text(payload.icon||'✦',120,107,42,100,p.skin.face_color);this.text(payload.title,120,149,14,170);
         if(manager.scene.visual_subject==='Результат'){const value=(payload.text||'').replace(/^Получается\s+/,'').replace(/\.$/,'');let size=19;while(size>10){c.font=`${size}px system-ui`;if(c.measureText(value).width<=170)break;size--;}c.font=`${size}px system-ui`;this.text(c.measureText(value).width>170?'Подробности в панели':value,120,178,size,170);}

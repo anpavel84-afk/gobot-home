@@ -4,6 +4,8 @@ class Element{
  constructor(tag){this.tag=tag;this.children=[];this.listeners={};this.value='';this.checked=false;this.dataset={};}
  append(...items){this.children.push(...items);for(const n of items)if(n&&typeof n==='object')n.parent=this;}
  addEventListener(kind,callback){this.listeners[kind]=callback;}
+ setAttribute(key,value){this[key]=value;}
+ after(item){if(this.parent){const index=this.parent.children.indexOf(this);this.parent.children.splice(index+1,0,item);item.parent=this.parent;}}
 }
 const body=new Element('body'),main=new Element('main'),details=new Element('details');body.dataset.conversationEngine='realtime';body.append(main);main.append(details);
 const find=(node,id)=>{if(node.id===id)return node;for(const child of node.children||[]){const result=find(child,id);if(result)return result;}return null;};

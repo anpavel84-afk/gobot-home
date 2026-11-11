@@ -14,11 +14,22 @@ from .visual_images import ImageCache,ImageCandidate,CommonsImages,OpenverseImag
 from .image_query import DICTIONARY,VERSION as QUERY_VERSION,subject_matches_caption,caption_names_subject,ImageQueryPlanner,canonical_subject
 
 REASONS={
+ 'image_generation_disabled':'Генерация изображений отключена настройками профиля.',
+ 'image_generation_mode_off':'Автоматическая генерация изображений выключена.',
+ 'image_generation_policy_denied':'Серверная политика запрещает генерацию изображений.',
+ 'image_generation_consent_required':'Для генерации изображения нет отдельного согласия.',
+ 'image_generation_daily_limit':'Дневной лимит генерации изображений исчерпан или не выделен.',
+ 'image_generation_source_policy':'Выбраны только изображения Wikimedia; генерация отключена этой политикой.',
+ 'image_only_isolation_not_verified':'Генератор через Codex пока недоступен: изоляция image-only не подтверждена.',
+ 'generation_provider_unavailable':'Генератор изображений сейчас недоступен.',
+ 'openai_image_key_missing':'Для генератора изображений не настроен API-ключ.',
+ 'image_generation_already_attempted':'Генерация этой иллюстрации уже запускалась; неизвестный результат автоматически не повторяется.',
+ 'image_delivery_failed':'Файл найден, но браузер не смог загрузить или декодировать изображение. Можно повторить запрос.',
  'image_sources_disabled':'Внешний источник изображений отключён или не настроен. Локальные карточки и схемы доступны.',
  'image_source_contact_required':'Источник фотографий требует публичный контакт оператора. Его можно указать в настройках визуальных ответов.',
  'image_source_access_denied':'Источник отклонил загрузку изображения. Другой снимок не подставлялся.',
  'image_source_rate_limited':'Источник временно ограничил запросы. Повторные загрузки отложены.',
- 'image_not_found':'В доступном каталоге не нашлось подходящего изображения по этому названию. Можно уточнить объект или его внешний вид.',
+ 'image_not_found':'Не нашёл подходящее реальное изображение.',
  'private_image_not_available':'Личное изображение не загружено. Семейные фотографии и планы не ищутся в интернете.',
  'image_query_required':'Уточни, какой объект нужно показать.',
  'diagram_source_required':'Уточни элементы схемы или предоставь исходный план. Я не буду придумывать устройство вашей теплицы.',
@@ -53,6 +64,32 @@ class VisualService:
         message=text or REASONS.get(code,'Изображение сейчас недоступно. Попробуй позже; неподтверждённую картинку я не подставляю.')
         frame=Presentation(id=frame_id(req.turn_id,kind),type=kind,title=title,text=message,metadata=VisualMetadata(state='unavailable',reason=code))
         return VisualResult(frame,message,message)
+
+    @staticmethod
+    def generation_blocker(req):
+        from .device_contract import ScreenPreferences
+        pref=req.screen_preferences or ScreenPreferences()
+        if pref.visual_source_policy=='wikimedia_only':return 'image_generation_source_policy'
+        if not pref.generation_allowed:return 'image_generation_disabled'
+        if pref.generation_mode=='off':return 'image_generation_mode_off'
+        if not pref.generation_consent:return 'image_generation_consent_required'
+        if pref.generation_daily_limit<1:return 'image_generation_daily_limit'
+        return None
+
+    @staticmethod
+    def describe_missing(req,plan,result,*,generation_reason=None):
+        """A recoverable result card is not a completed image request."""
+        reason=result.frame.metadata.reason or 'image_not_found'
+        blocked=generation_reason or result.frame.metadata.facts.get('generation_fallback_reason') or VisualService.generation_blocker(req)
+        message=REASONS.get(reason,result.frame.text or 'Пригодное изображение не получено.')
+        if blocked and blocked!=reason:message+=' '+REASONS.get(blocked,'Генерация сейчас недоступна.')
+        result.frame.title=(plan.subject_label or plan.visual_query or 'Изображение')[:160]
+        result.frame.subtitle='Фото не найдено' if reason=='image_not_found' else 'Изображение недоступно'
+        result.frame.text=message+' Можно повторить запрос или уточнить объект.'
+        result.frame.metadata.facts.update(visual_fulfillment='fallback',source_failure_reason=reason)
+        if blocked:result.frame.metadata.facts['generation_fallback_reason']=blocked
+        result.display_text=result.frame.text;result.speech_text=result.frame.text
+        return result
 
     def generation_usage(self,owner):
         digest=hashlib.sha256(owner.encode()).hexdigest()
@@ -89,7 +126,8 @@ class VisualService:
     async def wiki_candidates(self,provider,query):
         """RU/title first, then whole-phrase EN/scientific aliases; never drop modifiers."""
         plan=await asyncio.to_thread(ImageQueryPlanner().plan,query)
-        for term in dict.fromkeys([query,*plan.terms]):
+        terms=[*plan.terms,query] if plan.basis=='common_noun_sense' and len(query.split())==1 else [query,*plan.terms]
+        for term in dict.fromkeys(terms):
             for method in ('page_images','search'):
                 if not hasattr(provider,method):continue
                 try:candidates=await getattr(provider,method)(term,3)
@@ -282,9 +320,8 @@ class VisualService:
         from .visual_subject import PRIVATE_QUERY
         from .visual_prefetch import PRIVATE
         pref=req.screen_preferences or ScreenPreferences()
-        if pref.visual_source_policy=='wikimedia_only':return self.fallback(req,'Иллюстрация','image_generation_policy_denied')
-        if not pref.generation_allowed or pref.generation_mode=='off' or not pref.generation_consent or pref.generation_daily_limit<1:
-            return self.fallback(req,'Иллюстрация','image_generation_consent_required')
+        blocked=self.generation_blocker(req)
+        if blocked:return self.fallback(req,'Иллюстрация',blocked)
         subject=plan.subject_label or plan.visual_query
         public_text=req.text+' '+subject
         if PRIVATE_QUERY.search(public_text) or PRIVATE.search(public_text) or re.search(r'анатоми|эндокрин|лекарств|сердц|диагноз|anatom|endocrin|human heart',public_text,re.I):
@@ -314,14 +351,15 @@ class VisualService:
                         c.execute('BEGIN IMMEDIATE')
                         day=generation_day
                         previous=c.execute('SELECT status FROM generation_lineage WHERE cache_key=? AND day=?',(key,day)).fetchone()
-                        if previous:return False # Unknown/cancelled outcomes are not silently paid twice.
+                        if previous:return 'image_generation_already_attempted' # Unknown/cancelled outcomes are not silently paid twice.
                         row=c.execute('SELECT count FROM generation_attempts WHERE owner=? AND day=? AND provider=?',(owner,day,pref.generation_provider)).fetchone()
-                        if row and row[0]>=pref.generation_daily_limit:return False
+                        if row and row[0]>=pref.generation_daily_limit:return 'image_generation_daily_limit'
                         c.execute('INSERT INTO generation_attempts VALUES(?,?,?,1) ON CONFLICT(owner,day,provider) DO UPDATE SET count=count+1',(owner,day,pref.generation_provider))
                         consent=json.dumps({'generation_consent':True,'generation_allowed':True,'daily_limit':pref.generation_daily_limit,'generation_mode':pref.generation_mode,'visual_source_policy':pref.visual_source_policy})
                         c.execute('INSERT INTO generation_lineage(cache_key,owner,day,provider,model,prompt,style,status,usage,asset_id,consent_snapshot) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(key,owner,day,'openai',MODEL,prompt,pref.style,'reserved','{}',None,consent))
-                        return True
-                if not await asyncio.to_thread(reserve):return self.fallback(req,'Иллюстрация','image_generation_daily_limit')
+                        return None
+                blocked=await asyncio.to_thread(reserve)
+                if blocked:return self.fallback(req,'Иллюстрация',blocked)
                 def settle(status,usage=None,asset=None):
                     with self.cache.connect() as c:c.execute('UPDATE generation_lineage SET status=?,usage=?,asset_id=? WHERE cache_key=? AND day=? AND status=?',(status,json.dumps(usage or {}),asset,key,generation_day,'reserved'))
                 try:
@@ -340,23 +378,30 @@ class VisualService:
                 cache_key=record['asset_id'],expires_at=record['expires_at'])
             return VisualResult(frame,frame.text,'')
 
-    async def generate_if_missing(self,req,plan,result,*,cache_only=False):
+    async def generate_if_missing(self,req,plan,result,*,cache_only=False,progress=None):
         pref=req.screen_preferences
-        denied={'image_sources_disabled','private_image_not_available','direct_image_url_not_supported','board_revision_not_reviewed','image_query_required'}
+        if not result.frame.images and not cache_only:
+            blocked=self.generation_blocker(req)
+            if blocked:
+                result.frame.metadata.facts['generation_fallback_reason']=blocked
+                return self.describe_missing(req,plan,result)
+        denied={'private_image_not_available','direct_image_url_not_supported','board_revision_not_reviewed','image_query_required'}
         if (not result.frame.images and not cache_only and req.mode!='mock' and pref and pref.visual_source_policy!='wikimedia_only'
                 and pref.generation_mode in {'missing','helpful'} and result.frame.metadata.reason not in denied):
-            try:generated=await self.generated(req,plan)
+            try:
+                if progress:progress({'status':'generating','message':'Не нашёл реальное изображение, пробую сгенерировать.'})
+                generated=await self.generated(req,plan)
             except asyncio.CancelledError:raise
-            except Exception:
-                result.frame.metadata.facts['generation_fallback_reason']='generation_provider_unavailable'
-                return result
+            except Exception as error:
+                result.frame.metadata.facts['generation_fallback_reason']=error.code if isinstance(error,ImageUnavailable) and error.code in REASONS else 'generation_provider_unavailable'
+                return self.describe_missing(req,plan,result)
             if generated.frame.images:
                 generated.frame.metadata.facts['retrieval_fallback_reason']=result.frame.metadata.reason or 'image_not_found'
                 return generated
             result.frame.metadata.facts['generation_fallback_reason']=generated.frame.metadata.reason or 'generation_unavailable'
-        return result
+        return self.describe_missing(req,plan,result) if not result.frame.images and not cache_only else result
 
-    async def attachment(self,req,plan,*,timeout=8,cache_only=False):
+    async def attachment(self,req,plan,*,timeout=8,cache_only=False,progress=None):
         """Optional accompaniment never replaces the model answer or adds TTS captions."""
         try:
             permitted=req.screen_preferences and req.screen_preferences.generation_consent and req.screen_preferences.generation_allowed and req.screen_preferences.generation_daily_limit>0
@@ -384,7 +429,7 @@ class VisualService:
                             strict_subject=plan.subject_source=='answer' or speculative,speculative=speculative),cache_only=cache_only)
                 except TimeoutError:result=self.fallback(req,'Иллюстрация','image_lookup_timeout')
                 pref=req.screen_preferences
-                generated=await self.generate_if_missing(req,plan,result,cache_only=cache_only)
+                generated=await self.generate_if_missing(req,plan,result,cache_only=cache_only,progress=progress)
                 if generated is not result:return generated
                 result.frame.metadata.visual_priority=plan.visual_priority;result.frame.metadata.visual_strategy='retrieve'
                 if result.frame.images:result.frame.metadata.backend='wikimedia' if result.frame.images[0].source.label.startswith('Wikimedia') else 'openverse'

@@ -454,7 +454,7 @@ def test_phone_trial_denies_other_clients_before_provider_and_clamps_generators(
             with pytest.raises(PermissionError):await m.start(offer().model_copy(update={'client_id':'other-client'}))
             assert not p.creations and b.status()['sessions_reserved']==0
             s=await start(m)
-            assert {t['name'] for t in s.config['tools']}=={'gobot_tool','expert_propose','expert_cancel'}
+            assert {t['name'] for t in s.config['tools']}=={'gobot_tool','visual_request','expert_propose','expert_cancel'}
             assert 'expert_start' not in {t['name'] for t in s.config['tools']}
             assert not s.profile.screen.generation_allowed and s.profile.screen.generation_mode=='off'
             assert profile.screen.generation_allowed and profile.screen.generation_daily_limit==3

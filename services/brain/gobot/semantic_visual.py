@@ -26,6 +26,19 @@ def noun_phrase(text,*,answer=False):
         text=re.sub(r'^(?:(?:гобот|слушай|подскажи|скажи|пожалуйста)[, !]+)+','',text,flags=re.I)
         text=re.sub(r'^(?:а\s+)?(?:расскажи|объясни|поговорим)(?:\s+мне)?\s+(?:о|об|про)\s+','',text,flags=re.I)
     morph=morphology();words=list(re.finditer(r'[А-Яа-яЁёA-Za-z]+(?:-[А-Яа-яЁёA-Za-z]+)*',text))
+    # An interrogative prepositional adjunct describes a property, not the
+    # depicted subject: «с какой скоростью летает ...», «при какой температуре ...».
+    # Drop its grammatical noun group; retain the subject on either side of a verb.
+    if not answer and re.match(r'^(?:с|на|при|за|до|в|по)\s+(?:как\w*|скольк\w*)\b',text,re.I):
+        end=None
+        for token in words[2:]:
+            form=morph.parse(token[0])[0]
+            if end is None:
+                if form.tag.POS=='NOUN':end=token.end()
+                elif form.tag.POS in {'VERB','INFN'}:break
+            elif form.tag.POS=='NOUN' and form.tag.case=='gent':end=token.end()
+            else:break
+        if end is not None:text=text[end:].strip();words=list(re.finditer(r'[А-Яа-яЁёA-Za-z]+(?:-[А-Яа-яЁёA-Za-z]+)*',text))
     forms=[]
     for match in words:
         parsed=morph.parse(match[0]);p=parsed[0]
