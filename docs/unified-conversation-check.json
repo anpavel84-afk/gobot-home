@@ -1,5 +1,5 @@
 {
-  "runtime_code_commit": "7b4e7eeb2b50498634920b2dab0ecd90735eea11",
+  "runtime_code_commit": "f9b1f1e61501c2f15ce2c204cf9b7f7896f405d7",
   "http": {
     "/": 200,
     "/device": 200,
@@ -32,7 +32,15 @@
   "C_bookmarks_unified": true,
   "image_fallback": "speaking_avatar_no_error_card",
   "native_mode_control": "input_transcript_audio_or_actual_answer",
-  "free_tests_passed": 1327,
-  "free_tests_seconds": 66.0,
-  "real_voice_after_fix_verified": false
+  "input_action_bridge_version": 2,
+  "native_tools": [
+    "clock",
+    "timer",
+    "weather_current",
+    "weather_setup"
+  ],
+  "free_tests_passed": 1337,
+  "free_tests_seconds": 84.25,
+  "real_voice_after_fix_verified": false,
+  "owner_weather_configured": true
 }

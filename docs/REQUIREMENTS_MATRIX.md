@@ -412,3 +412,9 @@ A baseline hashes unchanged, unconfirmed Live0. Free1327/66s; desktop browser
 | Пошаговая настройка и ACL | Реальные SettingsTools, fake HTTP: permission→location→confirmation→ready, запрет без owner | Не новая семейная авторизация |
 | Поправка/close/ошибка не создают скрытые повторы | Отмена pending task, profile invalidation, redacted failure и no retry fixtures | Сбой iPhone/Safari физически отдельно |
 | Нет лишней LLM для быстрых действий | В fixture нет backend/ExpertJobs, используется прежний Quick Intents | Live duration платная; это не обещание бесплатного voice turn |
+
+Runtime codef9b1f1e опубликован и запущен после idle0; HTTP подтверждает bridge v2,
+clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84.25s.
+Новый платный Live/iPhone-прогон не выполнялся; акустика и реальное срабатывание
+виджета на телефоне остаются отдельной приёмкой. Исторический runtime §35 выше
+сохранён как история, актуальный паспорт — CURRENT_STATUS.md §36.
