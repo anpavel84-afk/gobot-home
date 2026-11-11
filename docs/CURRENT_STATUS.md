@@ -12,9 +12,9 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  C↔A опубликован и запущен на `1de0cdfee3bb650ac348e1343d94df7a2035acc8`;
+  C↔A с приёмочными исправлениями опубликован и запущен на `7b4e7eeb2b50498634920b2dab0ecd90735eea11`;
   прежние A/B/C и Luna сохранены.
-  Последнее решение C ↔ A и фактическое развёртывание — §34 ниже; B остаётся Realtime Mini/baseline.
+  Последнее решение C ↔ A и фактическое развёртывание — §35 ниже; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -1927,3 +1927,14 @@ Paid developer calls0; budgets/ACL/private memory не расширялись. W
 Owner policy hash после прогона не изменился. WAL-aware private backup:
 `data/backups/before-unified-20261111T165836`, integrity=ok. Before-backup и свежий
 idle guard: Brain turns/voice, B/C, pending hangups=0. Актуальный release — ниже.
+
+**Опубликован и запущен code `7b4e7eeb2b50498634920b2dab0ecd90735eea11`.**
+После fresh idle0 выполнен обычный restart loopback services + прежнего Tailscale HTTPS,
+без изменения listener/firewall. [Runtime/HTTP evidence](unified-conversation-check.json):
+root/device, старые C panel/device и JS HTTP200; все C страницы содержат unified.js
+и data-unified=true. DefaultC/idle10, owner Live/Luna ON, unconfirmed Live0,
+A asset hashes unchanged, Image20/day, Live60min/day и общий estimate$10/day сохранены.
+Повторная desktop browser-проверка этого выпуска недоступна: CUA не предоставляет
+ни одного браузера. Поэтому здесь HTTP + production JS/canvas fixtures, а не новая
+реальная UI/акустическая приёмка. На iPhone обновить `/device` или старый C URL,
+сказать «давай перейдём в экспертный режим A» и проверить фактическую метку A/микрофон.

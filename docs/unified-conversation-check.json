@@ -1,12 +1,15 @@
 {
-  "runtime_code_commit": "1de0cdfee3bb650ac348e1343d94df7a2035acc8",
+  "runtime_code_commit": "7b4e7eeb2b50498634920b2dab0ecd90735eea11",
   "http": {
     "/": 200,
     "/device": 200,
     "/unified.js": 200,
+    "/device-renderer.js": 200,
+    "/visual.js": 200,
     "/demo2": 200,
     "/demo2/a/device": 200,
     "/demo2/b/device": 200,
+    "/demo2/c": 200,
     "/demo2/c/device": 200
   },
   "default_engine": "live",
@@ -25,5 +28,11 @@
   "live_minutes_per_day": 60,
   "api_estimate_usd_per_day": 10.0,
   "active_C": 0,
-  "unconfirmed_live": 0
+  "unconfirmed_live": 0,
+  "C_bookmarks_unified": true,
+  "image_fallback": "speaking_avatar_no_error_card",
+  "native_mode_control": "input_transcript_audio_or_actual_answer",
+  "free_tests_passed": 1327,
+  "free_tests_seconds": 66.0,
+  "real_voice_after_fix_verified": false
 }

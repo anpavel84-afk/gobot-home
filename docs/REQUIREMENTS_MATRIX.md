@@ -397,3 +397,6 @@ Live unconfirmed0, frozen A hashes unchanged; desktop IAB показал нов�
 | Исправление/незавершённый ввод не переключают | Delayed/cancelled control fixture; no network-gap completion | Шум/перебивание на физическом телефоне отдельно |
 
 Последний фактический runtime — CURRENT_STATUS.md §35.
+Code7b4e7ee опубликован/запущен, HTTP200 и coordinator на root/C подтверждены,
+A baseline hashes unchanged, unconfirmed Live0. Free1327/66s; desktop browser
+в этом проходе не предоставлен, iPhone voice после исправления ожидает владельца.
