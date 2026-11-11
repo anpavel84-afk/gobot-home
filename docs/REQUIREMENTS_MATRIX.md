@@ -456,3 +456,8 @@ canaries проверен targeted328; платные пробы не повто
 | Reduced motion/late result | Stable reduced raster; existing decode ACK/turn/profile guards | Skia offline + DOM fixtures; не hardware/Safari proof |
 | Figma | Source native importer retained unexecuted | Файл в Figma и visual acceptance отсутствуют |
 | Цена внедрения | Графика/шрифты локально; atlas не вызывает APIs | Новых платных вызовов0, прежние лимиты сохранены |
+
+Выпуск04d8999 published/running;1814tests +8final source checks; IAB desktop
+atlas/device проверены, HTTP200/A baseline unchanged. Новых платных вызовов0.
+Saved non-null preferences сохранены; штатный bootstrap заполнил прежние
+null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отдельно.

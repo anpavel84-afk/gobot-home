@@ -12,9 +12,9 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  C↔A с прогнозом и графическими таймерами опубликован и запущен на `4931c49b76d6968a599249e3c197876e97adb003`;
+  C↔A с графическим языком владельца опубликован и запущен на `04d8999e1180fe1d717f2bdbdc89a6cf8834e979`;
   прежние A/B/C и Luna сохранены.
-  Последнее исправление и фактическое развёртывание — §37 ниже; B остаётся Realtime Mini/baseline.
+  Последнее исправление и фактическое развёртывание — §38 ниже; B остаётся Realtime Mini/baseline.
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -2212,3 +2212,24 @@ pid_exists и Process() больше не считается ошибкой; run
 отдельным sha256-полем, чтобы не выглядеть как API token; сканер не ослаблялся.
 Private WAL-aware backup перед изменением runtime:
 `data/backups/before-unified-20261111T195519`, integrity=ok.
+
+**Выпуск04d8999 опубликован и запущен**, supervisor7668. Дождались окончания
+активного C-разговора; fresh idle0, WAL backup
+`data/backups/before-unified-20261111T200358`, integrity=ok. Все3 существовавших
+policy byte-preserved; отдельный run/live/policy.json не создавался. Сверка
+DeviceStore подтверждает сохранность прежних non-null preferences. При обновлении
+профиля штатный bootstrap заполнил прежде null voice defaults и добавил
+skin.expression=auto; byte-неизменность всех profile rows поэтому не заявляется.
+
+[HTTP/runtime](unified-conversation-check.json): root/device/A/B/C, новые
+JS/CSS/font/atlas200; frozen A hashes unchanged; C=gpt-live-1/idle10,
+B=gpt-realtime-2.1-mini, unconfirmedLive0. Новых платных developer calls0.
+Реальный ChatGPT in-app browser:192cards,10decoded SVG первой области,
+Classic→Soft/24face canvases,109icons/sun search4, timer section12.
+/device: настоящее лицо240×240, микрофон выключен, console errors/warnings0,
+horizontal overflow0 (atlas665px). Start/provider session не запускались.
+Это desktop-проверка; iPhone/ESP32/Figma отдельно не подтверждены.
+Внешний вид — панель «Устройство → Экран и внешний вид», атлас `/visual-atlas.html`.
+A для сравнения сохранён `/demo2/a/device`. Code rollback на4931c49 требует idle
+и совместимого чтения нового skin.expression, без восстановления старых ledger
+или согласий ради отката графики.
