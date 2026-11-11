@@ -278,3 +278,5 @@ Bootstrap owner/family preferences: generated item IDs now 32 characters, produc
 | Browser и circle | Production Node + desktop QA fixture | Реальные cached public фото и fallback; физический iPhone pending |
 
 Полная регрессия 1251 passed; источники, тайминги и границы — CURRENT_STATUS.md §26.
+Runtime 7b1d925 опубликован и запущен; A/B и оба cached device JPEG HTTP200,
+декодирование 240×240 подтверждено через штатный HTTPS. iPhone/native audio pending.

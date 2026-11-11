@@ -12,7 +12,7 @@
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  Native/A-B с Expert Handoff v2 опубликован и запущен на `597d6991bb12ab9c9d0ae1d889e27c6b6a711d1a`.
+  Native/A-B с Expert Handoff v2 и visual fulfillment опубликован и запущен на `7b1d925f75bb5a5ba66001d3c1f94979948e7160`.
   Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
@@ -1400,3 +1400,19 @@ unknown previous attempt имеют отдельные причины, не об
 «Покажи кратер Луны». Ожидается фото; при source miss — конкретный generation
 policy denial и карточка повторяемого запроса. Expert E2E из §25 всё ещё требует
 отдельного допуска; в этом проходе он не выполнялся.
+
+### Развёртывание этого прохода
+
+Код `7b1d925f75bb5a5ba66001d3c1f94979948e7160` опубликован в master и запущен.
+Перед остановкой: active_turns/active_voice_streams/active_sessions/pending_hangups
+все 0. Online backup обеих SQLite: integrity_check=ok; ignored backup
+data/backups/before-expert-handoff-20261110T223130 (имя унаследовано от helper).
+Первоначальный A backup не менялся. Индекс и вся история проверены gitleaks,
+0 findings. Приватные политики, предпочтения, базы и медиа в Git не добавлялись.
+
+[Deployment evidence](visual-fulfillment-deployment.json): A/B и assets HTTP200;
+оба device JPEG через штатный HTTPS реально декодируются в 240×240 (16 296 и
+22 212 байт, ниже 65 536). Модель gpt-realtime-2.1-mini, marin; owner manual
+unlimited, experts OFF, ImageGen OFF. Новых платных developer calls 0.
+Физический iPhone/native audio ещё не проверен; обновить B перед ручным сценарием,
+чтобы новая сессия получила visual_request и актуальные инструкции.

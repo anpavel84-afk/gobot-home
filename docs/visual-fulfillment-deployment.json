@@ -1,0 +1,47 @@
+{
+  "runtime_commit": "7b1d925f75bb5a5ba66001d3c1f94979948e7160",
+  "http": {
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b": 200,
+    "/demo2/b/device": 200,
+    "/realtime.js": 200,
+    "/visual.js": 200
+  },
+  "served_cached_assets": [
+    {
+      "subject": "орел",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decoded_size": [
+        240,
+        240
+      ],
+      "bytes": 16296
+    },
+    {
+      "subject": "кратер луны",
+      "http": 200,
+      "mime": "image/jpeg",
+      "decoded_size": [
+        240,
+        240
+      ],
+      "bytes": 22212
+    }
+  ],
+  "model": "gpt-realtime-2.1-mini",
+  "voice": "marin",
+  "owner_manual_unlimited": true,
+  "expert_jobs_allowed": false,
+  "image_generation_allowed": false,
+  "active_native_sessions": 0,
+  "active_turns": 0,
+  "pending_hangups": 0,
+  "new_paid_developer_calls": 0,
+  "image_generation_permission_changed": false,
+  "browser_renderer_qa": true,
+  "physical_iphone_native_audio_tested": false,
+  "sqlite_backup_integrity": "ok",
+  "legacy_A_preserved": true
+}
