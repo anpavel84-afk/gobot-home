@@ -19,7 +19,7 @@
       this.manager.onVisualChanged=(frame,turn)=>this.renderer.load(frame,turn,id=>id===this.turn);
       this.renderer.onImageError=()=>this.status('Изображение не загрузилось. Ответ продолжается.');
       this.renderer.onImageReady=(_,turn)=>{if(turn===this.turn&&this.enabled)window.GoBotClient.trace?.()?.mark('visual_decoded');};
-      this.renderer.onImagePresented=(_,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();}};
+      this.renderer.onImagePresented=(id,turn)=>{if(turn===this.turn&&this.enabled&&!document.hidden){const trace=window.GoBotClient.trace?.();trace?.mark('visual_presented');trace?.flush();window.GoBotRealtime?.visualPresented?.(id,turn);}};
       const hooks=window.GoBotHooks;
       hooks.onNativeClosed=({reason,message,error})=>{
         this.cancelTapGuard();

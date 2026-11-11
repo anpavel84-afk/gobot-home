@@ -205,3 +205,37 @@ Owner manual admission включён на runtime 4f23908: limits/expiry=null, 
 Подробности и границы достоверности — CURRENT_STATUS.md §20. Legacy A и первоначальный backup сохранены.
 
 Runtime 528c866 загружен; A/B HTTP200, owner manual uncapped сохранён. Deployment evidence: realtime-touch-alignment-deployment.json. Реальная речь после исправления на iPhone не принималась по fixtures.
+
+
+## Owner §§44–45 — круглый cover и two-stage visuals
+
+| Требование | Реализация / проверка | Статус |
+| --- | --- | --- |
+| Фото заполняет круг; схемы целиком | DeviceRenderer preview cover / semantic image_fit; device_image_fit.cjs | Production Canvas fixtures + browser с реальным cached фото; iPhone pending |
+| Question-first provisional | NativeSession.visual / TwoStageVisual / Composer | Topic scene + metadata-labelled candidate; native mock до response.done |
+| Answer-driven refinement | stable_visual_chunk / answer_entity, общий attachment | Пауки→Phoneutria; Луна→Тихо; сердце→схема; local relations, не universal verifier |
+| Unknown/mismatch | Existing response_alignment + bound affirmative clause | Неизвестная связь сохраняет Stage 1; паук/плод даёт neutral UI, no auto repair |
+| Wikimedia → generation-if-missing | Existing VisualService; deferred aligned fallback | Wikimedia/cache реально; генератор только fixtures, native admission OFF |
+| Cost/consent | Stage 1 generation denied; max one paid fallback admission; existing daily ledger | No-photo/consent/mismatch/source tests; новых paid calls 0 |
+| Не больше двух уточнений | Revision cap, asset/topic dedupe, stale-turn gates | Slow Stage 1/old turn/cancel/update cap fixtures; browser visible replacement |
+| Управляемость | Existing DeviceStore + экранный select | 3 стратегии; default question_then_refine; persistence regression |
+| Общий browser/device контракт | VisualMetadata stage/revision/image_fit, compact projection | Оба production renderer проверены; LVGL не объявлен реализованным |
+| Телеметрия | Native visual timing allowlist + validated client presented command | Wrong turn/frame игнорируются; content-free report; не физическая приёмка |
+
+Полный набор 1176 passed / 36.31 s. Evidence: two-stage-wikimedia-check.json;
+подробности, ограничения и фактическое развёртывание — CURRENT_STATUS.md §21.
+
+
+## Owner §§46–47 — silence close и owner style
+
+| Проверка | Реализация | Приёмка |
+| --- | --- | --- |
+| VAD ack full effective object | input_settings_applied | Extra defaults разрешены; safety controls не ослаблены; native fixture |
+| Тишина завершает без error/response | followup expiry + explicit idle_timeout_ms=null | Mock normal close; новых response.create нет |
+| WebRTC close раньше SSE | NativeVoice.transportEnded + scoped terminal status | Production JS mic OFF сразу; normal reason не error; реальный network failure остаётся error |
+| Status не раскрывает сессию другому | Existing owned device/client/epoch | HTTP ASGI 404 для foreign; только closed/reason, no-store |
+| Нужная диагностика | Content-free control_failure + followup timings | Только allowlisted action/exception kind; без домашнего transcript |
+| Локально сохранённый характер владельца | Existing AssistantPreferences in bound owner policy | Synthetic user-level prompt fixture, guest/private ACL и голос неизменны |
+| Чужие семейные настройки | Explicit Family preferences precedence | Family DB не дублируется; style не означает identity; physical retest pending |
+
+Подробности расследования и границы подтверждения: CURRENT_STATUS.md §22.

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 import httpx,pytest
-from gobot.realtime_contract import RealtimeOffer,RealtimeCommand,RealtimePolicy,MODEL,audio_only_sdp,session_config,settings_applied
+from gobot.realtime_contract import RealtimeOffer,RealtimeCommand,RealtimePolicy,MODEL,audio_only_sdp,session_config,settings_applied,input_settings_applied
 from gobot.realtime_budget import RealtimeBudget,estimate_usd
 from gobot.realtime_provider import RealtimeProvider
 from gobot.realtime import RealtimeManager
@@ -80,6 +80,86 @@ def test_model_voice_text_and_configuration_ack_are_exact():
     assert not settings_applied({'tracing':None},config)
     altered=json.loads(json.dumps(config));altered['audio']['output']['voice']='cedar'
     assert not settings_applied(altered,config)
+
+def test_vad_effective_ack_accepts_extra_defaults_without_relaxing_requested_controls():
+    expected={'type':'server_vad','threshold':.55,'prefix_padding_ms':300,'silence_duration_ms':900,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
+    actual={'audio':{'input':{'turn_detection':{**expected,'provider_extra_default':None}}}}
+    assert input_settings_applied(actual,expected)
+    for key,value in [('create_response',True),('interrupt_response',True),('idle_timeout_ms',12000),('threshold',.1)]:
+        changed=json.loads(json.dumps(actual));changed['audio']['input']['turn_detection'][key]=value
+        assert not input_settings_applied(changed,expected)
+    assert not input_settings_applied({'audio':{'input':{}}},None)
+    assert input_settings_applied({'audio':{'input':{'turn_detection':None}}},None)
+
+def test_followup_effective_defaults_then_silence_closes_normally_without_response(tmp_path,settings):
+    async def run():
+        m,p,b=configured(tmp_path,settings);s=await start(m)
+        try:
+            turn=await s.new_turn();turn.stored=True;turn.generation_done=True
+            original=s.ws.send
+            async def effective(raw):
+                obj=json.loads(raw)
+                detection=obj.get('session',{}).get('audio',{}).get('input',{}).get('turn_detection')
+                if isinstance(detection,dict):
+                    obj['session']['audio']['input']['turn_detection']={**detection,'provider_extra_default':None}
+                    raw=json.dumps(obj)
+                await original(raw)
+            s.ws.send=effective
+            await asyncio.wait_for(command(s,'followup'),.5)
+            assert s.input_mode=='followup' and not s.closed
+            before=sum(e['type']=='response.create' for e in s.ws.sent)
+            s.followup_deadline=time.monotonic()-1
+            await until_closed(s)
+            assert s.close_reason=='followup_timeout'
+            assert not any(e['type']=='error' for e in s.events)
+            assert sum(e['type']=='response.create' for e in s.ws.sent)==before
+        finally:await m.shutdown()
+    async def until_closed(s):
+        for _ in range(80):
+            if s.closed:return
+            await asyncio.sleep(.02)
+        assert s.closed
+    asyncio.run(run())
+
+def test_terminal_status_is_scoped_and_contains_no_provider_or_conversation_data(tmp_path,settings):
+    from fastapi import FastAPI
+    from gobot.realtime_api import attach_brain_realtime
+    async def run():
+        m,p,b=configured(tmp_path,settings);s=await start(m)
+        app=FastAPI();attach_brain_realtime(app,m,lambda:None)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://fixture') as c:
+            path='/api/v1/realtime/sessions/app-1/status'
+            assert (await c.get(path,params={'device_id':'foreign','client_id':'client-1'})).status_code==404
+            params={'device_id':'browser-1','client_id':'client-1'}
+            assert (await c.get(path,params=params)).json()=={'closed':False,'reason':None}
+            await m.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'followup_timeout')
+            r=await c.get(path,params=params)
+            assert r.json()=={'closed':True,'reason':'followup_timeout'} and r.headers['cache-control']=='no-store'
+        await m.shutdown()
+    asyncio.run(run())
+
+def test_bound_owner_style_reuses_preferences_without_granting_identity_or_privilege(tmp_path,settings):
+    from gobot.family_preferences import AssistantPreferences
+    async def run():
+        m,p,b=configured(tmp_path,settings)
+        prefs=AssistantPreferences(formality='вы',address='synthetic address',personality='custom',custom_prompt='SYNTHETIC_PRIVATE_STYLE').model_dump()
+        policy=owner_policy().model_copy(update={'owner_assistant_preferences':prefs})
+        b.policy_path.write_text(policy.model_dump_json(),encoding='utf-8')
+        s=await start(m)
+        try:
+            assert s.owner_preferences['formality']=='вы' and s.personalization is None
+            assert 'SYNTHETIC_PRIVATE_STYLE' not in s.config['instructions']
+            item=next(e['item'] for e in s.ws.sent if e['type']=='conversation.item.create')
+            assert item['role']=='user' and 'SYNTHETIC_PRIVATE_STYLE' in item['content'][0]['text']
+            assert not s.access.private_access and not s.expert_authorized
+            assert s.config['audio']['output']['voice']=='marin'
+            assert not any(e['type']=='response.create' for e in s.ws.sent)
+            assert s.manager.identity.family.profiles()==[]
+        finally:await m.shutdown()
+        assert 'SYNTHETIC_PRIVATE_STYLE' not in json.dumps(b.status())
+    asyncio.run(run())
+    with pytest.raises(ValueError):RealtimePolicy(owner_assistant_preferences={'formality':'вы'})
+    with pytest.raises(ValueError):RealtimePolicy(audience='owner_interactive',allowed_client_id='client-1',owner_assistant_preferences={'custom_prompt':'x'*1501})
 
 def test_budget_is_off_by_default_and_failed_attempts_not_refunded(tmp_path):
     budget=RealtimeBudget(tmp_path)
@@ -469,7 +549,7 @@ def test_native_audio_and_async_transcript_disagreement_warns_without_automatic_
         assert warning['data']['automatic_retry'] is False
         assert not any(e['type']=='visual_response' for e in s.events)
         scenes=[e['data']['scene'] for e in s.events if e['type']=='screen_scene']
-        assert all(e['scene_type']=='avatar' for e in scenes)
+        assert all(e['scene_type']=='avatar' or e.get('source_metadata',{}).get('visual_stage')=='provisional' for e in scenes)
         assert any(e['type']=='input_transcript' and e['data']['confirm_text_allowed'] for e in s.events)
         await m.shutdown()
         report=b.latest_report()
@@ -492,6 +572,37 @@ def test_partial_unfinished_noun_cannot_raise_subject_warning(tmp_path,settings)
         assert s.current.alignment_state=='match'
         assert not any(e['type']=='meaning_mismatch' for e in s.events)
         await m.shutdown()
+    asyncio.run(run())
+
+def test_native_two_visual_stages_before_response_done_and_client_presentation_signal(tmp_path,settings):
+    from test_two_stage_visual import result,until
+    async def run():
+        m,p,b=configured(tmp_path,settings);lookups=[]
+        async def local_fixture(req,plan,**kw):
+            lookups.append(plan.visual_query);return result(plan.visual_query)
+        m.brain.visual.attachment=local_fixture
+        s=await start(m)
+        try:
+            await command(s,'text',text='Расскажи про пауков');await tick()
+            frames=lambda:[e['data']['presentation'] for e in s.events if e['type']=='visual_response']
+            await until(lambda:frames())
+            assert frames()[0]['metadata']['visual_stage']=='provisional'
+            await s.handle({'type':'response.output_audio_transcript.delta','response_id':'resp_1','delta':'Опасные пауки относятся к роду Phoneutria.'})
+            await until(lambda:len(frames())==2)
+            assert frames()[-1]['title']=='Phoneutria' and not s.current.generation_done
+            assert sum(e['type']=='response.create' for e in s.ws.sent)==1
+            await command(s,'visual_presented',frame_id=frames()[-1]['id'],turn_id='old-turn')
+            assert 'visual_refined_presented' not in s.current.timings
+            await command(s,'visual_presented',frame_id=frames()[-1]['id'],turn_id=s.current.id)
+            assert 'visual_refined_presented' in s.current.timings
+            assert lookups==['Пауки','Phoneutria']
+            await s.handle({'type':'response.done','response':{'id':'resp_1','status':'completed'}})
+            await until(lambda:s.current.photo.task.done())
+        finally:await m.shutdown()
+        report=b.latest_report()
+        assert report['contains_conversation_content'] is False
+        assert 'visual_refined_presented' in report['turns_ms'][0]
+        assert 'Phoneutria' not in json.dumps(report)
     asyncio.run(run())
 
 def test_no_thanks_declines_expert_proposal_without_closing_or_starting_cli(tmp_path,settings):

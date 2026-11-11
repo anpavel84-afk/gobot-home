@@ -187,3 +187,200 @@ class SpeculativePhoto:
         self.task.cancel()
         if self.lookup:self.lookup.cancel()
         await asyncio.gather(*[t for t in (self.task,self.lookup) if t],return_exceptions=True)
+
+
+@dataclass
+class VisualStages:
+    """Turn-local semantic state. Never shared between profiles or provider sessions."""
+    question_topic:Entity|None=None
+    provisional_visual:object=None
+    answer_topic:Entity|None=None
+    refined_visual:object=None
+    topic_alignment_status:str='pending'
+
+
+def stable_visual_chunk(text,final=False):
+    """A complete clause, or a sufficiently long prefix without its unfinished word."""
+    text=text[:1600]
+    ends=list(re.finditer(r'[.!?…](?:\s|$)',text))
+    stable=text[:ends[-1].end()] if ends else text if final else re.sub(r'[\w-]+$','',text)
+    if len(stable.split())<(4 if final or ends else 8):return ''
+    return stable
+
+
+def answer_entity(expected,query,answer):
+    """Conservative local relation extraction, not a universal semantic verifier.
+
+    Only a question-anchored affirmative clause can select a more specific object.
+    Unknown relations preserve the provisional scene rather than guessing a topic.
+    """
+    from .response_alignment import alignment
+    if alignment(query,answer)=='suspected_mismatch':return 'mismatch',None
+    if PRIVATE_QUERY.search(answer) or PRIVATE.search(answer):return 'unknown',None
+    if not expected:
+        entity=extract_entity(answer)
+        return ('unknown',entity) if entity else ('unknown',None)
+    aligned=False
+    from .image_query import phrase_lemmas
+    question_words=set(phrase_lemmas(query))
+    from .speech_formatter import morphology
+    forms=[morphology().parse(w)[0] for w in re.findall(r'[\w-]+',expected.label)]
+    head=next((p.normal_form for p in forms if p.tag.POS=='NOUN'),None)
+    qualifiers=[p.normal_form for p in forms if p.tag.POS=='NOUN' and p.normal_form!=head]
+    for clause in re.split(r'[.!?…\n]',answer):
+        if re.search(r'хочешь|могу рассказать|можем поговорить|не знаю|не удалось',clause,re.I):continue
+        selected=expected.confirm(clause)
+        if not selected and head and qualifiers and mentioned(head,clause):
+            # Genitive/adjectival relation: «кратер Луны» ↔ «лунный кратер».
+            words=[p for w in re.findall(r'[\w-]+',clause) for p in morphology().parse(w)[:2]]
+            related=all(mentioned(q,clause) or any(p.tag.POS=='ADJF' and p.normal_form.startswith(q.rstrip('аяоеьй')) and len(q.rstrip('аяоеьй'))>=3 for p in words) for q in qualifiers)
+            if related or aligned:selected=expected
+        if not selected:continue
+        aligned=True
+        if selected!=expected:return 'aligned',selected
+        # Scientific/technical names in an explicit apposition, not any capital word.
+        latin=re.search(r'(?:\(|\b(?:род[ауеом]*|вид[ауеом]*|называется|называют)\s+)([A-Z][a-z]{3,}(?:\s+[a-z]{3,})?)',clause)
+        if not latin:
+            latin=re.search(r'^\s*([A-Z][a-z]{3,}(?:\s+[a-z]{3,})?)\s*[—–]',clause)
+        if latin:
+            value=latin[1].strip()
+            return 'aligned',Entity(value,value,(value,),method='answer_bound_name')
+        # A named instance follows the same noun (crater Tycho, rocket Falcon 9).
+        wanted=set(phrase_lemmas(expected.label))
+        for named in re.finditer(r'\b([а-яё-]+)\s+([А-ЯЁA-Z][\w-]+(?:\s+\d{1,3})?)',clause):
+            if set(phrase_lemmas(named[1]))&wanted:
+                value=named[0]
+                return 'aligned',Entity(value,value,(value,),method='answer_bound_name')
+        if re.search(r'сердц',expected.query,re.I) and re.search(r'кровообращени|кровоток|круг\w*\s+кров',clause,re.I):
+            return 'aligned',Entity('Кровообращение человека','Кровообращение человека',('кровообращение','кровоток'),method='answer_process_diagram')
+        phrase=noun_phrase(clause,answer=True)
+        if phrase and mentioned(expected.anchors[0],phrase) and set(phrase_lemmas(phrase))>wanted and set(phrase_lemmas(phrase))-question_words:
+            return 'aligned',Entity(phrase,phrase,(phrase,),method='early_answer_noun_phrase')
+    if aligned:return 'aligned',expected
+    return 'unknown',None
+
+
+class TwoStageVisual:
+    """Scheduling around the existing attachment pipeline; no new search/cache/provider.
+
+    Stage 1 is public question metadata, explicitly provisional. Paid fallback is
+    deferred until a stable aligned answer, and at most once per turn. Stage 2
+    cannot overwrite the question with an unbound noun from the model's prose.
+    """
+    def __init__(self,req,entity,plan,fetch,publish,timeout=8,on_mismatch=None):
+        from .device_contract import ScreenPreferences
+        self.req=req;self.plan=plan;self.fetch=fetch;self.publish=publish;self.timeout=timeout
+        self.on_mismatch=on_mismatch
+        self.pref=req.screen_preferences or ScreenPreferences();self.mode=self.pref.visual_strategy
+        # New owner policy supersedes the old optional secondary-source chain.
+        if self.pref.visual_source_policy=='wikimedia_first':self.pref=self.pref.model_copy(update={'visual_source_policy':'wikimedia_generate'})
+        self.req=req.model_copy(update={'screen_preferences':self.pref})
+        self.state=VisualStages(question_topic=entity)
+        self.answer='';self.final=False;self.closed=False;self.changed=asyncio.Event()
+        self.workers=set();self.revision=0;self.published_revision=-1;self.result=None
+        self.initial_result=None;self.initial_done=False;self.generation_attempted=False
+        self.selected_key=None;self.analysed='';self.keys=set()
+        self.diagnostics={'visual_needed':True,'visual_subject':entity.label if entity else None,
+            'subject_resolution_method':entity.method if entity else 'awaiting_early_answer',
+            'subject_confirmed':False,'visual_strategy':'retrieve','retrieval_started':False,
+            'candidate_ready':False,'scene_sent':False,'scene_presented':'unavailable',
+            'candidate_rejected_reason':None,'fallback_reason':None,'topic_alignment_status':'pending',
+            'refinement_updates':0}
+        self.task=asyncio.create_task(self.run())
+
+    def observe_partial(self,text):self.observe(text)
+    def observe(self,text,*,final=False):
+        if self.closed:return
+        self.answer=text;self.final=self.final or final;self.changed.set()
+    def finish(self):self.final=True;self.changed.set()
+
+    def initial_plan(self):
+        if self.plan.template or self.plan.reason=='ai_illustration':return self.plan
+        return self.state.question_topic.plan() if self.state.question_topic else self.plan if self.plan.visual_needed and self.plan.visual_query else None
+
+    def schedule(self,plan,stage,revision,*,generation=False):
+        task=asyncio.create_task(self.lookup(plan,stage,revision,generation=generation))
+        self.workers.add(task)
+        task.add_done_callback(lambda t:(self.workers.discard(t),self.changed.set()))
+
+    async def lookup(self,plan,stage,revision,*,generation):
+        try:
+            # Same Wikimedia-first cache/search path. No speculative paid work.
+            request=self.req if generation else self.req.model_copy(update={'screen_preferences':self.pref.model_copy(update={'generation_allowed':False,'generation_consent':False,'generation_mode':'off'})})
+            self.diagnostics['retrieval_started']=True
+            mark('visual_prefetch_start',visual_stage=stage)
+            result=await self.fetch(request,plan,timeout=self.timeout)
+            if stage==1:self.initial_result=result;self.initial_done=True
+            if self.closed or self.state.topic_alignment_status=='mismatch':return
+            if stage==2 and revision!=self.revision:return
+            if stage==1 and self.published_revision>0:return
+            if not result or result.frame.metadata.state=='unavailable' or not result.frame.images:
+                self.diagnostics['fallback_reason']=result.frame.metadata.reason if result else 'no_candidate';return
+            self.diagnostics['candidate_ready']=True;mark('visual_candidate_ready',visual_stage=stage,cache_hit=result.frame.metadata.cache_hit)
+            if self.result and [x.asset_id for x in result.frame.images]==[x.asset_id for x in self.result.frame.images]:return
+            if plan.visual_type=='diagram':result.frame.metadata.image_fit='contain'
+            result.frame.id=frame_id(self.req.turn_id,f'visual-stage-{stage}-{revision}')
+            result.frame.metadata.visual_stage='provisional' if stage==1 else 'refined'
+            result.frame.metadata.visual_revision=revision
+            if stage==1:
+                self.state.provisional_visual=result.frame
+                result.frame.text='Предварительная иллюстрация темы вопроса. '+result.frame.text
+            else:self.state.refined_visual=result.frame
+            if await self.publish(result,stage,revision) is False:return
+            self.result=result;self.published_revision=revision
+            self.diagnostics['scene_sent']=True;mark('visual_scene_sent',visual_stage=stage,revision=revision)
+        except asyncio.CancelledError:raise
+        except Exception:self.diagnostics['fallback_reason']='optional_visual_unavailable'
+        finally:
+            if stage==1:self.initial_done=True
+
+    async def run(self):
+        try:
+            initial=self.initial_plan()
+            if initial and self.mode!='answer_only':self.schedule(initial,1,0)
+            else:self.initial_done=True
+            self.changed.set()
+            while not self.closed:
+                await self.changed.wait();self.changed.clear()
+                stable=stable_visual_chunk(self.answer,self.final)
+                if stable and stable!=self.analysed and self.state.topic_alignment_status!='mismatch':
+                    self.analysed=stable
+                    status,entity=await asyncio.to_thread(answer_entity,self.state.question_topic,self.req.text,stable)
+                    self.state.topic_alignment_status=status;self.diagnostics['topic_alignment_status']=status
+                    if status=='mismatch':
+                        self.diagnostics.update(candidate_rejected_reason='question_answer_topic_mismatch',subject_confirmed=False)
+                        if self.on_mismatch:self.on_mismatch()
+                        for task in list(self.workers):task.cancel()
+                        return self.result
+                    if entity and (status=='aligned' or self.state.question_topic is None):
+                        self.state.answer_topic=entity
+                        self.diagnostics.update(visual_subject=entity.query,subject_resolution_method=entity.method,
+                            subject_confirmed=status=='aligned',anchors=list(entity.anchors))
+                entity=self.state.question_topic if self.mode=='question_only' else self.state.answer_topic
+                if entity and self.state.topic_alignment_status!='mismatch' and self.revision<2:
+                    target=entity.plan()
+                    if entity.method=='answer_process_diagram':target=target.model_copy(update={'visual_type':'diagram'})
+                    key=normal(entity.query)
+                    original=normal(self.state.question_topic.query) if self.state.question_topic else ''
+                    different=key!=original
+                    # No duplicate retrieval/generation for a slight restatement.
+                    missing=self.initial_done and not (self.initial_result and self.initial_result.frame.images)
+                    permitted=self.pref.visual_source_policy!='wikimedia_only' and self.pref.generation_allowed and self.pref.generation_consent and self.pref.generation_mode!='off' and self.pref.generation_daily_limit>0
+                    generation=missing and permitted and self.state.topic_alignment_status=='aligned' and not self.generation_attempted
+                    if key not in self.keys and (different and self.mode!='question_only' or self.mode=='answer_only' or generation):
+                        self.keys.add(key);self.revision+=1
+                        self.diagnostics['refinement_updates']=self.revision if self.mode!='question_only' else 0
+                        if generation:self.generation_attempted=True
+                        # Refinement may use fallback only after alignment; never generate twice.
+                        allow_generation=permitted and self.state.topic_alignment_status=='aligned' and not self.generation_attempted
+                        if allow_generation:self.generation_attempted=True
+                        self.schedule(target,1 if self.mode=='question_only' else 2,0 if self.mode=='question_only' else self.revision,generation=generation or allow_generation)
+                if self.final and not self.workers:break
+            return self.result
+        finally:
+            for task in list(self.workers):task.cancel()
+            await asyncio.gather(*self.workers,return_exceptions=True)
+
+    async def close(self):
+        self.closed=True;self.changed.set();self.task.cancel()
+        await asyncio.gather(self.task,return_exceptions=True)

@@ -46,3 +46,10 @@ Separate native input transcription is asynchronous guidance, not proof of what 
 Keep native audio fast; explicit user-confirmed text correction reuses the same session.
 Subject-frame warnings must not launch automatic paid repairs or be called universal semantic verification.
 Protect short accidental face taps from cancelling playing audio; Stop remains immediate.
+
+OWNER DIRECT two-stage visuals supersedes always-avatar-until-answer confirmation:
+show explicitly provisional question-topic scenes, then bounded answer-aligned refinements.
+Reuse VisualService/ImageCache and existing scoped visual memory. No new classifier LLM.
+Unknown alignment preserves provisional/neutral; mismatches deny refined media/generation.
+Native two-stage uses Wikimedia-first -> separately consented generation-if-missing;
+provisional paid generation waits for stable alignment. Never infer new ImageGen permission.

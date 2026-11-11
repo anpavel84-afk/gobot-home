@@ -17,14 +17,26 @@
     render(frame){
       if(frame?.metadata?.backend==='answer_map')return false;
       if(!frame||frame.namespace!=='gobot.ui'||frame.version!==2||!kinds.has(frame.type)||typeof frame.id!=='string')return false;
+      // The two stages occupy one scene slot, never an accumulating carousel.
+      const stagePrevious=[];
+      if(frame.metadata?.visual_stage&&!this.frames.has(frame.id)){
+        const incoming=frame.metadata.visual_revision||0;
+        for(const [id,entry] of this.frames){
+          if(!entry.frame.metadata?.visual_stage)continue;
+          if((entry.frame.metadata.visual_revision||0)>incoming)return false;
+          stagePrevious.push([id,entry]);
+        }
+      }
       const existingTimer=frame.type==='timer_widget'&&this.timerCards.get(frame.metadata?.timer_id);
       if(existingTimer){if(frame.metadata.state==='cancelled'){clearInterval(existingTimer.ticker);this.intervals.delete(existingTimer.ticker);existingTimer.output.textContent='Таймер остановлен';existingTimer.frame.metadata.state='cancelled';}return true;}
-      if(Array.isArray(frame.images)&&frame.images.some(image=>imagePath.test(image?.url||'')))this.clearScene();
+      if(!stagePrevious.length&&Array.isArray(frame.images)&&frame.images.some(image=>imagePath.test(image?.url||'')))this.clearScene();
       if(this.frames.has(frame.id)&&frame.metadata?.transient_scene){this.clearScene();}
       if(this.frames.has(frame.id))return true;
       this.loadingNow=false;this.root.hidden=false;
       if(!this.frames.size)this.root.replaceChildren();
       const card=node('article',undefined,'visual-card visual-'+frame.type);card.dataset.visualId=frame.id;
+      if(frame.metadata?.visual_stage){card.classList?.add('visual-stage-replace');}
+      const replaceStage=()=>{for(const [id,entry] of stagePrevious){entry.card.remove();this.frames.delete(id);}card.hidden=false;};
       const header=node('div',undefined,'visual-heading');header.append(node('span',frame.metadata?.icon||icons[frame.type],'visual-icon'),node('h3',frame.title||'Визуальный ответ'));card.append(header);
       if(frame.subtitle)card.append(node('p',frame.subtitle,'visual-subtitle'));
       const body=node('p',frame.text||'','visual-body');card.append(body);
@@ -32,9 +44,9 @@
       for(const image of images){
         if(!image||!imagePath.test(image.url||'')||!imagePath.test(image.preview_variant||''))continue;
         const figure=node('figure');const open=node('a');open.href=image.url;open.target='_blank';open.rel='noopener';open.setAttribute('aria-label','Открыть изображение крупнее');
-        const img=node('img');img.src=image.preview_variant;img.alt=image.alt||image.caption||frame.title||'Изображение';img.loading='lazy';img.decoding='async';img.width=480;img.height=360;
-        img.onload=()=>{if(this.onImageReady && this.frames.has(frame.id))this.onImageReady(frame.id,img);};
-        img.onerror=()=>{img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
+        const img=node('img');img.src=image.preview_variant;img.alt=image.alt||image.caption||frame.title||'Изображение';img.loading=frame.metadata?.visual_stage?'eager':'lazy';img.decoding='async';img.width=480;img.height=360;
+        img.onload=()=>{if(this.frames.has(frame.id)){replaceStage();this.onImageReady?.(frame.id,img);}};
+        img.onerror=()=>{if(stagePrevious.length){card.remove();this.frames.delete(frame.id);return;}img.hidden=true;const message=node('p','Изображение недоступно или срок кэша истёк. Обнови запрос.','visual-unavailable');open.replaceChildren(message);};
         open.append(img);figure.append(open);if(image.caption)figure.append(node('figcaption',image.caption));
         const credit=node('p',undefined,'visual-credit');credit.append(node('span',(image.attribution||'')+' · '));
         for(const [label,value] of [[image.source?.label||'Источник',image.source?.url],[image.license||'Лицензия',image.license_url]]){
@@ -43,6 +55,7 @@
         credit.append(node('span','Размер изменён; метаданные удалены.'));figure.append(credit);gallery.append(figure);count++;
       }
       if(count)card.append(gallery);
+      if(stagePrevious.length){if(count)card.hidden=true;else replaceStage();}
       if(!count&&['image_card','image_gallery'].includes(frame.type))card.append(node('p','Изображение пока не получено.','visual-unavailable'));
       const state=frame.metadata||{};
       if(state.synthetic)card.append(node('small',state.generation_provider?'ИИ-иллюстрация · '+state.generation_provider+' · детали не подтверждены':'Условная иллюстрация · создана локально · не фотография','visual-state'));

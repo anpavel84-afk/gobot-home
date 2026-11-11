@@ -4,7 +4,9 @@
   class SceneManager{
     constructor(profile,clock=()=>Date.now()){this.profile=profile;this.clock=clock;this.turn=null;this.visual=null;this.scene=null;this.state='idle';this.completed=false;this.returnAt=null;}
     newTurn(turn){this.turn=turn;this.visual=null;this.scene=null;this.completed=false;this.returnAt=null;this.state='thinking';this.gallery=[];this.galleryAt=null;}
-    frame(frame,turn){if(frame?.metadata?.backend==='answer_map')return false;if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;this.visual=frame;this.returnAt=null;
+    frame(frame,turn){if(frame?.metadata?.backend==='answer_map')return false;if(turn!==this.turn||!frame||typeof frame!=='object'||typeof frame.id!=='string')return false;
+      if(frame.metadata?.visual_stage&&this.visual?.metadata?.visual_stage&&(frame.metadata.visual_revision||0)<(this.visual.metadata.visual_revision||0))return false;
+      this.visual=frame;this.returnAt=null;
       if(frame.metadata?.facts?.presentation_group==='answer_characters'){
         this.gallery=this.gallery||[];if(!this.gallery.some(item=>item.id===frame.id))this.gallery.push(frame);
         this.galleryAt=this.clock()+5000;
@@ -28,12 +30,38 @@
     constructor(canvas,profile=defaults){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.image=null;this.imageId=null;this.loadToken=0;this.wallpaper=null;this.setProfile(profile);}
     setProfile(profile){this.profile=profile;this.canvas.width=profile.display.width;this.canvas.height=profile.display.height;}
     load(frame,turn,isCurrent){
-      const path=frame?.images?.[0]?.device_variant;if(!/^\/api\/visual\/assets\/[a-f0-9]{64}\/device\.jpg$/.test(path||''))return;
+      const asset=frame?.images?.[0];
+      const path=[asset?.preview_variant,asset?.device_variant].find(value=>{
+        const match=/^\/api\/visual\/assets\/([a-f0-9]{64})\/(?:preview|device)\.jpg$/.exec(value||'');
+        return match&&(!asset.asset_id||asset.asset_id===match[1]);
+      });if(!path)return;
       const token=++this.loadToken,image=new Image();
-      image.onload=()=>{if(token===this.loadToken&&isCurrent(turn)){this.image=image;this.imageId=frame.id;this.onImageReady?.(frame.id,turn);}};
+      image.onload=()=>{if(token===this.loadToken&&isCurrent(turn)){this.image=image;this.imageId=frame.id;this.imageFrame=frame;this.imageTurn=turn;this.imageReadyAt=Date.now();this.imagePadded=path.endsWith('/device.jpg');this.onImageReady?.(frame.id,turn);}};
       image.onerror=()=>{if(token===this.loadToken)this.onImageError?.();};image.src=path;
     }
-    clearImage(){this.loadToken++;this.image=null;this.imageId=null;this.presentedId=null;}
+    clearImage(){this.loadToken++;this.image=null;this.imageId=null;this.imageFrame=null;this.imageTurn=null;this.imagePadded=false;this.presentedId=null;}
+    imageFit(frame){
+      if(frame?.metadata?.image_fit==='contain'||frame?.type==='rich_answer'||frame?.metadata?.template||frame?.metadata?.diagram_labels?.length||/\.svg(?:$|[?#])/i.test(frame?.images?.[0]?.source?.url||''))return 'contain';
+      return 'cover';
+    }
+    drawFittedImage(frame,fit){
+      const image=this.image,asset=frame.images[0];
+      const iw=image.naturalWidth||image.width||240,ih=image.naturalHeight||image.height||240;
+      let sx=0,sy=0,sw=iw,sh=ih;
+      // Compatibility for old scenes with only a padded 240x240 device rendition.
+      if(this.imagePadded&&asset.width&&asset.height){
+        const scale=Math.min(1,240/Math.max(asset.width,asset.height));
+        sw=Math.max(1,Math.round(asset.width*scale));sh=Math.max(1,Math.round(asset.height*scale));
+        sx=Math.floor((240-sw)/2);sy=Math.floor((240-sh)/2);
+      }
+      if(fit==='cover'){
+        const side=Math.min(sw,sh);sx+=(sw-side)/2;sy+=(sh-side)/2;
+        this.ctx.drawImage(image,sx,sy,side,side,0,0,240,240);
+      }else{
+        const scale=Math.min(170/sw,140/sh),dw=sw*scale,dh=sh*scale;
+        this.ctx.drawImage(image,sx,sy,sw,sh,120-dw/2,107-dh/2,dw,dh);
+      }
+    }
     loadWallpaper(){const image=new Image();image.onload=()=>{this.wallpaper=image;this.onWallpaperReady?.();};image.src='/api/device/screensaver';}
     text(value,x,y,size=13,max=168,color='#eef5f4'){
       const c=this.ctx;c.font=`${size}px system-ui, sans-serif`;c.textAlign='center';c.fillStyle=color;let text=String(value||'');
@@ -86,10 +114,13 @@
       this.text('Условная схема',120,213,10,130,'#9cafb7');
     }
     draw(manager,level=0,t=0){
-      const c=this.ctx,p=this.profile;c.setTransform(p.display.width/240,0,0,p.display.height/240,0,0);c.clearRect(0,0,240,240);c.save();c.beginPath();c.arc(120,120,118,0,Math.PI*2);c.clip();c.fillStyle=p.skin.background;c.fillRect(0,0,240,240);
+      const c=this.ctx,p=this.profile;c.setTransform(p.display.width/240,0,0,p.display.height/240,0,0);c.clearRect(0,0,240,240);c.save();c.beginPath();c.arc(120,120,120,0,Math.PI*2);c.clip();c.fillStyle=p.skin.background;c.fillRect(0,0,240,240);
       const inset=Math.max(35,p.display.safe_inset*240/p.display.width),contentScale=(240-2*inset)/170;
-      if(contentScale<1){c.translate(120,120);c.scale(contentScale,contentScale);c.translate(-120,-120);}
-      const frame=manager.visual,state=manager.state;
+      let frame=manager.visual;const state=manager.state;
+      // Keep this turn's previous decoded picture until its refinement decodes.
+      if(frame?.images?.length&&frame.id!==this.imageId&&this.imageFrame&&this.imageTurn===manager.turn)frame=this.imageFrame;
+      const cover=frame?.images?.length&&this.image&&this.imageId===frame.id&&this.imageFit(frame)==='cover'&&!['offline','error','listening','recognizing'].includes(state);
+      if(contentScale<1&&!cover){c.translate(120,120);c.scale(contentScale,contentScale);c.translate(-120,-120);}
       if(['offline','error','listening','recognizing'].includes(state)||state==='muted'&&!frame){this.face(state,level,t);}
       else if(frame?.type==='timer_widget'&&Number.isFinite(frame.metadata?.deadline)){
         const seconds=Math.max(0,Math.ceil(frame.metadata.deadline-Date.now()/1000)),hours=Math.floor(seconds/3600);
@@ -99,8 +130,8 @@
         this.text('Погода',120,62,14,145);this.text(frame.metadata.facts.temperature+' °C',120,116,36,170,p.skin.face_color);
         this.text(frame.subtitle,120,155,12,160);this.text('Open-Meteo',120,181,11,145);
       }else if(frame?.metadata?.template&&frame.metadata.synthetic){this.text(frame.title,120,48,12,145);this.compactDiagram(frame.metadata.template);}
-      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.drawImage(this.image,20,20,200,200);c.fillStyle='rgba(12,20,26,.82)';c.fillRect(35,180,170,35);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(frame.metadata?.generation_provider?'ИИ-иллюстрация':overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,155);
-        if(this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
+      else if(frame?.images?.length&&this.image&&this.imageId===frame.id){c.save();const alpha=!p.skin.reduced_motion&&this.imageReadyAt?Math.min(1,Math.max(0,(Date.now()-this.imageReadyAt)/180)):1;c.globalAlpha=alpha;this.drawFittedImage(frame,this.imageFit(frame));c.restore();c.fillStyle='rgba(12,20,26,.82)';c.fillRect(0,180,240,60);const overview=frame.metadata?.facts?.entity_match==='topic_overview';this.text(frame.metadata?.generation_provider?'ИИ-иллюстрация':overview?frame.metadata.facts.entity_title+' · обзор':frame.title,120,201,12,Math.min(155,240-2*inset));
+        if(alpha>=.1&&this.presentedId!==frame.id){this.presentedId=frame.id;this.onImagePresented?.(frame.id,manager.turn);}}
       else if(frame&&!frame.images?.length){this.text(frame.title,120,83,15,165);this.text(frame.metadata?.state==='unavailable'?(frame.metadata?.visual_strategy==='retrieve'?'Фото недоступно':'Нет данных'):frame.metadata?.state==='cancelled'?'Остановлен':'Готово',120,126,18,165);}
       else if(manager.scene&&['icon','info_card'].includes(manager.scene.scene_type)){
         const payload=manager.scene.visual_payload||{};this.text(payload.icon||'✦',120,107,42,100,p.skin.face_color);this.text(payload.title,120,149,14,170);

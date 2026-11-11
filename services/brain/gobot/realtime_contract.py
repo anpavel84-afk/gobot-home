@@ -1,7 +1,7 @@
 """Native Realtime contracts. No GPT-Live events and no legacy speech pipeline."""
 import re
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field,model_validator
+from pydantic import BaseModel, ConfigDict, Field,model_validator,field_validator
 from .models import ID
 
 MODEL = 'gpt-realtime-2.1-mini'
@@ -30,7 +30,9 @@ class RealtimeOffer(Strict):
 
 class RealtimeCommand(Strict):
     command_id: str = Field(pattern=ID)
-    action: Literal['text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','close']
+    action: Literal['text','ptt_start','ptt_end','ptt_cancel','followup','interrupt','playback_started','playback_stopped','visual_presented','close']
+    frame_id: str|None=Field(default=None,pattern=ID)
+    turn_id: str|None=Field(default=None,pattern=ID)
     text: str|None = Field(default=None,min_length=1,max_length=8000)
     response_id: str|None = Field(default=None,pattern=ID)
     close_reason: Literal['user_stop','page_hidden','network_offline','webrtc_failed','webrtc_disconnected','audio_suspended','audio_play_denied','microphone_ended','events_disconnected','provider_error','server_closed','setup_failed','capture_cancelled','settings_changed']|None=None
@@ -53,9 +55,19 @@ class RealtimePolicy(Strict):
     allowed_client_id: str|None = Field(default=None,pattern=ID)
     expert_jobs_allowed: bool = False
     image_generation_allowed: bool = False
+    owner_assistant_preferences:dict|None=None
+
+    @field_validator('owner_assistant_preferences')
+    @classmethod
+    def validated_owner_preferences(cls,value):
+        if value is None:return None
+        from .family_preferences import AssistantPreferences
+        return AssistantPreferences.model_validate(value).model_dump()
 
     @model_validator(mode='after')
     def unlimited_requires_owner_interactive(self):
+        if self.owner_assistant_preferences is not None and (self.audience!='owner_interactive' or not self.allowed_client_id):
+            raise ValueError('Owner conversation style requires an explicitly bound owner client')
         if any(getattr(self,key) is None for key in ('expires_at','max_sessions','max_responses_per_session','max_session_seconds','observed_token_limit')):
             if self.audience!='owner_interactive' or not self.allowed_client_id:
                 raise ValueError('Uncapped use requires an explicitly authorized owner client')
@@ -82,6 +94,20 @@ def session_config(policy, instructions, tools, *, speak=True):
             'tools':tools,'tool_choice':'auto','parallel_tool_calls':False,
             'max_output_tokens':policy.max_output_tokens,'tracing':None,
             'truncation':{'type':'retention_ratio','retention_ratio':.8,'token_limits':{'post_instructions':6000}}}
+
+def input_settings_applied(session,expected):
+    """session.updated contains effective defaults, not just our update fragment."""
+    audio=session.get('audio',{}).get('input',{})
+    if 'turn_detection' not in audio:return False
+    actual=audio['turn_detection']
+    if expected is None:return actual is None
+    if not isinstance(actual,dict):return False
+    # Requested safety controls must match; harmless extra defaults are OK.
+    # A provider idle prompt must stay disabled during our silent followup window.
+    return actual.get('idle_timeout_ms') is None and all(
+        actual.get(k)==v if k=='idle_timeout_ms' and v is None else k in actual and actual[k]==v
+        for k,v in expected.items())
+
 
 def settings_applied(actual, expected):
     """A tracing-only session.updated is not a configuration acknowledgement."""

@@ -8,7 +8,7 @@ from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
 from .models import ChatRequest
-from .realtime_contract import MODEL,session_config,settings_applied,audio_only_sdp
+from .realtime_contract import MODEL,session_config,settings_applied,input_settings_applied,audio_only_sdp
 from .realtime_provider import RealtimeProvider
 from .realtime_budget import RealtimeBudget
 from .conversation_control import closing_intent
@@ -85,12 +85,14 @@ class NativeSession:
         from .expert_jobs import ExpertJobs
         self.experts=ExpertJobs(self)
         self.personalization=None;self.preference_ack=None;self.preference_item=None;self.audio_ever_started=False
+        self.owner_preferences=None
         self.expert_authorized=False
         from .realtime_speaker import NativeSpeakerIdentity
         self.speaker=NativeSpeakerIdentity(self)
         self.ptt_committing=False
         self.input_ended=None
         self.close_reason=None;self.provider_errors={};self.cancel_event_ids=set();self.completion_counts={};self.alignment_counts={}
+        self.control_failure=None
 
     def mark(self,name):self.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def mark_turn(self,turn,name):
@@ -137,6 +139,11 @@ class NativeSession:
             pref=self.personalization['preferences']
             instructions+='\n'+preference_instructions(pref,child=self.personalization['child_restrictions'])
             if pref['voice']:self.policy=self.policy.model_copy(update={'voice':pref['voice']})
+        elif self.policy.owner_assistant_preferences and self.offer.client_id==self.policy.allowed_client_id and not self.access.confirmed_profile_id:
+            # Explicit owner-selected UX on this phone, not speaker identification or authorization.
+            from .family_preferences import preference_instructions
+            self.owner_preferences=self.policy.owner_assistant_preferences
+            instructions+='\n'+preference_instructions(self.owner_preferences)
         tools=TOOLS if self.policy.expert_jobs_allowed else [tool for tool in TOOLS if tool['name']=='gobot_tool']
         self.config=session_config(self.policy,instructions,tools,speak=self.offer.speak)
         self.call_id,answer=await self.manager.provider.create(self.offer.sdp,self.config,self.offer.device_id)
@@ -149,15 +156,15 @@ class NativeSession:
         await self.send({'type':'session.update','session':self.config})
         await asyncio.wait_for(self.config_ack.wait(),10)
         if self.closed or not self.ready:raise RuntimeError('realtime_settings_not_acknowledged')
-        if self.personalization:
+        if self.personalization or self.owner_preferences:
             from .family_preferences import preference_user_data
             self.preference_item='pref_'+uuid4().hex;self.preference_ack=asyncio.Event()
             await self.send({'type':'conversation.item.create','item':{'id':self.preference_item,'type':'message','role':'user',
-                'content':[{'type':'input_text','text':'Не вопрос. Не отвечай на это сообщение. Только пользовательские предпочтения общения низшего приоритета: '+preference_user_data(self.personalization['preferences'])}]}})
+                'content':[{'type':'input_text','text':'Не вопрос. Не отвечай на это сообщение. Только пользовательские предпочтения общения низшего приоритета: '+preference_user_data(self.personalization['preferences'] if self.personalization else self.owner_preferences)}]}})
             await asyncio.wait_for(self.preference_ack.wait(),5)
         self.mark('settings_acknowledged');self.state='ready';self.emit('ready',model=MODEL,voice=self.policy.voice,
             input_transcription=self.policy.input_transcription,configuration_confirmed=True,
-            personalization='manual_pin_ux' if self.personalization else 'guest',private_access=False)
+            personalization='manual_pin_ux' if self.personalization else 'owner_device_style' if self.owner_preferences else 'guest',private_access=False)
         self.emit('speaker_readiness',**await asyncio.to_thread(self.speaker.status))
         self.expiry=asyncio.create_task(self.expire())
         return answer
@@ -259,36 +266,45 @@ class NativeSession:
                 self.spawn(self.check_alignment(turn,final=turn.generation_done))
 
     async def visual(self,turn):
-        from .visual_prefetch import planned_entity,SpeculativePhoto
+        from .visual_prefetch import planned_entity,TwoStageVisual
         try:
             if turn.visual_started:return
+            if not turn.query and self.policy.input_transcription:return
             turn.visual_started=True
             req=turn.req or self.request('Расскажи подробнее',turn.id)
+            from .quick_intents import resolve_quick
+            if resolve_quick(req.text,{}) is not None:return # Tools own their factual widget.
             context=await asyncio.to_thread(self.manager.brain.memory.context,req)
+            if self.closed or turn is not self.current or turn.cancelled:return
             plan=self.manager.brain.composer.plan(req,context=context)
             if plan.reason=='answer_map':return
             scene=self.manager.brain.composer.compose(req,context=context,plan=plan) if hasattr(self.manager.brain.composer,'compose') else None
-            if scene and plan.visual_strategy=='retrieve':
-                # A request-side entity is not evidence that native audio answered that entity.
-                scene=scene.model_copy(update={'scene_type':'avatar','visual_strategy':'show_avatar','visual_subject':'GoBot','visual_payload':{}})
-                scene.source_metadata['subject_confirmation']='pending_answer'
-            if scene and turn is self.current:self.emit('screen_scene',scene=scene.model_dump())
             entity=await asyncio.to_thread(planned_entity,req.text,plan,context)
+            if self.closed or turn is not self.current or turn.cancelled:return
             eligible=self.manager.brain.composer.answer_visual_eligible(req,context=context,plan=plan)
-            if entity or eligible:
-                turn.photo=SpeculativePhoto(req,entity,self.manager.brain.visual.attachment,8)
-                if turn.answer:turn.photo.observe_partial(turn.answer);turn.photo.observe(turn.answer)
-                result=await turn.photo.task
-                turn.trace.append({'visual_decision':dict(turn.photo.diagnostics)})
-            elif plan.visual_needed:
-                result=await self.manager.brain.visual.attachment(req,plan,timeout=8)
-            else:return
-            if self.closed or turn is not self.current or turn.cancelled or turn.alignment_state=='suspected_mismatch':return
-            if not result or result.frame.metadata.state=='unavailable':return
-            self.last_scene=result.frame
-            self.emit('visual_response',presentation=result.frame.model_dump())
-            turn.trace.append({'presentation':result.frame.model_dump()})
-            if turn.stored and turn.req and not turn.truncated:
+            if scene and turn is self.current and self.profile.screen.visual_strategy!='answer_only':
+                scene.source_metadata.update(visual_stage='provisional',subject_confirmation='question_only')
+                self.emit('screen_scene',scene=scene.model_dump());self.mark_turn(turn,'visual_provisional_scene_sent')
+            if not (plan.visual_needed or eligible) or plan.visual_strategy=='render_local' and not eligible:return
+            async def publish(result,stage,revision):
+                if self.closed or turn is not self.current or turn.cancelled or turn.alignment_state=='suspected_mismatch':return False
+                self.last_scene=result.frame
+                self.mark_turn(turn,'visual_provisional_candidate_ready' if stage==1 else 'visual_refined_candidate_ready')
+                self.emit('visual_response',presentation=result.frame.model_dump())
+                self.mark_turn(turn,'visual_provisional_sent' if stage==1 else 'visual_refined_sent')
+                turn.trace.append({'presentation':result.frame.model_dump()})
+                return True
+            def mismatch():
+                if turn is self.current and turn.alignment_state!='suspected_mismatch':
+                    turn.alignment_state='suspected_mismatch'
+                    self.alignment_counts['suspected_mismatch']=self.alignment_counts.get('suspected_mismatch',0)+1
+                    self.emit('meaning_mismatch',code='possible_subject_frame_disagreement',automatic_retry=False)
+            turn.photo=TwoStageVisual(req,entity,plan,self.manager.brain.visual.attachment,publish,on_mismatch=mismatch)
+            if turn.answer:turn.photo.observe(turn.answer,final=turn.generation_done)
+            if turn.generation_done:turn.photo.finish()
+            await turn.photo.task
+            turn.trace.append({'visual_decision':dict(turn.photo.diagnostics)})
+            if turn.stored and turn.req and not turn.truncated and not turn.cancelled and not self.closed:
                 await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'completed',turn.answer,'openai:'+MODEL,turn.trace)
         except Exception:
             if turn is self.current:self.emit('visual_status',status='unavailable')
@@ -310,7 +326,7 @@ class NativeSession:
         if kind=='session.updated':
             actual=obj.get('session',{})
             if not self.ready and settings_applied(actual,self.config):self.ready=True;self.config_ack.set()
-            if self.input_ack and actual.get('audio',{}).get('input',{}).get('turn_detection')==self.expected_input:self.input_ack.set()
+            if self.input_ack and input_settings_applied(actual,self.expected_input):self.input_ack.set()
         elif kind in {'conversation.item.added','conversation.item.created'}:
             if self.preference_ack and obj.get('item',{}).get('id')==self.preference_item:self.preference_ack.set()
         elif kind=='error':
@@ -386,8 +402,9 @@ class NativeSession:
                 turn.generation_done=r.get('status')=='completed' or turn.truncated
                 if turn.truncated:
                     self.emit('response_incomplete',reason='max_output_tokens',audio_started='output_buffer_started' in turn.timings)
-                if turn.photo and turn.answer:
-                    turn.photo.observe(turn.answer,final=True);turn.photo.finish()
+                if turn.photo:
+                    if turn.answer:turn.photo.observe(turn.answer,final=True)
+                    turn.photo.finish()
                 if not turn.generation_done:turn.cancelled=True
                 if not self.offer.speak:await self.finish(turn,turn.generation_done)
                 elif turn.truncated and 'output_buffer_started' not in turn.timings:
@@ -539,11 +556,19 @@ class NativeSession:
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='idle';self.ptt_committing=False
             elif action=='followup':
                 if self.speaking or self.generating or not self.current or not self.current.stored or self.current.cancelled:raise ValueError('playback_not_finished')
-                detection={'type':'server_vad','threshold':.55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False}
+                detection={'type':'server_vad','threshold':.55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
+                self.mark_turn(self.current,'followup_requested')
                 await self.update_input(detection);self.input_mode='followup'
+                self.mark_turn(self.current,'followup_acknowledged')
                 self.followup_deadline=time.monotonic()+self.profile.conversation.followup_seconds
                 self.emit('followup',seconds=self.profile.conversation.followup_seconds)
             elif action=='interrupt':await self.interrupt()
+            elif action=='visual_presented':
+                turn=self.current
+                if turn and not turn.cancelled and command.turn_id==turn.id:
+                    frame=next((entry['presentation'] for entry in turn.trace if entry.get('presentation',{}).get('id')==command.frame_id),None)
+                    if frame and frame['metadata'].get('visual_stage') in {'provisional','refined'}:
+                        self.mark_turn(turn,'visual_'+frame['metadata']['visual_stage']+'_presented')
             elif action in {'playback_started','playback_stopped'}:
                 turn=self.response_turn.get(command.response_id)
                 if turn and turn is self.current and not turn.cancelled:
@@ -642,7 +667,7 @@ class RealtimeManager:
             turn.query='';turn.answer='';turn.req=None;turn.trace.clear()
         s.events=[item for item in s.events if item['type']=='closed']
         await asyncio.to_thread(self.budget.record_report,s.id,s.timings,[t.timings for t in s.turns],
-                                close_reason=s.close_reason,lifetime_ms=(time.monotonic()-s.started)*1000,provider_errors=s.provider_errors,completion_counts=s.completion_counts,alignment_counts=s.alignment_counts)
+                                close_reason=s.close_reason,lifetime_ms=(time.monotonic()-s.started)*1000,provider_errors=s.provider_errors,completion_counts=s.completion_counts,alignment_counts=s.alignment_counts,control_failure=s.control_failure)
         return {'closed':True,'hangup_confirmed':s.call_id not in self.hangups}
 
     async def shutdown(self):

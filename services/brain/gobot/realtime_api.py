@@ -45,6 +45,12 @@ def attach_brain_realtime(app,manager,auth):
         try:return manager.owned(ident,owner,client,epoch or None)
         except KeyError:raise HTTPException(404,'realtime_session_not_found')
 
+    @app.get('/api/v1/realtime/sessions/{ident}/status',dependencies=[Depends(auth)])
+    async def terminal_status(ident:str,device_id:str,client_id:str,profile_epoch:str=''):
+        s=owned(ident,device_id,client_id,profile_epoch)
+        # No provider call, transcript, private profile or provider identifier.
+        return JSONResponse({'closed':s.closed,'reason':s.close_reason if s.closed else None},headers={'Cache-Control':'no-store'})
+
     @app.post('/api/v1/realtime/sessions/{ident}/command',dependencies=[Depends(auth)])
     async def command(ident:str,request:Request):
         body=await bounded_json(request,12000)
@@ -57,7 +63,10 @@ def attach_brain_realtime(app,manager,auth):
         except KeyError:raise HTTPException(404,'realtime_session_not_found')
         except PermissionError:raise HTTPException(403,'realtime_budget_required')
         except (ValueError,ValidationError):raise HTTPException(409,'invalid_realtime_command')
-        except Exception:
+        except Exception as error:
+            s=manager.sessions.get(ident)
+            if s and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)==(owner,client,epoch):
+                s.control_failure={'action':getattr(locals().get('cmd'),'action','other'),'kind':type(error).__name__}
             await manager.close(ident,owner,client,epoch,'command_failed')
             raise HTTPException(502,'realtime_command_failed')
 
@@ -114,6 +123,15 @@ def attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_ep
             async with httpx.AsyncClient(trust_env=False,timeout=3) as c:r=await c.get(base+'/status',headers=auth)
             return JSONResponse(r.json(),headers={'Cache-Control':'no-store'})
         except Exception:return JSONResponse({'default_engine':'legacy','available':False,'code':'brain_unavailable'},headers={'Cache-Control':'no-store'})
+
+    @app.get('/api/realtime/sessions/{ident}/status')
+    async def terminal_status(ident:str,request:Request):
+        if not re.fullmatch(ID,ident):raise HTTPException(422,'invalid_session_id')
+        scope=await identity(request)
+        async with httpx.AsyncClient(trust_env=False,timeout=3) as c:
+            r=await c.get(base+'/sessions/'+ident+'/status',headers=auth,params={k:v or '' for k,v in scope.items()})
+        if r.status_code!=200:raise HTTPException(r.status_code,'realtime_session_not_found')
+        return JSONResponse(r.json(),headers={'Cache-Control':'no-store'})
 
     @app.post('/api/realtime/sessions')
     async def create(request:Request):

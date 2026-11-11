@@ -13,7 +13,7 @@
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
   Native/A-B код с исправлением truncation и Wikimedia-first опубликован и запущен на `528c866d2233f5b1e9f972be6bd7aec28792d033`.
-  Default по-прежнему legacy; B доступен по отдельному тестовому лимиту (§16.2).
+  Вне B default пока legacy до приёмки; ручные пробы B владельцем без одноразовой квоты (§19).
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -986,3 +986,159 @@ CLI/ImageGen OFF; существующие consent, память, кэш и lega
 от возврата старой gallery отдельно прошли 42 device/composer tests. Чтобы телефон
 загрузил новую защиту жеста и review controls, обновить страницу B. Это не новая
 запись звука и не выполненный акустический ретест iPhone.
+
+
+## 21. Круглый cover и двухэтапный визуал — OWNER DIRECT
+
+Фактическая база этого прохода: master 84762ac (runtime 528c866). До изменений
+рабочее дерево чистое; reset/stash/rebase не применялись. Прежняя A и локальный
+backup сохранены. Развёртывание новой версии фиксируется ниже после idle guard.
+
+### 21.1. Что изменилось
+
+`device-renderer.js`: фото получает preview JPEG из того же кэша, сохраняет пропорции
+и заполняет круг 240×240 через center cover. Исчезли двойные поля padded device.jpg
+и внутреннего квадрата 200×200. Есть совместимость с прежними padded-only frames.
+Схемы/SVG источники получают image_fit=contain; текст остаётся в safe area.
+Compact gobot.ui несёт fit/stage/revision; это подсказка будущему renderer, а не
+подтверждение реализации cover в LVGL или нового cropped аппаратного JPEG.
+
+`visual_prefetch.py:TwoStageVisual` — turn-local coordinator вокруг существующего
+VisualService.attachment, не новая поисковая система. Legacy SpeculativePhoto сохранён.
+`VisualStages` хранит question_topic/provisional_visual/answer_topic/refined_visual/
+topic_alignment_status. NativeSession планирует оба этапа фоновыми задачами; обычный
+аудиоответ не ждёт картинки и не получает дополнительного CLI/STT/TTS/LLM-вызова.
+
+Stage 1: final input transcription (или текстовый вопрос) → тема/короткая локальная
+сцена → найденное изображение. Предварительный topic label снова разрешён решением
+владельца §45; прежний always-avatar §43 этим заменён. Асинхронная транскрипция всё
+ещё не доказывает понимание native audio. Если input transcript приходит позже
+начала речи, Stage 1 раньше него обещать нельзя.
+
+Stage 2: завершённое предложение либо >=8 устойчивых слов, без оборванного слова;
+именная группа/явная связанная научная номенклатура/названный объект/процесс.
+Примеры в проверках: Пауки→Phoneutria, кратер Луны→кратер Тихо,
+сердце человека→Кровообращение человека (contain для схемы). Не всякая сущность
+может быть надёжно извлечена такими правилами: unresolved/unknown сохраняет первый
+визуал вместо неподтверждённой подмены. Это не ChatGPT-equivalent semantic model.
+
+Не больше двух уточнений, дедупликация темы/ассета, старый Stage 1 не перекрывает
+Stage 2. Рендереры держат прежнюю декодированную сцену того же turn до готовности
+новой; fade 180 ms / reduced motion. Browser заменяет карточку в одном scene slot,
+а не накапливает стадии каруселью. Для clock/timer quick intents optional image
+lookup не запускается: фактический widget принадлежит серверному инструменту.
+
+Mismatch: существующий conservative grammatical frame + обязательная связь новой
+сущности с affirmative question-topic clause. «Паук/плод» предупреждает; unrelated
+слова и предложения будущих тем не становятся final visual. Unknown не равен match.
+При warning UI переходит к нейтральному лицу; автоматического платного исправления
+нет. Гарантий распознавания любой смысловой ошибки это не даёт.
+
+### 21.2. Источники, расходы, память
+
+В native two-stage: кэш → Wikimedia article/PageImages/Commons → разрешённый
+Generate-if-missing. Старый saved wikimedia_first нормализуется к этой политике;
+Openverse legacy code/cache не удалён. Админка предлагает Wikimedia only либо
+Wikimedia+generation и три visual strategy; default question_then_refine.
+Настройки сохраняются существующим DeviceStore; никакой новой Family DB.
+
+Stage 1 никогда не тратит деньги на неподтверждённую гипотезу. Возможность платного
+fallback откладывается до устойчивого alignment, не более одного допуска за turn,
+при отсутствии подходящего фото/существенной конкретизации. VisualService сохраняет
+атомарный дневной счётчик, lineage/unknown-outcome guard, medical restriction и
+actual-provider consent. Native owner policy всё ещё ImageGen OFF. Codex ImageGen
+не объявлен изолированно доступным; новых разрешений на него этот проход не даёт.
+Confirmed visual subject остаётся в существующей scoped памяти, provisional не
+выдаётся за подтверждённый предмет. Новых raw household diagnostic записей нет.
+
+### 21.3. Проверки и границы
+
+Полный бесплатный набор: **1176 passed / 36.31 s**. Новые проверки: production Canvas
+cover/contain и 240×240; source identity/stale load; browser scene replacement после
+decode; 16 shared two-stage cases и native protocol flow до response.done;
+wrong-turn presented signal игнорируется. Сохранены существующие >30 разнообразных
+визуальных сценариев, memory/ACL/profile и legacy regression tests.
+
+Реальные бесплатные Wikimedia/cache пробы: `two-stage-wikimedia-check.json`.
+Пауки: provisional из кэша за 28.09 ms, Phoneutria — 1814.87 ms от старта
+контролируемой пробы, CC BY-SA 4.0, preview декодирован. Кратер Тихо —
+2051.33 ms, LRO Public domain, preview декодирован; медленный прежний кандидат
+не перезаписал уточнение. Это не время native голоса и не тест iPhone: ответ
+подставлен фикстурой, сети/кэш условия различаются. LLM/ImageGen/STT/TTS вызовов 0.
+
+В in-app браузере production renderers с этими сохранёнными изображениями:
+Stage 1→Stage 2, одна текущая карточка, late Stage 1 отвергнут обоими renderer;
+круг заполнен без искажения пропорций. Отдельно показан фактический растр 240×240
+на прежнем снимке муравьёв. Снимки локально: run/device-cover-preview.jpg и
+run/two-stage-visual-preview.jpg (не публикуются как household telemetry).
+Это сценарный стенд рендереров, не реальный Realtime voice run.
+
+Content-free native ledger теперь разрешает visual_*_sent/candidate_ready/presented
+тайминги. Presented приходит после декодирования/рисования видимой страницы,
+проверяется current turn + фактически отправленный frame ID. Это клиентский сигнал,
+не доказательство акустического/физического отображения на iPhone.
+Новые реальные голосовые задержки не измерены; отсутствие ухудшения latency на
+физическом iPhone ещё не принято. Платная генерация, iPhone и ESP32 не тестировались.
+
+
+## 22. Silence close и выбранный владельцем характер
+
+### 22.1. Расследование и исправление
+
+В восьми последних content-free reports найдены command_failed без provider_errors;
+самый последний report закрыт page_hidden. Содержание бесед и effective VAD payload
+не записывались, поэтому конкретный пользовательский случай нельзя достоверно
+приписать единственной причине по этим данным.
+
+Найден воспроизводимый дефект: update_input ждал точного равенства словарей VAD.
+Официальный Realtime session.updated возвращает полную effective конфигурацию,
+включая дополнительные default поля. Добавление такого поля в production protocol
+fixture воспроизводит прежний timeout подтверждения followup. Теперь
+input_settings_applied сравнивает requested controls и допускает extra defaults;
+опасные create_response/interrupt_response/idle_timeout изменения не принимаются.
+В followup явно idle_timeout_ms=null: provider не должен создавать idle prompt.
+Документация: [Realtime client events](https://developers.openai.com/api/reference/resources/realtime/client-events),
+[VAD](https://developers.openai.com/api/docs/guides/realtime-vad).
+
+Дополнительно устранена классификационная гонка: remote WebRTC close/EOF может
+дойти раньше штатного terminal SSE. NativeVoice.transportEnded немедленно глушит
+микрофон и звук, затем однократно читает owner-scoped /sessions/{id}/status.
+Подтверждённый followup/idle timeout становится нормальным muted, а реальная/неизвестная
+потеря связи остаётся error. Нет автоматического Start/reconnect/платного retry.
+Сам status — только closed/reason, с прежним device/client/epoch контролем и no-store.
+
+Followup requested/acknowledged добавлены в allowlisted timing ledger. Для будущего
+command_failed сохраняются только action + ограниченный тип исключения, без raw
+message/аргументов/содержания речи. Старые reports не переписаны.
+
+Проверки: effective extra-default ack; отказ при auto-response/interrupt/idle prompt
+и отсутствии turn_detection; тишина→followup_timeout без нового response.create;
+terminal status чужому scope 404; production JS WebRTC-before-SSE normal close и
+реальная потеря связи; mic выключен немедленно и нет нового session start.
+Это mocks/Node, а не новый физический iPhone-прогон. Реальный повтор владельцем
+после deployment остаётся необходимым.
+
+### 22.2. Характер
+
+На момент настройки Family profiles=0. Новый семейный профиль/PIN не создаётся и
+личность не подтверждается автоматически. Явное пожелание владельца применяется
+только к его уже разрешённому client-bound owner_interactive B: индивидуальные
+предпочтения лежат в private run/realtime/policy.json. Их полный текст не публикуется.
+Переиспользованы AssistantPreferences и preference_instructions/preference_user_data;
+система Family/биометрии не дублируется. Если будет выбран подтверждённый Family
+профиль, его preferences имеют приоритет над phone-owner style.
+
+Structured манера проходит в разрешённый стиль, произвольные пожелания — отдельным
+user item низшего приоритета, с acknowledgement. Это один setup item на сессию,
+без дополнительного ответа/модели. Голос, guest/RAM memory, child/ACL/tool restrictions,
+экспертные согласия и ImageGen OFF сохраняются. Стиль не означает узнавание говорящего;
+другой человек на том же телефоне может услышать выбранную манеру, но не получает
+личные данные. Индивидуальный семейный выбор требует существующего profile flow.
+
+Тест с synthetic private preference подтверждает отсутствие его в system instructions
+и public budget/status, role=user для пожелания, неизменный голос, отсутствие права
+private memory/expert и отсутствие платного ответа при setup. Прослушивание характера
+на реальном Realtime/iPhone ещё не оценивалось.
+
+Итоговый бесплатный regression прогон объединённого пакета: **1180 passed / 37.45 s**.
+Новых paid developer calls и синтезов вступлений нет.

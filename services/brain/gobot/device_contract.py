@@ -7,6 +7,7 @@ class Strict(BaseModel):model_config=ConfigDict(extra='forbid')
 
 class ScreenPreferences(Strict):
     automatic_illustrations:bool=True
+    visual_strategy:Literal['question_only','question_then_refine','answer_only']='question_then_refine'
     style:Literal['minimal','balanced','rich']='rich'
     prefer_real_photos:bool=True
     generation_allowed:bool=False

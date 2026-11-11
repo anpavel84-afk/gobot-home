@@ -54,6 +54,9 @@ class VisualAction(Strict):
     timer_id:str|None=Field(default=None,pattern=r'^[a-f0-9-]{36}$')
 
 class VisualMetadata(Strict):
+    visual_stage:Literal['provisional','refined']|None=None
+    visual_revision:int=Field(default=0,ge=0,le=2)
+    image_fit:Literal['cover','contain']='cover'
     state:Literal['ready','loading','unavailable','expired','cancelled']='ready'
     reason:str|None=Field(default=None,max_length=100)
     cache_hit:bool=False
@@ -136,6 +139,7 @@ def frame_id(turn,key):return str(uuid5(NAMESPACE_URL,'gobot.visual:'+turn+':'+k
 class CompactImage(Strict):
     asset_id:str=Field(pattern=r'^[a-f0-9]{64}$')
     variant:Literal['device']='device'
+    fit:Literal['cover','contain']='contain'
     width:Literal[240]=240
     height:Literal[240]=240
     mime:Literal['image/jpeg']='image/jpeg'
@@ -149,6 +153,8 @@ class CompactCredit(Strict):
     changes:str=Field(max_length=200)
 
 class ESP32Presentation(Strict):
+    visual_stage:Literal['provisional','refined']|None=None
+    visual_revision:int=Field(default=0,ge=0,le=2)
     namespace:Literal['gobot.ui']='gobot.ui'
     version:Literal[2]=2
     command:Literal['presentation.show']='presentation.show'
@@ -174,9 +180,11 @@ def esp32_projection(frame:Presentation):
     Image download/MCP invocation is separately capability/permission gated.
     """
     payload={'namespace':'gobot.ui','version':2,'command':'presentation.show','id':frame.id,'type':frame.type,'title':frame.title[:80],'text':frame.text[:240],'state':frame.metadata.state,'synthetic':frame.metadata.synthetic,'visual_strategy':frame.metadata.visual_strategy}
+    if frame.metadata.visual_stage:payload.update(visual_stage=frame.metadata.visual_stage,visual_revision=frame.metadata.visual_revision)
     if frame.images:
         image=frame.images[0]
-        payload['image']={'asset_id':image.asset_id,'variant':'device','width':240,'height':240,'mime':'image/jpeg','max_bytes':65536}
+        fit='contain' if frame.type=='rich_answer' or frame.metadata.template or frame.metadata.diagram_labels else frame.metadata.image_fit
+        payload['image']={'asset_id':image.asset_id,'variant':'device','fit':fit,'width':240,'height':240,'mime':'image/jpeg','max_bytes':65536}
         payload['credit']={'author':image.attribution,'source':image.source.model_dump(),'license':image.license,'license_url':image.license_url,'changes':image.changes}
     if frame.metadata.deadline is not None:payload['deadline']=frame.metadata.deadline
     if frame.metadata.template is not None:payload['template']=frame.metadata.template

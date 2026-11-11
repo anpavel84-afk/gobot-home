@@ -13,9 +13,10 @@ from gobot.activation import WakeWordActivationService
 def test_device_profiles_persist_and_owner_isolated(tmp_path):
     store=DeviceStore(tmp_path/'devices');one=store.profile('one');two=store.profile('two')
     assert one.client_id!=two.client_id
-    store.update('one',{'skin':{'skin_id':'soft','face_color':'#ffffff'},'screen':{'automatic_illustrations':False}})
+    store.update('one',{'skin':{'skin_id':'soft','face_color':'#ffffff'},'screen':{'automatic_illustrations':False,'visual_strategy':'answer_only'}})
     restored=DeviceStore(tmp_path/'devices').profile('one')
     assert restored.skin.skin_id=='soft' and restored.client_id==one.client_id and not restored.screen.automatic_illustrations
+    assert restored.screen.visual_strategy=='answer_only' and store.profile('two').screen.visual_strategy=='question_then_refine'
     assert store.profile('two').skin.skin_id=='classic'
     with pytest.raises(ValueError):store.update('one',{'skin':{'javascript':'alert(1)'}})
     with pytest.raises(ValueError):store.update('one',{'client_id':two.client_id})
@@ -107,6 +108,11 @@ def test_wake_fixture_ring_buffer_tts_guard_and_cooldown():
     now[0]+=1;result=gate.feed(b'\0\0'*10);assert result['requires_question_vad']
     assert gate.feed(b'\0\0'*10) is None
     gate.disable();assert not gate.buffer
+
+def test_device_image_fit_node_units():
+    root=Path(__file__).resolve().parents[1]
+    result=subprocess.run(['node','tests/device_image_fit.cjs'],cwd=root,capture_output=True,text=True,timeout=15)
+    assert result.returncode==0,result.stdout+result.stderr
 
 def test_device_renderer_node_units():
     root=Path(__file__).resolve().parents[1]

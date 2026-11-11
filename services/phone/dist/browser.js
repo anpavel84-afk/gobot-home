@@ -34,11 +34,11 @@ const visuals=window.GoBotVisual?new window.GoBotVisual.BrowserVisualRenderer($(
 let currentTurn=null,currentTopic=null;
 if(visuals&&window.GoBotHooks?.clientKind!=='device')visuals.onImageReady=(id,img)=>{
   const trace=requestTrace,turn=currentTurn,expectedEpoch=epoch;
-  if(!img.naturalWidth||!trace||!turn)return;
-  trace.mark('visual_decoded');
+  if(!img.naturalWidth||!turn)return;
+  trace?.mark('visual_decoded');
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     if(turn===currentTurn&&expectedEpoch===epoch&&visuals.frames.has(id)&&img.isConnected&&!document.hidden){
-      trace.mark('visual_presented');trace.flush();
+      trace?.mark('visual_presented');trace?.flush();window.GoBotRealtime?.visualPresented?.(id,turn);
     }
   }));
 };
@@ -445,6 +445,11 @@ window.GoBotClient={prepareFeedback,feedback,trace:()=>requestTrace,send,stop,un
     if(item.type==='input_transcript')$('question').value=data.text;
     if(item.type==='turn_complete')window.GoBotHooks?.onStreamEnd?.({turn_id:item.turn_id});
     if(item.type==='visual_response')visuals?.render(data.presentation);
+    if(item.type==='screen_scene'&&!data.scene?.preserve_visual&&['icon','info_card'].includes(data.scene?.scene_type)){
+      const scene=data.scene,payload=scene.visual_payload||{};
+      visuals?.render({namespace:'gobot.ui',version:2,id:'scene-'+currentTurn,type:'info_card',title:payload.title||scene.visual_subject,
+        text:'',images:[],metadata:{transient_scene:true,state:'ready',icon:payload.icon,visual_stage:'provisional',visual_revision:0}});
+    }
     if(item.type==='meaning_mismatch')visuals?.begin();
     if(item.type==='ready'){$('route-meta').textContent='OpenAI Realtime · '+data.model+' · '+data.voice+' · гостевой контекст';$('voice-status').textContent='Нативный голос. Отдельные STT/CLI/TTS не запускаются. В этом кандидате история только в RAM; личный архив закрыт.';}
     if(item.type==='tool_status'&&data.status==='settings_applied')applyServerProfile(data.profile);

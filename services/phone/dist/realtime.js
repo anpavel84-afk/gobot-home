@@ -24,6 +24,7 @@
       if(!await granted)throw Error('Аудиосессия GoBot уже открыта в другой вкладке.');
     }
     async start({microphone=true}={}){
+      if(this.transportEnding)await this.transportEnding;
       if(this.ready)return;
       if(this.closing)await this.closing;
       if(this.id)throw Error('Предыдущая сессия ещё не закрыта. Нажми «Остановить ответ».');
@@ -52,8 +53,8 @@
         pc.onconnectionstatechange=()=>{
           if(epoch!==this.generation)return;
           clearTimeout(this.disconnectTimer);
-          if(pc.connectionState==='failed'||pc.connectionState==='closed')void this.close('Аудиосоединение потеряно. Микрофон выключен.','webrtc_failed',true);
-          else if(pc.connectionState==='disconnected')this.disconnectTimer=setTimeout(()=>void this.close('Аудиосоединение прервалось. Микрофон выключен.','webrtc_disconnected',true),5000);
+          if(pc.connectionState==='failed'||pc.connectionState==='closed')void this.transportEnded('webrtc_failed','Аудиосоединение потеряно. Микрофон выключен.');
+          else if(pc.connectionState==='disconnected')this.disconnectTimer=setTimeout(()=>void this.transportEnded('webrtc_disconnected','Аудиосоединение прервалось. Микрофон выключен.'),5000);
         };
         // Intentionally no createDataChannel(). SDP policy also rejects a modified client.
         await pc.setLocalDescription(await pc.createOffer());
@@ -66,7 +67,7 @@
         await pc.setRemoteDescription({type:'answer',sdp:answer.sdp});if(this.speakerMirror)this.speakerMirror.ready=answer.speaker_readiness?.ready===true;
         this.events=new EventSource('/api/realtime/sessions/'+id+'/events');
         this.events.onmessage=e=>{if(epoch===this.generation)this.event(JSON.parse(e.data));};
-        this.events.onerror=()=>{if(epoch===this.generation)void this.close('Управляющее соединение потеряно. Микрофон выключен.','events_disconnected',true);};
+        this.events.onerror=()=>{if(epoch===this.generation)void this.transportEnded('events_disconnected','Управляющее соединение потеряно. Микрофон выключен.');};
         this.ready=true;this.pending=false;this.status('Realtime готов. Удерживай круг и говори.');this.meter(epoch);
       }catch(e){if(epoch===this.generation){this.pending=false;await this.close(e.message,'setup_failed',true);}throw e;}
     }
@@ -96,6 +97,12 @@
       const body={command_id:uuid(),action,...extra};
       const result=this.commands.then(()=>this.api('sessions/'+id+'/command',body));
       this.commands=result.catch(()=>{});return result;
+    }
+    visualPresented(frame,turn){
+      if(!this.ready||!this.id||turn!==this.currentTurn||document.hidden)return;
+      this.sentVisual=this.sentVisual||new Set();const key=turn+':'+frame;if(this.sentVisual.has(key))return;
+      if(this.sentVisual.size>32)this.sentVisual.clear();this.sentVisual.add(key);
+      void this.command('visual_presented',{frame_id:frame,turn_id:turn}).catch(()=>{});
     }
     mic(enabled){this.stream?.getAudioTracks().forEach(t=>t.enabled=enabled);if(this.speakerMirror){this.speakerMirror.active=enabled;if(!enabled)this.speakerMirror.ring=[];}document.getElementById('device-mic')?.replaceChildren(document.createTextNode(enabled?'● Микрофон включён · аудио в OpenAI, локальный Speaker ID':'○ Микрофон закрыт'));}
     async pttStart(){
@@ -157,7 +164,10 @@
       if(item.type==='response_incomplete')this.status('Ответ ограничен лимитом длины тестовой пробы.');
       if(item.type==='turn_incomplete')this.status('Лимита не хватило для голосового ответа. Можно задать более короткий вопрос нажатием.');
       if(item.type==='closed'){const end=this.termination(item.data.reason);void this.close(end.message,'server_closed',end.error);}
-      if(item.type==='error'){void this.close('Ошибка Realtime. Микрофон выключен; причина сохранена в диагностике.','provider_error',true);}
+      if(item.type==='error'){
+        if(['realtime_connection_lost','realtime_session_unavailable'].includes(item.data?.code))void this.transportEnded('events_disconnected','Управляющее соединение потеряно. Микрофон выключен.');
+        else void this.close('Ошибка Realtime. Микрофон выключен; причина сохранена в диагностике.','provider_error',true);
+      }
       this.emit(item);
     }
     speakerStatus(text){document.getElementById('speaker-status')?.replaceChildren(document.createTextNode(text));document.getElementById('realtime-speaker-status')?.replaceChildren(document.createTextNode(text));}
@@ -188,6 +198,28 @@
       requestAnimationFrame(()=>this.meter(epoch));
     }
     snapshot(){return {level:this.level,playing:this.playing,feedback_playing:false,state:this.context?.state||'closed'};}
+    transportEnded(reason,message){
+      if(this.transportEnding)return this.transportEnding;
+      if(this.closing||!this.id)return this.closing||Promise.resolve();
+      const id=this.id,epoch=this.generation;
+      // Immediately stop sending/hearing audio, before resolving the server reason.
+      this.ready=false;this.recording=false;this.held=false;this.captureToken=null;this.mic(false);
+      clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);
+      this.output?.pause();this.playing=false;this.level=0;
+      this.status('Завершаю соединение · микрофон выключен');
+      const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),3000);
+      const ending=(async()=>{
+        let terminal;
+        try{const r=await this.fetcher('/api/realtime/sessions/'+id+'/status',{signal:controller.signal});if(r.ok)terminal=await r.json();}catch(_){}
+        finally{clearTimeout(timer);}
+        if(epoch!==this.generation||id!==this.id)return;
+        const end=terminal?.closed?this.termination(terminal.reason):null;
+        if(end&&!end.error)await this.close(end.message,'server_closed',false);
+        else await this.close(message,reason,true);
+      })();
+      this.transportEnding=ending.catch(()=>{}).finally(()=>{this.transportEnding=null;});
+      return this.transportEnding;
+    }
     close(message='GoBot выключен',reason='user_stop',error=false){
       if(this.closing)return this.closing;
       const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;

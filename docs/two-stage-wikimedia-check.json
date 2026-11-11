@@ -1,0 +1,63 @@
+{
+  "kind": "real_free_wikimedia_or_existing_cache_no_voice",
+  "llm_calls": 0,
+  "generation_calls": 0,
+  "physical_iphone_checked": false,
+  "cases": [
+    {
+      "question": "Расскажи про пауков",
+      "events": [
+        {
+          "stage": 1,
+          "revision": 0,
+          "subject": "Пауки",
+          "ms": 28.09,
+          "source": "https://commons.wikimedia.org/wiki/File:Spiders_Diversity.jpg",
+          "license": "CC BY-SA 3.0",
+          "cache_hit": true,
+          "preview_decoded": [
+            344,
+            480
+          ]
+        },
+        {
+          "stage": 2,
+          "revision": 1,
+          "subject": "Phoneutria",
+          "ms": 1814.87,
+          "source": "https://commons.wikimedia.org/wiki/File:Aranha_armadeira(Phoneutria_nigriventer)_por_Rodrigo_Tetsuo_Argenton_(4).jpg",
+          "license": "CC BY-SA 4.0",
+          "cache_hit": false,
+          "preview_decoded": [
+            480,
+            320
+          ]
+        }
+      ],
+      "alignment": "aligned",
+      "fallback_reason": null,
+      "updates": 1
+    },
+    {
+      "question": "Что такое кратер Луны?",
+      "events": [
+        {
+          "stage": 2,
+          "revision": 1,
+          "subject": "кратер Тихо",
+          "ms": 2051.33,
+          "source": "https://commons.wikimedia.org/wiki/File:Tycho_LRO.png",
+          "license": "Public domain",
+          "cache_hit": false,
+          "preview_decoded": [
+            480,
+            480
+          ]
+        }
+      ],
+      "alignment": "aligned",
+      "fallback_reason": null,
+      "updates": 1
+    }
+  ]
+}

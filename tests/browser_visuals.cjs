@@ -45,5 +45,15 @@ assert.equal(all(root,'output')[0].textContent,'03:00');assert(renderer.hasTimer
   renderer.render({...frame,id:'resolved-photo'});
   assert.equal(all(root,'article').length,1);assert.equal(all(root,'img').length,1);
   assert(!renderer.frames.has('pending-scene'));
+  renderer.begin();
+  renderer.render({...frame,id:'stage-one',metadata:{visual_stage:'provisional',visual_revision:0}});
+  renderer.render({...frame,id:'stage-two',metadata:{visual_stage:'refined',visual_revision:1}});
+  assert.equal(renderer.frames.get('stage-two').card.hidden,true);
+  assert(renderer.frames.has('stage-one'));all(renderer.frames.get('stage-two').card,'img')[0].onload();
+  assert(!renderer.frames.has('stage-one'));assert.equal(renderer.frames.get('stage-two').card.hidden,false);
+  assert.equal(renderer.render({...frame,id:'late-stage-one',metadata:{visual_stage:'provisional',visual_revision:0}}),false);
+  renderer.render({...frame,id:'stage-three-failed',metadata:{visual_stage:'refined',visual_revision:2}});
+  all(renderer.frames.get('stage-three-failed').card,'img')[0].onerror();
+  assert(renderer.frames.has('stage-two'));assert(!renderer.frames.has('stage-three-failed'));
   console.log('Visual DOM units: card, gallery, partial payload, dedupe, safe paths, countdown, cancel and all 8 types passed');
 })().catch(error=>{console.error(error);process.exitCode=1;});

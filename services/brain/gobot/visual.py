@@ -240,6 +240,8 @@ class VisualService:
         speech=catalog['speech'] if catalog else 'Нашёл изображения по твоему запросу. Ссылки на источники сохранены.'
         frame=Presentation(id=frame_id(req.turn_id,'images'),type='image_gallery' if len(images)>1 else 'image_card',title=title,text=text,images=images,actions=[VisualAction(type='open_image',label='Открыть крупнее',asset_id=images[0].asset_id)],metadata=VisualMetadata(visual_strategy='retrieve',backend=config.get('provider'),cache_hit=hit,query_sent_to_source=sent,approximate_match=catalog.get('approximate_match',False) if catalog else True,selection_basis='curated_visual_review' if catalog else 'source_metadata_search_unverified',reason=reason),source=VisualSource(label=images[0].source.label),expires_at=min(r['expires_at'] for r in records),cache_key=key)
         frame.metadata.backend='wikimedia' if images[0].source.label.startswith('Wikimedia') else 'openverse'
+        if re.search(r'\.svg(?:$|[?#\s])|\b(?:diagram|schematic|anatomical)\b',str(images[0].source.url)+' '+images[0].caption,re.I):
+            frame.metadata.image_fit='contain'
         if records[0].get('entity_title'):
             record=records[0];exact=record['entity_exact']
             frame.metadata.selection_basis='wikimedia_article_image';frame.metadata.approximate_match=not exact
