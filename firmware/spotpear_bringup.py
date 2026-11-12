@@ -25,6 +25,7 @@ def main():
     parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
+    parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
     opts = parser.parse_args()
     global PRIVATE, FACTORY
     PRIVATE = opts.hardware_data.resolve()/"gobot-v1"
@@ -60,23 +61,45 @@ def main():
         directory.mkdir()
         snapshot = directory / "before.bin"
         print("Reading fresh full flash", ports[0], flush=True)
-        # One bootloader connection, bounded reads avoid the Windows USB large-transfer stall.
+        # Bounded reads and reconnects avoid the Windows USB large-transfer stall.
         from esptool import cmds
-        device=None
-        try:
-            time.sleep(1)
-            device=cmds.detect_chip(port=ports[0],baud=460800)
-            device=device.run_stub()
-            with snapshot.open("xb") as output:
-                for offset in range(0,0x1000000,0x40000):
-                    data=device.read_flash(offset,0x40000)
-                    require(len(data)==0x40000,"Incomplete snapshot block")
-                    output.write(data)
-                    if offset%0x400000==0:print("Snapshot progress",offset//0x100000,"MiB",flush=True)
-        finally:
-            if device is not None:
-                device.hard_reset()
-                device._port.close()
+        resume=opts.resume_snapshot.resolve() if opts.resume_snapshot else None
+        start=0
+        if resume:
+            require(resume.is_relative_to(PRIVATE.resolve()) and resume.name=="before.bin" and resume.parent.name.startswith("operation-"),"Invalid private snapshot path")
+            start=resume.stat().st_size
+            require(0<start<0x1000000 and start%0x10000==0,"Snapshot is not a completed segment")
+            snapshot.write_bytes(resume.read_bytes())
+        with snapshot.open("ab" if start else "xb") as output:
+            for segment in range(start,0x1000000,0x400000):
+                device=None
+                try:
+                    for attempt in range(3):
+                        try:
+                            time.sleep(5)
+                            device=cmds.detect_chip(port=ports[0],baud=460800).run_stub()
+                            break
+                        except Exception:
+                            if attempt==2:raise
+                    end=min(segment+0x400000,0x1000000)
+                    known=original[segment:end]
+                    observed=device.flash_md5sum(segment,len(known))
+                    if observed.lower()==hashlib.md5(known).hexdigest():
+                        output.write(known)
+                        output.flush()
+                        print("Snapshot segment verified against original by chip MD5",hex(segment),flush=True)
+                        continue
+                    for offset in range(segment,end,0x10000):
+                        data=device.read_flash(offset,0x10000)
+                        require(len(data)==0x10000,"Incomplete snapshot block")
+                        output.write(data)
+                    output.flush()
+                    print("Snapshot progress",(segment+0x400000)//0x100000,"MiB",flush=True)
+                finally:
+                    if device is not None:
+                        try:device.hard_reset()
+                        finally:device._port.close()
+                time.sleep(2)
         time.sleep(2)
         current = snapshot.read_bytes()
         require(len(current)==len(original), "Incomplete pre-operation backup")
