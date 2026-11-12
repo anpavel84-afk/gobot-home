@@ -157,3 +157,23 @@ def test_completed_hardware_turn_uses_only_local_audio(tmp_path, monkeypatch):
     assert any(isinstance(p,bytes) for p in ws.sent)
     assert all(json.loads(p)['type'] != 'stt' for p in ws.sent if isinstance(p,str))
     assert not (tmp_path/'hardware-usage.json').exists()
+
+
+def test_only_finalized_owned_mode_can_select_a(tmp_path,monkeypatch):
+    import httpx
+    import uuid
+    monkeypatch.setattr(g,'PRIVATE',tmp_path)
+    gateway = g.Gateway(CONFIG,'')
+    ident = str(uuid.uuid4())
+    flow = dict(active=True,mode='legacy',provider_closed=True,mode_conversation_id=ident)
+    assert gateway.confirmed_legacy({**flow,'provider_closed':False}) is None
+    assert gateway.confirmed_legacy({**flow,'active':False}) is None
+    gateway.mode_flow = gateway.confirmed_legacy(flow)
+    async def handler(req):
+        assert json.loads(req.content) == {'device_id':CONFIG['device_id'],'client_id':CONFIG['device_id'],'action':'activity'}
+        return httpx.Response(200,json={**flow,'active':False,'mode':'live'})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            assert await gateway.active_legacy_flow(client) is None
+    asyncio.run(run())
+    assert gateway.mode_flow is None

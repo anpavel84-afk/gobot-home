@@ -145,6 +145,8 @@ class Gateway:
         self.active = False
         self.next_packet_at = 0.0
         self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0}
+        self.mode_flow = None  # Only a server-issued, guest-scoped mode handle survives a wake.
+        self.legacy_turn = None
         self.quota_path = PRIVATE / 'hardware-usage.json'
         self.max_daily_turns = int(config.get('max_daily_turns', 20))
 
@@ -229,10 +231,11 @@ class Gateway:
             if response_task:
                 response_task.cancel()
                 await asyncio.gather(response_task, return_exceptions=True)
-            if state == 'respond' and self.config['mode'] == 'legacy_a':
+            if self.legacy_turn == turn_id:
                 with contextlib.suppress(Exception):
                     async with self.client_factory(trust_env=False, timeout=3) as client:
                         await client.post(self.config['brain_url'] + '/api/v1/turns/' + turn_id + '/cancel', headers=self.auth)
+            self.legacy_turn = None
             self.active = False
             self.save_stats()
 
@@ -274,15 +277,21 @@ class Gateway:
                 elif self.config['mode'] == 'live_c':
                     if self.config.get('hardware_live_consent') is not True:
                         raise PermissionError('hardware_live_permission_required')
-                    self.reserve_manual_turn()
                     from spotpear_live import live_turn
                     async with self.client_factory(trust_env=False, timeout=httpx.Timeout(35, connect=3)) as client:
-                        await live_turn(client, self.config, self.auth, wav, turn_id, send,
-                                        lambda packet: self.send_audio(ws, packet), OpusOutput())
+                        legacy = await self.active_legacy_flow(client)
+                        if legacy:
+                            await self.brain_response(ws, send, wav, turn_id, flow_id=legacy)
+                        else:
+                            self.reserve_manual_turn()
+                            flow = await live_turn(client, self.config, self.auth, wav, turn_id, send,
+                                                   lambda packet: self.send_audio(ws, packet), OpusOutput())
+                            self.mode_flow = self.confirmed_legacy(flow)
                 elif self.config['mode'] == 'legacy_a':
                     await self.brain_response(ws, send, wav, turn_id)
                 else:
                     raise ValueError('unknown_gateway_mode')
+                self.legacy_turn = None
                 self.stats['completed'] += 1
                 self.save_stats()
         except asyncio.CancelledError:
@@ -292,7 +301,29 @@ class Gateway:
             print(json.dumps({'event': 'device_response_error', 'kind': type(error).__name__}), flush=True)
             with contextlib.suppress(Exception): await ws.close(1011, 'GoBot response unavailable')
 
-    async def brain_response(self, ws, send, wav: bytes, turn_id: str):
+    @staticmethod
+    def confirmed_legacy(flow):
+        if not isinstance(flow, dict) or flow.get('active') is not True or flow.get('provider_closed') is not True or flow.get('mode') != 'legacy':
+            return None
+        try:
+            return str(uuid.UUID(flow['mode_conversation_id']))
+        except (KeyError, ValueError, TypeError, AttributeError):
+            return None
+
+    async def active_legacy_flow(self, client):
+        if not self.mode_flow:
+            return None
+        response = await client.post(f"{self.config['brain_url']}/api/v1/live/modes/{self.mode_flow}/command",
+                                     headers=self.auth, json={'device_id':self.config['device_id'],
+                                     'client_id':self.config['device_id'],'action':'activity'})
+        if response.status_code in {403, 404}:
+            self.mode_flow = None
+            return None
+        response.raise_for_status()
+        self.mode_flow = self.confirmed_legacy(response.json())
+        return self.mode_flow
+
+    async def brain_response(self, ws, send, wav: bytes, turn_id: str, flow_id=None):
         if not self.config.get('paid_speech_consent'):
             raise ValueError('speech_permission_required')
         self.reserve_manual_turn()
@@ -316,7 +347,10 @@ class Gateway:
                        'paid_tts_consent': True, 'paid_chat_consent': config.get('paid_chat_consent',False),
                        'usage_consent': config.get('cli_usage_consent',False),
                        'tts_character_limit': 1600, 'expensive_fallback_approved': False}
+            if flow_id:
+                request['mode_conversation_id'] = flow_id
             encoder = OpusOutput(); started = False; expected_seq = 0; audio_bytes = 0
+            self.legacy_turn = turn_id
             async with client.stream('POST',config['brain_url']+'/api/v1/chat/voice/stream',headers=self.auth,json=request) as reply:
                 reply.raise_for_status()
                 async for line in reply.aiter_lines():
@@ -344,6 +378,11 @@ class Gateway:
                         except (KeyError, ValueError):
                             continue
                         await send(scene)
+                    elif kind=='tool_status' and flow_id and data.get('status') == 'conversation_mode':
+                        self.mode_flow = self.confirmed_legacy(data.get('mode'))
+                        await send({'type':'tts','state':'start'})
+                        await send({'type':'tts','state':'stop'})
+                        return
                     elif kind=='widget_command':
                         command=data.get('command')
                         if isinstance(command,dict) and command.get('type')=='custom': await send(command)

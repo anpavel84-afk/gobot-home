@@ -53,7 +53,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
     tasks = []
     try:
         await peer.setLocalDescription(await peer.createOffer())
-        offer = dict(**scope, sdp=peer.localDescription.sdp, consent=True, session_id=turn_id,
+        offer = dict(**scope, conversation_mode="unified", sdp=peer.localDescription.sdp, consent=True, session_id=turn_id,
                      conversation_id=config["conversation_id"], client_kind="device",
                      requested_model="gpt-live-1", personalization_mode="guest", remember=False)
         attempted = True
@@ -103,7 +103,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                     elif kind == "closed":
                         if not data.get("final_usage_confirmed"):
                             raise ValueError("hardware_live_close_unconfirmed")
-                        return
+                        return data.get("mode")
             raise ValueError("hardware_live_events_interrupted")
 
         media = asyncio.create_task(output())
@@ -122,11 +122,17 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
             terminal.result()
         media.cancel()
         await asyncio.gather(media, return_exceptions=True)
+        flow = terminal.result()
         if not started:
-            raise ValueError("hardware_live_no_audio")
-        for packet in encoder.finish():
-            await send_audio(packet)
+            if not (flow and flow.get("active") and flow.get("mode") == "legacy" and flow.get("provider_closed")):
+                raise ValueError("hardware_live_no_audio")
+            await send({"type":"tts","state":"start"})
+            await send({"type":"tts","state":"sentence_start","text":"Экспертный режим"})
+        else:
+            for packet in encoder.finish():
+                await send_audio(packet)
         await send({"type":"tts","state":"stop"})
+        return flow
     finally:
         for task in tasks:
             task.cancel()
