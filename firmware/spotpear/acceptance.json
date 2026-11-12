@@ -110,7 +110,8 @@
     "paid_developer_calls": 0,
     "cli_calls": 0,
     "real_device_C_A_switch": "not_run",
-    "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture"
+    "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture",
+    "billing_gate": "Owner Full Test admits its bound client; a separate hardware-scoped grant is required alongside the phone."
   },
   "media": {
     "actual_local_webrtc_peers": 2,
@@ -134,5 +135,17 @@
     "Measure continuous armed standby, offline wake, same-phrase capture, speaker drain and acoustic false wakes.",
     "Scope a bounded C grant to the hardware identity; verify real device weather, timer, C/A mode change and safe reconnect.",
     "Verify graphics, timer and render acknowledgement on the physical round display."
-  ]
+  ],
+  "code_commits": {
+    "plan": "a36c066",
+    "public_review": "c7639e2"
+  },
+  "regression_on_plan": {
+    "passed": 2095,
+    "skipped": 3,
+    "expected_failures": 1,
+    "subtests_passed": 118,
+    "seconds": 179.23
+  },
+  "public_review": "https://github.com/anpavel84-afk/gobot-home/pull/1"
 }
