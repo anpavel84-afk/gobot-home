@@ -47,6 +47,8 @@ class DebugJournal:
         self.protect=protect or _dpapi;self.unprotect=unprotect or (lambda blob:_dpapi(blob,decrypt=True))
         self.pending=queue.Queue(maxsize=512);self.worker=None;self.lock=threading.RLock()
         self.dropped=0;self.last_error=None;self.written=0;self.stopping=False
+        from .telemetry import code_commit
+        self.code_commit=code_commit() # Pin the loaded release before later docs commits.
         if self.path.exists():self.start_worker() # Expire old records even when recording is off.
 
     def start_worker(self):
@@ -101,8 +103,7 @@ class DebugJournal:
         if not re.fullmatch(r'[a-zA-Z0-9_.:-]{1,80}',kind):return False
         # Record transport activity as metadata; never enqueue the audio itself.
         if kind in {'audio_chunk','audio'}:return False
-        from .telemetry import code_commit
-        payload={'turn_id':turn,'data':clean(data or {}),'code_commit':code_commit(),
+        payload={'turn_id':turn,'data':clean(data or {}),'code_commit':self.code_commit,
                  'diagnostic_only':True,'transcript_is_audio_hypothesis':True}
         item=(self.scope(owner,client,epoch),str(session)[:100],self.clock(),engine,kind,
               json.dumps(payload,ensure_ascii=False,separators=(',',':')),binding)

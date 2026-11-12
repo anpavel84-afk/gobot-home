@@ -173,6 +173,9 @@ def test_realtime_and_legacy_share_journal_without_native_duplicate_a_turn(tmp_p
         m.owner_testing.policy_path.write_text(OwnerTestPolicy(authorization='synthetic',allowed_client_id='client-1',debug_journal_enabled=True).model_dump_json())
         s=await start(m)
         try:
+            s.preference_item='synthetic-preferences'
+            await s.send({'type':'conversation.item.create','item':{'id':s.preference_item,'type':'message',
+                'content':[{'type':'input_text','text':'SYNTHETIC_PRIVATE_PREFERENCES'}]}})
             turn=await s.new_turn(query='SYNTHETIC ordinary question')
             turn.answer='SYNTHETIC answer';await s.finish(turn,True)
             req=ChatRequest(text='SYNTHETIC legacy question',device_id='browser-1',client_id='client-1',remember=False)
@@ -181,6 +184,7 @@ def test_realtime_and_legacy_share_journal_without_native_duplicate_a_turn(tmp_p
             native=j.read(j.scope(s.offer.device_id,s.offer.client_id,s.offer.profile_epoch),s.id)['events']
             assert any(e['engine']=='B' and e['kind']=='dialogue_turn' for e in native)
             assert not any(e['engine']=='A' for e in native)
+            assert 'SYNTHETIC_PRIVATE_PREFERENCES' not in json.dumps(native)
             legacy=j.read(j.scope(req.device_id,req.client_id,req.profile_epoch),req.conversation_id)['events']
             assert [e['kind'] for e in legacy]==['user_input','final']
         finally:await m.shutdown()
