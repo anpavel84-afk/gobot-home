@@ -1,6 +1,6 @@
 {
   "date": "2026-11-12",
-  "installed_version": "0.4.2-dev-session-ack",
+  "installed_version": "0.4.3-dev-media-ready",
   "source_base": "3b63796",
   "factory_backups_preserved": true,
   "flash_verified": true,
@@ -136,5 +136,31 @@
     "firmware_reflashed": false,
     "brain_code_pin": "4dec0da",
     "live_mode_enabled": true
+  },
+  "media_ready_hardware": {
+    "firmware_sha256": "81eb1ed149b79d943057d17a9569f630f64b735409dd2fbdeb0a9186fc145386",
+    "flash_verified": true,
+    "usb_boot_verified": true,
+    "activation": "USB diagnostic, not human touch",
+    "deferred_capture_ack": 1,
+    "uplink_packets": 150,
+    "downlink_packets": 142,
+    "peak_input_backlog_ms": 120,
+    "final_input_backlog_ms": 100,
+    "microphone_during_speaker": 400,
+    "setup_delay_ms": 5000,
+    "gateway_errors": 0,
+    "idle_upload": 0,
+    "provider_calls": 0,
+    "human_barge_in": "not_yet_retested"
+  },
+  "board_debug_journal": {
+    "explicit_separate_opt_in": true,
+    "real_dpapi_at_rest_verified": true,
+    "authenticated_api_read_verified": true,
+    "board_direct_read_denied": true,
+    "synthetic_probe_deleted": true,
+    "raw_audio_saved": false,
+    "missing_prior_text_recovered": false
   }
 }
