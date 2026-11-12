@@ -15,7 +15,7 @@ def observe(seconds,command=None):
         until=time.monotonic()+4
         while time.monotonic()<until:
             dev.write(b"\nGOBOT_STATUS\n");buf+=dev.read(4096)
-            if re.search(rb"GOBOT_STATUS version=0\.4\.0-dev-duplex [^\n]*enrolled=1 [^\n]*phase=0 ",buf):
+            if re.search(rb"GOBOT_STATUS version=0\.4\.[01]-dev-(?:duplex|livekit) [^\n]*enrolled=1 [^\n]*phase=0 ",buf):
                 ready=True;break
         if command and not ready:raise RuntimeError("Idle enrolled duplex firmware required")
         if command:dev.write(("\n"+command+"\n").encode())
