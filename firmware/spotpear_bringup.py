@@ -22,7 +22,7 @@ def digest(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -33,7 +33,8 @@ def main():
     FACTORY = opts.hardware_data.resolve()/"factory"/SECOND.name
     manifests={"duplex":"release.json","duplex-rollback":"release.json",
                "continuous":"continuous-release.json","continuous-rollback":"continuous-release.json",
-               "session-ack":"ack-release.json","session-ack-rollback":"ack-release.json"}
+               "session-ack":"ack-release.json","session-ack-rollback":"ack-release.json",
+               "media-ready":"media-ready-release.json","media-ready-rollback":"media-ready-release.json"}
     if opts.action in manifests:
         require((ROOT/"firmware/spotpear/duplex"/manifests[opts.action]).is_file(),"Release manifest missing")
     lock = PRIVATE / "bringup.lock"
@@ -120,7 +121,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback"):
+        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback","media-ready","media-ready-rollback"):
             release = json.loads((ROOT/"firmware/spotpear/touch_release.json").read_text())
             app = PRIVATE / "touch/gobot-touch-auto.bin"
             old = PRIVATE / "candidate/gobot-app.bin"
@@ -137,33 +138,36 @@ def main():
                 "previous": (app, release["app_sha256"]),
             }
             target = old if opts.action=="previous" else app
-            if opts.action in ("wake-probe", "wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback"):
+            if opts.action in ("wake-probe", "wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback","media-ready","media-ready-rollback"):
                 kw = json.loads((ROOT/"firmware/spotpear/microwake/installed.json").read_text())
                 probe = PRIVATE/"touch/gobot-wake-probe.bin"
                 require(probe.stat().st_size == kw["app_bytes"] <= 0x3f0000 and
                         digest(probe.read_bytes()) == kw["app_sha256"], "Wake binary mismatch")
                 sources["wake-probe"] = (app, release["app_sha256"])
-                sources["wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback"] = (probe, kw["app_sha256"])
+                for action in ("wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"):
+                    sources[action] = (probe, kw["app_sha256"])
                 target = probe if opts.action=="wake-probe" else app
-            if opts.action in ("duplex", "duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback"):
+            if opts.action in ("duplex", "duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback","media-ready","media-ready-rollback"):
                 report = json.loads((ROOT/"firmware/spotpear/duplex/release.json").read_text())
                 target_image = PRIVATE/"touch/gobot-duplex.bin"
                 previous = PRIVATE/"touch/gobot-wake-probe.bin"
                 require(digest(target_image.read_bytes()) == report["app_sha256"] and target_image.stat().st_size == report["app_bytes"] <= 0x3f0000,"Duplex candidate mismatch")
                 require(digest(previous.read_bytes()) == report["previous_sha256"],"Wake rollback image mismatch")
                 sources["duplex"] = (previous, report["previous_sha256"])
-                sources["duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback"] = (target_image,report["app_sha256"])
+                for action in ("duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"):
+                    sources[action] = (target_image,report["app_sha256"])
                 target = target_image if opts.action=="duplex" else previous
-            if opts.action in ("continuous", "continuous-rollback","session-ack","session-ack-rollback"):
+            if opts.action in ("continuous", "continuous-rollback","session-ack","session-ack-rollback","media-ready","media-ready-rollback"):
                 report = json.loads((ROOT/"firmware/spotpear/duplex/continuous-release.json").read_text())
                 new = PRIVATE/"touch/gobot-continuous.bin"
                 previous = PRIVATE/"touch/gobot-duplex.bin"
                 require(new.stat().st_size == report["app_bytes"] <= 0x3f0000 and digest(new.read_bytes()) == report["app_sha256"], "Continuous image mismatch")
                 require(digest(previous.read_bytes()) == report["previous_sha256"], "Duplex rollback mismatch")
                 sources["continuous"] = (previous,report["previous_sha256"])
-                sources["continuous-rollback", "session-ack", "session-ack-rollback"] = (new,report["app_sha256"])
+                for action in ("continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"):
+                    sources[action] = (new,report["app_sha256"])
                 target = new if opts.action=="continuous" else previous
-            if opts.action in ("session-ack", "session-ack-rollback"):
+            if opts.action in ("session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"):
                 report=json.loads((ROOT/"firmware/spotpear/duplex/ack-release.json").read_text())
                 new=PRIVATE/"touch/gobot-session-ack.bin"
                 previous=PRIVATE/"touch/gobot-continuous.bin"
@@ -172,6 +176,15 @@ def main():
                 sources["session-ack"]=(previous,report["previous_sha256"])
                 sources["session-ack-rollback"]=(new,report["app_sha256"])
                 target=new if opts.action=="session-ack" else previous
+            if opts.action in ("media-ready", "media-ready-rollback"):
+                report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
+                new=PRIVATE/"touch/gobot-media-ready.bin"
+                previous=PRIVATE/"touch/gobot-session-ack.bin"
+                require(new.stat().st_size==report["app_bytes"] <=0x3f0000 and digest(new.read_bytes())==report["app_sha256"],"Media-ready image mismatch")
+                require(digest(previous.read_bytes())==report["previous_sha256"],"ACK rollback mismatch")
+                sources["media-ready"]=(previous,report["previous_sha256"])
+                sources["media-ready-rollback"]=(new,report["app_sha256"])
+                target=new if opts.action=="media-ready" else previous
             source, expected_sha = sources[opts.action]
             require(digest(source.read_bytes())==expected_sha, "Source image mismatch")
             require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")

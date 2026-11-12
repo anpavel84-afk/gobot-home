@@ -4,6 +4,7 @@ This grants public test operations, never a person's private memory or shell.
 The model cannot edit it. All writes come from the authenticated owner settings UI.
 """
 import hashlib,json,os,sqlite3,time,threading
+from typing import Annotated
 from pathlib import Path
 from pydantic import BaseModel,ConfigDict,Field
 from .realtime_contract import RealtimeModel,AudioPreset
@@ -52,6 +53,8 @@ class OwnerTestPolicy(BaseModel):
     developer_live_backend_limit:int=Field(default=0,ge=0,le=14)
     debug_journal_enabled:bool=False
     debug_journal_retention_days:int=Field(default=7,ge=1,le=7)
+    # Explicit diagnostic consent; an expense grant alone never enables recording.
+    debug_journal_device_bindings:list[Annotated[str,Field(min_length=1,max_length=100,pattern=r'^[A-Za-z0-9_.:-]+$')]]=Field(default_factory=list,max_length=8)
 
 class OwnerTesting:
     def __init__(self,root):

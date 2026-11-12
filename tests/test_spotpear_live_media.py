@@ -28,10 +28,11 @@ def tone(amplitude=4000):
 
 
 @pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous", "continuous_slow_setup",
-                                     "continuous_silent_idle","continuous_silent_fault"])
+                                     "continuous_silent_idle","continuous_silent_fault","continuous_deferred"])
 def test_live_roundtrip_and_close(streaming):
     continuous = isinstance(streaming,str) and streaming.startswith("continuous")
     silent = streaming in {"continuous_silent_idle","continuous_silent_fault"}
+    deferred = streaming=='continuous_deferred'
     if continuous and not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"):
         pytest.skip("Requires loopback LiveKit")
     async def scenario():
@@ -42,9 +43,11 @@ def test_live_roundtrip_and_close(streaming):
         ident = "spotpear-test-turn"
         consumed = []
         capture = StreamingSpeech() if streaming else tone()
-        if streaming:
+        media_ready=asyncio.Event()
+        if streaming and not deferred:
             with wave.open(io.BytesIO(tone(0 if silent else 4000))) as sample:
                 capture.feed(sample.readframes(sample.getnframes()))
+        if deferred:capture.deferred_start=True
 
         async def consume(track):
             while not input_received.is_set():
@@ -83,7 +86,7 @@ def test_live_roundtrip_and_close(streaming):
             offer = LiveOffer.model_validate(body)
             assert offer.owner_test_binding is None and not offer.remember
             assert offer.device_id == offer.client_id == "spotpear-unit"
-            if streaming == "continuous_slow_setup":
+            if streaming in {"continuous_slow_setup","continuous_deferred"}:
                 await asyncio.sleep(5)
             await remote.setRemoteDescription(RTCSessionDescription(live_sdp(offer.sdp), "offer"))
             remote.addTrack(CapturedSpeech(tone(0 if silent else 4000)))
@@ -93,6 +96,7 @@ def test_live_roundtrip_and_close(streaming):
 
         async def send(control):
             controls.append(control)
+            if control['type']=='gobot_media_ready':media_ready.set()
             if control['type']=='gobot_input_end' and streaming=='provider_end':
                 assert input_received.is_set() and not capture.finished
                 capture.finish()
@@ -104,6 +108,12 @@ def test_live_roundtrip_and_close(streaming):
         feeder = None
         if continuous:
             async def feed_microphone():
+                if deferred:
+                    await media_ready.wait()
+                    with wave.open(io.BytesIO(tone())) as sample:
+                        raw=sample.readframes(sample.getnframes())
+                    for offset in range(0,len(raw),640):
+                        capture.feed(raw[offset:offset+640]);await asyncio.sleep(.02)
                 while True:
                     capture.feed(bytes(640))
                     await asyncio.sleep(.02)
@@ -124,6 +134,9 @@ def test_live_roundtrip_and_close(streaming):
                 assert not capture.finished
                 # A feeder failure used to be swallowed during cleanup, hiding a full input buffer.
                 assert feeder is not None and not feeder.done(), feeder.exception() if feeder else None
+                if deferred:
+                    assert sum(c['type']=='gobot_media_ready' for c in controls)==1
+                    assert capture.diagnostics()['peak_backlog_ms']<250
             tts=[control["state"] for control in controls if control["type"]=="tts"]
             if silent:
                 assert not tts and not packets

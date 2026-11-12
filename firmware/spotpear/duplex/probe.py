@@ -15,7 +15,7 @@ def observe(seconds,command=None):
         until=time.monotonic()+4
         while time.monotonic()<until:
             dev.write(b"\nGOBOT_STATUS\n");buf+=dev.read(4096)
-            if re.search(rb"GOBOT_STATUS version=0\.4\.[012]-dev-(?:duplex|livekit|session-ack) [^\n]*enrolled=1 [^\n]*phase=0 ",buf):
+            if re.search(rb"GOBOT_STATUS version=0\.4\.[0123]-dev-(?:duplex|livekit|session-ack|media-ready) [^\n]*enrolled=1 [^\n]*phase=0 ",buf):
                 ready=True;break
         if command and not ready:raise RuntimeError("Idle enrolled duplex firmware required")
         if command:dev.write(("\n"+command+"\n").encode())
@@ -25,7 +25,7 @@ def observe(seconds,command=None):
             buf+=dev.read(4096);lines=buf.split(b"\n");buf=lines.pop()[-8192:]
             for raw in lines:
                 line=raw.decode(errors="replace")
-                found=re.search(r"GOBOT_(?:DUPLEX (?:\w+=\d+ ?)+|DUPLEX_ARMED local=1|SESSION continuous=\d+ phase=\d+|STATUS version=[\w.-]+(?: \w+=\d+)+|MWW (?:\w+=-?\d+ ?)+)|Initialized FD AFE[^\r\n]*|AFE.*(?:failed|Failed)[^\r\n]*|Guru Meditation Error",line)
+                found=re.search(r"GOBOT_(?:DUPLEX (?:\w+=\d+ ?)+|DUPLEX_ARMED local=1|MEDIA_READY phase=\d+|SESSION continuous=\d+ phase=\d+|STATUS version=[\w.-]+(?: \w+=\d+)+|MWW (?:\w+=-?\d+ ?)+)|Initialized FD AFE[^\r\n]*|AFE.*(?:failed|Failed)[^\r\n]*|Guru Meditation Error",line)
                 if found:print(found[0],flush=True)
                 elif any(tag in line for tag in ("esp-tls", "mbedtls", "certificate verify", "GOBOT_STANDBY", "Failed to connect")):
                     safe=re.sub(r"(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}","[device]",line)

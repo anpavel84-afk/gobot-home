@@ -59,6 +59,7 @@ class StreamingSpeech(AudioStreamTrack):
         self.consumed_samples = 0
         self.peak_backlog_bytes = 0
         self.phase = "waiting"
+        self.deferred_start = False
 
     def feed(self, pcm):
         if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>self.MAX_BACKLOG_BYTES:
@@ -161,6 +162,8 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                 await setup()
         else:
             await setup()
+        if continuous and capture.deferred_start:
+            await send({"type":"gobot_media_ready"})
 
         def loop_time(): return asyncio.get_running_loop().time()
         async def activity():
@@ -235,6 +238,8 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                         if not data.get("final_usage_confirmed"):
                             raise ValueError("hardware_live_close_unconfirmed")
                         close_reason=data.get("reason")
+                        if continuous and capture.deferred_start:
+                            await send({"type":"gobot_session_end","reason":close_reason})
                         return data.get("mode")
             raise ValueError("hardware_live_events_interrupted")
 

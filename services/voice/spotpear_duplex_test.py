@@ -52,7 +52,7 @@ async def local_probe(config,capture,turn_id,send,send_audio,encoder):
                 if np.sqrt(np.mean(pcm**2))>120:counts["nonzero_microphone_frames"]+=1
                 if tone_start is not None and asyncio.get_running_loop().time()-tone_start<8:
                     counts["microphone_during_speaker"]+=1
-                input_ready.set()
+                if capture.input_seen:input_ready.set()
         tasks.append(asyncio.create_task(consume()))
     async def handler(request):
         if request.method=="GET":

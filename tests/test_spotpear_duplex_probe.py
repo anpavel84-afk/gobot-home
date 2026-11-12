@@ -16,9 +16,12 @@ from gobot_device_gateway import OpusOutput
 
 
 @pytest.mark.skipif(not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"),reason="Requires loopback LiveKit")
-def test_delayed_setup_then_simultaneous_audio_no_provider():
+@pytest.mark.parametrize('deferred',[False,True])
+def test_delayed_setup_then_simultaneous_audio_no_provider(deferred):
     async def scenario():
         capture=StreamingSpeech()
+        capture.deferred_start=deferred
+        ready=asyncio.Event()
         config={"mode":"duplex_test","continuous_live":True,"device_id":"fixture-board",
                 "conversation_id":"fixture-topic","brain_url":"http://unused.invalid",
                 "hardware_live_consent":True,"livekit_settings":json.loads(
@@ -27,6 +30,7 @@ def test_delayed_setup_then_simultaneous_audio_no_provider():
         packets=0
         async def control(event):
             nonlocal playing
+            if event['type']=='gobot_media_ready':ready.set()
             if event["type"]=="tts":playing=event["state"]=="start"
         async def audio(packet):
             nonlocal packets
@@ -34,6 +38,7 @@ def test_delayed_setup_then_simultaneous_audio_no_provider():
             packets+=1
             await asyncio.sleep(.060)
         async def feed():
+            if deferred:await ready.wait()
             samples=(1000*np.sin(np.arange(960)*.2)).astype("<i2").tobytes()
             while True:
                 capture.feed(samples)
@@ -43,7 +48,8 @@ def test_delayed_setup_then_simultaneous_audio_no_provider():
             counts=await asyncio.wait_for(local_probe(config,capture,"fixture-hardware-probe",control,audio,OpusOutput()),20)
             assert not feeder.done(),feeder.exception()
             assert counts["provider_calls"]==0 and counts["fixture_closes"]==1
-            assert counts["peak_input_backlog_ms"]>=5000
+            if deferred:assert counts['peak_input_backlog_ms']<250 and ready.is_set()
+            else:assert counts["peak_input_backlog_ms"]>=5000
             assert counts["microphone_during_speaker"]>=100 and packets>100
         finally:
             feeder.cancel()
