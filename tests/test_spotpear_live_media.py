@@ -27,9 +27,10 @@ def tone():
     return sink.getvalue()
 
 
-@pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous"])
+@pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous", "continuous_slow_setup"])
 def test_live_roundtrip_and_close(streaming):
-    if streaming=="continuous" and not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"):
+    continuous = streaming in {"continuous", "continuous_slow_setup"}
+    if continuous and not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"):
         pytest.skip("Requires loopback LiveKit")
     async def scenario():
         remote = RTCPeerConnection(RTCConfiguration(iceServers=[]))
@@ -65,7 +66,7 @@ def test_live_roundtrip_and_close(streaming):
                         query={"type":"input_transcript","session_id":ident,"data":{"text":"Погода"}}
                         yield ("data: "+json.dumps(query)+"\n\n").encode()
                         await asyncio.wait_for(output_received.wait(),5)
-                        if streaming=="continuous":await asyncio.sleep(5)
+                        if continuous:await asyncio.sleep(5)
                         closed={"type":"closed","session_id":ident,"data":{"final_usage_confirmed":True}}
                         yield ("data: "+json.dumps(closed)+"\n\n").encode()
                 return httpx.Response(200, stream=Events())
@@ -77,6 +78,8 @@ def test_live_roundtrip_and_close(streaming):
             offer = LiveOffer.model_validate(body)
             assert offer.owner_test_binding is None and not offer.remember
             assert offer.device_id == offer.client_id == "spotpear-unit"
+            if streaming == "continuous_slow_setup":
+                await asyncio.sleep(5)
             await remote.setRemoteDescription(RTCSessionDescription(live_sdp(offer.sdp), "offer"))
             remote.addTrack(CapturedSpeech(tone()))
             await remote.setLocalDescription(await remote.createAnswer())
@@ -93,21 +96,26 @@ def test_live_roundtrip_and_close(streaming):
             if len(packets) >= 3:
                 output_received.set()
 
-        if streaming=="continuous":
+        feeder = None
+        if continuous:
             async def feed_microphone():
                 while True:
                     capture.feed(bytes(640))
                     await asyncio.sleep(.02)
-            consumed.append(asyncio.create_task(feed_microphone()))
+            feeder = asyncio.create_task(feed_microphone())
+            consumed.append(feeder)
         config = {"device_id":"spotpear-unit","conversation_id":"test-topic",
                   "brain_url":"http://127.0.0.1:18781","hardware_live_consent":True}
-        if streaming=="continuous":
+        if continuous:
             config["continuous_live"]=True
             config["livekit_settings"]=json.loads(Path(os.environ["GOBOT_LOCAL_LIVEKIT_TEST"]).read_text())
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 12)
-            if streaming=="continuous":assert not capture.finished
+                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 18)
+            if continuous:
+                assert not capture.finished
+                # A feeder failure used to be swallowed during cleanup, hiding a full input buffer.
+                assert feeder is not None and not feeder.done(), feeder.exception() if feeder else None
             tts=[control["state"] for control in controls if control["type"]=="tts"]
             assert tts==["start","stop"]
             if streaming=="provider_end":
@@ -128,3 +136,28 @@ def test_live_roundtrip_and_close(streaming):
 def test_device_consent_precedes_media_or_api():
     with pytest.raises(PermissionError, match="hardware_live_permission_required"):
         asyncio.run(live_turn(None, {}, {}, b"", "unused", None, None, None))
+
+
+@pytest.mark.skipif(not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"),reason="Requires loopback LiveKit")
+def test_slow_setup_is_cancelled_and_closed_once_without_retry():
+    async def scenario():
+        capture=StreamingSpeech()
+        capture.created_at-=8
+        requests=[]
+        async def handler(request):
+            body=json.loads(request.content)
+            requests.append(body)
+            if request.url.path.endswith("/command"):
+                assert body["action"]=="end"
+                return httpx.Response(200,json={"closed":True})
+            await asyncio.Future()  # Lost setup reply; no automatic second create.
+        config={"device_id":"fixture-timeout","conversation_id":"fixture-timeout",
+                "brain_url":"http://unused.invalid","hardware_live_consent":True,
+                "continuous_live":True,"livekit_settings":json.loads(
+                    Path(os.environ["GOBOT_LOCAL_LIVEKIT_TEST"]).read_text())}
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(TimeoutError):
+                await live_turn(client,config,{},capture,"fixture-timeout",None,None,OpusOutput())
+        assert capture.readyState=="ended"
+        assert len(requests)==2 and requests[-1]["action"]=="end"
+    asyncio.run(scenario())

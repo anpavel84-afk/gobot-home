@@ -40,7 +40,10 @@ class CapturedSpeech(AudioStreamTrack):
 
 
 class StreamingSpeech(AudioStreamTrack):
-    """16 kHz mono PCM, at most four seconds of post-contact setup backlog."""
+    """Bounded 16 kHz PCM during connection setup; never wait for end of speech."""
+    # Ten seconds for the complete connection setup, plus two seconds of scheduling margin.
+    # This is a hard RAM cap, not a new recording/end-of-utterance step.
+    MAX_BACKLOG_BYTES = 16000 * 2 * 12
     def __init__(self):
         super().__init__()
         self.buffer = bytearray()
@@ -51,11 +54,18 @@ class StreamingSpeech(AudioStreamTrack):
         self.input_seen = False
         self.ended = asyncio.Event()
         self.last_signal = 0.
+        self.created_at = asyncio.get_running_loop().time()
+        self.received_samples = 0
+        self.consumed_samples = 0
+        self.peak_backlog_bytes = 0
+        self.phase = "waiting"
 
     def feed(self, pcm):
-        if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>16000*2*4:
+        if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>self.MAX_BACKLOG_BYTES:
             raise ValueError("hardware_input_backlog_or_state")
         self.buffer.extend(pcm)
+        self.received_samples += len(pcm)//2
+        self.peak_backlog_bytes = max(self.peak_backlog_bytes, len(self.buffer))
         self.input_seen |= bool(pcm)
         if pcm and np.sqrt(np.mean(np.frombuffer(pcm,"<i2").astype(np.float64)**2))>=100:
             self.last_signal=asyncio.get_running_loop().time()
@@ -65,6 +75,13 @@ class StreamingSpeech(AudioStreamTrack):
         if not self.buffer:
             self.ended.set()
 
+    def diagnostics(self):
+        return {"phase": self.phase, "received_samples": self.received_samples,
+                "consumed_samples": self.consumed_samples, "clocked_samples": self.position,
+                "backlog_ms": len(self.buffer)//32, "peak_backlog_ms": self.peak_backlog_bytes//32,
+                "age_ms":round((asyncio.get_running_loop().time()-self.created_at)*1000),
+                "finished": self.finished}
+
     async def recv(self):
         loop = asyncio.get_running_loop()
         if self.next_frame is None:
@@ -72,6 +89,7 @@ class StreamingSpeech(AudioStreamTrack):
         await asyncio.sleep(max(0, self.next_frame-loop.time()))
         raw = bytes(self.buffer[:640])
         del self.buffer[:640]
+        self.consumed_samples += len(raw)//2
         if self.finished and not self.buffer:
             self.ended.set()
         frame = av.AudioFrame.from_ndarray(np.frombuffer(raw.ljust(640, bytes(1)),"<i2").reshape(1,-1),
@@ -98,38 +116,50 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
             raise ValueError("continuous_live_requires_livekit")
         from spotpear_livekit import LocalMediaRelay
         relay=LocalMediaRelay(config["livekit_settings"],turn_id)
-        try:
-            await relay.connect()
-        except BaseException:
-            await relay.close()
-            await peer.close()
-            raise
-    peer.addTrack(relay.input_track if relay else capture)
     tracks = []
     peer.on("track", tracks.append)
     started = attempted = False
     tasks = []
-    try:
+    async def setup():
+        nonlocal attempted
         if relay:
+            capture.phase="relay_connect"
+            await relay.connect()
             async def delivered(pcm):
                 for packet in encoder.feed(pcm,24000):
                     await send_audio(packet)
             tasks.append(relay.task(relay.output(delivered)))
             tasks.append(asyncio.ensure_future(relay.error))
+        peer.addTrack(relay.input_track if relay else capture)
+        if isinstance(capture,StreamingSpeech):capture.phase="offer"
         await peer.setLocalDescription(await peer.createOffer())
         offer = dict(**scope, conversation_mode="unified", sdp=peer.localDescription.sdp, consent=True, session_id=turn_id,
                      conversation_id=config["conversation_id"], client_kind="device",
                      requested_model="gpt-live-1", personalization_mode="guest", remember=False)
         attempted = True
+        if isinstance(capture,StreamingSpeech):capture.phase="brain_setup"
         reply = await client.post(base, headers=headers, json=offer)
         reply.raise_for_status()
         answer = reply.json()
         if answer.get("session_id") != turn_id or answer.get("configuration_confirmed") is not True or answer.get("model") != "gpt-live-1":
             raise ValueError("hardware_live_settings_unconfirmed")
+        if isinstance(capture,StreamingSpeech):capture.phase="transport_connect"
         await peer.setRemoteDescription(RTCSessionDescription(sdp=answer["sdp"], type="answer"))
         if len(tracks) != 1 or tracks[0].kind != "audio":
             raise ValueError("hardware_live_audio_track_missing")
-        if relay:tasks.append(relay.task(relay.microphone(capture)))
+        if relay:
+            tasks.append(relay.task(relay.microphone(capture, wait_for_transport=True)))
+            await relay.input_track.started.wait()
+        if isinstance(capture,StreamingSpeech):capture.phase="streaming"
+
+    try:
+        if continuous:
+            # Bound the entire setup, not just the HTTP request. Preserve the first
+            # syllables while connecting, without waiting for the whole question.
+            async with asyncio.timeout_at(capture.created_at+10):
+                await setup()
+        else:
+            await setup()
 
         def loop_time(): return asyncio.get_running_loop().time()
         async def activity():

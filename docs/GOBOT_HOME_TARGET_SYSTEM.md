@@ -2616,6 +2616,14 @@ Idle и экспертная задача имеют разные сроки. Д
 handler, ограниченно дождаться final usage, отметить unknown finalization и выполнить
 документированный cleanup. C не перезапускает оплаченный turn после неизвестного исхода.
 
+Аппаратный путь C через PLAN LiveKit сохраняет один Brain и один provider session.
+Служебный Opus comfort noise до первой подачи PCM не считается вопросом/ответом и
+не заполняет application queues. Setup имеет общий deadline; первые слоги хранятся
+только в ограниченном RAM-буфере и передаются без ожидания окончания фразы.
+Измерять startup backlog отдельно от steady-state latency и фактического playback.
+Бесплатная проверка должна проходить через тот же WebRTC-адаптер с искусственно
+задержанным synthetic peer; она не доказывает распознавание или баржин GPT-Live.
+
 Live billing — cumulative duration: 12 → 15 секунд = 15. Не применять token formula
 Realtime или тариф Live 1 к неподтверждённой 1.1. Mute не прекращает расходы.
 Не загружать private context без авторизации; embeddings локальны, при смене человека

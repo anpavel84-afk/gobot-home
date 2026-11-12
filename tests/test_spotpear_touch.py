@@ -56,8 +56,11 @@ def test_audio_reaches_track_before_end_and_buffer_is_bounded():
         track.feed(samples)
         frame=await track.recv()
         assert frame.to_ndarray().tobytes()==samples and not track.ended.is_set()
+        diagnostics=track.diagnostics()
+        assert diagnostics['consumed_samples']==diagnostics['clocked_samples']==320
+        assert diagnostics['peak_backlog_ms']==20 and diagnostics['backlog_ms']==0
         with pytest.raises(ValueError):
-            track.feed(bytes(128002))
+            track.feed(bytes(StreamingSpeech.MAX_BACKLOG_BYTES+2))
         track.finish()
         assert track.ended.is_set()
         with pytest.raises(ValueError):
