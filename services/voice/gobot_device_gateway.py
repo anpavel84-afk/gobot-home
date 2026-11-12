@@ -146,7 +146,8 @@ class Gateway:
         self.client_factory = client_factory
         self.active = False
         self.next_packet_at = 0.0
-        self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0}
+        self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0,
+                      'captures': 0, 'streams_with_audio': 0, 'downlink_packets': 0, 'playback_started': 0}
         self.mode_flow = None  # Only a server-issued, guest-scoped mode handle survives a wake.
         self.legacy_turn = None
         self.quota_path = PRIVATE / 'hardware-usage.json'
@@ -171,14 +172,19 @@ class Gateway:
             await ws.close(1013, 'Device busy'); return
         self.active = True
         self.stats['accepted'] += 1
+        self.save_stats()
         session = str(uuid.uuid4())
         turn_id = str(uuid.uuid4())
         response_task = None
         state = 'hello'
         decoder = stream = None
+        tts_finished = False
         deadline = asyncio.get_running_loop().time() + 8
         async def send(obj):
+            nonlocal tts_finished
             await ws.send(json.dumps({**obj, 'session_id': session}, ensure_ascii=False))
+            if obj.get('type') == 'tts' and obj.get('state') == 'stop':
+                tts_finished = True
         try:
             async with asyncio.timeout(MAX_TURN_SECONDS + 35):
                 iterator = aiter(ws)
@@ -191,6 +197,9 @@ class Gateway:
                         if state != 'capture' or decoder is None:
                             raise ValueError('audio_outside_capture')
                         decoder.feed(raw); self.stats['received_packets'] += 1
+                        if decoder.packets == 1:
+                            self.stats['streams_with_audio'] += 1
+                            self.save_stats()
                         if stream is not None:
                             stream.feed(decoder.pcm)
                             decoder.pcm.clear()
@@ -215,7 +224,8 @@ class Gateway:
                                 status = await client.get(self.config['brain_url']+'/api/v1/live/status',
                                     headers=self.auth, params={'binding':self.config['device_id']})
                                 allowed = status.is_success and status.json().get('enabled') is True and self.config.get('hardware_live_consent') is True
-                            await send({'type':'gobot_access','allowed':allowed,
+                            reason = status.json().get('admission_reason') if status.is_success else 'hardware_voice_unavailable'
+                            await send({'type':'gobot_access','allowed':allowed,'reason':None if allowed else reason,
                                         'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False))})
                             if not allowed:
                                 state='blocked'
@@ -225,6 +235,8 @@ class Gateway:
                         if obj.get('mode') != 'auto':
                             raise ValueError('only_wake_auto_turn_supported')
                         decoder = OpusInput(); state = 'capture'
+                        self.stats['captures'] += 1
+                        self.save_stats()
                         if self.config['mode']=='live_c':
                             from spotpear_live import StreamingSpeech
                             async with self.client_factory(trust_env=False,timeout=3) as client:
@@ -245,6 +257,9 @@ class Gateway:
                             stream.finish()
                         decoder = None
                     elif kind=='gobot_activity' and stream is not None and type(obj.get('playing')) is bool:
+                        if obj['playing'] and not stream.playing:
+                            self.stats['playback_started'] += 1
+                            self.save_stats()
                         stream.playing=obj['playing']
                     elif state=='blocked' and kind=='listen':
                         await asyncio.sleep(.2)
@@ -264,6 +279,10 @@ class Gateway:
             print(json.dumps({'event': 'device_connection_error', 'kind': type(error).__name__}), flush=True)
             with contextlib.suppress(Exception): await ws.close(1008, 'Invalid or expired turn')
         finally:
+            if tts_finished and response_task and not response_task.done():
+                # The device may close immediately after draining its speaker.
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(asyncio.shield(response_task),3)
             if response_task:
                 response_task.cancel()
                 await asyncio.gather(response_task, return_exceptions=True)
@@ -289,6 +308,7 @@ class Gateway:
         if scheduled > now:
             await asyncio.sleep(scheduled-now)
         await ws.send(packet)
+        self.stats['downlink_packets'] += 1
         self.next_packet_at = scheduled + .060
 
     async def respond(self, ws, send, wav: bytes, turn_id: str):
@@ -321,7 +341,7 @@ class Gateway:
                         else:
                             if not isinstance(wav,StreamingSpeech):
                                 raise ValueError('hardware_live_requires_stream')
-                            self.reserve_manual_turn()
+                            # Brain reserves the exact grant atomically before it creates a provider session.
                             flow = await live_turn(client, self.config, self.auth, wav, turn_id, send,
                                                    lambda packet: self.send_audio(ws, packet), OpusOutput())
                             self.mode_flow = self.confirmed_legacy(flow)

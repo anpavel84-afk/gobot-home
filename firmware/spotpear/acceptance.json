@@ -3,7 +3,7 @@
   "plan_base": "531caf9",
   "accepted": false,
   "installed": {
-    "version": "0.2.1-dev-touch-audio",
+    "version": "0.2.2-dev-touch-volume",
     "usb": "COM3",
     "chip": "ESP32-S3 rev 0.2",
     "flash_mib": 16,
@@ -121,7 +121,7 @@
   "firmware_guard_host_assertions": 43,
   "gateway_and_media_pytest_passed": 17,
   "remaining": [
-    "Physical voice reply and playback drain; measure a real timer and weather follow-up.",
+    "Physical weather follow-up, acoustic acceptance at volume 85 and confirmation of the full LCD countdown.",
     "Verify stop, mute and reconnect on the final firmware.",
     "Physical artwork and optional image acknowledgement.",
     "Separate human acceptance for Russian wake word."
@@ -175,7 +175,9 @@
     "previous_ui_owner_photo": "0.2.0",
     "physical_touch_owner_observation": "ready -> listening -> ready on 0.2.0",
     "renderer_reference_cases": 8,
-    "final_layout_lcd_owner_confirmation": false
+    "final_layout_lcd_owner_confirmation": false,
+    "physical_touch_core_verified": true,
+    "physical_ready_photo_version": "0.2.0"
   },
   "real_voice": {
     "mode": "live_c",
@@ -191,8 +193,48 @@
     },
     "initial_failed_transports": 3,
     "initial_provider_reported_seconds": 45,
-    "voice_e2e_verified": false,
+    "voice_e2e_verified": true,
     "weather_followup_verified_on_board": false,
-    "timer_verified_on_board": false
+    "timer_verified_on_board": false,
+    "owner_heard_reply": true,
+    "owner_reported_low_volume": true,
+    "timer_created_and_completed_in_board_scope": true,
+    "owner_confirmed_timer_set": true,
+    "timer_lcd_ack_verified": false,
+    "physical_success": {
+      "firmware": "0.2.1-dev-touch-audio",
+      "uplink_opus_packets": 120,
+      "downlink_opus_packets": 103,
+      "provider_seconds": 27,
+      "final_usage_confirmed": true,
+      "close_reason": "idle_timeout",
+      "setup_ms": 1643.39
+    },
+    "first_grant_final": {
+      "attempts": 4,
+      "seconds": 72,
+      "estimated_usd": 0.06,
+      "luna": 0
+    },
+    "second_owner_grant": {
+      "sessions": 2,
+      "seconds_per_session": 45,
+      "estimate_usd": 0.075,
+      "luna": 0,
+      "image_api": false,
+      "cli": false
+    },
+    "weather_source_on_plan": [
+      "current",
+      "forecast_followup"
+    ],
+    "volume": {
+      "version": "0.2.2-dev-touch-volume",
+      "codec": "ES8311",
+      "before": 70,
+      "after": 85,
+      "local_preview_command_observed": true,
+      "owner_acoustic_confirmation": false
+    }
   }
 }

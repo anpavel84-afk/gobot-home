@@ -79,7 +79,7 @@ void Application::RenderGoBot() {
     default:page.view=View::Ready;
     }
     if (page.view==View::Ready && notice_until_>now) {
-        page.view=View::Notice;page.value=notice_;page.detail="Повторить касанием";
+        page.view=View::Notice;page.value=notice_;page.detail=notice_=="Лимит Live исчерпан"?"Нужен новый лимит":"Повторить касанием";
     } else if (page.view==View::Ready && (timer_latched_ || gobot_timer_end_)) {
         page.view=View::Timer;page.value=timer_latched_?"0:00":counter;
         page.detail=timer_latched_?"Время вышло":"Таймер";

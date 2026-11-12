@@ -15,7 +15,7 @@ def edit(file, old, new, expected=1):
 cpp="main/application.cc"
 header="main/application.h"
 for file in ("CMakeLists.txt","main/gobot_build_info.h"):
-    edit(file,'"0.1.1-dev-display"','"0.2.1-dev-touch-audio"')
+    edit(file,'"0.1.1-dev-display"','"0.2.2-dev-touch-volume"')
 atlas=Path(sys.argv[2]) if len(sys.argv)>2 else here/"touch_atlas.h"
 copyfile(atlas,root/"main/touch_atlas.h")
 for name in ("touch_lcd.h","touch_screen.h"):
@@ -95,18 +95,31 @@ edit(cpp,'        // No remote OTA', '''        if (!strcmp(type->valuestring,"g
             auto session=gobot::String(root,"session_id",80);
             auto allowed=cJSON_GetObjectItem(root,"allowed");
             if(!session || !cJSON_IsBool(allowed)) return;
+            auto reason=gobot::String(root,"reason",24);
             auto selected=gobot::String(root,"skin",12);
             auto clock=cJSON_GetObjectItem(root,"idle_clock");
-            Schedule([this,id=std::string(session),ok=bool(cJSON_IsTrue(allowed)),skin=std::string(selected?selected:""),clockMode=cJSON_IsBool(clock)?int(cJSON_IsTrue(clock)):-1](){
+            Schedule([this,id=std::string(session),limit=reason && !strcmp(reason,"hardware_voice_limit"),ok=bool(cJSON_IsTrue(allowed)),skin=std::string(selected?selected:""),clockMode=cJSON_IsBool(clock)?int(cJSON_IsTrue(clock)):-1](){
                 if(!protocol_ || protocol_->session_id()!=id || !gobot_turn_.Active()) return;
                 int index=skin=="minimal"?2:skin=="soft"?1:skin=="classic"?0:-1;
                 if(index>=0 && skin_!=index){skin_=index;Settings("gobot_ui",true).SetInt("skin",index);}
                 if(clockMode>=0 && idle_clock_!=bool(clockMode)){idle_clock_=clockMode;Settings("gobot_ui",true).SetInt("clock",clockMode);}
-                if(!ok){GoBotFinish("voice_gate");notice_="Нужен допуск голоса";notice_until_=gobot::NowMs()+5000;RenderGoBot();}
+                if(!ok){GoBotFinish("voice_gate");notice_=limit?"Лимит Live исчерпан":"Нужен допуск Live";notice_until_=gobot::NowMs()+5000;RenderGoBot();}
             });
             return;
         }
         // No remote OTA''')
+edit(cpp,'    } else if(line=="GOBOT_STATUS") {','''    } else if(line.rfind("GOBOT_VOLUME ",0)==0 && !gobot_turn_.Active()) {
+        auto codec=Board::GetInstance().GetAudioCodec();
+        std::string value=line.substr(13);
+        if(codec && !value.empty() && value.size()<=2 && value.find_first_not_of("0123456789")==std::string::npos) {
+            int percent=atoi(value.c_str());
+            if(percent>=10 && percent<=95) codec->SetOutputVolume(percent);
+        }
+    } else if(line=="GOBOT_SOUND_CHECK" && !gobot_turn_.Active()) {
+        audio_service_.PlaySound(Lang::Sounds::OGG_POPUP);
+        ESP_LOGI(TAG,"GOBOT_SOUND_CHECK local=1");
+    } else if(line=="GOBOT_STATUS") {
+        ESP_LOGI(TAG,"GOBOT_VOLUME percent=%d",Board::GetInstance().GetAudioCodec()->output_volume());''')
 edit(cpp,'        const auto words=audio_service_.GetWakeWords();', '''        ESP_LOGI(TAG,"GOBOT_TOUCH_STATUS events=%u activations=%u",touch_events_,activation_count_);
         const auto words=audio_service_.GetWakeWords();''')
 f="main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc"

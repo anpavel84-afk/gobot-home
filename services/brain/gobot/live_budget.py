@@ -15,6 +15,8 @@ class LiveBudget:
     def scope(offer):return hashlib.sha256(json.dumps([offer.device_id,offer.client_id,offer.profile_epoch]).encode()).hexdigest()
     def reserve(self,offer):
         p=self.owner.policy();binding=offer.owner_test_binding or offer.client_id
+        if p.hardware_voice and offer.client_id==p.hardware_voice.client_id and binding!=offer.client_id:
+            raise PermissionError('hardware_guest_binding_required')
         grant=self.owner.hardware_grant(binding)
         if grant and (offer.client_id!=offer.device_id or offer.owner_test_binding or offer.profile_epoch or
                       offer.confirmed_profile_epoch or offer.personalization_mode!='guest' or offer.expert_quota_consent or

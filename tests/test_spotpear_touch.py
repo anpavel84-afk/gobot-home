@@ -28,14 +28,16 @@ def test_scoped_board_allowance(tmp_path):
     offer = LiveOffer(session_id=uuid4().hex, conversation_id=uuid4().hex, consent=True,
                       device_id=board, client_id=board, conversation_mode='unified',sdp='v=0'+' '*32)
     assert owner.authorized('phone') and not owner.authorized(board)
-    for change in ({'remember':True},{'device_id':'phone'},{'conversation_mode':'standalone'},
+    for change in ({'remember':True},{'device_id':'phone'},{'owner_test_binding':'phone'},{'conversation_mode':'standalone'},
                    {'developer_acceptance':True},{'expert_quota_consent':True}):
         with pytest.raises(PermissionError):
             budget.reserve(offer.model_copy(update=change))
+    assert owner.hardware_voice_ready(board)
     for _ in range(4):
         assert budget.reserve(offer.model_copy(update={'session_id':uuid4().hex}))==45
     with pytest.raises(PermissionError):
         budget.reserve(offer)
+    assert not owner.hardware_voice_ready(board)
     for kind in ('expert','image','transcription'):
         with pytest.raises(PermissionError):
             owner.reserve(board,kind,uuid4().hex)

@@ -12,7 +12,7 @@ python firmware/spotpear/touch_assets.py <private-build-inputs>/touch_atlas.h
 python firmware/spotpear/prepare_touch.py <checkout> <private-build-inputs>/touch_atlas.h
 ```
 
-Для конвертации используются Pillow, resvg-py 0.5.0 и Noto Sans из браузерной поставки. Сборка выполняется в закреплённом контейнере ESP-IDF. После сверки хешей с [manifest](spotpear/touch_release.json) guarded-команда `touch-audio` переводит установленную 0.2.0 на 0.2.1. Команда `previous` возвращает 0.2.1 на проверенную 0.1.0, сохраняя NVS и общие assets. Эти команды принимает `firmware/spotpear_bringup.py` в окружении esptool. Контроль загрузки выполняет `firmware/spotpear/touch_probe.py` через USB в том же окружении.
+Для конвертации используются Pillow, resvg-py 0.5.0 и Noto Sans из браузерной поставки. Сборка выполняется в закреплённом контейнере ESP-IDF. После сверки хешей guarded-команда `touch-volume` ставит текущий релиз с проверенной 0.2.1, а `touch-audio` — с 0.2.0. Команда `previous` возвращает текущий релиз на 0.1.0. NVS и общие assets сохраняются. Команды принимает `firmware/spotpear_bringup.py` в окружении esptool. Версию и текущий уровень ES8311 показывает `firmware/spotpear/touch_probe.py --seconds 5`. Параметры `--volume 85 --sound-check` применяют уровень к свободной зарегистрированной плате, сохраняют его в NVS и проигрывают локальный сигнал. Перед изменением инструмент перепроверяет аппаратную идентичность через USB и ожидает загрузки приложения. [Manifest](spotpear/touch_release.json).
 
 ## Сборка
 

@@ -15,7 +15,7 @@ from aiortc import RTCConfiguration, RTCPeerConnection, RTCSessionDescription
 from gobot.live_contract import LiveOffer, live_sdp
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services/voice"))
 from gobot_device_gateway import OpusInput, OpusOutput
-from spotpear_live import CapturedSpeech, live_turn
+from spotpear_live import CapturedSpeech, StreamingSpeech, live_turn
 
 
 def tone():
@@ -26,7 +26,8 @@ def tone():
     return sink.getvalue()
 
 
-def test_live_roundtrip_and_close():
+@pytest.mark.parametrize("streaming",[False, True])
+def test_live_roundtrip_and_close(streaming):
     async def scenario():
         remote = RTCPeerConnection(RTCConfiguration(iceServers=[]))
         input_received = asyncio.Event()
@@ -34,12 +35,19 @@ def test_live_roundtrip_and_close():
         controls, packets, closes = [], [], []
         ident = "spotpear-test-turn"
         consumed = []
+        capture = StreamingSpeech() if streaming else tone()
+        if streaming:
+            with wave.open(io.BytesIO(tone())) as sample:
+                capture.feed(sample.readframes(sample.getnframes()))
 
         async def consume(track):
             while not input_received.is_set():
                 frame = await track.recv()
                 if np.max(np.abs(frame.to_ndarray().astype(float))) > 100:
                     input_received.set()
+                    if streaming:
+                        # The real remote WebRTC track already received speech before end-of-input.
+                        capture.finish()
 
         @remote.on("track")
         def track_received(track):
@@ -54,7 +62,8 @@ def test_live_roundtrip_and_close():
                 return httpx.Response(200, text="data: " + json.dumps(event) + "\n\n")
             body = json.loads(req.content)
             if req.url.path.endswith("/command"):
-                closes.append(body)
+                if body['action'] == 'end':
+                    closes.append(body)
                 return httpx.Response(200, json={"closed":True})
             offer = LiveOffer.model_validate(body)
             assert offer.owner_test_binding is None and not offer.remember
@@ -76,7 +85,7 @@ def test_live_roundtrip_and_close():
                   "brain_url":"http://127.0.0.1:18781","hardware_live_consent":True}
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-                await asyncio.wait_for(live_turn(client,config,{},tone(),ident,send,send_audio,OpusOutput()), 9)
+                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 9)
             assert controls[0]["state"] == "start" and controls[-1]["state"] == "stop"
             decoder = OpusInput()
             for packet in packets:
