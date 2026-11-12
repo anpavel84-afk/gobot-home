@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-12",
+  "installed_version": "0.4.0-dev-duplex",
+  "source_base": "3b63796",
+  "factory_backups_preserved": true,
+  "flash_verified": true,
+  "usb_boot_verified": true,
+  "stereo_input_rate": 24000,
+  "afe_input_rate": 16000,
+  "afe_format": "MR",
+  "afe_engine": "esp-sr 2.4.7 FD AFE",
+  "raw_audio_saved": false,
+  "automated_hardware_run": {
+    "raw_stereo_blocks": 913,
+    "afe_mono_blocks": 151,
+    "raw_block_samples_per_channel": 160,
+    "afe_block_samples": 960,
+    "mic_energy": 6172178826953,
+    "reference_energy": 202551336357,
+    "processed_energy": 337659617653,
+    "read_errors": 0,
+    "write_errors": 0
+  },
+  "owner_reported_talking_over_test_sound": true,
+  "human_run": {
+    "raw_stereo_blocks": 930,
+    "afe_mono_blocks": 153,
+    "processed_energy": 838930805989,
+    "read_errors": 0,
+    "write_errors": 0
+  },
+  "human_words_verified": false,
+  "livekit": {
+    "server": "1.13.11",
+    "python": "1.2.1",
+    "bind": "127.0.0.1",
+    "loopback_both_directions": true,
+    "brain_fixture_continuous_input_and_output": true,
+    "provider_calls": 0
+  },
+  "human_barge_in": "not_run"
+}

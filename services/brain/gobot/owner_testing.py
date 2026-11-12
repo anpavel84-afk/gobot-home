@@ -14,7 +14,7 @@ class HardwareVoiceGrant(BaseModel):
     grant_id:str=Field(pattern=r'^[a-f0-9]{32}$')
     expires_at:float=Field(gt=0,allow_inf_nan=False)
     sessions:int=Field(ge=1,le=4)
-    session_seconds:int=Field(ge=15,le=45)
+    session_seconds:int=Field(ge=15,le=60)
     backend_calls:int=Field(ge=0,le=2)
     estimate_usd:float=Field(gt=0,le=1,allow_inf_nan=False)
 

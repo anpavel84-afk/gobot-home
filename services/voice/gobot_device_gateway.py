@@ -38,7 +38,9 @@ MAX_TURN_SECONDS = 180
 
 
 class OpusInput:
-    def __init__(self):
+    def __init__(self, max_seconds=26):
+        self.max_bytes=16000*2*max_seconds
+        self.max_packets=(max_seconds*1000+59)//60+1
         self.codec = av.CodecContext.create('opus', 'r')
         self.codec.extradata = b'OpusHead\x01\x01\x00\x00' + (16000).to_bytes(4, 'little') + b'\x00\x00\x00'
         self.codec.open()
@@ -48,14 +50,14 @@ class OpusInput:
         self.decoded_bytes = 0
 
     def feed(self, packet: bytes) -> None:
-        if not 0 < len(packet) <= MAX_PACKET or self.packets >= 500:
+        if not 0 < len(packet) <= MAX_PACKET or self.packets >= self.max_packets:
             raise ValueError('audio_packet_limit')
         self.packets += 1
         for decoded in self.codec.decode(av.Packet(packet)):
             for frame in self.resampler.resample(decoded):
                 self.pcm.extend(frame.to_ndarray().astype('<i2', copy=False).tobytes())
                 self.decoded_bytes += frame.samples * 2
-                if self.decoded_bytes > MAX_PCM:
+                if self.decoded_bytes > self.max_bytes:
                     raise ValueError('audio_duration_limit')
 
     def wav(self) -> bytes:
@@ -219,14 +221,16 @@ class Gateway:
                             raise ValueError('invalid_hello')
                         await send({'type': 'hello', 'version': 1, 'transport': 'websocket',
                                     'audio_params': {'format': 'opus', 'sample_rate': 24000, 'channels': 1, 'frame_duration': 60}})
-                        if self.config['mode'] == 'live_c':
+                        if self.config['mode']=='duplex_test':
+                            await send({'type':'gobot_access','allowed':True,'reason':None,'continuous':True})
+                        elif self.config['mode'] == 'live_c':
                             async with self.client_factory(trust_env=False,timeout=3) as client:
                                 status = await client.get(self.config['brain_url']+'/api/v1/live/status',
                                     headers=self.auth, params={'binding':self.config['device_id']})
                                 allowed = status.is_success and status.json().get('enabled') is True and self.config.get('hardware_live_consent') is True
                             reason = status.json().get('admission_reason') if status.is_success else 'hardware_voice_unavailable'
                             await send({'type':'gobot_access','allowed':allowed,'reason':None if allowed else reason,
-                                        'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False))})
+                                        'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False)), 'continuous':self.config.get('continuous_live') is True})
                             if not allowed:
                                 state='blocked'
                                 continue
@@ -234,17 +238,17 @@ class Gateway:
                     elif kind == 'listen' and obj.get('state') == 'start' and state == 'ready':
                         if obj.get('mode') != 'auto':
                             raise ValueError('only_wake_auto_turn_supported')
-                        decoder = OpusInput(); state = 'capture'
+                        decoder = OpusInput(MAX_TURN_SECONDS if self.config.get("continuous_live") and self.config["mode"] in {"live_c","duplex_test"} else 26); state = 'capture'
                         self.stats['captures'] += 1
                         self.save_stats()
-                        if self.config['mode']=='live_c':
+                        if self.config['mode'] in {'live_c','duplex_test'}:
                             from spotpear_live import StreamingSpeech
                             async with self.client_factory(trust_env=False,timeout=3) as client:
-                                legacy=await self.active_legacy_flow(client)
+                                legacy=await self.active_legacy_flow(client) if self.config['mode']=='live_c' else None
                             if not legacy:
                                 stream=StreamingSpeech()
                                 # Open the paid leg only after decoded microphone media exists.
-                        deadline = asyncio.get_running_loop().time() + 26
+                        deadline = asyncio.get_running_loop().time() + (MAX_TURN_SECONDS if stream is not None and self.config.get('continuous_live') else 26)
                     elif kind == 'listen' and obj.get('state') == 'stop' and state == 'capture':
                         state = 'respond'
                         deadline = asyncio.get_running_loop().time() + MAX_TURN_SECONDS + 8
@@ -261,6 +265,7 @@ class Gateway:
                             self.stats['playback_started'] += 1
                             self.save_stats()
                         stream.playing=obj['playing']
+                        if obj.get("input_active") is True:stream.last_signal=asyncio.get_running_loop().time()
                     elif state=='blocked' and kind=='listen':
                         await asyncio.sleep(.2)
                         await ws.close(1008,'Hardware voice grant required')
@@ -315,7 +320,13 @@ class Gateway:
         self.next_packet_at = 0.0
         try:
             async with asyncio.timeout(MAX_TURN_SECONDS):
-                if self.config['mode'] == 'hardware_test':
+                if self.config['mode']=='duplex_test':
+                    from spotpear_duplex_test import local_probe
+                    counts=await local_probe(self.config,wav,turn_id,send,lambda packet:self.send_audio(ws,packet),OpusOutput())
+                    self.stats.update({"duplex_"+key:value for key,value in counts.items()})
+                    self.save_stats()
+                    await ws.close(1000,"Local duplex test complete")
+                elif self.config['mode'] == 'hardware_test':
                     # This announces a hardware test, not fabricated recognition/Brain output.
                     rate = 24000
                     samples = np.arange(rate // 4)
@@ -352,6 +363,10 @@ class Gateway:
                 self.legacy_turn = None
                 self.stats['completed'] += 1
                 self.save_stats()
+                if self.config.get("continuous_live") and self.config["mode"]=="live_c":
+                    deadline=asyncio.get_running_loop().time()+3
+                    while wav.playing and asyncio.get_running_loop().time()<deadline:await asyncio.sleep(.05)
+                    await ws.close(1000,"Conversation complete")
         except asyncio.CancelledError:
             raise
         except Exception as error:
@@ -465,9 +480,12 @@ async def main():
     if not approved_lan or config['port']!=18789 or config.get('url') != f'wss://{bind}:18789/xiaozhi/v1/':
         raise ValueError('unreviewed_listen_address')
     if config['brain_url']!='http://127.0.0.1:18781':raise ValueError('brain_must_be_loopback')
-    if config['mode'] not in {'hardware_test','legacy_a','live_c'}:
+    if config['mode'] not in {'hardware_test','legacy_a','live_c','duplex_test'}:
         raise ValueError('explicit_hardware_mode_required')
     token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' else ''
+    if config.get("continuous_live"):
+        if config["mode"] not in {"live_c","duplex_test"}:raise ValueError("continuous_live_requires_mode_c")
+        config["livekit_settings"]=json.loads((PRIVATE/"livekit/private.json").read_text())
     gateway=Gateway(config,token)
     tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); tls.minimum_version=ssl.TLSVersion.TLSv1_2
     tls.load_cert_chain(PRIVATE/'server.pem',PRIVATE/'server.key')
