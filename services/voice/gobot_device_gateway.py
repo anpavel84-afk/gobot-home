@@ -180,6 +180,7 @@ class Gateway:
         response_task = None
         state = 'hello'
         session_ready = not self.config.get('continuous_live')
+        deferred_start = False
         decoder = stream = None
         tts_finished = False
         deadline = asyncio.get_running_loop().time() + 8
@@ -188,6 +189,11 @@ class Gateway:
             await ws.send(json.dumps({**obj, 'session_id': session}, ensure_ascii=False))
             if obj.get('type') == 'tts' and obj.get('state') == 'stop':
                 tts_finished = True
+        def maybe_respond():
+            nonlocal response_task
+            if response_task is None and stream is not None and session_ready and (stream.input_seen or deferred_start):
+                stream.deferred_start=deferred_start
+                response_task=asyncio.create_task(self.respond(ws,send,stream,turn_id))
         try:
             async with asyncio.timeout(MAX_TURN_SECONDS + 35):
                 iterator = aiter(ws)
@@ -206,8 +212,7 @@ class Gateway:
                         if stream is not None:
                             stream.feed(decoder.pcm)
                             decoder.pcm.clear()
-                            if response_task is None and stream.input_seen and session_ready:
-                                response_task = asyncio.create_task(self.respond(ws,send,stream,turn_id))
+                            maybe_respond()
                         continue
                     if len(raw) > 16384:
                         raise ValueError('control_too_large')
@@ -239,11 +244,16 @@ class Gateway:
                             if not allowed:
                                 state='blocked'
                                 continue
+                        else:
+                            await send({'type':'gobot_access','allowed':True,'continuous':False})
                         state = 'ready'
                     elif kind=='gobot_session_ready' and self.config.get('continuous_live') and obj.get('continuous') is True and state in {'ready','capture'}:
                         session_ready=True
+                        deferred_start=obj.get('capture_deferred') is True
                         self.stats['continuous_ack']=self.stats.get('continuous_ack',0)+1
+                        if deferred_start:self.stats['deferred_capture_ack']=self.stats.get('deferred_capture_ack',0)+1
                         self.save_stats()
+                        maybe_respond()
                     elif kind == 'listen' and obj.get('state') == 'start' and state == 'ready':
                         if obj.get('mode') != 'auto':
                             raise ValueError('only_wake_auto_turn_supported')
@@ -256,7 +266,9 @@ class Gateway:
                                 legacy=await self.active_legacy_flow(client) if self.config['mode']=='live_c' else None
                             if not legacy:
                                 stream=StreamingSpeech()
-                                # Open the paid leg only after decoded microphone media exists.
+                                maybe_respond()
+                            elif self.config.get('continuous_live'):
+                                await send({'type':'gobot_access','allowed':True,'continuous':False})
                         deadline = asyncio.get_running_loop().time() + (MAX_TURN_SECONDS if stream is not None and self.config.get('continuous_live') else 26)
                     elif kind == 'listen' and obj.get('state') == 'stop' and state == 'capture':
                         state = 'respond'

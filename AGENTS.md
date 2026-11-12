@@ -192,3 +192,7 @@ history. Show the opt-in, 1..7-day retention, health/dropped events and deletion
 the existing Owner Full Test panel. Bounded background writing must not block voice;
 do not claim exhaustive/lossless recording during failure or recover older transcripts.
 No household text or journal database in Git. Preserve all expense limits.
+OWNER DIRECT board-debug continuation explicitly includes this enrolled column's
+native text dialogue and actions. Use a separate diagnostic device-binding opt-in,
+not its expense grant or phone identity. Keep DPAPI, retention, owner-bound read API,
+no raw audio, no semantic-memory indexing and no recovery claims for missing logs.
