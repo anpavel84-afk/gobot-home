@@ -1,3 +1,25 @@
+# Spotpear ESP32-S3 — состояние на паузе
+
+Разработка остановлена владельцем 12 ноября 2026. [Полный актуальный обзор](../docs/CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки).
+
+Установлено **0.4.3-dev-media-ready**: flash verify, USB boot, Wi-Fi и enrollment подтверждены.
+[Release manifest](spotpear/duplex/media-ready-release.json) · [Числовые доказательства](spotpear/duplex/evidence.json) · [Приёмка](spotpear/acceptance.json).
+
+- Touch открывает одну сессию: Connecting → media-ready → «Слушаю» → непрерывный capture/playback.
+- ES8311 MIC/DAC reference, AEC и прежний touch UI сохранены. Голосовой режим — GPT-Live 1 через PLAN LiveKit bridge и существующий Brain.
+- Firmware: XiaoZhi/ESP-IDF 6.0.1, ESP-SR 2.4.7, LVGL, Opus, TFLM/microWakeWord. LiveKit SDK на ESP32 не установлен из-за конфликтов; используется серверный путь 2B.
+- Локальный wake установлен как диагностика, **wake_to_brain=false**, качество русского «ГоБот» не принято.
+- Бесплатный физический прогон: 5 с искусственного setup, peak backlog 120 мс, 400 mic frames во время звука, 0 ошибок, standby upload=0. Это не human barge-in приёмка.
+- Последняя общая регрессия: 2120 passed /3 skipped /1 xfailed /118 subtests. На 0.4.3 ещё не подтверждены владельцем новый LCD-переход, реальные слова/перебивание, инструменты и поведение после сбоев.
+- Пакет платы: 48 из 50 ручных минутных запусков осталось на момент обзора, без Luna/CLI/Image API. Новые пробы сейчас не запрашиваются.
+- Две factory copies, полный preflash snapshot и прежний ACK app сохранены приватно. Записывался только ota_0; NVS/assets/другой слот сохранены. Реальный rollback не проверялся.
+
+[Подготовка, версии и guarded rollback](spotpear/duplex/README.md). Команды восстановления — документация, не указание выполнить их во время паузы.
+Бинарники, NVS, ключи, Wi-Fi, записи семьи и приватные дампы в GitHub не опубликованы.
+
+<details>
+<summary>Исторические инструкции ранних 0.1–0.3. Не использовать как описание текущей установленной версии.</summary>
+
 # Spotpear ESP32-S3 на PLAN
 
 На устройстве установлен [диагностический microWakeWord](spotpear/microwake/README.md). Порядок запуска, хеши и границы проверки указываются отдельно от работающего тач-интерфейса.
@@ -51,3 +73,5 @@ data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py restore
 Шлюз использует приватный TLS endpoint регистрации, серверный токен и привязку к устройству. `hardware_test` воспроизводит диагностический тон после разрешённого turn. `legacy_a` использует существующие STT и потоковый голосовой endpoint Brain. `live_c` передаёт речь потоком в Brain через аудиоканал WebRTC и получает события по SSE. Для C нужен aiortc из `requirements-acceptance.txt`, отдельное `hardware_live_consent` и допуск аппаратного client ID в серверном бюджете. Доступ проверяется по аппаратной привязке на каждом подключении.
 
 Для исследования русского детектора `kws_bench.py synthesize MODEL FOLDER` создаёт короткие PCM локальным Piper. `kws_bench.py evaluate --train DIR1 DIR2 --heldout DIR3` проверяет совпадение акустических шаблонов; `kws_linear.py --train DIR1 DIR2 --test DIR3 DIR4` обучает компактный линейный классификатор. Запускать эти команды из `firmware/spotpear`. Разделение выполняется по голосам. Датасеты Denis и Dmitri в карточках указаны как CC0, Ruslan — CC BY-NC-SA 4.0, у Irina лицензия датасета не указана. Два последних голоса использованы только для локальной оценки. Аудио, веса и записи семьи в Git не включены. Версия Piper и хеши образцов влияют на воспроизводимость: очередной синтез стохастичен. Точный текущий набор хранится только на PLAN. C++ frontend проверен на числовом примере и скомпилирован под Xtensa. Измерения на человеческой речи и длительная проверка ложных срабатываний остаются обязательными.
+
+</details>

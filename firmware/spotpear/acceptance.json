@@ -1,9 +1,10 @@
 {
-  "date_utc": "2026-11-12",
-  "plan_base": "531caf9",
+  "date": "2026-11-12",
+  "timezone": "America/Sao_Paulo",
+  "development": "paused_by_owner",
   "accepted": false,
   "installed": {
-    "version": "0.3.0-dev-mww-probe",
+    "version": "0.4.3-dev-media-ready",
     "usb": "COM3",
     "chip": "ESP32-S3 rev 0.2",
     "flash_mib": 16,
@@ -19,136 +20,86 @@
     "flash_encryption": false,
     "independent_postflash_full_read_compared_app_and_assets": false,
     "postflash_app_verify": true,
-    "assets_matched_during_full_preflash_read": true
+    "assets_matched_during_full_preflash_read": true,
+    "app_bytes": 2711328,
+    "app_sha256": "81eb1ed149b79d943057d17a9569f630f64b735409dd2fbdeb0a9186fc145386"
   },
+  "brain": {
+    "runtime_code_commit": "59e1280139b25582053478000f1a62b41b20ec2a",
+    "gateway_mode": "live_c",
+    "device_live_enabled": true,
+    "model": "gpt-live-1",
+    "delegation": "client",
+    "guest_ram_only": true,
+    "remember": false
+  },
+  "local_wake": {
+    "installed": true,
+    "engine": "microWakeWord/TFLM",
+    "brain_routing": false,
+    "human_acceptance": false
+  },
+  "media_ready_physical_test": {
+    "activation": "USB diagnostic, not human touch",
+    "synthetic_peer": true,
+    "provider_calls": 0,
+    "setup_delay_ms": 5000,
+    "uplink_packets": 150,
+    "downlink_packets": 142,
+    "mic_frames_during_output": 400,
+    "peak_backlog_ms": 120,
+    "final_backlog_ms": 100,
+    "errors": 0,
+    "standby_upload": 0
+  },
+  "owner_hardware_batch": {
+    "approved_sessions": 50,
+    "remaining_at_snapshot": 48,
+    "max_seconds": 60,
+    "backend_calls": 0,
+    "cli": false,
+    "images": false,
+    "automatic_paid_retries": false
+  },
+  "journal": {
+    "board_opt_in": true,
+    "dpapi_and_authenticated_read_verified": true,
+    "retention_days": 7,
+    "raw_audio": false,
+    "prior_missing_text_recovered": false,
+    "next_real_dialogue_verified": false
+  },
+  "regression": {
+    "passed": 2120,
+    "skipped": 3,
+    "expected_failures": 1,
+    "subtests_passed": 118,
+    "seconds": 261.71,
+    "paid_tests": false
+  },
+  "remaining": [
+    "Human barge-in and accurate new utterance on 0.4.3",
+    "New LCD messages and full weather/timer countdown acceptance",
+    "Quiet Russian speech, echo/noise, Stop/mute and network/reconnect on final firmware",
+    "Real new board transcript and tool-result journal acceptance",
+    "Russian local wake acoustic acceptance",
+    "Physical rollback exercise"
+  ],
   "factory_recovery": {
     "two_local_copies": true,
     "independent_full_preflash_read": true,
     "prepared": true,
     "exercised": false
   },
-  "local_wake": {
-    "engine": "microWakeWord streaming MixedNet with ESP-IDF TFLM",
-    "model_sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010",
-    "local_probe_running": true,
-    "brain_routing": false,
-    "owner_labeled_trials": 0,
-    "report": "microwake/installed.json"
-  },
-  "previous_multinet_experiment": {
-    "engine": "MultiNet7 English, experimental custom phonemes",
-    "board_synthetic": {
-      "positive_hits": 0,
-      "positives": 3,
-      "false_positives": 0,
-      "negatives": 4
-    },
-    "armed": false,
-    "human_trials": 0
-  },
-  "offline_kws": {
-    "sample_rate": 16000,
-    "train": [
-      "denis",
-      "dmitri"
-    ],
-    "synthetic_corpora": {
-      "denis": {
-        "files": 96,
-        "manifest_sha256": "88d97f2bb913610f7a124143bd6572055cbfdbf580941931c7ad1190b38a5c2e"
-      },
-      "dmitri": {
-        "files": 96,
-        "manifest_sha256": "2768c26250049226790b8757c72444a202789b35f41d675e1e7366740f787574"
-      },
-      "irina": {
-        "files": 96,
-        "manifest_sha256": "9ec5c332b0b67c08ed3c8985c43ca486290b98f9e44aa580504a3bb878d96b66"
-      },
-      "ruslan": {
-        "files": 96,
-        "manifest_sha256": "9921aa9388590e203d610369ff6c2e2b97a0017a4593c843c2261ac9de4211bf"
-      }
-    },
-    "template": {
-      "ruslan": {
-        "hits": 1,
-        "positives": 9,
-        "false_positives": 0,
-        "negatives": 87
-      }
-    },
-    "linear": {
-      "ruslan": {
-        "hits": 2,
-        "positives": 9,
-        "false_positives": 1,
-        "negatives": 87
-      },
-      "irina": {
-        "hits": 5,
-        "positives": 9,
-        "false_positives": 9,
-        "negatives": 87
-      }
-    },
-    "feature_workspace_bytes": 4096,
-    "cpp_parity_fixture": "passed",
-    "xtensa_compile": "passed",
-    "on_device_inference": "not_run"
-  },
-  "standby": {
-    "observation_seconds": 610,
-    "method": "USB status and enrolled WSS gateway counters; KWS blocked",
-    "upload_allowed": false,
-    "observed_panic_count": 0,
-    "gateway_audio_packets": 0,
-    "external_packet_capture": false,
-    "active_kws_standby": "not_run"
-  },
-  "mute": {
-    "usb_muted_verified": true,
-    "usb_unmuted_verified": true,
-    "rearm": false
-  },
-  "media": {
-    "actual_local_webrtc_peers": 2,
-    "mock_brain_transport": true,
-    "bidirectional_audio": true,
-    "device_speaker_and_mic_acoustic": "not_run"
-  },
-  "display_candidate": {
-    "version": "0.1.1-dev-display",
-    "compiled": true,
-    "app_bytes": 3753456,
-    "app_sha256": "04f508c304937b1a0e68d928dac1c4d8532e789e2365b160eb7984058f67706d",
-    "assets_match_v1": true,
-    "flashed": false,
-    "hardware_weather_timer": "not_run"
-  },
-  "firmware_guard_host_assertions": 43,
-  "gateway_and_media_pytest_passed": 17,
-  "remaining": [
-    "Physical weather follow-up, acoustic acceptance at volume 85 and confirmation of the full LCD countdown.",
-    "Verify stop, mute and reconnect on the final firmware.",
-    "Physical artwork and optional image acknowledgement.",
-    "Separate human acceptance for Russian wake word."
-  ],
-  "code_commits": {
-    "previous_plan": "531caf9",
-    "previous_public_review": "9f325b8"
-  },
-  "regression_on_plan": {
-    "passed": 2095,
-    "skipped": 3,
-    "expected_failures": 1,
-    "subtests_passed": 118,
-    "seconds": 179.23
-  },
+  "evidence": "duplex/evidence.json",
+  "overview": "../../docs/CURRENT_STATUS.md",
   "public_review": "https://github.com/anpavel84-afk/gobot-home/pull/1",
-  "history_0_1_0": {
+  "history_before_current_snapshot": {
+    "date_utc": "2026-11-12",
+    "plan_base": "531caf9",
+    "accepted": false,
     "installed": {
-      "version": "0.1.0-dev-gobot",
+      "version": "0.3.0-dev-mww-probe",
       "usb": "COM3",
       "chip": "ESP32-S3 rev 0.2",
       "flash_mib": 16,
@@ -162,105 +113,251 @@
       "bootloader_partition_table_inactive_slot_preserved": true,
       "secure_boot": false,
       "flash_encryption": false,
-      "independent_postflash_full_read_compared_app_and_assets": true
+      "independent_postflash_full_read_compared_app_and_assets": false,
+      "postflash_app_verify": true,
+      "assets_matched_during_full_preflash_read": true
     },
-    "brain": {
-      "deployed_scoped_live_status_http": 200,
-      "device_live_enabled": false,
-      "live_model": "gpt-live-1",
-      "active_live_sessions_at_check": 0,
-      "real_device_turns": 0,
-      "paid_developer_calls": 0,
-      "cli_calls": 0,
-      "real_device_C_A_switch": "not_run",
-      "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture",
-      "billing_gate": "Owner Full Test admits its bound client; a separate hardware-scoped grant is required alongside the phone."
-    }
-  },
-  "touch_ui": {
-    "installed": true,
-    "usb_boot_confirmed": true,
-    "previous_ui_owner_photo": "0.2.0",
-    "physical_touch_owner_observation": "ready -> listening -> ready on 0.2.0",
-    "renderer_reference_cases": 8,
-    "final_layout_lcd_owner_confirmation": false,
-    "physical_touch_core_verified": true,
-    "physical_ready_photo_version": "0.2.0"
-  },
-  "real_voice": {
-    "mode": "live_c",
-    "scope": "board_guest",
-    "scoped_status_enabled": true,
-    "hardware_limit": {
-      "sessions": 4,
-      "seconds_per_session": 45,
-      "backend_calls": 2,
-      "estimated_usd": 1,
-      "cli": false,
-      "image_api": false
+    "factory_recovery": {
+      "two_local_copies": true,
+      "independent_full_preflash_read": true,
+      "prepared": true,
+      "exercised": false
     },
-    "initial_failed_transports": 3,
-    "initial_provider_reported_seconds": 45,
-    "voice_e2e_verified": true,
-    "weather_followup_verified_on_board": true,
-    "timer_verified_on_board": false,
-    "owner_heard_reply": true,
-    "owner_reported_low_volume": true,
-    "timer_created_and_completed_in_board_scope": true,
-    "owner_confirmed_timer_set": true,
-    "timer_lcd_ack_verified": false,
-    "physical_success": {
-      "firmware": "0.2.1-dev-touch-audio",
-      "uplink_opus_packets": 120,
-      "downlink_opus_packets": 103,
-      "provider_seconds": 27,
-      "final_usage_confirmed": true,
-      "close_reason": "idle_timeout",
-      "setup_ms": 1643.39
+    "local_wake": {
+      "engine": "microWakeWord streaming MixedNet with ESP-IDF TFLM",
+      "model_sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010",
+      "local_probe_running": true,
+      "brain_routing": false,
+      "owner_labeled_trials": 0,
+      "report": "microwake/installed.json"
     },
-    "first_grant_final": {
-      "attempts": 4,
-      "seconds": 72,
-      "estimated_usd": 0.06,
-      "luna": 0
+    "previous_multinet_experiment": {
+      "engine": "MultiNet7 English, experimental custom phonemes",
+      "board_synthetic": {
+        "positive_hits": 0,
+        "positives": 3,
+        "false_positives": 0,
+        "negatives": 4
+      },
+      "armed": false,
+      "human_trials": 0
     },
-    "second_owner_grant": {
-      "sessions": 2,
-      "seconds_per_session": 45,
-      "estimate_usd": 0.075,
-      "luna": 0,
-      "image_api": false,
-      "cli": false
-    },
-    "weather_source_on_plan": [
-      "current",
-      "forecast_followup"
-    ],
-    "volume": {
-      "version": "0.2.2-dev-touch-volume",
-      "codec": "ES8311",
-      "before": 70,
-      "after": 85,
-      "local_preview_command_observed": true,
-      "owner_acoustic_confirmation": false
-    },
-    "owner_confirmed_home_weather_and_tomorrow": true,
-    "volume_85_owner_feedback": "still too quiet",
-    "two_weather_sessions": {
-      "provider_seconds": [
-        26,
-        30
+    "offline_kws": {
+      "sample_rate": 16000,
+      "train": [
+        "denis",
+        "dmitri"
       ],
-      "confirmed_closes": 2,
-      "reason": "idle_timeout",
-      "gateway_errors": 0,
-      "luna": 0,
-      "cli": 0,
-      "images": 0
+      "synthetic_corpora": {
+        "denis": {
+          "files": 96,
+          "manifest_sha256": "88d97f2bb913610f7a124143bd6572055cbfdbf580941931c7ad1190b38a5c2e"
+        },
+        "dmitri": {
+          "files": 96,
+          "manifest_sha256": "2768c26250049226790b8757c72444a202789b35f41d675e1e7366740f787574"
+        },
+        "irina": {
+          "files": 96,
+          "manifest_sha256": "9ec5c332b0b67c08ed3c8985c43ca486290b98f9e44aa580504a3bb878d96b66"
+        },
+        "ruslan": {
+          "files": 96,
+          "manifest_sha256": "9921aa9388590e203d610369ff6c2e2b97a0017a4593c843c2261ac9de4211bf"
+        }
+      },
+      "template": {
+        "ruslan": {
+          "hits": 1,
+          "positives": 9,
+          "false_positives": 0,
+          "negatives": 87
+        }
+      },
+      "linear": {
+        "ruslan": {
+          "hits": 2,
+          "positives": 9,
+          "false_positives": 1,
+          "negatives": 87
+        },
+        "irina": {
+          "hits": 5,
+          "positives": 9,
+          "false_positives": 9,
+          "negatives": 87
+        }
+      },
+      "feature_workspace_bytes": 4096,
+      "cpp_parity_fixture": "passed",
+      "xtensa_compile": "passed",
+      "on_device_inference": "not_run"
     },
-    "volume_100_owner_feedback": "louder",
-    "automatic_phrase_end_owner_feedback": "pause not recognized",
-    "all_six_confirmed_seconds": 128,
-    "all_six_estimated_usd": 0.10667
+    "standby": {
+      "observation_seconds": 610,
+      "method": "USB status and enrolled WSS gateway counters; KWS blocked",
+      "upload_allowed": false,
+      "observed_panic_count": 0,
+      "gateway_audio_packets": 0,
+      "external_packet_capture": false,
+      "active_kws_standby": "not_run"
+    },
+    "mute": {
+      "usb_muted_verified": true,
+      "usb_unmuted_verified": true,
+      "rearm": false
+    },
+    "media": {
+      "actual_local_webrtc_peers": 2,
+      "mock_brain_transport": true,
+      "bidirectional_audio": true,
+      "device_speaker_and_mic_acoustic": "not_run"
+    },
+    "display_candidate": {
+      "version": "0.1.1-dev-display",
+      "compiled": true,
+      "app_bytes": 3753456,
+      "app_sha256": "04f508c304937b1a0e68d928dac1c4d8532e789e2365b160eb7984058f67706d",
+      "assets_match_v1": true,
+      "flashed": false,
+      "hardware_weather_timer": "not_run"
+    },
+    "firmware_guard_host_assertions": 43,
+    "gateway_and_media_pytest_passed": 17,
+    "remaining": [
+      "Physical weather follow-up, acoustic acceptance at volume 85 and confirmation of the full LCD countdown.",
+      "Verify stop, mute and reconnect on the final firmware.",
+      "Physical artwork and optional image acknowledgement.",
+      "Separate human acceptance for Russian wake word."
+    ],
+    "code_commits": {
+      "previous_plan": "531caf9",
+      "previous_public_review": "9f325b8"
+    },
+    "regression_on_plan": {
+      "passed": 2095,
+      "skipped": 3,
+      "expected_failures": 1,
+      "subtests_passed": 118,
+      "seconds": 179.23
+    },
+    "public_review": "https://github.com/anpavel84-afk/gobot-home/pull/1",
+    "history_0_1_0": {
+      "installed": {
+        "version": "0.1.0-dev-gobot",
+        "usb": "COM3",
+        "chip": "ESP32-S3 rev 0.2",
+        "flash_mib": 16,
+        "psram_mib": 8,
+        "app_offset": "0x20000",
+        "assets_offset": "0x800000",
+        "flash_verify": true,
+        "usb_boot_verified": true,
+        "wifi": true,
+        "enrolled": true,
+        "bootloader_partition_table_inactive_slot_preserved": true,
+        "secure_boot": false,
+        "flash_encryption": false,
+        "independent_postflash_full_read_compared_app_and_assets": true
+      },
+      "brain": {
+        "deployed_scoped_live_status_http": 200,
+        "device_live_enabled": false,
+        "live_model": "gpt-live-1",
+        "active_live_sessions_at_check": 0,
+        "real_device_turns": 0,
+        "paid_developer_calls": 0,
+        "cli_calls": 0,
+        "real_device_C_A_switch": "not_run",
+        "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture",
+        "billing_gate": "Owner Full Test admits its bound client; a separate hardware-scoped grant is required alongside the phone."
+      }
+    },
+    "touch_ui": {
+      "installed": true,
+      "usb_boot_confirmed": true,
+      "previous_ui_owner_photo": "0.2.0",
+      "physical_touch_owner_observation": "ready -> listening -> ready on 0.2.0",
+      "renderer_reference_cases": 8,
+      "final_layout_lcd_owner_confirmation": false,
+      "physical_touch_core_verified": true,
+      "physical_ready_photo_version": "0.2.0"
+    },
+    "real_voice": {
+      "mode": "live_c",
+      "scope": "board_guest",
+      "scoped_status_enabled": true,
+      "hardware_limit": {
+        "sessions": 4,
+        "seconds_per_session": 45,
+        "backend_calls": 2,
+        "estimated_usd": 1,
+        "cli": false,
+        "image_api": false
+      },
+      "initial_failed_transports": 3,
+      "initial_provider_reported_seconds": 45,
+      "voice_e2e_verified": true,
+      "weather_followup_verified_on_board": true,
+      "timer_verified_on_board": false,
+      "owner_heard_reply": true,
+      "owner_reported_low_volume": true,
+      "timer_created_and_completed_in_board_scope": true,
+      "owner_confirmed_timer_set": true,
+      "timer_lcd_ack_verified": false,
+      "physical_success": {
+        "firmware": "0.2.1-dev-touch-audio",
+        "uplink_opus_packets": 120,
+        "downlink_opus_packets": 103,
+        "provider_seconds": 27,
+        "final_usage_confirmed": true,
+        "close_reason": "idle_timeout",
+        "setup_ms": 1643.39
+      },
+      "first_grant_final": {
+        "attempts": 4,
+        "seconds": 72,
+        "estimated_usd": 0.06,
+        "luna": 0
+      },
+      "second_owner_grant": {
+        "sessions": 2,
+        "seconds_per_session": 45,
+        "estimate_usd": 0.075,
+        "luna": 0,
+        "image_api": false,
+        "cli": false
+      },
+      "weather_source_on_plan": [
+        "current",
+        "forecast_followup"
+      ],
+      "volume": {
+        "version": "0.2.2-dev-touch-volume",
+        "codec": "ES8311",
+        "before": 70,
+        "after": 85,
+        "local_preview_command_observed": true,
+        "owner_acoustic_confirmation": false
+      },
+      "owner_confirmed_home_weather_and_tomorrow": true,
+      "volume_85_owner_feedback": "still too quiet",
+      "two_weather_sessions": {
+        "provider_seconds": [
+          26,
+          30
+        ],
+        "confirmed_closes": 2,
+        "reason": "idle_timeout",
+        "gateway_errors": 0,
+        "luna": 0,
+        "cli": 0,
+        "images": 0
+      },
+      "volume_100_owner_feedback": "louder",
+      "automatic_phrase_end_owner_feedback": "pause not recognized",
+      "all_six_confirmed_seconds": 128,
+      "all_six_estimated_usd": 0.10667
+    }
   }
 }

@@ -5,6 +5,152 @@
 остаются в [единой целевой спецификации](GOBOT_HOME_TARGET_SYSTEM.md).
 Описание задуманной функции не означает её готовности.
 
+## Актуальный обзор на момент остановки разработки
+
+**12 ноября 2026, America/Sao_Paulo. Разработка приостановлена по прямому указанию владельца.**
+В этом checkpoint обновлена документация; новый код, прошивки и платные пробы не запускались.
+Работающие сервисы и разрешения не отключались. Следующие этапы ниже — зафиксированные
+незавершённые работы, а не разрешение продолжать их автоматически.
+
+### Что есть сейчас
+
+GoBot — один существующий Brain на PLAN, браузерный интерфейс и физическая круглая
+колонка Spotpear. **Прототип работает частично, полная продуктовая приёмка не завершена.**
+На колонке установлен **0.4.3-dev-media-ready**, подключение к Brain разрешено, gateway
+работает в `live_c`. Рабочий запуск — касание. Русское локальное «ГоБот» установлено
+как диагностический детектор, но **wake_to_brain=false**: разговор по слову ещё не принят.
+
+| Компонент | Фактическая версия / состояние |
+|---|---|
+| Устройство | Spotpear EN-V5 With-B-1, ESP32-S3 rev 0.2, flash 16 МиБ, PSRAM 8 МиБ, круглый LCD 240×240, ES8311 |
+| Установленный app | 0.4.3-dev-media-ready, 2 711 328 байт; flash verify, USB boot, Wi-Fi и enrollment подтверждены |
+| SHA-256 app | `81eb1ed149b79d943057d17a9569f630f64b735409dd2fbdeb0a9186fc145386` |
+| Brain runtime | `59e1280139b25582053478000f1a62b41b20ec2a`, подтверждён authenticated status; последующие commits документации runtime не меняют |
+| PLAN | `codex/spotpear-bringup-plan`; code checkpoint 59e1280, документация до остановки cefeaf4; dirty tree перед обзором отсутствовал |
+| GitHub | `codex/spotpear-hardware-bringup`, code equivalent 3d5eae4; [PR #1](https://github.com/anpavel84-afk/gobot-home/pull/1) открыт как draft, **не merged в master** |
+| Целевое ТЗ | [Единая спецификация](GOBOT_HOME_TARGET_SYSTEM.md), [Owner issue #2](https://github.com/anpavel84-afk/gobot-home/issues/2) |
+
+### Текущий стек и маршрут
+
+```mermaid
+flowchart LR
+    ESP[Spotpear: touch / ES8311 / AEC / Opus] <-->|WSS TLS| GW[PLAN: аппаратный gateway]
+    GW <--> LK[Локальный LiveKit media relay]
+    LK <-->|aiortc / WebRTC audio| LIVE[OpenAI gpt-live-1]
+    GW <-->|HTTP / SSE| BRAIN[Единый GoBot Brain]
+    LIVE <-->|Live sideband / client delegation| BRAIN
+    BRAIN --> TOOLS[Погода / часы / таймеры / настройки]
+    BRAIN --> DATA[SQLite / Family / ACL / Context]
+    BRAIN --> VIS[Общий Visual Pipeline]
+    BRAIN --> EXP[ExpertJobs / CLI Bridge: отдельный допуск]
+```
+
+| Слой | Стек |
+|---|---|
+| PLAN backend | Python 3.14.4 в текущем venv, FastAPI 0.136.3, Uvicorn 0.49.0, Pydantic 2.13.4, asyncio, SQLite |
+| HTTP / WebSocket | httpx 0.28.1, websockets 16.0; локальные сервисы, приватный Tailscale HTTPS для браузера |
+| Host media | aiortc 1.16.0, PyAV 19.0.2, LiveKit Python 1.2.1, PyJWT 2.10.1; LiveKit Server 1.13.11 на loopback |
+| Firmware / build | Существующая XiaoZhi/ESP-IDF 6.0.1, ESP-SR 2.4.7, LVGL, ES8311, Opus; закреплённый Docker image, Linux build host vmi3510488 |
+| Аудиофронтенд | I2S 24 кГц, MIC + цифровой DAC reference; ресемплер 16 кГц, FD AFE MR/AEC; mono speaker дублируется в TX slots |
+| Local wake | microWakeWord / MixedNet / TensorFlow Lite Micro, локальная обработка 16 кГц; диагностический режим |
+| UI | Существующий браузерный HTML/CSS/JS, общий scene contract, физический touch UI; исходники visual language и SVG сохранены |
+| Данные | Прежние SQLite Family/Memory/Context; opt-in Speaker ECAPA/SpeechBrain локально; Windows DPAPI для биометрии и debug-журнала |
+
+Выбран **путь 2B**: LiveKit находится на PLAN, **не внутри ESP32**. Нативный LiveKit
+ESP32 SDK 0.3.12 конфликтовал с закреплёнными ESP-SR/codec/audio/video components.
+Глобального понижения ESP-SR не было. Второй Brain, новая семейная база,
+LiveKit Cloud и прямой Gemini API не добавлялись.
+
+### A / B / C и границы возможностей
+
+| Режим / модуль | Реализовано | Что нельзя считать принятым |
+|---|---|---|
+| A — экспертный сравнительный контур | Legacy STT → CLI (существующий Antigravity Flash Low/Medium) → русский Speech Formatter → TTS; резерв сохранён | Не подменён автоматически Sol Medium; текущая физическая C↔A приёмка не выполнена |
+| B — Realtime | `gpt-realtime-2.1-mini`, WebRTC + sideband, существующий Brain; сравнительный режим сохранён | Замечания владельца к распознаванию не объявлены исправленными |
+| C — Live | Реальные сессии `gpt-live-1`, `delegation.type=client`, один Brain; браузерный основной C↔A | API GPT-Live 1.1 не подтверждён; Live 1 не выдаётся за 1.1 |
+| Luna | Разрешённый браузерный backend `gpt-6-luna` через Responses, 2048 input /512 output, без tools/retries, один запрос одновременно; ограниченные реальные текстовые пробы были | **В текущем аппаратном допуске Luna запрещена**; наличие browser backend не означает доступ платы |
+| Expert CLI | ExpertJobs/Store/Bridge и точные Argon/Astra/Sol profiles; отдельный реальный typed B → Sol High → B подтверждался | Голосовой C/колонка → CLI → голос не принят; в текущем допуске платы CLI запрещён |
+| Погода / таймеры | Общие Quick Intents и Tool Executor, Open-Meteo current/forecast до 16 дней, home-location/followup, реальные серверные таймеры и сцены | Weather.com не подключён; полный LCD countdown и повторная приёмка инструментов на 0.4.3 открыты |
+| Визуалы | Stage 1 по вопросу → согласованное Stage 2 по ответу; cache/Wikimedia-first/разрешённый Image API; при отсутствии фото остаётся лицо | Не все browser visuals приняты на физическом LCD; схемы/графики/фото и decode ACK на плате требуют отдельных проверок; Image API плате не разрешён |
+| Семья / память | Существующие profiles, PIN, epochs, ACL, персональные настройки, локальная Speaker Identity | Биометрия не калибрована и не является авторизацией; native C/плата сейчас guest/RAM-only, `remember=false`, без личного долговременного retrieval |
+| Дизайн | Пакет 192 reference screens, 72 face variants, 109 icons, 34 layouts сохранён и используется в существующих renderers | Макеты не доказывают интеграции; Figma-импорт не принят; каталог 400 сценариев не означает 400 работающих функций |
+
+### Что менялось в аппаратной итерации
+
+1. Сохранены factory backups, enrollment, touch UI и работающие A/B/C. На 0.2.1
+   владелец услышал ответ и подтвердил постановку таймера; на 0.2.2 — домашнюю погоду
+   сегодня и «А завтра?». Громкость затем доведена до 100, прирост подтверждён владельцем.
+2. microWakeWord обучен и установлен; тесты выявили недостаточное качество и ложные
+   события. Автоматический запуск Brain по детектору оставлен выключенным.
+3. На 0.4.0 включены MIC/REF и AEC; на 0.4.1 — непрерывный C; на 0.4.2 — ACK платы
+   перед созданием provider session. Старое локальное завершение каждой C-реплики
+   по паузе удалено. Касание/Stop/mute и UI сохранены.
+4. Исправлены переполнение startup buffer, отправка служебной тишины и скрытая
+   ошибка фонового feeder в тесте. Но очередь startup оставалась и задерживала
+   текущую речь: владелец подтвердил позднее перебивание, backlog достигал 3919 мс.
+5. **0.4.3:** Connecting → готовность WebRTC → `gobot_media_ready` → включение capture
+   и «Слушаю». Тихие слова не вырезаются; в touch-тесте нужно дождаться «Слушаю».
+   Wake+question одной фразой остаётся отдельной незавершённой целью.
+6. У колонки обнаружен пропущенный opt-in текстового debug-журнала. Теперь отдельная
+   привязка включена; старый диалог не восстановлен. Поправлена и метка runtime:
+   берётся действительный HEAD, а не неподвижный `master`.
+
+### Проверки: доказательства разделены
+
+| Уровень | Результат и предел |
+|---|---|
+| Последняя общая регрессия | **2120 passed, 3 skipped, 1 xfailed, 118 subtests passed**, 261.71 с. Без платных API; opt-in локальный LiveKit включён. Это не акустическая приёмка |
+| Firmware build / install | 0.4.3 собрана, app проверен SHA-256, записан только ota_0 и прошёл verify. USB подтвердил версию, Wi-Fi, enrollment, возврат в standby |
+| P0 AEC / hardware | Реальные MIC/REF и одновременный playback, нулевые read/write errors; владелец подтвердил речь поверх тестового звука. Текст/ERLE/whisper не доказаны |
+| 0.4.3 free physical media | USB-активация, реальный ESP32/WSS/WebRTC/LiveKit, synthetic peer с задержкой setup 5 с: 150 uplink/142 downlink пакета, 400 mic frames во время звука, 0 ошибок, peak/current backlog **120/100 мс**, после Close upload=0 |
+| Human / paid на 0.4.2 | Последняя сессия: 7 native turns, 10 local_tool_status, 6 visual_response; владелец подтвердил позднее перебивание. Это не приёмка исправления 0.4.3 |
+| Закрытие последней сессии | `session_time_limit`: 60 с от старта приложения, 57 с provider usage, final usage подтверждён. Это причина окончания длинной беседы, не доказательство причины каждого короткого обрыва |
+| Журнал | Real Windows DPAPI → существующий authenticated API → owner read проверены synthetic metadata; board direct read получил отказ, тестовая запись удалена. Настоящий следующий диалог после включения журнала ещё не записан/не разобран |
+| Не выполнено после 0.4.3 | Human tap → погода → «Подожди, а завтра?» в той же сессии; реальный текст/смысл и акустическая задержка; визуальная приёмка новых надписей LCD |
+| Ещё открыто | Тихая русская речь, многократные перебивания/эхо, шум/дальность, network drop/reconnect, последняя часть ответа, Stop/mute на конечной версии; p95 не измерен |
+
+Программный feed, USB-команда, synthetic tone, browser playback meter и физическое
+касание/услышанная речь — разные доказательства. Успешный тест/сборка не означает
+человеческий PASS. [Числовая evidence](../firmware/spotpear/duplex/evidence.json),
+[release manifest](../firmware/spotpear/duplex/media-ready-release.json),
+[аппаратная приёмка](../firmware/spotpear/acceptance.json).
+
+### Допуски, журнал и восстановление
+
+На момент остановки readonly-проверка показала: gateway `live_c`, active=false,
+Brain/B/C/voice streams/pending hangups/unconfirmed sessions — 0. Разрешён отдельный
+пакет платы **50 ручных запусков до 60 с**: использовано 2, подтверждено 114 с,
+**осталось 48**. Счётчик сохраняется между днями/рестартами; это не безлимитный
+unattended stress test. Luna/CLI/Image API в этом пакете закрыты. Телефон имеет
+отдельные разрешения; они не присваиваются плате. Платных автоповторов нет.
+Оценка полного пакета — $2.50 по используемому учёту; абсолютный invoice cap не гарантируется.
+Минутный lifetime не увеличен и автоматическая следующая платная сессия не открывается.
+Настройка общего idle — 10 с; mute сам по себе provider session не закрывает.
+
+Журнал — локальный opt-in, Windows DPAPI, retention 7 дней. Пишет нативные текстовые
+гипотезы распознавания/ответа, маршруты и действия, ошибки и lifecycle; не raw audio,
+embeddings, ключи, полные prompts или архив контекста. Он отделён от semantic memory,
+имеет bounded queue и dropped/error counters; исчерпывающая без потерь запись не обещается.
+Тексты семьи, policy, credentials, бинарники, NVS и дампы в публичный GitHub не включены.
+
+Сохранены две проверенные factory copies, свежие полные flash snapshots и прежние
+бинарники, включая 0.4.2. Guard проверяет аппаратную идентичность, protections,
+хеши и разделы; `media-ready-rollback` предназначен для возврата в ACK-релиз.
+**Реальная процедура rollback не упражнялась.** Не выполнять flash/restore/paid trial
+лишь потому, что они перечислены в обзоре.
+
+### Точка продолжения — только после возобновления владельцем
+
+Следующий незавершённый шаг — человеческий тест установленной 0.4.3 и чтение именно
+его нового board-journal: отделить ingress delay, модель, output queue и реальный звук.
+Затем нужны оставшиеся аппаратные/инструментальные проверки, KWS-калибровка и семейная
+приёмка. Разработка сейчас остановлена; новые пробы, настройка и обучение не запущены.
+
+## История реализации и прежние отчёты
+
+<details>
+<summary>Раскрыть архив этапов. Версии, квоты, runtime и «не проверено» ниже относятся к своим датированным checkpoint, а не заменяют обзор выше.</summary>
+
 ## Дуплекс Spotpear и LiveKit, 12 ноября 2026
 
 **Текущая диагностика задержанного перебивания.** Последняя ручная сессия на 0.4.2 содержала 7 native turns, 10 local_tool_status и 6 visual_response. Закрытие — session_time_limit (60 секунд от старта приложения, 57 секунд provider usage). Пакет: 48 запусков осталось. Ошибок шлюза 0, но текущий/peak PCM backlog — 3879/3919 мс: стартовая очередь сохраняла постоянное отставание. Текстовый журнал для платы не был включён: он был ограничен binding телефона, board scope пуст. Прошлые слова не восстановлены и не угадываются.
@@ -2432,3 +2578,5 @@ UI проверен production DOM fixture, физический iPhone посл
 `debug_journal_enabled`/`debug_journal_retention_days` до старта старого strict
 validator (не только выставить false). Остальные поля/usage/семейную БД не
 откатывать. Шифрованный журнал не является источником памяти старого engine.
+
+</details>

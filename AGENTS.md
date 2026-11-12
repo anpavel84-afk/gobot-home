@@ -1,5 +1,11 @@
 # GoBot Home boundaries
 
+OWNER DIRECT 2026-11-12: development is paused. The current authorized work is
+documentation/GitHub status consolidation only. Do not resume implementation,
+training, firmware deployment or developer model trials until the owner resumes.
+Do not infer a request to stop the deployed services or revoke existing manual
+testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
+
 ### Spotpear touch release · 2026-11-12
 
 The enrolled round Spotpear may start a real turn by a deliberate touch. Keep the
