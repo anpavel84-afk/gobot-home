@@ -66,7 +66,8 @@
     "last_failure": "hardware_input_backlog_or_state",
     "last_trial_uplink_packets": 68,
     "last_trial_downlink_not_proven_speech": true,
-    "post_fix_provider_calls": 0
+    "post_fix_provider_calls": 2,
+    "phase": "before_startup_fix"
   },
   "hardware_webrtc_startup_probe": {
     "received_packets": 248,
@@ -103,7 +104,37 @@
       "xfailed": 1,
       "subtests": 118,
       "seconds": 228.79,
-      "paid_calls": 0
+      "paid_calls": 0,
+      "checkpoint": "before_50_session_batch"
     }
+  },
+  "post_fix_manual_trials": {
+    "sessions": 2,
+    "confirmed_seconds": [
+      38,
+      57
+    ],
+    "estimated_usd": 0.0791666667,
+    "first_playback_ack": true,
+    "first_model_turns": 2,
+    "first_human_scenario": "off_script",
+    "second_output_events": 0,
+    "second_close": "session_time_limit",
+    "human_barge_in": "not_accepted"
+  },
+  "manual_batch": {
+    "approved_sessions": 50,
+    "max_session_seconds": 60,
+    "remaining_at_checkpoint": 49,
+    "expires_at": null,
+    "estimate_limit_usd": 2.5,
+    "backend_calls": 0,
+    "cli_allowed": false,
+    "images_allowed": false,
+    "automatic_paid_retries": false,
+    "prior_usage_preserved": true,
+    "firmware_reflashed": false,
+    "brain_code_pin": "4dec0da",
+    "live_mode_enabled": true
   }
 }
