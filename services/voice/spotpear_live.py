@@ -50,12 +50,15 @@ class StreamingSpeech(AudioStreamTrack):
         self.playing = False
         self.input_seen = False
         self.ended = asyncio.Event()
+        self.last_signal = 0.
 
     def feed(self, pcm):
         if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>16000*2*4:
             raise ValueError("hardware_input_backlog_or_state")
         self.buffer.extend(pcm)
         self.input_seen |= bool(pcm)
+        if pcm and np.sqrt(np.mean(np.frombuffer(pcm,"<i2").astype(np.float64)**2))>=100:
+            self.last_signal=asyncio.get_running_loop().time()
 
     def finish(self):
         self.finished = True
@@ -88,12 +91,31 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
     base = config["brain_url"] + "/api/v1/live/sessions"
     peer = RTCPeerConnection(RTCConfiguration(iceServers=[]))
     capture = wav if isinstance(wav,StreamingSpeech) else CapturedSpeech(wav)
-    peer.addTrack(capture)
+    continuous = config.get("continuous_live") is True
+    relay = None
+    if continuous:
+        if not isinstance(capture, StreamingSpeech) or not config.get("livekit_settings"):
+            raise ValueError("continuous_live_requires_livekit")
+        from spotpear_livekit import LocalMediaRelay
+        relay=LocalMediaRelay(config["livekit_settings"],turn_id)
+        try:
+            await relay.connect()
+        except BaseException:
+            await relay.close()
+            await peer.close()
+            raise
+    peer.addTrack(relay.input_track if relay else capture)
     tracks = []
     peer.on("track", tracks.append)
     started = attempted = False
     tasks = []
     try:
+        if relay:
+            async def delivered(pcm):
+                for packet in encoder.feed(pcm,24000):
+                    await send_audio(packet)
+            tasks.append(relay.task(relay.output(delivered)))
+            tasks.append(asyncio.ensure_future(relay.error))
         await peer.setLocalDescription(await peer.createOffer())
         offer = dict(**scope, conversation_mode="unified", sdp=peer.localDescription.sdp, consent=True, session_id=turn_id,
                      conversation_id=config["conversation_id"], client_kind="device",
@@ -107,11 +129,13 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
         await peer.setRemoteDescription(RTCSessionDescription(sdp=answer["sdp"], type="answer"))
         if len(tracks) != 1 or tracks[0].kind != "audio":
             raise ValueError("hardware_live_audio_track_missing")
+        if relay:tasks.append(relay.task(relay.microphone(capture)))
 
+        def loop_time(): return asyncio.get_running_loop().time()
         async def activity():
             while True:
                 command = dict(**scope,action="activity",command_id=uuid.uuid4().hex,
-                               input_active=capture.input_seen and not capture.ended.is_set(),
+                               input_active=(loop_time()-capture.last_signal<.5) if continuous else capture.input_seen and not capture.ended.is_set(),
                                playback_active=capture.playing)
                 response = await client.post(f"{base}/{turn_id}/command",headers=headers,json=command)
                 response.raise_for_status()
@@ -121,7 +145,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
             tasks.append(asyncio.create_task(activity()))
         answer_has_audio = asyncio.Event()
         question_transcribed = asyncio.Event()
-        if isinstance(capture, StreamingSpeech):
+        if isinstance(capture, StreamingSpeech) and not continuous:
             async def provider_end_signal():
                 await question_transcribed.wait()
                 await answer_has_audio.wait()
@@ -144,13 +168,15 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                     elif not started or now - last_sound[0] > .30:
                         continue
                     if not started:
-                        if isinstance(capture, StreamingSpeech):
+                        if isinstance(capture, StreamingSpeech) and not continuous:
                             answer_has_audio.set()
                             await asyncio.wait_for(capture.ended.wait(), timeout=26)
                         await send({"type":"tts","state":"start"})
                         started = True
-                    for packet in encoder.feed(pcm.astype("<i2").tobytes(), 24000):
-                        await send_audio(packet)
+                    raw=pcm.astype("<i2").tobytes()
+                    if relay: await relay.send_speaker(raw)
+                    else:
+                        for packet in encoder.feed(raw,24000):await send_audio(packet)
 
         async def events():
             from spotpear_scene import project_scene
@@ -226,6 +252,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
         await asyncio.gather(*tasks, return_exceptions=True)
         capture.stop()
         await peer.close()
+        if relay: await relay.close()
         if attempted:
             # Idempotently close even on lost setup reply. Never recreate that turn.
             with suppress(Exception):

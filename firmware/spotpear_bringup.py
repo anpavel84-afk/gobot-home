@@ -22,7 +22,7 @@ def digest(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     opts = parser.parse_args()
@@ -36,8 +36,17 @@ def main():
         ports = [p.device for p in list_ports.comports() if (p.vid, p.pid) == (0x303a, 0x1001)]
         require(len(ports) == 1, "Expected exactly one Espressif USB JTAG port")
         def esp(*args):
+            time.sleep(.7)
             p = subprocess.run([sys.executable,"-m","esptool","--chip","esp32s3","-p",ports[0],"-b","921600",*map(str,args)],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=420)
+            if p.returncode and args[0]=="read-mac":
+                time.sleep(1)
+                p=subprocess.run([sys.executable,"-m","esptool","--chip","esp32s3","-p",ports[0],"-b","115200",*map(str,args)],
+                                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=30)
+            if p.returncode and args[0]=="read-flash":
+                time.sleep(2)
+                p=subprocess.run([sys.executable,"-m","esptool","--chip","esp32s3","-p",ports[0],"-b","460800",*map(str,args)],
+                                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=420)
             require(p.returncode == 0, "esptool failed on " + str(args[0]))
             return p.stdout.decode(errors="replace")
         expected = json.loads((PRIVATE/"gateway.json").read_text())["device_mac"]
@@ -51,7 +60,24 @@ def main():
         directory.mkdir()
         snapshot = directory / "before.bin"
         print("Reading fresh full flash", ports[0], flush=True)
-        esp("read-flash",0,"0x1000000",snapshot)
+        # One bootloader connection, bounded reads avoid the Windows USB large-transfer stall.
+        from esptool import cmds
+        device=None
+        try:
+            time.sleep(1)
+            device=cmds.detect_chip(port=ports[0],baud=460800)
+            device=device.run_stub()
+            with snapshot.open("xb") as output:
+                for offset in range(0,0x1000000,0x40000):
+                    data=device.read_flash(offset,0x40000)
+                    require(len(data)==0x40000,"Incomplete snapshot block")
+                    output.write(data)
+                    if offset%0x400000==0:print("Snapshot progress",offset//0x100000,"MiB",flush=True)
+        finally:
+            if device is not None:
+                device.hard_reset()
+                device._port.close()
+        time.sleep(2)
         current = snapshot.read_bytes()
         require(len(current)==len(original), "Incomplete pre-operation backup")
         # Known ota_seq=1, valid state and CRC. Only NVS may differ on factory.
@@ -60,7 +86,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback"):
+        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback"):
             release = json.loads((ROOT/"firmware/spotpear/touch_release.json").read_text())
             app = PRIVATE / "touch/gobot-touch-auto.bin"
             old = PRIVATE / "candidate/gobot-app.bin"
@@ -77,14 +103,32 @@ def main():
                 "previous": (app, release["app_sha256"]),
             }
             target = old if opts.action=="previous" else app
-            if opts.action in ("wake-probe", "wake-rollback"):
+            if opts.action in ("wake-probe", "wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback"):
                 kw = json.loads((ROOT/"firmware/spotpear/microwake/installed.json").read_text())
                 probe = PRIVATE/"touch/gobot-wake-probe.bin"
                 require(probe.stat().st_size == kw["app_bytes"] <= 0x3f0000 and
                         digest(probe.read_bytes()) == kw["app_sha256"], "Wake binary mismatch")
                 sources["wake-probe"] = (app, release["app_sha256"])
-                sources["wake-rollback"] = (probe, kw["app_sha256"])
+                sources["wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback"] = (probe, kw["app_sha256"])
                 target = probe if opts.action=="wake-probe" else app
+            if opts.action in ("duplex", "duplex-rollback","continuous","continuous-rollback"):
+                report = json.loads((ROOT/"firmware/spotpear/duplex/release.json").read_text())
+                target_image = PRIVATE/"touch/gobot-duplex.bin"
+                previous = PRIVATE/"touch/gobot-wake-probe.bin"
+                require(digest(target_image.read_bytes()) == report["app_sha256"] and target_image.stat().st_size == report["app_bytes"] <= 0x3f0000,"Duplex candidate mismatch")
+                require(digest(previous.read_bytes()) == report["previous_sha256"],"Wake rollback image mismatch")
+                sources["duplex"] = (previous, report["previous_sha256"])
+                sources["duplex-rollback", "continuous", "continuous-rollback"] = (target_image,report["app_sha256"])
+                target = target_image if opts.action=="duplex" else previous
+            if opts.action in ("continuous", "continuous-rollback"):
+                report = json.loads((ROOT/"firmware/spotpear/duplex/continuous-release.json").read_text())
+                new = PRIVATE/"touch/gobot-continuous.bin"
+                previous = PRIVATE/"touch/gobot-duplex.bin"
+                require(new.stat().st_size == report["app_bytes"] <= 0x3f0000 and digest(new.read_bytes()) == report["app_sha256"], "Continuous image mismatch")
+                require(digest(previous.read_bytes()) == report["previous_sha256"], "Duplex rollback mismatch")
+                sources["continuous"] = (previous,report["previous_sha256"])
+                sources["continuous-rollback"] = (new,report["app_sha256"])
+                target = new if opts.action=="continuous" else previous
             source, expected_sha = sources[opts.action]
             require(digest(source.read_bytes())==expected_sha, "Source image mismatch")
             require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")

@@ -2,6 +2,7 @@
 import asyncio
 import io
 import json
+import os
 from pathlib import Path
 import sys
 import wave
@@ -26,8 +27,10 @@ def tone():
     return sink.getvalue()
 
 
-@pytest.mark.parametrize("streaming",[False, True, "provider_end"])
+@pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous"])
 def test_live_roundtrip_and_close(streaming):
+    if streaming=="continuous" and not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"):
+        pytest.skip("Requires loopback LiveKit")
     async def scenario():
         remote = RTCPeerConnection(RTCConfiguration(iceServers=[]))
         input_received = asyncio.Event()
@@ -91,9 +94,13 @@ def test_live_roundtrip_and_close(streaming):
 
         config = {"device_id":"spotpear-unit","conversation_id":"test-topic",
                   "brain_url":"http://127.0.0.1:18781","hardware_live_consent":True}
+        if streaming=="continuous":
+            config["continuous_live"]=True
+            config["livekit_settings"]=json.loads(Path(os.environ["GOBOT_LOCAL_LIVEKIT_TEST"]).read_text())
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
                 await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 9)
+            if streaming=="continuous":assert not capture.finished
             tts=[control["state"] for control in controls if control["type"]=="tts"]
             assert tts==["start","stop"]
             if streaming=="provider_end":
