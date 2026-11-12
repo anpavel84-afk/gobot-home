@@ -1,4 +1,12 @@
 # GoBot Home boundaries
+
+### Spotpear touch release · 2026-11-12
+
+The enrolled round Spotpear may start a real turn by a deliberate touch. Keep the
+microphone uplink and provider session closed in standby. Local Russian «ГоБот»
+has separate acoustic acceptance. A failed wake detector must never disable touch
+capture. Keep the board's guest scope, grant and recovery separate from the phone.
+
 Work only in this repository. No paid/model calls by default. Firmware flash/OTA/NVS is disabled by default.
 OWNER DIRECT 2026-11-12 authorizes guarded USB bring-up and scoped enrollment
 of the single verified Spotpear S3 on PLAN. Check physical identity, security
