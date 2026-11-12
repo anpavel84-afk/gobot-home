@@ -1,5 +1,5 @@
 {
-  "runtime_code_commit": "faa41869fd40adf624edad562ff7c86eaeed6b0c",
+  "runtime_code_commit": "94d329665abece10c3829f2fb491b59cabbb5fd7",
   "http": {
     "/": 200,
     "/device": 200,
@@ -50,9 +50,9 @@
     "utility",
     "skill_readiness"
   ],
-  "free_tests_passed": 1942,
-  "free_tests_seconds": 116.45,
-  "final_targeted_tests": 161,
+  "free_tests_passed": 1960,
+  "free_tests_seconds": 140.14,
+  "final_targeted_tests": 81,
   "final_weather_tests": 307,
   "real_voice_after_fix_verified": false,
   "weather_forecast_days": 16,
@@ -101,5 +101,7 @@
   "real_live_tool_cases": 3,
   "real_luna_text_cases": 10,
   "developer_trial_estimated_usd": 0.04465207,
-  "final_gate_real_audio_retested": false
+  "final_gate_real_audio_retested": false,
+  "debug_journal_enabled": true,
+  "debug_journal_retention_days": 7
 }

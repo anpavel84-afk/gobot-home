@@ -1,0 +1,25 @@
+{
+  "journal_enabled": true,
+  "retention_days": 7,
+  "encrypted": "Windows DPAPI",
+  "raw_audio": false,
+  "new_paid_calls": 0,
+  "free_suite": {
+    "passed": 1960,
+    "seconds": 140.14
+  },
+  "final_targeted": {
+    "passed": 81,
+    "seconds": 21.83
+  },
+  "real_windows_dpapi_roundtrip_passed": true,
+  "runtime_code_commit": "94d329665abece10c3829f2fb491b59cabbb5fd7",
+  "actual_phone_conversation_recorded_after_deploy": false,
+  "old_conversation_recovered": false,
+  "all_economic_limits_preserved": true,
+  "iphone_acoustics_tested": false,
+  "real_https_access_boundaries": {
+    "other_device_read": 403,
+    "foreign_origin_clear": 403
+  }
+}
