@@ -1,11 +1,39 @@
-# Firmware readiness
+# Spotpear ESP32-S3 на PLAN
 
-Upstream SHA a73e9a7e266e3196d1368ba46c30bee0d81f0a64; профиль/pins проверены по source, физическая ревизия неизвестна.
-См. docs/HARDWARE_CHECKLIST.md и docs/PROTOCOL.md. Прошивка не выполнялась.
-sdkconfig.gobot.defaults — candidate. HAVE_LVGL — build define.
-custom-ui-card.patch использует существующий Application::Schedule/display API для простой карточки.
-Патч проверен только git apply --check; ESP-IDF отсутствует, компиляция и native timer/weather widgets
-ещё не проверены. Постоянные LVGL widgets/timer tick — дальнейшая работа. Этот patch не применялся к устройству.
-preview_image уже есть условно, но нуждается в user permission и firmware URL/MIME/size/redirect guards.
-До первой записи — полный factory dump и проверка размера. Flash scripts не создавались.
-Hermes не установлен и не заменяет XiaoZhi; его Spotpear profile экспериментален.
+На проверенной плате установлен экспериментальный `0.1.0-dev-gobot`. По USB подтверждены загрузка, Wi-Fi и enrollment. Встроенный тест MultiNet7 на русских примерах дал 0/3, и прошивка заблокировала пробуждение. Аппаратный голосовой продукт ещё не принят. [Протокол проверки](spotpear/acceptance.json).
+
+## Сборка
+
+Исходная ревизия XiaoZhi, digest ESP-IDF 6.0.1, размеры и SHA-256 первой сборки указаны в [manifest](spotpear/manifest.json). Взять пустую копию закреплённой ревизии. На PLAN проверенные приватные входы лежат в `data/hardware/gobot-v1/source`. Нужны sdkconfig, заголовок синтетических примеров, build info и публичный CA данного устройства. Закрытые ключи, NVS и токен в сборочную среду не передаются.
+
+```text
+python firmware/spotpear/prepare_bringup.py <fresh-xiaozhi-checkout> <private-source-inputs>
+```
+
+Монтировать подготовленный checkout в `/project` в контейнере из manifest. Использовать зафиксированные managed components и `dependencies.lock`. Команда сборки внутри контейнера:
+
+```sh
+idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.gobot.defaults' build
+```
+
+Дополнительная сборка дисплея выполняется на отдельной копии подготовленного исходного дерева. Применить `python firmware/spotpear/prepare_display_candidate.py <copy>` и повторить build. Сборка 0.1.1 поддерживает краткую текстовую карточку gobot.ui v2 и локальный отсчёт оставшегося времени. Получение JPEG, полный погодный виджет и подтверждение фактического показа ещё нужны. Аппаратный экземпляр остаётся на 0.1.0. Исторические `gobot-one-turn.patch` и `custom-ui-card.patch` не требуется накладывать поверх этих исходников.
+
+## USB и восстановление
+
+Из корня GoBotHome на PLAN. Закрыть serial monitor. Инспекция использует esptool и может перезагрузить плату. В начале каждой операции скрипт сверяет единственный USB-порт Espressif, MAC регистрации, Flash, защиты, копии завода и делает свежий полный снимок под новым именем. После ручного прекращения операции проверить процесс и снимок до снятия оставшейся блокировки.
+
+```powershell
+data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py inspect
+```
+
+`install` принимает исходную заводскую геометрию и проверенные бинарники из приватного каталога `candidate`. Для восстановления выполнить следующую команду. Она возвращает согласованные заводские app и общие assets, делает verify и сохраняет текущий NVS. Реальный откат в этом испытании не выполнялся.
+
+```powershell
+data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py restore
+```
+
+## Шлюз и проверка «ГоБот»
+
+Шлюз использует приватный TLS endpoint регистрации, серверный токен и привязку к устройству. `hardware_test` воспроизводит диагностический тон после разрешённого turn. `legacy_a` использует существующие STT и потоковый голосовой endpoint Brain. `live_c` передаёт завершённую реплику в Brain через аудиоканал WebRTC и получает события по SSE. Для C нужен aiortc из `requirements-acceptance.txt`, отдельное `hardware_live_consent` и допуск аппаратного client ID в серверном бюджете. Проверка `live/status` для этого устройства показала `enabled=false`. В едином режиме шлюз принимает идентификатор A только после завершения C, перепроверяет его у Brain для данной платы при следующем вызове и возвращается к C по состоянию Brain. Этот переход на физическом аппарате ещё не принят. Токен Brain остаётся на PLAN.
+
+Для исследования русского детектора `kws_bench.py synthesize MODEL FOLDER` создаёт короткие PCM локальным Piper. `kws_bench.py evaluate --train DIR1 DIR2 --heldout DIR3` проверяет совпадение акустических шаблонов; `kws_linear.py --train DIR1 DIR2 --test DIR3 DIR4` обучает компактный линейный классификатор. Запускать эти команды из `firmware/spotpear`. Разделение выполняется по голосам. Датасеты Denis и Dmitri в карточках указаны как CC0, Ruslan — CC BY-NC-SA 4.0, у Irina лицензия датасета не указана. Два последних голоса использованы только для локальной оценки. Аудио, веса и записи семьи в Git не включены. Версия Piper и хеши образцов влияют на воспроизводимость: очередной синтез стохастичен. Точный текущий набор хранится только на PLAN. C++ frontend проверен на числовом примере и скомпилирован под Xtensa. Измерения на человеческой речи и длительная проверка ложных срабатываний остаются обязательными.

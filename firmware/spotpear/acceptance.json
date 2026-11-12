@@ -1,0 +1,138 @@
+{
+  "date_utc": "2026-11-12",
+  "plan_base": "bffaa24",
+  "accepted": false,
+  "installed": {
+    "version": "0.1.0-dev-gobot",
+    "usb": "COM3",
+    "chip": "ESP32-S3 rev 0.2",
+    "flash_mib": 16,
+    "psram_mib": 8,
+    "app_offset": "0x20000",
+    "assets_offset": "0x800000",
+    "flash_verify": true,
+    "usb_boot_verified": true,
+    "wifi": true,
+    "enrolled": true,
+    "bootloader_partition_table_inactive_slot_preserved": true,
+    "secure_boot": false,
+    "flash_encryption": false,
+    "independent_postflash_full_read_compared_app_and_assets": true
+  },
+  "factory_recovery": {
+    "two_local_copies": true,
+    "independent_full_preflash_read": true,
+    "prepared": true,
+    "exercised": false
+  },
+  "local_wake": {
+    "engine": "MultiNet7 English, experimental custom phonemes",
+    "board_synthetic": {
+      "positive_hits": 0,
+      "positives": 3,
+      "false_positives": 0,
+      "negatives": 4
+    },
+    "armed": false,
+    "human_trials": 0
+  },
+  "offline_kws": {
+    "sample_rate": 16000,
+    "train": [
+      "denis",
+      "dmitri"
+    ],
+    "synthetic_corpora": {
+      "denis": {
+        "files": 96,
+        "manifest_sha256": "88d97f2bb913610f7a124143bd6572055cbfdbf580941931c7ad1190b38a5c2e"
+      },
+      "dmitri": {
+        "files": 96,
+        "manifest_sha256": "2768c26250049226790b8757c72444a202789b35f41d675e1e7366740f787574"
+      },
+      "irina": {
+        "files": 96,
+        "manifest_sha256": "9ec5c332b0b67c08ed3c8985c43ca486290b98f9e44aa580504a3bb878d96b66"
+      },
+      "ruslan": {
+        "files": 96,
+        "manifest_sha256": "9921aa9388590e203d610369ff6c2e2b97a0017a4593c843c2261ac9de4211bf"
+      }
+    },
+    "template": {
+      "ruslan": {
+        "hits": 1,
+        "positives": 9,
+        "false_positives": 0,
+        "negatives": 87
+      }
+    },
+    "linear": {
+      "ruslan": {
+        "hits": 2,
+        "positives": 9,
+        "false_positives": 1,
+        "negatives": 87
+      },
+      "irina": {
+        "hits": 5,
+        "positives": 9,
+        "false_positives": 9,
+        "negatives": 87
+      }
+    },
+    "feature_workspace_bytes": 4096,
+    "cpp_parity_fixture": "passed",
+    "xtensa_compile": "passed",
+    "on_device_inference": "not_run"
+  },
+  "standby": {
+    "observation_seconds": 610,
+    "method": "USB status and enrolled WSS gateway counters; KWS blocked",
+    "upload_allowed": false,
+    "observed_panic_count": 0,
+    "gateway_audio_packets": 0,
+    "external_packet_capture": false,
+    "active_kws_standby": "not_run"
+  },
+  "mute": {
+    "usb_muted_verified": true,
+    "usb_unmuted_verified": true,
+    "rearm": false
+  },
+  "brain": {
+    "deployed_scoped_live_status_http": 200,
+    "device_live_enabled": false,
+    "live_model": "gpt-live-1",
+    "active_live_sessions_at_check": 0,
+    "real_device_turns": 0,
+    "paid_developer_calls": 0,
+    "cli_calls": 0,
+    "real_device_C_A_switch": "not_run",
+    "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture"
+  },
+  "media": {
+    "actual_local_webrtc_peers": 2,
+    "mock_brain_transport": true,
+    "bidirectional_audio": true,
+    "device_speaker_and_mic_acoustic": "not_run"
+  },
+  "display_candidate": {
+    "version": "0.1.1-dev-display",
+    "compiled": true,
+    "app_bytes": 3753456,
+    "app_sha256": "04f508c304937b1a0e68d928dac1c4d8532e789e2365b160eb7984058f67706d",
+    "assets_match_v1": true,
+    "flashed": false,
+    "hardware_weather_timer": "not_run"
+  },
+  "firmware_guard_host_assertions": 43,
+  "gateway_and_media_pytest_passed": 17,
+  "remaining": [
+    "Improve Russian KWS generalization and validate on a consenting human.",
+    "Measure continuous armed standby, offline wake, same-phrase capture, speaker drain and acoustic false wakes.",
+    "Scope a bounded C grant to the hardware identity; verify real device weather, timer, C/A mode change and safe reconnect.",
+    "Verify graphics, timer and render acknowledgement on the physical round display."
+  ]
+}
