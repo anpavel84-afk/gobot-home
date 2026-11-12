@@ -3,7 +3,7 @@
   "plan_base": "531caf9",
   "accepted": false,
   "installed": {
-    "version": "0.2.2-dev-touch-volume",
+    "version": "0.2.3-dev-touch-auto",
     "usb": "COM3",
     "chip": "ESP32-S3 rev 0.2",
     "flash_mib": 16,
@@ -194,7 +194,7 @@
     "initial_failed_transports": 3,
     "initial_provider_reported_seconds": 45,
     "voice_e2e_verified": true,
-    "weather_followup_verified_on_board": false,
+    "weather_followup_verified_on_board": true,
     "timer_verified_on_board": false,
     "owner_heard_reply": true,
     "owner_reported_low_volume": true,
@@ -235,6 +235,22 @@
       "after": 85,
       "local_preview_command_observed": true,
       "owner_acoustic_confirmation": false
-    }
+    },
+    "owner_confirmed_home_weather_and_tomorrow": true,
+    "volume_85_owner_feedback": "still too quiet",
+    "two_weather_sessions": {
+      "provider_seconds": [
+        26,
+        30
+      ],
+      "confirmed_closes": 2,
+      "reason": "idle_timeout",
+      "gateway_errors": 0,
+      "luna": 0,
+      "cli": 0,
+      "images": 0
+    },
+    "all_six_confirmed_seconds": 128,
+    "all_six_estimated_usd": 0.10667
   }
 }

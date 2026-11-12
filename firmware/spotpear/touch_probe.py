@@ -6,7 +6,7 @@ import time
 import serial
 from serial.tools import list_ports
 
-def observe(seconds, volume=None, sound_check=False):
+def observe(seconds, volume=None, sound_check=False, pause_check=False):
     ports = [p for p in list_ports.comports() if (p.vid, p.pid) == (0x303a, 0x1001)]
     if len(ports) != 1:
         raise RuntimeError("Expected exactly one Espressif USB serial port")
@@ -18,7 +18,7 @@ def observe(seconds, volume=None, sound_check=False):
     next_poll = 0
     pending = b""
     with device:
-        if volume is not None or sound_check:
+        if volume is not None or sound_check or pause_check:
             # Bind an output change to this enrolled board, exactly as the flash guard does.
             from pathlib import Path
             import json
@@ -29,7 +29,7 @@ def observe(seconds, volume=None, sound_check=False):
             until = time.monotonic()+4
             while time.monotonic()<until:
                 status_bytes.extend(device.read(4096))
-                if re.search(rb"GOBOT_STATUS version=0\.2\.2-dev-touch-volume [^\r\n]*enrolled=1 [^\r\n]*phase=0 ",status_bytes):
+                if re.search(rb"GOBOT_STATUS version=0\.2\.3-dev-touch-auto [^\r\n]*enrolled=1 [^\r\n]*phase=0 ",status_bytes):
                     break
             else:
                 raise RuntimeError("Volume control requires an idle, enrolled Spotpear")
@@ -48,7 +48,7 @@ def observe(seconds, volume=None, sound_check=False):
             while time.monotonic()<ready_deadline:
                 device.write(b"\nGOBOT_STATUS\n")
                 boot.extend(device.read(4096))
-                if re.search(rb"GOBOT_STATUS version=0\.2\.2-dev-touch-volume [^\r\n]*phase=0 ",boot):
+                if re.search(rb"GOBOT_STATUS version=0\.2\.3-dev-touch-auto [^\r\n]*phase=0 ",boot):
                     break
             else:
                 raise RuntimeError("Board is not ready for local sound control")
@@ -56,6 +56,8 @@ def observe(seconds, volume=None, sound_check=False):
                 device.write(f"\nGOBOT_VOLUME {volume}\n".encode())
             if sound_check:
                 device.write(b"\nGOBOT_SOUND_CHECK\n")
+            if pause_check:
+                device.write(b"\nGOBOT_CHECK_PAUSE\n")
             deadline=time.monotonic()+seconds
         while time.monotonic() < deadline:
             if time.monotonic() >= next_poll:
@@ -66,14 +68,15 @@ def observe(seconds, volume=None, sound_check=False):
             pending = lines.pop()[-8192:]
             for line in lines:
                 value = line.decode(errors="replace")
-                found = re.search(r"(GOBOT_(?:STATUS version=[\w.-]+(?: \w+=\d+)+|TOUCH_STATUS events=\d+ activations=\d+|VOLUME percent=\d+|SOUND_CHECK local=1|LCD atlas=1 size=240x240|ACTIVATION source=(?:touch|button) number=\d+|UTTERANCE_END upload=0)|CST816D not found|Guru Meditation Error|Get chip ID: 0x[\da-fA-F]+)", value)
+                found = re.search(r"(GOBOT_(?:STATUS version=[\w.-]+(?: \w+=\d+)+|TOUCH_STATUS events=\d+ activations=\d+|ENDPOINT auto_ends=\d+ local=\d+|PAUSE_CHECK armed=1|AUTO_END local=\d+ elapsed_ms=\d+|VOLUME percent=\d+|SOUND_CHECK local=1|LCD atlas=1 size=240x240|ACTIVATION source=(?:touch|button) number=\d+|UTTERANCE_END upload=0)|CST816D not found|Guru Meditation Error|Get chip ID: 0x[\da-fA-F]+)", value)
                 if found:
                     print(found[0], flush=True)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--seconds", type=int, default=10, choices=range(1, 301))
-    parser.add_argument("--volume", type=int, choices=range(10,96))
+    parser.add_argument("--volume", type=int, choices=range(10,101))
     parser.add_argument("--sound-check", action="store_true")
+    parser.add_argument("--pause-check", action="store_true")
     args=parser.parse_args()
-    observe(args.seconds,args.volume,args.sound_check)
+    observe(args.seconds,args.volume,args.sound_check,args.pause_check)

@@ -80,7 +80,7 @@ public:
         const char* hint="Коснитесь, чтобы говорить";
         switch(p.view) {
         case View::Connecting:face=2;title="Подключаюсь";hint="Удержание · стоп";break;
-        case View::Listening:face=1;color=atlas::blue;title="Слушаю";hint="Касание · отправить";break;
+        case View::Listening:face=1;color=atlas::blue;title="Слушаю";hint="Говорите свободно";break;
         case View::Thinking:face=2;color=atlas::lilac;title="Обдумываю";hint="Удержание · стоп";break;
         case View::Speaking:face=p.mouth?3:0;title="Отвечаю";hint="Удержание · стоп";break;
         case View::Muted:face=4;color=atlas::amber;title="Микрофон выключен";hint="Удержите для включения";break;

@@ -15,8 +15,7 @@ void Application::TouchGesture(bool physical, bool hold) {
     } else if (gobot_muted_) {
         ESP_LOGI(TAG,"GOBOT_ACTIVATION_REJECT reason=muted");
     } else if (phase==gobot::Phase::Capturing) {
-        if (gobot_turn_.Submit(audio_service_.IsVoiceDetected())) EndTouchCapture();
-        else GoBotFinish("empty_capture");
+        return;  // A second short contact never submits or cancels a question.
     } else if (phase==gobot::Phase::Idle) {
         if(timer_latched_) {timer_latched_=false; timer_key_.clear();}
         else StartGoBotTurn(physical?"touch":"button");
@@ -27,6 +26,14 @@ void Application::TouchGesture(bool physical, bool hold) {
 void Application::StartGoBotTurn(const char* source) {
     gobot::Enrollment enrollment;
     if (gobot_muted_ || gobot_turn_.Active()) return;
+    peak_level_=0;touch_started_=gobot::NowMs();
+    if(local_pause_armed_) {
+        local_pause_armed_=false;
+        if(!gobot_turn_.Begin(touch_started_)) return;
+        gobot_turn_.Connected(touch_started_);local_pause_active_=true;
+        ++activation_count_;audio_service_.EnableVoiceProcessing(true);
+        RenderGoBot();return;
+    }
     if (!gobot_network_ready_ || !gobot::LoadEnrollment(enrollment) || !protocol_) {
         notice_=gobot_network_ready_?"Нужна регистрация":"Нет Wi-Fi";
         notice_until_=gobot::NowMs()+4200;
@@ -45,7 +52,13 @@ void Application::StartGoBotTurn(const char* source) {
 }
 
 void Application::EndTouchCapture() {
+    ++auto_ends_;
+    ESP_LOGI(TAG,"GOBOT_AUTO_END local=%d elapsed_ms=%u",local_pause_active_,unsigned(gobot::NowMs()-touch_started_));
     audio_service_.EnableVoiceProcessing(false);
+    if(local_pause_active_) {
+        GoBotFinish("local_pause_complete");notice_="Пауза услышана";notice_until_=gobot::NowMs()+4000;
+        audio_service_.PlaySound(Lang::Sounds::OGG_POPUP);RenderGoBot();return;
+    }
     while(auto packet=audio_service_.PopPacketFromSendQueue()) {
         if(protocol_ && protocol_->IsAudioChannelOpened()) protocol_->SendAudio(std::move(packet));
     }
@@ -78,8 +91,10 @@ void Application::RenderGoBot() {
         break;
     default:page.view=View::Ready;
     }
-    if (page.view==View::Ready && notice_until_>now) {
-        page.view=View::Notice;page.value=notice_;page.detail=notice_=="Лимит Live исчерпан"?"Нужен новый лимит":"Повторить касанием";
+    if(page.view==View::Ready && local_pause_armed_) {
+        page.view=View::Notice;page.value="Проверка паузы";page.detail="Коснитесь и говорите";
+    } else if (page.view==View::Ready && notice_until_>now) {
+        page.view=View::Notice;page.value=notice_;page.detail=notice_=="Лимит Live исчерпан"?"Нужен новый лимит":notice_=="Пауза услышана"?"Проверка завершена":"Повторить касанием";
     } else if (page.view==View::Ready && (timer_latched_ || gobot_timer_end_)) {
         page.view=View::Timer;page.value=timer_latched_?"0:00":counter;
         page.detail=timer_latched_?"Время вышло":"Таймер";
