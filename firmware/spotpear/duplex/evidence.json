@@ -152,7 +152,17 @@
     "gateway_errors": 0,
     "idle_upload": 0,
     "provider_calls": 0,
-    "human_barge_in": "not_yet_retested"
+    "human_barge_in": "not_yet_retested",
+    "regression": {
+      "passed": 2120,
+      "skipped": 3,
+      "xfailed": 1,
+      "subtests": 118,
+      "seconds": 261.71,
+      "paid_calls": 0
+    },
+    "live_restored": true,
+    "brain_code_pin": "59e1280"
   },
   "board_debug_journal": {
     "explicit_separate_opt_in": true,
