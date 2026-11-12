@@ -119,6 +119,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
     tracks = []
     peer.on("track", tracks.append)
     started = attempted = False
+    close_reason = None
     tasks = []
     async def setup():
         nonlocal attempted
@@ -209,6 +210,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                         for packet in encoder.feed(raw,24000):await send_audio(packet)
 
         async def events():
+            nonlocal close_reason
             from spotpear_scene import project_scene
             async with client.stream("GET", f"{base}/{turn_id}/events", headers=headers, params=scope) as response:
                 response.raise_for_status()
@@ -232,6 +234,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                     elif kind == "closed":
                         if not data.get("final_usage_confirmed"):
                             raise ValueError("hardware_live_close_unconfirmed")
+                        close_reason=data.get("reason")
                         return data.get("mode")
             raise ValueError("hardware_live_events_interrupted")
 
@@ -264,6 +267,9 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
         await asyncio.gather(media, return_exceptions=True)
         flow = terminal.result()
         if not started:
+            if continuous and (close_reason in {"user_stop","conversation_ended"}
+                    or (close_reason in {"idle_timeout","session_time_limit"} and not question_transcribed.is_set())):
+                return flow  # A silent activation/normal End is not a voice fault.
             if not (flow and flow.get("active") and flow.get("mode") == "legacy" and flow.get("provider_closed")):
                 raise ValueError("hardware_live_no_audio")
             await send({"type":"tts","state":"start"})
