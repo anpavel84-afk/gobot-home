@@ -12,11 +12,11 @@ class HardwareVoiceGrant(BaseModel):
     model_config=ConfigDict(extra='forbid')
     client_id:str=Field(min_length=1,max_length=100)
     grant_id:str=Field(pattern=r'^[a-f0-9]{32}$')
-    expires_at:float=Field(gt=0,allow_inf_nan=False)
-    sessions:int=Field(ge=1,le=4)
+    expires_at:float|None=Field(default=None,gt=0,allow_inf_nan=False)
+    sessions:int=Field(ge=1,le=50)
     session_seconds:int=Field(ge=15,le=60)
     backend_calls:int=Field(ge=0,le=2)
-    estimate_usd:float=Field(gt=0,le=1,allow_inf_nan=False)
+    estimate_usd:float=Field(gt=0,le=2.5,allow_inf_nan=False)
 
 
 class OwnerTestPolicy(BaseModel):
@@ -69,7 +69,8 @@ class OwnerTesting:
     def hardware_grant(self,binding):
         p=self.policy()
         g=p.hardware_voice
-        if p.enabled and p.live_enabled and g and binding==g.client_id and binding!=p.allowed_client_id and time.time()<g.expires_at:
+        if (p.enabled and p.live_enabled and g and binding==g.client_id and binding!=p.allowed_client_id
+                and (g.expires_at is None or time.time()<g.expires_at)):
             return g
         return None
 
