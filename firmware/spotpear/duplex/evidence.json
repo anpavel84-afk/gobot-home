@@ -1,6 +1,6 @@
 {
   "date": "2026-11-12",
-  "installed_version": "0.4.0-dev-duplex",
+  "installed_version": "0.4.2-dev-session-ack",
   "source_base": "3b63796",
   "factory_backups_preserved": true,
   "flash_verified": true,
@@ -38,5 +38,29 @@
     "brain_fixture_continuous_input_and_output": true,
     "provider_calls": 0
   },
-  "human_barge_in": "not_run"
+  "human_barge_in": "not_run_no_spoken_model_answer",
+  "hardware_livekit": {
+    "activation": "USB diagnostic, not physical touch",
+    "uplink_packets": 161,
+    "downlink_packets": 150,
+    "microphone_frames": 451,
+    "speaker_frames": 450,
+    "gateway_errors": 0,
+    "continuous_ack": true,
+    "playback_reported": true,
+    "returned_to_idle": true,
+    "idle_upload": 0,
+    "provider_calls": 0
+  },
+  "model_trials": {
+    "sessions": 2,
+    "confirmed_seconds": [
+      15,
+      15
+    ],
+    "estimated_usd": 0.025,
+    "gateway_errors": 2,
+    "owner_heard_response": false,
+    "original_error_detail_not_recorded": true
+  }
 }

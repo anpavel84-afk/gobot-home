@@ -65,6 +65,7 @@ def test_live_roundtrip_and_close(streaming):
                         query={"type":"input_transcript","session_id":ident,"data":{"text":"Погода"}}
                         yield ("data: "+json.dumps(query)+"\n\n").encode()
                         await asyncio.wait_for(output_received.wait(),5)
+                        if streaming=="continuous":await asyncio.sleep(5)
                         closed={"type":"closed","session_id":ident,"data":{"final_usage_confirmed":True}}
                         yield ("data: "+json.dumps(closed)+"\n\n").encode()
                 return httpx.Response(200, stream=Events())
@@ -92,6 +93,12 @@ def test_live_roundtrip_and_close(streaming):
             if len(packets) >= 3:
                 output_received.set()
 
+        if streaming=="continuous":
+            async def feed_microphone():
+                while True:
+                    capture.feed(bytes(640))
+                    await asyncio.sleep(.02)
+            consumed.append(asyncio.create_task(feed_microphone()))
         config = {"device_id":"spotpear-unit","conversation_id":"test-topic",
                   "brain_url":"http://127.0.0.1:18781","hardware_live_consent":True}
         if streaming=="continuous":
@@ -99,7 +106,7 @@ def test_live_roundtrip_and_close(streaming):
             config["livekit_settings"]=json.loads(Path(os.environ["GOBOT_LOCAL_LIVEKIT_TEST"]).read_text())
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 9)
+                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 12)
             if streaming=="continuous":assert not capture.finished
             tts=[control["state"] for control in controls if control["type"]=="tts"]
             assert tts==["start","stop"]
