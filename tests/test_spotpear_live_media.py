@@ -19,17 +19,19 @@ from gobot_device_gateway import OpusInput, OpusOutput
 from spotpear_live import CapturedSpeech, StreamingSpeech, live_turn
 
 
-def tone():
+def tone(amplitude=4000):
     sink = io.BytesIO()
     with wave.open(sink, "wb") as stream:
         stream.setparams((1, 2, 16000, 0, "NONE", ""))
-        stream.writeframes((4000 * np.sin(np.arange(6400)*.11)).astype("<i2").tobytes())
+        stream.writeframes((amplitude * np.sin(np.arange(6400)*.11)).astype("<i2").tobytes())
     return sink.getvalue()
 
 
-@pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous", "continuous_slow_setup"])
+@pytest.mark.parametrize("streaming",[False, True, "provider_end", "continuous", "continuous_slow_setup",
+                                     "continuous_silent_idle","continuous_silent_fault"])
 def test_live_roundtrip_and_close(streaming):
-    continuous = streaming in {"continuous", "continuous_slow_setup"}
+    continuous = isinstance(streaming,str) and streaming.startswith("continuous")
+    silent = streaming in {"continuous_silent_idle","continuous_silent_fault"}
     if continuous and not os.environ.get("GOBOT_LOCAL_LIVEKIT_TEST"):
         pytest.skip("Requires loopback LiveKit")
     async def scenario():
@@ -41,13 +43,13 @@ def test_live_roundtrip_and_close(streaming):
         consumed = []
         capture = StreamingSpeech() if streaming else tone()
         if streaming:
-            with wave.open(io.BytesIO(tone())) as sample:
+            with wave.open(io.BytesIO(tone(0 if silent else 4000))) as sample:
                 capture.feed(sample.readframes(sample.getnframes()))
 
         async def consume(track):
             while not input_received.is_set():
                 frame = await track.recv()
-                if np.max(np.abs(frame.to_ndarray().astype(float))) > 100:
+                if silent or np.max(np.abs(frame.to_ndarray().astype(float))) > 100:
                     input_received.set()
                     if streaming is True:
                         # The real remote WebRTC track already received speech before end-of-input.
@@ -63,11 +65,14 @@ def test_live_roundtrip_and_close(streaming):
                 class Events(httpx.AsyncByteStream):
                     async def __aiter__(self):
                         await asyncio.wait_for(input_received.wait(),5)
-                        query={"type":"input_transcript","session_id":ident,"data":{"text":"Погода"}}
-                        yield ("data: "+json.dumps(query)+"\n\n").encode()
-                        await asyncio.wait_for(output_received.wait(),5)
-                        if continuous:await asyncio.sleep(5)
+                        if not silent:
+                            query={"type":"input_transcript","session_id":ident,"data":{"text":"Погода"}}
+                            yield ("data: "+json.dumps(query)+"\n\n").encode()
+                            await asyncio.wait_for(output_received.wait(),5)
+                            if continuous:await asyncio.sleep(5)
+                        else:await asyncio.sleep(.3)
                         closed={"type":"closed","session_id":ident,"data":{"final_usage_confirmed":True}}
+                        if silent:closed['data']['reason']='idle_timeout' if streaming.endswith('idle') else 'sideband_closed'
                         yield ("data: "+json.dumps(closed)+"\n\n").encode()
                 return httpx.Response(200, stream=Events())
             body = json.loads(req.content)
@@ -81,7 +86,7 @@ def test_live_roundtrip_and_close(streaming):
             if streaming == "continuous_slow_setup":
                 await asyncio.sleep(5)
             await remote.setRemoteDescription(RTCSessionDescription(live_sdp(offer.sdp), "offer"))
-            remote.addTrack(CapturedSpeech(tone()))
+            remote.addTrack(CapturedSpeech(tone(0 if silent else 4000)))
             await remote.setLocalDescription(await remote.createAnswer())
             return httpx.Response(200, json={"sdp":remote.localDescription.sdp, "session_id":ident,
                                     "model":"gpt-live-1", "configuration_confirmed":True})
@@ -111,12 +116,19 @@ def test_live_roundtrip_and_close(streaming):
             config["livekit_settings"]=json.loads(Path(os.environ["GOBOT_LOCAL_LIVEKIT_TEST"]).read_text())
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-                await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 18)
+                operation=live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput())
+                if streaming=='continuous_silent_fault':
+                    with pytest.raises(ValueError,match='hardware_live_no_audio'):await asyncio.wait_for(operation,18)
+                else:await asyncio.wait_for(operation, 18)
             if continuous:
                 assert not capture.finished
                 # A feeder failure used to be swallowed during cleanup, hiding a full input buffer.
                 assert feeder is not None and not feeder.done(), feeder.exception() if feeder else None
             tts=[control["state"] for control in controls if control["type"]=="tts"]
+            if silent:
+                assert not tts and not packets
+                assert len(closes)==1
+                return
             assert tts==["start","stop"]
             if streaming=="provider_end":
                 assert sum(control["type"]=="gobot_input_end" for control in controls)==1
