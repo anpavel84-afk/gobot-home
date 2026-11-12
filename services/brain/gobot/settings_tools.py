@@ -1,12 +1,13 @@
 """Owner-approved conversational preferences, not general agent self-modification."""
-import asyncio,re,time
+import asyncio,re,time,uuid
+from copy import deepcopy
 from dataclasses import dataclass
 from .device_store import DeviceStore
 from .weather import WeatherClient,WeatherError
 from .presentation import Presentation,VisualMetadata,VisualSource,frame_id
 from .local_tools import ToolResult
 from .device_contract import WeatherPreferences
-from .weather_queries import weather_query,weather_followup
+from .weather_queries import weather_query,weather_followup,weather_request_context,weather_words
 from .weather import condition
 
 HELP='Могу настроить город для погоды, громкость и голос OpenAI, режим модели, вступления, продолжение разговора, иллюстрации и лицо. Например: «Настрой погоду для моего города», «Громкость 40 процентов», «Выключи вступления».'
@@ -15,6 +16,23 @@ def settings_intent(value,context=None):
     """Returns a typed operation; no fuzzy state-changing matches."""
     pending=(context or {}).get('pending_action')
     def op(name,**slots):return {'operation':name,**slots}
+    query_pending=(context or {}).get('weather_query_pending')
+    normalized=weather_words(value)
+    if (context or {}).get('weather_followup') and normalized in {'не надо показывать погоду','не нужно показывать погоду','не показывай погоду','отмени прогноз'}:
+        return op('weather_query_cancel')
+    if query_pending and query_pending.get('expires',0)>time.time():
+        pending_id=query_pending.get('id')
+        if normalized in {'нет','нет спасибо','не надо','отмена','отмени','отмени поиск','не надо показывать погоду','не нужно показывать погоду','не показывай погоду'}:
+            return op('weather_query_cancel',pending_id=pending_id)
+        full_query=weather_query(normalized)
+        is_city=bool(re.fullmatch(r'[\wА-Яа-яёЁ ,.-]{2,100}',normalized)) and not re.match(r'^(?:нет|да|что|как|почему|поставь|включи|выключи|расскажи|отмени|стоп|настрой|подключи|измени|завтра|послезавтра|сегодня|сейчас|на|через)\b',normalized)
+        if not full_query and query_pending.get('kind')=='weather_query_location' and is_city:
+            city=re.sub(r'^(?:я живу в|это|город|в|во)\s+','',normalized)
+            return op('weather_query_find',query=city,pending_id=pending_id)
+        if not full_query and query_pending.get('kind')=='weather_query_choose':
+            choice={'первый':0,'первое':0,'1':0,'второй':1,'второе':1,'2':1,'третий':2,'третье':2,'3':2}.get(normalized)
+            if choice is not None:return op('weather_query_choose',index=choice,pending_id=pending_id)
+            if is_city:return op('weather_query_choose',choice_text=normalized,pending_id=pending_id)
     followup=weather_followup(value,context)
     if followup:return followup
     if pending and pending.get('expires',0)>time.time() and pending.get('kind','').startswith('weather_'):
@@ -31,6 +49,7 @@ def settings_intent(value,context=None):
             if choice is not None:return op('weather_confirm',pending_id=pending['id'],places=payload.get('places',[]),index=choice)
     if value in {'какие настройки ты можешь менять','что ты можешь настроить','покажи настройки','какие у меня настройки','помоги настроить робота','настрой себя'}:return op('help')
     if re.fullmatch(r'(?:покажи|проверь|какие|где)(?: мои)? настройки погоды|какой город (?:выбран|настроен) для погоды',value):return op('weather_status')
+    if re.fullmatch(r'(?:смени|измени|переключи) источник погоды на weather\.com',value):return op('weather_provider_unavailable')
     match=re.fullmatch(r'(?:настрой|подключи|измени)(?: мне)? (?:(?:службу|инструмент|сервис) )?погод[уы](?: для| в| на)?(?: (?P<city>.+))?',value)
     if match:
         city=match['city']
@@ -68,7 +87,49 @@ class SettingsResult(ToolResult):
     setup:dict|None=None
 
 class SettingsTools:
-    def __init__(self,memory,root):self.memory=memory;self.devices=DeviceStore(root);self.weather=WeatherClient();self.weather_locks={}
+    def __init__(self,memory,root):
+        self.memory=memory;self.devices=DeviceStore(root);self.weather=WeatherClient();self.weather_locks={}
+        # Temporary place resolution is server RAM, including when long-term memory is enabled.
+        self._weather_queries={}
+
+    @staticmethod
+    def _weather_scope(req):
+        return (req.device_id,req.conversation_id,req.client_id,getattr(req,'profile_epoch',None))
+
+    def _weather_state(self,req,create=False):
+        now=time.time();key=self._weather_scope(req)
+        for old in [key for key,value in self._weather_queries.items() if value['expires']<=now]:self._weather_queries.pop(old,None)
+        state=self._weather_queries.get(key)
+        if state is None and create:
+            if len(self._weather_queries)>=128:self._weather_queries.pop(next(iter(self._weather_queries)))
+            state={'expires':now+600,'places':{},'pending':None};self._weather_queries[key]=state
+        return state
+
+    def clear_weather_query(self,req):
+        self._weather_queries.pop(self._weather_scope(req),None)
+
+    def weather_query_context(self,req):
+        state=self._weather_state(req);pending=state and state.get('pending')
+        if not pending or pending['expires']<=time.time():return {}
+        return {'weather_query_pending':deepcopy({k:pending[k] for k in ('id','kind','expires','payload','pending_namespace')})}
+
+    def _set_weather_query_pending(self,req,kind,request,places=None):
+        state=self._weather_state(req,True);state['expires']=time.time()+600
+        safe=weather_request_context(request)
+        pending={'id':str(uuid.uuid4()),'kind':kind,'expires':time.time()+120,'pending_namespace':'weather_query',
+            'payload':{'request':safe,'places':[{'index':i,'location_name':place['location_name']} for i,place in enumerate(places or [])],'client_id':req.client_id},
+            '_places':list(places or [])}
+        state['pending']=pending
+        return pending
+
+    def _remember_weather_place(self,req,place,query):
+        state=self._weather_state(req,True);state['expires']=time.time()+600
+        for ref,saved in state['places'].items():
+            if saved['place']==place:
+                saved['query']=query or saved['query'];return ref
+        if len(state['places'])>=8:state['places'].pop(next(iter(state['places'])))
+        ref=str(uuid.uuid4());state['places'][ref]={'place':dict(place),'query':query}
+        return ref
 
     @staticmethod
     def weather_failure(error,method):
@@ -112,11 +173,14 @@ class SettingsTools:
         operation=slots['operation'];profile=self.devices.profile(scope)
         if operation=='help':return SettingsResult(HELP)
         if operation=='restricted':return SettingsResult('Расходы, доступ к файлам и семейные права этой голосовой командой не изменены. Для них нужно подтверждение владельца в панели. Обычные настройки звука, экрана и погоды доступны через диалог.')
-        if operation=='weather_provider_unavailable':return SettingsResult('Weather.com пока не подключён: нужен ключ официального API The Weather Company. Сейчас работает Open-Meteo с прогнозом до 16 дней. Могу показать его данные.',evidence={'abstained':True})
-        if operation=='weather_unsupported':return SettingsResult('Сейчас доступен дневной прогноз до 16 дней вперёд; почасовой прогноз и историческая погода в GoBot пока не подключены. Могу показать завтра, неделю или 16 дней.',evidence={'abstained':True})
+        if operation=='weather_provider_unavailable':return SettingsResult('Weather.com пока не подключён: нужен ключ официального API The Weather Company. Сейчас работает Open-Meteo с прогнозом до 16 дней. Могу показать его данные.',evidence={'abstained':True,'verified':False,'reason':'provider_not_configured'})
+        if operation=='weather_unsupported':
+            comparison=slots.get('reason') in {'comparison','multiple_places'}
+            text='Сравнение погоды нескольких городов пока не подключено. Можно запросить каждый город отдельно.' if comparison else 'Сейчас доступен дневной прогноз до 16 дней вперёд; почасовой прогноз и историческая погода в GoBot пока не подключены. Могу показать завтра, неделю или 16 дней.'
+            return SettingsResult(text,evidence={'abstained':True,'verified':False,'reason':'comparison_not_implemented' if comparison else 'weather_'+slots.get('reason','unsupported')})
         if operation=='weather_other_place':
-            self.pending(req,'weather_location')
-            return self.setup_result(req,2,'awaiting_location','Для этого места назовите город и регион. Проверю источник и попрошу подтвердить, прежде чем менять основное место для погоды.',next_action='provide_location',subtitle='Назовите город')
+            self._set_weather_query_pending(req,'weather_query_location',{'operation':'weather_current'})
+            return SettingsResult('Для какого города показать погоду?',evidence={'abstained':True,'reason':'weather_location_required'})
         if operation=='patch':
             safe={'voice':{'voice','volume','speak','mode'},'screen':{'automatic_illustrations','style'},'skin':{'skin_id'},'feedback':{'filler_enabled'},'conversation':{'followup_enabled','followup_seconds'},'weather':{'enabled','location_name','latitude','longitude'}}
             patch=slots.get('patch')
@@ -130,7 +194,9 @@ class SettingsTools:
             names={'voice':'Голос и звук','feedback':'Вступления','screen':'Экран','conversation':'Продолжение разговора','skin':'Лицо','weather':'Погода'}
             text='Сохранено на сервере: '+', '.join(names[k] for k in slots['patch'])+'.'
             return SettingsResult(text,profile=saved.model_dump(),silent=saved.voice.speak is False or saved.voice.volume==0)
-        if operation in {'weather_status','weather_current','weather_forecast'} and not profile.weather.enabled:
+        if operation in {'weather_current','weather_forecast','weather_query_find','weather_query_choose','weather_query_cancel'}:
+            return await self._weather_read(req,profile,slots,is_current=is_current)
+        if operation=='weather_status' and not profile.weather.enabled:
             self.pending(req,'weather_connect')
             return self.setup_result(req,1,'awaiting_permission','Погода ещё не подключена к этому устройству. Могу настроить Open-Meteo: уточним город, проверю данные и сохраню настройки. Подключить?',next_action='confirm_setup',subtitle='Подключить источник?')
         if operation=='weather_cancel':
@@ -180,32 +246,186 @@ class SettingsTools:
                 result.setup={'tool':'weather','provider':'open_meteo','step':4,'total_steps':4,'status':'ready','next_action':'ask_weather'}
                 return result
         if operation=='weather_status':return SettingsResult('Для погоды выбран '+profile.weather.location_name+'. Источник — Open-Meteo; домашние датчики не подключены.')
-        if operation=='weather_forecast':
-            try:forecast=await self.weather.forecast(profile.weather,offset=slots.get('offset',0),days=slots.get('days',7),weekday=slots.get('weekday'))
-            except WeatherError as error:return self.weather_failure(error,'weather_forecast_api')
-            if not is_current():return SettingsResult('Запрос отменён.')
-            return self.forecast_result(req,profile,forecast)
-        if operation=='weather_current':
-            try:weather=await self.weather.current(profile.weather)
-            except WeatherError as error:return self.weather_failure(error,'weather_api')
-            return self.weather_result(req,profile,weather)
         return SettingsResult('Эта настройка через голос пока не поддерживается. '+HELP)
 
-    def weather_result(self,req,profile,weather):
-        icon,label=condition(weather['weather_code'])
-        text='По данным Open-Meteo для '+profile.weather.location_name+': '+label+', '+str(weather['temperature']).replace('.',',')+' °C, ощущается как '+str(weather['apparent']).replace('.',',')+' °C. Ветер '+str(weather['wind_kmh']).replace('.',',')+' км/ч.'
-        frame=Presentation(id=frame_id(req.turn_id,'weather'),type='weather_card',title='Погода',subtitle=profile.weather.location_name,text=text,
-            source=VisualSource(label='Open-Meteo · CC BY 4.0',url='https://open-meteo.com/'),
-            metadata=VisualMetadata(backend='open_meteo',icon={'sun':'☀','cloud':'☁','partly_cloudy':'⛅','rain':'🌧','storm':'⛈','snow':'❄','fog':'🌫','unknown':'?' }[icon],weather={'kind':'current','icon':icon,'condition':label},facts={k:str(v) for k,v in weather.items()}),expires_at=weather['observed_at']+5400)
-        return SettingsResult(text,evidence={'method':'weather_api','verified':True,'canonical_answer':text},frame=frame)
+    async def _weather_read(self,req,profile,slots,*,is_current):
+        """Resolve an ephemeral query place; only explicit setup above can save a home."""
+        operation=slots['operation'];state=self._weather_state(req)
+        if operation=='weather_query_cancel':
+            pending=state and state.get('pending')
+            if slots.get('pending_id') and (not pending or pending['id']!=slots['pending_id']):
+                return SettingsResult('Этот запрос уже не ожидает ответа.',evidence={'abstained':True,'reason':'weather_query_expired'})
+            self.clear_weather_query(req)
+            return SettingsResult('Поиск погоды отменён.',evidence={'abstained':True,'reason':'weather_query_cancelled'})
+        selected=None;place_ref=None
+        if operation in {'weather_query_find','weather_query_choose'}:
+            pending=state and state.get('pending')
+            if not pending or pending['expires']<=time.time() or pending['id']!=slots.get('pending_id'):
+                return SettingsResult('Уточнение города больше не действует. Повторите запрос погоды.',evidence={'abstained':True,'reason':'weather_query_expired'})
+            request=dict(pending['payload']['request'])
+            if operation=='weather_query_choose':
+                places=pending['_places'];index=slots.get('index')
+                if index is None and isinstance(slots.get('choice_text'),str):
+                    choice=weather_words(slots['choice_text'])
+                    choice=re.sub(r'^(?:тот что в|который в|в|во)\s+','',choice)
+                    choice_words=[re.sub(r'(?:ом|ем|е|а|у|ы|и)$','',word) if len(word)>5 else word for word in choice.split()]
+                    def matching_label(place):
+                        label=weather_words(place['location_name'])
+                        return choice in label or all(len(word)>=4 and any(part.startswith(word) for part in re.findall(r'[а-яa-z-]+',label)) for word in choice_words)
+                    matches=[i for i,place in enumerate(places) if matching_label(place)]
+                    if len(matches)==1:index=matches[0]
+                if type(index) is not int or not 0<=index<len(places):
+                    return SettingsResult('Какой вариант выбрать? Назовите номер из списка или регион.',evidence={'abstained':True,'reason':'weather_location_ambiguous'})
+                selected=places[index]
+            else:
+                request['place_query']=slots.get('query','')
+                for key in ('place_ref','place_label','timezone'):request.pop(key,None)
+        else:request=weather_request_context(slots)
+        if request.get('operation') not in {'weather_current','weather_forecast'}:
+            return SettingsResult('Повторите запрос погоды.',evidence={'abstained':True,'reason':'weather_query_invalid'})
+        query=request.get('place_query');ref=request.get('place_ref')
+        if selected is None and ref:
+            saved=state and state['places'].get(ref)
+            if not saved:
+                self._set_weather_query_pending(req,'weather_query_location',{k:v for k,v in request.items() if k not in {'place_ref','place_label','timezone','place_query'}})
+                return SettingsResult('Временное место больше не сохранено. Для какого города показать погоду?',evidence={'abstained':True,'reason':'weather_place_expired'})
+            selected=saved['place'];query=saved['query'];place_ref=ref
+        if selected is None and query:
+            if state:
+                for saved_ref,saved in state['places'].items():
+                    if weather_words(saved['query'])==weather_words(query):
+                        selected=saved['place'];place_ref=saved_ref;break
+            if selected is None:
+                try:places=await self.weather.locations(query)
+                except WeatherError as error:
+                    if not is_current():return SettingsResult('Запрос отменён.')
+                    result=self.weather_failure(error,'weather_geocode_api')
+                    result.text=result.text.replace('Текущая погода пока не получена.','Город пока не определён.')
+                    return result
+                if not is_current():return SettingsResult('Запрос отменён.')
+                if not places:
+                    self._set_weather_query_pending(req,'weather_query_location',request)
+                    return SettingsResult('Место не найдено. Уточните город и регион или название латиницей.',evidence={'abstained':True,'reason':'weather_location_not_found'})
+                if len(places)>1:
+                    self._set_weather_query_pending(req,'weather_query_choose',request,places)
+                    text='Нашёл несколько мест: '+'; '.join(str(i+1)+': '+place['location_name'] for i,place in enumerate(places))+'. Какой вариант выбрать?'
+                    return SettingsResult(text,evidence={'abstained':True,'reason':'weather_location_ambiguous'})
+                selected=places[0]
+        if selected is not None:
+            place=WeatherPreferences(enabled=True,**{key:selected[key] for key in ('location_name','latitude','longitude')})
+            place_ref=place_ref or self._remember_weather_place(req,selected,query or selected['location_name'])
+            request.update({'place_ref':place_ref,'place_query':query or selected['location_name'],'place_label':place.location_name})
+        elif profile.weather.enabled:
+            place=profile.weather;request['place_label']=place.location_name
+        else:
+            self._set_weather_query_pending(req,'weather_query_location',request)
+            return SettingsResult('Для какого города показать погоду?',evidence={'abstained':True,'reason':'weather_location_required'})
+        state=self._weather_state(req)
+        if state:state['pending']=None;state['expires']=time.time()+600
+        query_profile=profile.model_copy(update={'weather':place})
+        try:
+            if request['operation']=='weather_forecast':
+                args={key:request[key] for key in ('offset','days','weekday','start_date','end_date','calendar_period') if key in request}
+                forecast=await self.weather.forecast(place,**args)
+                if not is_current():return SettingsResult('Запрос отменён.')
+                result=self.forecast_result(req,query_profile,forecast,request)
+                request.update({'timezone':forecast['timezone'],'start_date':forecast['days'][0]['date'],'end_date':forecast['days'][-1]['date']})
+                for key in ('offset','weekday','calendar_period'):request.pop(key,None)
+                request['days']=len(forecast['days'])
+            else:
+                weather=await self.weather.current(place)
+                if not is_current():return SettingsResult('Запрос отменён.')
+                result=self.weather_result(req,query_profile,weather,request)
+                if weather.get('timezone'):
+                    from datetime import datetime
+                    from zoneinfo import ZoneInfo
+                    request['timezone']=weather['timezone']
+                    local_date=datetime.fromtimestamp(weather['observed_at'],ZoneInfo(weather['timezone'])).date().isoformat()
+                    request.update({'start_date':local_date,'end_date':local_date})
+        except WeatherError as error:
+            if not is_current():return SettingsResult('Запрос отменён.')
+            return self.weather_failure(error,'weather_forecast_api' if request['operation']=='weather_forecast' else 'weather_api')
+        request.setdefault('metric','summary')
+        result.evidence['weather_request']=weather_request_context(request)
+        return result
 
-    def forecast_result(self,req,profile,forecast):
-        rows=forecast['days'];first=rows[0];last=rows[-1]
-        from datetime import date
-        display_date=lambda row:date.fromisoformat(row['date']).strftime('%d.%m.%Y')
-        def line(row):return 'На '+display_date(row)+': '+row['condition']+', от '+str(row['low'])+' до '+str(row['high'])+' °C, вероятность осадков '+str(row['rain_percent'])+' процентов, ветер до '+str(row['wind_kmh'])+' км/ч.'
-        text='Прогноз Open-Meteo для '+profile.weather.location_name+'. '+(line(first) if len(rows)==1 else 'Период '+display_date(first)+' — '+display_date(last)+'. '+line(first)+' В периоде температура от '+str(min(r['low'] for r in rows))+' до '+str(max(r['high'] for r in rows))+' °C. Полный прогноз на экране. Дальний прогноз может меняться.')
-        frame=Presentation(id=frame_id(req.turn_id,'weather-forecast'),type='weather_card',title='Прогноз погоды',subtitle=profile.weather.location_name,text=text,
+    @staticmethod
+    def _weather_number(value):
+        return format(round(value,1),'g').replace('.',',')
+
+    def weather_result(self,req,profile,weather,request=None):
+        request=request or {};metric=request.get('metric','summary');place=profile.weather.location_name
+        icon,label=condition(weather['weather_code']);number=self._weather_number
+        temperature=lambda value:number(value*9/5+32 if request.get('temperature_unit')=='fahrenheit' else value)
+        temperature_unit='°F' if request.get('temperature_unit')=='fahrenheit' else '°C'
+        wind=lambda value:number(value/3.6 if request.get('wind_unit')=='m_s' else value)
+        wind_unit='м/с' if request.get('wind_unit')=='m_s' else 'км/ч'
+        available=True
+        if metric=='temperature':
+            body='температура '+temperature(weather['temperature'])+' '+temperature_unit+', ощущается как '+temperature(weather['apparent'])+' '+temperature_unit+'.'
+        elif metric=='wind':
+            body='ветер '+wind(weather['wind_kmh'])+' '+wind_unit+'.'
+            body+=(' Порывы до '+wind(weather['gust_kmh'])+' '+wind_unit+'.') if 'gust_kmh' in weather else ' Данных о порывах источник не вернул.'
+        elif metric=='humidity':
+            available='humidity_percent' in weather
+            body='влажность '+number(weather['humidity_percent'])+' процентов.' if available else 'данных о влажности источник не вернул.'
+        elif metric=='precipitation':
+            available='precipitation_mm' in weather
+            body='осадки за текущий интервал '+number(weather['precipitation_mm'])+' мм, '+label+'.' if available else 'данных о количестве текущих осадков источник не вернул.'
+        elif metric in {'uv_index','umbrella'}:
+            available=False;body='в текущем ответе источника нет '+('УФ-индекса.' if metric=='uv_index' else 'вероятности осадков на день. Для совета о зонте нужен дневной прогноз.')
+        else:
+            body=label+', '+temperature(weather['temperature'])+' '+temperature_unit+', ощущается как '+temperature(weather['apparent'])+' '+temperature_unit+'. Ветер '+wind(weather['wind_kmh'])+' '+wind_unit+'.'
+        text='По данным Open-Meteo для '+place+': '+body
+        metadata={'kind':'current','metric':metric,'place':place,'icon':icon,'condition':label}
+        if weather.get('timezone'):metadata['timezone']=weather['timezone']
+        frame=Presentation(id=frame_id(req.turn_id,'weather'),type='weather_card',title='Погода',subtitle=place,text=text,
             source=VisualSource(label='Open-Meteo · CC BY 4.0',url='https://open-meteo.com/'),
-            metadata=VisualMetadata(backend='open_meteo',weather={'kind':'forecast','icon':first['icon'],'condition':first['condition'],'timezone':forecast['timezone'],'days':rows},facts={'temperature':str(first['high']),'low':str(first['low']),'date':first['date'],'days':str(len(rows)),'rain_percent':str(first['rain_percent'])}),expires_at=forecast['fetched_at']+900)
-        return SettingsResult(text,evidence={'method':'weather_forecast_api','verified':True,'canonical_answer':text},frame=frame)
+            metadata=VisualMetadata(backend='open_meteo',icon={'sun':'☀','cloud':'☁','partly_cloudy':'⛅','rain':'🌧','storm':'⛈','snow':'❄','fog':'🌫','unknown':'?'}[icon],weather=metadata,facts={k:str(v) for k,v in weather.items()}),expires_at=weather['observed_at']+5400)
+        evidence={'method':'weather_api','verified':True,'canonical_answer':text}
+        if not available:evidence.update({'abstained':True,'reason':'weather_metric_unavailable'})
+        return SettingsResult(text,evidence=evidence,frame=frame)
+
+    def forecast_result(self,req,profile,forecast,request=None):
+        from datetime import date
+        request=request or {};metric=request.get('metric','summary');place=profile.weather.location_name
+        rows=forecast['days'];first=rows[0];last=rows[-1];number=self._weather_number
+        display_date=lambda row:date.fromisoformat(row['date']).strftime('%d.%m.%Y')
+        temperature=lambda value:number(value*9/5+32 if request.get('temperature_unit')=='fahrenheit' else value)
+        temperature_unit='°F' if request.get('temperature_unit')=='fahrenheit' else '°C'
+        wind=lambda value:number(value/3.6 if request.get('wind_unit')=='m_s' else value)
+        wind_unit='м/с' if request.get('wind_unit')=='m_s' else 'км/ч'
+        def line(row):
+            prefix='На '+display_date(row)+': '
+            if metric=='wind':
+                body='ветер до '+wind(row['wind_kmh'])+' '+wind_unit+'.'
+                return prefix+body+(' Порывы до '+wind(row['gust_kmh'])+' '+wind_unit+'.' if 'gust_kmh' in row else ' Данных о порывах источник не вернул.')
+            if metric=='temperature':return prefix+'температура от '+temperature(row['low'])+' до '+temperature(row['high'])+' '+temperature_unit+'.'
+            if metric in {'precipitation','umbrella'}:
+                body='вероятность осадков '+number(row['rain_percent'])+' процентов.'
+                if 'precipitation_mm' in row:body+=' Количество осадков '+number(row['precipitation_mm'])+' мм.'
+                if metric=='umbrella':body+=' Зонт стоит взять.' if row['rain_percent']>=40 else ' Вероятность осадков невысокая; если будете долго на улице, можно взять зонт.'
+                return prefix+body
+            if metric=='uv_index':return prefix+('УФ-индекс '+number(row['uv_index'])+'.' if 'uv_index' in row else 'данных об УФ-индексе источник не вернул.')
+            if metric=='humidity':return prefix+'данных о влажности в дневном прогнозе этого источника нет.'
+            return prefix+row['condition']+', от '+temperature(row['low'])+' до '+temperature(row['high'])+' '+temperature_unit+', вероятность осадков '+number(row['rain_percent'])+' процентов, ветер до '+wind(row['wind_kmh'])+' '+wind_unit+'.'
+        text='Прогноз Open-Meteo для '+place+'. '
+        if len(rows)==1:text+=line(first)
+        else:
+            text+='Период '+display_date(first)+' — '+display_date(last)+'. '+line(first)
+            if metric in {'summary','temperature'}:text+=' В периоде температура от '+temperature(min(r['low'] for r in rows))+' до '+temperature(max(r['high'] for r in rows))+' '+temperature_unit+'.'
+            elif metric=='wind':
+                text+=' В периоде ветер до '+wind(max(r['wind_kmh'] for r in rows))+' '+wind_unit+'.'
+                if all('gust_kmh' in r for r in rows):text+=' Порывы до '+wind(max(r['gust_kmh'] for r in rows))+' '+wind_unit+'.'
+            elif metric in {'precipitation','umbrella'}:text+=' Наибольшая дневная вероятность осадков в периоде '+number(max(r['rain_percent'] for r in rows))+' процентов.'
+            text+=' Полный прогноз на экране. Дальний прогноз может меняться.'
+        metadata={'kind':'forecast','metric':metric,'place':place,'icon':first['icon'],'condition':first['condition'],'timezone':forecast['timezone'],'days':rows}
+        facts={'temperature':str(first['high']),'low':str(first['low']),'date':first['date'],'days':str(len(rows)),'rain_percent':str(first['rain_percent']),'wind_kmh':str(first['wind_kmh'])}
+        for key in ('gust_kmh','precipitation_mm','uv_index'):
+            if key in first:facts[key]=str(first[key])
+        frame=Presentation(id=frame_id(req.turn_id,'weather-forecast'),type='weather_card',title='Прогноз погоды',subtitle=place,text=text,
+            source=VisualSource(label='Open-Meteo · CC BY 4.0',url='https://open-meteo.com/'),
+            metadata=VisualMetadata(backend='open_meteo',weather=metadata,facts=facts),expires_at=forecast['fetched_at']+900)
+        evidence={'method':'weather_forecast_api','verified':True,'canonical_answer':text}
+        if metric=='humidity' or metric=='uv_index' and not all('uv_index' in row for row in rows):evidence.update({'abstained':True,'reason':'weather_metric_unavailable'})
+        return SettingsResult(text,evidence=evidence,frame=frame)

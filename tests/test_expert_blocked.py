@@ -42,7 +42,7 @@ def test_enabled_global_flag_does_not_expose_start_to_guest_without_grant(tmp_pa
     asyncio.run(run())
 
 def test_explicit_intent_is_diagnostic_only():
-    for text in ['Передай вопрос на CLI','Адресуй это эксперту','Отправь на проверку Sol High','Спроси Argon']:
+    for text in ['Передай вопрос на CLI','Адресуй это эксперту','Отправь на проверку Sol High','Спроси Argon','Попроси эксперта проверить это','Можешь подключить эксперта?']:
         assert explicit_expert_request(text)
-    for text in ['Что такое CLI?','Sol — это модель?','Нет, спасибо','Объясни солнечную систему']:
+    for text in ['Что такое CLI?','Sol — это модель?','Нет, спасибо','Объясни солнечную систему','Не подключай эксперта','Он сказал: попроси эксперта проверить это','«Передай вопрос на CLI»','Объясни фразу подключи эксперта']:
         assert not explicit_expert_request(text)

@@ -28,14 +28,16 @@ def test_date_followups_need_active_weather_task(reply):
     context={'weather_followup':True,'weather_last_request':{'operation':'weather_current'}}
     result=resolve_quick(reply,context)
     assert result and result.executor=='settings' and result.slots['operation']=='weather_forecast'
-    assert not resolve_quick(reply,{'weather_followup':False})
+    outside=resolve_quick(reply,{'weather_followup':False})
+    assert outside is None or (outside.executor=='quick_clarify' and outside.slots.get('missing_slots')==['domain'])
 
 
 @pytest.mark.parametrize('reply',['Ну там же, где и сегодня','Там же','Здесь','У нас','В том же месте','Для того же города','А ветер?','Какие осадки?','Нужен ли зонт?'])
 def test_place_or_property_repair_keeps_requested_period(reply):
     request={'operation':'weather_forecast','offset':1,'days':1,'weekday':None}
     q=resolve_quick(reply,{'weather_followup':True,'weather_last_request':request})
-    assert q and q.slots==request
+    metric={'А ветер?':'wind','Какие осадки?':'precipitation','Нужен ли зонт?':'umbrella'}.get(reply)
+    assert q and q.slots=={**request,**({'metric':metric} if metric else {})}
 
 
 @pytest.mark.parametrize('reply',['Нет, завтра','Нет, на завтра','Нет, не сегодня, а завтра','Я имел в виду завтра','Я сказал завтра'])
@@ -146,7 +148,8 @@ def test_change_topic_invalidates_weather_ellipsis_and_profile_never_inherits_it
         try:
             await say(s,'Какая погода?',0);assert s.weather_topic
             await say(s,'Который час?',5000);assert not s.weather_topic
-            assert not resolve_quick('А завтра?',await s.tool_context(s.current))
+            orphan=resolve_quick('А завтра?',await s.tool_context(s.current))
+            assert orphan.executor=='quick_clarify' and orphan.slots['missing_slots']==['domain']
             before=len(manager.provider.creations)
             s.offer=s.offer.model_copy(update={'device_id':'other-principal'})
             assert (await s.home_environment())['weather_location_configured'] is False

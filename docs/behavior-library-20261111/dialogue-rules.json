@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "kind": "authored_policy_requirements_not_runtime_grants",
+  "rules": [
+    {
+      "id": "G001",
+      "key": "truth",
+      "priority": "P0",
+      "instruction": "Произносить подтверждение действия только после соответствующего успешного результата исполнителя."
+    },
+    {
+      "id": "G002",
+      "key": "accepted_is_not_done",
+      "priority": "P0",
+      "instruction": "Принятое экспертное задание не равно завершённому; сообщать текущую фазу."
+    },
+    {
+      "id": "G003",
+      "key": "missing_slot",
+      "priority": "P0",
+      "instruction": "Спрашивать один недостающий параметр, сохраняя уже названные и допустимые слоты."
+    },
+    {
+      "id": "G004",
+      "key": "no_reconfirm_trivial",
+      "priority": "P0",
+      "instruction": "Полностью заданные обычные низкорисковые команды не требуют повторного согласия."
+    },
+    {
+      "id": "G005",
+      "key": "quoted_text",
+      "priority": "P0",
+      "instruction": "Цитируемая команда, перевод и вопрос о команде не являются её исполнением."
+    },
+    {
+      "id": "G006",
+      "key": "negation",
+      "priority": "P0",
+      "instruction": "Отрицание и исправление обрабатываются до выбора изменяющего действия."
+    },
+    {
+      "id": "G007",
+      "key": "input_end",
+      "priority": "P0",
+      "instruction": "Не выполнять действие по частичной транскрипции; соблюдать существующий input-end/answer-evidence gate."
+    },
+    {
+      "id": "G008",
+      "key": "one_operation",
+      "priority": "P0",
+      "instruction": "Native transcript и delegation одного хода используют общую operation claim."
+    },
+    {
+      "id": "G009",
+      "key": "distinct_new_request",
+      "priority": "P0",
+      "instruction": "Новая явная просьба пользователя может повторить действие; не дедуплицировать разные turns по одному тексту."
+    },
+    {
+      "id": "G010",
+      "key": "no_fabricated_id",
+      "priority": "P0",
+      "instruction": "Сохранять настоящий delegation ID; для app-initiated результата использовать текущий допустимый контракт без выдуманного ID."
+    },
+    {
+      "id": "G011",
+      "key": "home_weather",
+      "priority": "P0",
+      "instruction": "Погода без города использует проверенный configured home, если он доступен этой области."
+    },
+    {
+      "id": "G012",
+      "key": "temporary_place",
+      "priority": "P0",
+      "instruction": "Разовый запрос другого города не меняет home; изменение дома отдельное настроечное действие."
+    },
+    {
+      "id": "G013",
+      "key": "weather_metric",
+      "priority": "P0",
+      "instruction": "Продолжение сохраняет место/дату, но меняет запрошенный показатель; ответ берётся из полей источника."
+    },
+    {
+      "id": "G014",
+      "key": "local_calendar",
+      "priority": "P0",
+      "instruction": "Относительные даты считать в IANA timezone нужного места, не из системной даты сервера."
+    },
+    {
+      "id": "G015",
+      "key": "horizon",
+      "priority": "P0",
+      "instruction": "Проверять фактические даты/поля источника; не подменять недоступный горизонт более коротким молча."
+    },
+    {
+      "id": "G016",
+      "key": "no_null_zero",
+      "priority": "P0",
+      "instruction": "Отсутствующие данные не превращать в нули или благоприятный прогноз."
+    },
+    {
+      "id": "G017",
+      "key": "stale_disclosure",
+      "priority": "P0",
+      "instruction": "Просроченный кэш отделять от свежего результата и называть время данных."
+    },
+    {
+      "id": "G018",
+      "key": "revision",
+      "priority": "P0",
+      "instruction": "После исправления/отмены/смены прав поздние ответы прежней ревизии не говорят и не меняют экран."
+    },
+    {
+      "id": "G019",
+      "key": "context_scope",
+      "priority": "P0",
+      "instruction": "Контекст привязан к principal/device/conversation/profile_epoch; смена темы или прав прекращает неявное наследование."
+    },
+    {
+      "id": "G020",
+      "key": "capability",
+      "priority": "P0",
+      "instruction": "Проверять registry исполнителей для канона и перефраз; карточка сценария не создаёт доступ и не заменяет адаптер."
+    },
+    {
+      "id": "G021",
+      "key": "backend_not_executor",
+      "priority": "P0",
+      "instruction": "Luna без инструментов не подтверждает внешние действия; исполняет Brain."
+    },
+    {
+      "id": "G022",
+      "key": "compact_prompt",
+      "priority": "P0",
+      "instruction": "В backend только выбранная короткая policy и допустимые данные; весь каталог в prompt запрещён."
+    },
+    {
+      "id": "G023",
+      "key": "budgets",
+      "priority": "P0",
+      "instruction": "Сохранить текущие модели, лимиты input/output, concurrency, consent и запрет автоматических retries."
+    },
+    {
+      "id": "G024",
+      "key": "mode_vs_job",
+      "priority": "P0",
+      "instruction": "Смена всего разговора в A и одно экспертное задание в C имеют разные контракты."
+    },
+    {
+      "id": "G025",
+      "key": "detail_not_consent",
+      "priority": "P0",
+      "instruction": "Просьба ответить подробнее не разрешает CLI или более дорогой backend."
+    },
+    {
+      "id": "G026",
+      "key": "stop_scope",
+      "priority": "P0",
+      "instruction": "Stop немедленно прекращает звук и сохраняет утверждённый End. Сохранённые таймеры остаются; текущие backend/expert jobs отменяются и очищаются по политике закрытия сессии."
+    },
+    {
+      "id": "G027",
+      "key": "decline_scope",
+      "priority": "P0",
+      "instruction": "Отказ отменяет конкретное pending предложение; не запускает отложенное действие и не отменяет посторонние объекты."
+    },
+    {
+      "id": "G028",
+      "key": "timer_persistence",
+      "priority": "P0",
+      "instruction": "Закрытие Live не удаляет сохранённый таймер; доставка сигнала и истечение учитываются отдельно."
+    },
+    {
+      "id": "G029",
+      "key": "result_unknown",
+      "priority": "P0",
+      "instruction": "Неизвестный исход не является успехом или разрешением повторить изменение; допустима только предусмотренная проверка статуса."
+    },
+    {
+      "id": "G030",
+      "key": "partial_success",
+      "priority": "P0",
+      "instruction": "При групповом частичном успехе назвать выполненную и невыполненную часть."
+    },
+    {
+      "id": "G031",
+      "key": "voice_not_private_auth",
+      "priority": "P0",
+      "instruction": "Voice match или PIN устройства отдельно не открывают личный архив каждого говорящего."
+    },
+    {
+      "id": "G032",
+      "key": "journal_not_memory",
+      "priority": "P0",
+      "instruction": "Отдельный opt-in debug journal не даёт разрешение на semantic memory, raw audio или межпрофильный доступ."
+    },
+    {
+      "id": "G033",
+      "key": "same_result_screen",
+      "priority": "P0",
+      "instruction": "Речь и экран используют один result ID; значения дизайн-макетов не являются данными продукта."
+    },
+    {
+      "id": "G034",
+      "key": "missing_image",
+      "priority": "P1",
+      "instruction": "До декодированного медиа сохранять speaking face; настоящие widgets не скрывать из-за отсутствующей фотографии."
+    },
+    {
+      "id": "G035",
+      "key": "response_variants",
+      "priority": "P1",
+      "instruction": "Варианты выбираются внутри одной фазы и одного смысла; числовые факты всегда из результата."
+    },
+    {
+      "id": "G036",
+      "key": "quiet_end",
+      "priority": "P0",
+      "instruction": "Idle reset выбирает C без открытия новой платной сессии; переход в A ждёт фактического close."
+    }
+  ],
+  "existing_rules_policy": "merge after review; do not replace AGENTS or automatically inject every rule into provider context"
+}
