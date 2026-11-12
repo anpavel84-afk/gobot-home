@@ -179,6 +179,7 @@ class Gateway:
         turn_id = str(uuid.uuid4())
         response_task = None
         state = 'hello'
+        session_ready = not self.config.get('continuous_live')
         decoder = stream = None
         tts_finished = False
         deadline = asyncio.get_running_loop().time() + 8
@@ -205,7 +206,7 @@ class Gateway:
                         if stream is not None:
                             stream.feed(decoder.pcm)
                             decoder.pcm.clear()
-                            if response_task is None and stream.input_seen:
+                            if response_task is None and stream.input_seen and session_ready:
                                 response_task = asyncio.create_task(self.respond(ws,send,stream,turn_id))
                         continue
                     if len(raw) > 16384:
@@ -214,6 +215,10 @@ class Gateway:
                     if not isinstance(obj, dict):
                         raise ValueError('invalid_control')
                     kind = obj.get('type')
+                    if kind in {'hello','listen','abort','gobot_session_ready'}:
+                        print(json.dumps({'event':'device_control','type':kind,'state':state,
+                                          'listen_state':obj.get('state') if obj.get('state') in {'start','stop','detect'} else None,
+                                          'continuous_ready':session_ready}),flush=True)
                     if state != 'hello' and obj.get('session_id') != session:
                         raise ValueError('wrong_session')
                     if kind == 'hello' and state == 'hello':
@@ -235,6 +240,10 @@ class Gateway:
                                 state='blocked'
                                 continue
                         state = 'ready'
+                    elif kind=='gobot_session_ready' and self.config.get('continuous_live') and obj.get('continuous') is True and state in {'ready','capture'}:
+                        session_ready=True
+                        self.stats['continuous_ack']=self.stats.get('continuous_ack',0)+1
+                        self.save_stats()
                     elif kind == 'listen' and obj.get('state') == 'start' and state == 'ready':
                         if obj.get('mode') != 'auto':
                             raise ValueError('only_wake_auto_turn_supported')
@@ -281,7 +290,9 @@ class Gateway:
             pass
         except Exception as error:
             self.stats['errors'] += 1
-            print(json.dumps({'event': 'device_connection_error', 'kind': type(error).__name__}), flush=True)
+            safe={'audio_outside_capture','control_too_large','invalid_control','wrong_session','invalid_hello','invalid_state_transition','only_wake_auto_turn_supported','audio_packet_limit','audio_duration_limit','hardware_input_backlog_or_state'}
+            print(json.dumps({'event':'device_connection_error','kind':type(error).__name__,
+                              'code':str(error) if str(error) in safe else 'other','state':state}),flush=True)
             with contextlib.suppress(Exception): await ws.close(1008, 'Invalid or expired turn')
         finally:
             if tts_finished and response_task and not response_task.done():
