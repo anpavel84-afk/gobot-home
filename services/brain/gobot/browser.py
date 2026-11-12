@@ -66,6 +66,8 @@ def create_browser_app(settings=None):
     attach_gateway_realtime(app,settings,devices,subject,device_scope,profile_epoch)
     from .live_api import attach_gateway_live
     attach_gateway_live(app,settings,devices,subject,device_scope,profile_epoch)
+    from .debug_journal_api import attach_gateway_journal
+    attach_gateway_journal(app,settings,devices,subject,device_scope,profile_epoch)
     from .demo2 import attach_demo2
     attach_demo2(app)
 

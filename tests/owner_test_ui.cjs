@@ -1,10 +1,13 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-class Node{constructor(tag,text=''){this.tag=tag;this.children=[];this.textContent=text;this.value='';}append(...x){this.children.push(...x);}after(x){this.sibling=x;}replaceChildren(...x){this.children=x;}}
+class Node{constructor(tag,text=''){this.tag=tag;this.children=[];this.textContent=text;this.value='';}append(...x){this.children.push(...x);}after(x){this.sibling=x;}replaceChildren(...x){this.children=x;}addEventListener(){}}
 const events={},nodes={},requests=[],controls=new Node('div');let closed=0;
 const state={authorized:true,enabled:true,policy:{realtime_model:'gpt-realtime-2.1-mini',audio_preset:'baseline',api_estimate_usd_per_day:10,realtime_responses_per_day:500,expert_jobs_per_day:20,image_attempts_per_day:20,enabled:true,experts_enabled:true,images_enabled:true,device_settings_enabled:true},attempts_today:{},estimated_usd_including_pending_reserves:0,readiness:{realtime:{configured:true,implemented:true,acceptance:'synthetic'}}};
 const document={createElement:t=>new Node(t),getElementById:k=>nodes[k]||null,querySelector:()=>controls};
-const window={addEventListener:(k,f)=>events[k]=f,GoBotRealtime:{id:'active-fixture',close:async()=>closed++},GoBotExpertUI:{refresh:async()=>{}}};
-const fetch=async(url,opts={})=>{requests.push([url,opts]);return {ok:true,json:async()=>state};};
+const window={confirm:()=>true,addEventListener:(k,f)=>events[k]=f,GoBotRealtime:{id:'active-fixture',close:async()=>closed++},GoBotExpertUI:{refresh:async()=>{}}};
+const fetch=async(url,opts={})=>{requests.push([url,opts]);let result=state;
+ if(url==='/api/debug-journal')result={status:{enabled:true,retention_days:7},sessions:[{session_id:'fixture',engine:'C',started_at:1,events:4}]};
+ if(url==='/api/debug-journal/fixture')result={events:[{turn_id:'t',engine:'C',kind:'input_transcript',data:{text:'SYNTHETIC question'}},{turn_id:'t',engine:'C',kind:'text_delta',data:{text:'SYNTHETIC answer'}},{turn_id:'t',engine:'C',kind:'dialogue_turn',data:{question:'SYNTHETIC question',answer_transcript:'SYNTHETIC answer',playback:'client_playback_reported'}}]};
+ return {ok:true,json:async()=>result};};
 vm.runInNewContext(fs.readFileSync('services/phone/dist/owner-test-ui.js','utf8'),{window,document,fetch,performance,JSON,Object,Number});
 (async()=>{
  await events.DOMContentLoaded();const panel=window.GoBotOwnerTest;assert(panel.root);assert.equal(panel.model.value,'gpt-realtime-2.1-mini');assert.equal(panel.audio.value,'baseline');
@@ -13,5 +16,15 @@ vm.runInNewContext(fs.readFileSync('services/phone/dist/owner-test-ui.js','utf8'
  panel.model.value='gpt-realtime-2.1';await panel.save(false);assert.equal(closed,1);
  const writes=requests.filter(([,opts])=>opts.method==='POST');assert.equal(writes.length,1);assert.equal(JSON.parse(writes[0][1].body).realtime_model,'gpt-realtime-2.1');
  assert(requests.every(([url])=>url==='/api/realtime/owner-test'));
+ await panel.refreshJournal();assert(panel.journalStatus.textContent.includes('Запись включена'));assert.equal(panel.journalList.children.length,1);
+ await panel.openJournal('fixture');assert.equal(panel.journalTurns.children.length,1);assert.equal(panel.journalTurns.children[0].children[1].textContent,'GoBot · транскрипт: SYNTHETIC answer');
+ assert(panel.journalEvents.textContent.includes('dialogue_turn'));
+ const walk=n=>[n,...n.children.flatMap(walk)];const all=walk(panel.root);
+ await all.find(n=>n.textContent==='Сохранить настройки журнала').onclick();
+ const patch=JSON.parse(requests.filter(([url,o])=>url==='/api/realtime/owner-test'&&o.method==='POST').at(-1)[1].body);
+ assert.deepEqual(Object.keys(patch).sort(),['debug_journal_enabled','debug_journal_retention_days']);assert.equal(closed,1);
+ await all.find(n=>n.textContent==='Удалить журнал текущего профиля').onclick();
+ assert.equal(requests.filter(([url])=>url==='/api/debug-journal/clear').length,1);
+ assert(requests.every(([url])=>!url.includes('start')&&!url.includes('sessions')));
  console.log('Owner UI: baseline unchanged, exact model selection, no auto-paid start, transcript cleared on close');
 })().catch(e=>{console.error(e);process.exitCode=1;});

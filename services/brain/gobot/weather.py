@@ -20,6 +20,8 @@ class WeatherError(Exception):pass
 class WeatherClient:
     def __init__(self,transport=None,clock=time.time):
         self.transport=transport;self.clock=clock;self.cache={};self.calls=[];self.lock=asyncio.Lock()
+    def discard(self,kind,params):
+        self.cache.pop((kind,tuple(sorted(params.items()))),None)
     async def data(self,kind,params,ttl):
         key=(kind,tuple(sorted(params.items())));now=self.clock()
         if key in self.cache and now-self.cache[key][0]<ttl:return self.cache[key][1]
@@ -38,6 +40,9 @@ class WeatherClient:
             import json
             data=json.loads(raw)
             if not isinstance(data,dict) or data.get('error'):raise WeatherError('weather_invalid_data')
+        except httpx.TimeoutException as error:raise WeatherError('weather_source_timeout') from error
+        except httpx.HTTPStatusError as error:
+            raise WeatherError('weather_provider_rate_limit' if error.response.status_code==429 else 'weather_source_rejected' if error.response.status_code<500 else 'weather_source_unavailable') from error
         except (httpx.HTTPError,ValueError) as error:raise WeatherError('weather_source_unavailable') from error
         if len(self.cache)>=32:self.cache.pop(next(iter(self.cache)))
         self.cache[key]=(now,data);return data
@@ -54,21 +59,26 @@ class WeatherClient:
             except (ValueError,KeyError,TypeError):continue
         return out
     async def current(self,place):
-        data=await self.data('weather',{'latitude':place.latitude,'longitude':place.longitude,
+        params={'latitude':place.latitude,'longitude':place.longitude,
             'current':'temperature_2m,apparent_temperature,weather_code,wind_speed_10m',
-            'temperature_unit':'celsius','wind_speed_unit':'kmh','timeformat':'unixtime','timezone':'GMT'},300)
+            'temperature_unit':'celsius','wind_speed_unit':'kmh','timeformat':'unixtime','timezone':'GMT'}
+        data=await self.data('weather',params,300)
         try:
             row=data['current'];stamp=float(row['time']);temperature=float(row['temperature_2m']);apparent=float(row['apparent_temperature']);wind=float(row['wind_speed_10m'])
             if not all(math.isfinite(v) for v in [stamp,temperature,apparent,wind]) or not -100<=temperature<=70 or not -120<=apparent<=100 or not 0<=wind<=500:raise ValueError()
             if not -900<=self.clock()-stamp<=5400:raise WeatherError('weather_data_not_fresh')
             return {'temperature':temperature,'apparent':apparent,'wind_kmh':wind,'weather_code':int(row['weather_code']),'observed_at':stamp,'fetched_at':self.clock()}
-        except (KeyError,TypeError,ValueError):raise WeatherError('weather_invalid_data')
+        except WeatherError:
+            self.discard('weather',params);raise
+        except (KeyError,TypeError,ValueError):
+            self.discard('weather',params);raise WeatherError('weather_invalid_data')
 
     async def forecast(self,place,*,offset=0,days=7,weekday=None):
         if type(offset) is not int or type(days) is not int or not 0<=offset<=15 or not 1<=days<=16 or offset+days>16:raise WeatherError('weather_forecast_horizon')
-        data=await self.data('weather',{'latitude':place.latitude,'longitude':place.longitude,
+        params={'latitude':place.latitude,'longitude':place.longitude,
             'daily':'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max',
-            'temperature_unit':'celsius','wind_speed_unit':'kmh','forecast_days':16,'timezone':'auto'},900)
+            'temperature_unit':'celsius','wind_speed_unit':'kmh','forecast_days':16,'timezone':'auto'}
+        data=await self.data('weather',params,900)
         try:
             zone=ZoneInfo(data['timezone']);today=datetime.fromtimestamp(self.clock(),zone).date()
             if weekday is not None:
@@ -88,4 +98,7 @@ class WeatherClient:
             selected=rows[offset:offset+days]
             if len(selected)!=days:raise WeatherError('weather_forecast_incomplete')
             return {'timezone':data['timezone'],'days':selected,'fetched_at':self.clock(),'horizon_days':16}
-        except (KeyError,TypeError,ValueError,IndexError):raise WeatherError('weather_invalid_data')
+        except WeatherError:
+            self.discard('weather',params);raise
+        except (KeyError,TypeError,ValueError,IndexError):
+            self.discard('weather',params);raise WeatherError('weather_invalid_data')

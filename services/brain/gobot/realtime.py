@@ -139,6 +139,7 @@ class NativeSession(VoiceVisualSession):
         if turn:turn.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def emit(self,kind,**data):
         if self.closed and kind!='closed':return
+        self.manager.journal.session_event(self,'B',kind,data)
         self.event_serial+=1
         turn=self.current.id if self.current else self.id
         self.events.append({'serial':self.event_serial,'type':kind,'session_id':self.id,
@@ -149,6 +150,14 @@ class NativeSession(VoiceVisualSession):
 
     async def send(self,event):
         if self.closed or not self.ws:raise RuntimeError('realtime_session_closed')
+        record=event
+        item=event.get('item',{})
+        if item.get('id') and item.get('id')==self.preference_item:
+            record={'type':event.get('type'),'item_type':item.get('type'),'content_omitted':'personal_preferences'}
+        elif isinstance(item.get('output'),str):
+            try:record={**event,'item':{**item,'output':json.loads(item['output'])}}
+            except ValueError:record={**event,'item':{**item,'output':'[invalid tool output omitted]'}}
+        self.manager.journal.session_event(self,'B','provider_command',{'event_type':event.get('type'),'event':record})
         async with self.send_lock:await self.ws.send(json.dumps(event,ensure_ascii=False))
 
     def spawn(self,coro):
@@ -222,6 +231,7 @@ class NativeSession(VoiceVisualSession):
         req=ChatRequest(text=text,turn_id=turn,request_id=turn,conversation_id=self.access.context_conversation,
             device_id=self.access.effective_scope,profile_epoch=self.offer.profile_epoch,client_id=self.offer.client_id,
             client_kind=self.offer.client_kind,remember=False,screen_preferences=self.profile.screen)
+        req._debug_engine='B'
         if self.owner_test_authorized:
             req._owner_test_budget=self.manager.owner_testing;req._owner_test_binding=self.owner_test_binding
             req._owner_test_origin='developer' if self.offer.developer_acceptance else 'owner'
@@ -345,6 +355,9 @@ class NativeSession(VoiceVisualSession):
 
     async def handle(self,obj):
         kind=obj.get('type','')
+        self.manager.journal.session_event(self,'B','provider_event',{'event_type':kind,'event_id':obj.get('event_id'),
+            'response_id':obj.get('response_id'),'call_id':obj.get('call_id'),'name':obj.get('name'),
+            'error_code':obj.get('error',{}).get('code')})
         if kind=='session.updated':
             actual=obj.get('session',{})
             if not self.ready and settings_applied(actual,self.config):self.ready=True;self.config_ack.set()
@@ -476,6 +489,7 @@ class NativeSession(VoiceVisualSession):
             if name in {'expert_propose','expert_start','expert_cancel'}:
                 self.expert_audit({'expert_propose':'proposal_requested','expert_start':'start_requested','expert_cancel':'cancel_requested'}[name])
             args=json.loads(arguments)
+            self.manager.journal.session_event(self,'B','tool_request',{'call_id':call_id,'name':name,'arguments':args})
             if turn is not self.current or not turn or turn.cancelled:await cancelled_call();return
             if name=='gobot_tool' and isinstance(args,dict) and isinstance(args.get('query'),str):
                 from .presentation import PresentationDecision
@@ -600,6 +614,7 @@ class NativeSession(VoiceVisualSession):
                     self.experts.pending.error=code;self.emit('expert_job',job=self.experts.public(self.experts.pending))
         except Exception:output={'error':'tool_validation_or_execution_failed','executed':False,'ordinary_conversation_available':True}
         if self.closed or turn is not self.current:return
+        self.manager.journal.session_event(self,'B','tool_result',{'call_id':call_id,'name':name,'result':output})
         await self.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,'output':json.dumps(output,ensure_ascii=False)}})
         await self.response()
 
@@ -609,6 +624,9 @@ class NativeSession(VoiceVisualSession):
 
     async def finish(self,turn,heard):
         if turn.stored:return
+        self.manager.journal.session_event(self,'B','dialogue_turn',{'question':turn.query,'answer_transcript':turn.answer,
+            'playback':'client_playback_reported' if heard else 'unconfirmed_or_interrupted',
+            'truncated':bool(turn.truncated),'not_acoustic_proof':True})
         turn.stored=True;turn.cancelled=not heard
         if not heard and turn.photo:await turn.photo.close()
         if turn.req:
@@ -639,6 +657,7 @@ class NativeSession(VoiceVisualSession):
             if not await asyncio.to_thread(self.manager.budget.claim_command,self.id,command.command_id):return {'duplicate':True}
             if len(self.commands)>=256:self.commands.clear() # Durable ledger still rejects every old command.
             self.commands.add(command.command_id);self.last_activity=time.monotonic()
+            self.manager.journal.session_event(self,'B','client_command',command.model_dump(exclude_none=True))
             action=command.action
             if action=='text':
                 if not command.text:raise ValueError('text_required')
@@ -706,6 +725,9 @@ class RealtimeManager:
         self.expert_store=ExpertStore(brain.memory,self.identity.family)
         from .owner_testing import OwnerTesting
         self.owner_testing=OwnerTesting(self.budget.root.parent/'owner-testing')
+        from .debug_journal import DebugJournal
+        self.journal=DebugJournal(self.budget.root.parent/'debug-journal',self.owner_testing)
+        self.brain.debug_journal=self.journal
         self.transition_context={}
 
     def owned(self,ident,owner,client,epoch):
@@ -739,6 +761,7 @@ class RealtimeManager:
     def owner_status(self,binding):
         state=self.owner_testing.status(binding)
         if not state['authorized']:return state
+        state['debug_journal']=self.journal.status(binding)
         from .secrets_store import openai_key_present
         family=self.identity.family;profiles=family.profiles() if family else []
         state['readiness']={
@@ -861,6 +884,7 @@ class RealtimeManager:
                 await self.provider.hangup(call);self.hangups.pop(call,None)
                 await asyncio.to_thread(self.budget.close_call,call)
             except Exception:pass
+        await self.journal.close()
 
     async def invalidate_principal(self,owner,reason='profile_changed'):
         for s in list(self.sessions.values()):

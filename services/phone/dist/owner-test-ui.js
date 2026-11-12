@@ -22,18 +22,51 @@
    this.root.append(el('p','Порог расходов — серверная оценка с резервом, не абсолютный предел счёта OpenAI: usage приходит с задержкой. Неизвестные исходы сохраняют резерв. Транскрипция оплачивается отдельно; CLI расходует подписочную квоту. Открытие панели само не запускает платные операции.'));
    this.readiness=el('ul');this.root.append(this.readiness);
    const diag=el('details');diag.append(el('summary','Сигнал, отправка и понимание речи'));this.level=el('p','Микрофон закрыт');this.transcript=el('p');this.spoken=el('p');this.trace=el('pre');diag.append(this.level,this.transcript,this.spoken,this.trace);this.root.append(diag);
+   this.mountJournal(state);
    const refresh=el('button','Обновить готовность и расход');refresh.type='button';refresh.onclick=()=>this.refresh();this.root.append(refresh);
    (document.querySelector('.device-controls')||document.querySelector('main')).after(this.root);
    this.model.value=state.policy.realtime_model;this.audio.value=state.policy.audio_preset;this.model.onchange=()=>this.save(false);this.audio.onchange=()=>this.save(false);this.apply(state);
   }
   apply(state){
-   this.state=state;this.info.textContent=(state.enabled?'Owner Full Test включён. ':'Owner Full Test выключен. ')+'Оценка за сегодня с резервами: $'+state.estimated_usd_including_pending_reserves+' · вызовы '+JSON.stringify(state.attempts_today);
+   this.state=state;this.info.textContent=(state.enabled?'Owner Full Test включён. ':'Owner Full Test выключен. ')+'Оценка за сегодня с резервами: $'+state.estimated_usd_including_pending_reserves+' · вызовы '+JSON.stringify(state.attempts_today)+(state.policy.debug_journal_enabled?' · Журнал отладки записывает текст разговоров ('+state.policy.debug_journal_retention_days+' дней).':' · Журнал отладки выключен.');
    this.readiness.replaceChildren();for(const [name,value] of Object.entries(state.readiness||{}))this.readiness.append(el('li',(labels[name]||name)+': '+(value.configured?'настроено':value.implemented?'нужна настройка/приёмка':'пока не готово')+' · '+value.acceptance));
    if(state.skill_catalogue){const s=state.skill_catalogue;this.readiness.append(el('li','Каталог сценариев: '+s.scenarios+' · локальные маршруты '+(s.readiness.local_path||0)+' · с условиями '+(s.readiness.conditional_path||0)+' · требуют интеграции/прав '+(s.readiness.not_connected_or_restricted||0)+'. Это не заявление о 400 готовых сервисах.'));}
    const consent=document.getElementById('realtime-expert-consent');if(consent&&state.enabled){consent.checked=state.policy.experts_enabled;consent.disabled=true;}
    if(state.enabled){const c=document.getElementById('realtime-consent');if(c)c.checked=true;}
   }
   async refresh(){try{const r=await fetch('/api/realtime/owner-test',{cache:'no-store'});if(r.ok)this.apply(await r.json());}catch(_){this.info.textContent='Не удалось обновить статус; платный повтор не запускался.';}}
+  mountJournal(state){
+   const box=el('details');box.id='owner-debug-journal';box.append(el('summary','Журнал отладки · разговоры и действия'));
+   box.append(el('p','Отдельная диагностическая запись: вопросы, транскрипт ответа, инструменты, результаты и ошибки. Это не долговременная память GoBot. Сырые аудиозаписи не сохраняются. Доступ ограничен текущим профилем и устройством; тексты зашифрованы на сервере.'));
+   const label=el('label','Записывать журнал отладки'),enabled=el('input');enabled.type='checkbox';enabled.checked=!!state.policy.debug_journal_enabled;label.append(enabled);box.append(label);
+   const retention=el('select');for(const n of [1,3,7]){const option=el('option',n+' дней');option.value=String(n);retention.append(option);}retention.value=String(state.policy.debug_journal_retention_days||7);const days=el('label','Срок хранения');days.append(retention);box.append(days);
+   const save=el('button','Сохранить настройки журнала');save.type='button';save.onclick=async()=>{const r=await fetch('/api/realtime/owner-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({debug_journal_enabled:enabled.checked,debug_journal_retention_days:Number(retention.value)})});if(r.ok){await this.refresh();await this.refreshJournal();}else this.journalStatus.textContent='Настройки журнала не применены.';};box.append(save);
+   this.journalStatus=el('p','Откройте журнал для просмотра.');this.journalList=el('div');this.journalTurns=el('div');this.journalEvents=el('pre');this.journalEvents.className='debug-journal-events';box.append(this.journalStatus,this.journalList,this.journalTurns);
+   const technical=el('details');technical.append(el('summary','События и причины отказов'),this.journalEvents);box.append(technical);
+   const refresh=el('button','Обновить журнал');refresh.type='button';refresh.onclick=()=>this.refreshJournal();box.append(refresh);
+   const clear=el('button','Удалить журнал текущего профиля');clear.type='button';clear.onclick=async()=>{if(!window.confirm('Удалить диагностические записи только текущего профиля и устройства?'))return;const r=await fetch('/api/debug-journal/clear',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(r.ok){this.journalTurns.replaceChildren();this.journalEvents.textContent='';await this.refreshJournal();}};box.append(clear);
+   box.addEventListener('toggle',()=>{if(box.open)void this.refreshJournal();});this.root.append(box);
+  }
+  async refreshJournal(){
+   try{const response=await fetch('/api/debug-journal',{cache:'no-store'});if(!response.ok)throw Error();const data=await response.json(),s=data.status;
+    this.journalStatus.textContent=(s.enabled?'Запись включена':'Запись выключена')+' · '+s.retention_days+' дней · без raw audio'+(s.error?' · ОШИБКА: '+s.error:'')+(s.dropped_events?' · Пропущено событий: '+s.dropped_events:'');
+    this.journalList.replaceChildren();for(const session of data.sessions){const b=el('button',new Date(session.started_at*1000).toLocaleString('ru-RU')+' · '+session.engine+' · '+session.events+' событий');b.type='button';b.onclick=()=>this.openJournal(session.session_id);this.journalList.append(b);}if(!data.sessions.length)this.journalList.append(el('p','Записей пока нет. Журнал начинает запись после включения; старые беседы не восстанавливаются.'));
+   }catch(_){this.journalStatus.textContent='Журнал недоступен для текущего профиля или сервер не ответил.';}
+  }
+  async openJournal(session,before=null,previous=[]){
+   try{
+   const response=await fetch('/api/debug-journal/'+encodeURIComponent(session)+(before?'?before='+before:''),{cache:'no-store'});if(!response.ok){this.journalStatus.textContent='Не удалось открыть эту беседу.';return;}
+   const data=await response.json(),events=[...data.events,...previous];this.journalTurns.replaceChildren();const turns=new Map();
+   for(const e of events){
+    if(e.kind==='dialogue_turn')turns.set(e.turn_id,e.data);
+    else if(e.kind==='user_input'||e.kind==='input_transcript'){const old=turns.get(e.turn_id)||{answer_transcript:''};turns.set(e.turn_id,{...old,question:e.data.text});}
+    else if(e.kind==='text_delta'){const old=turns.get(e.turn_id)||{question:'',answer_transcript:''};turns.set(e.turn_id,{...old,answer_transcript:old.answer_transcript+(e.data.text||'')});}
+    else if(e.engine==='A'&&e.kind==='final'&&turns.has(e.turn_id))turns.get(e.turn_id).answer_transcript=e.data.text;
+   }
+   for(const t of turns.values()){const card=el('article');card.append(el('p','Вы: '+(t.question||'')),el('p','GoBot · транскрипт: '+(t.answer_transcript||'Нет подтверждённого текста ответа.')));if(t.playback)card.append(el('small',t.playback==='client_playback_reported'?'Клиент сообщил воспроизведение; это не акустическая проверка.':'Прослушивание не подтверждено или ответ прерван.'));this.journalTurns.append(card);}
+   this.journalEvents.textContent=JSON.stringify(events,null,2);if(data.next_before){const older=el('button','Показать более ранние события');older.type='button';older.onclick=()=>this.openJournal(session,data.next_before,events);this.journalTurns.append(older);}
+   }catch(_){this.journalStatus.textContent='Не удалось прочитать журнал; повторный разговор не запускался.';}
+  }
   async save(all){
    const patch={realtime_model:this.model.value,audio_preset:this.audio.value};if(all)for(const [key,n] of Object.entries(this.fields))patch[key]=n.type==='checkbox'?n.checked:Number(n.value);
    try{if(window.GoBotRealtime?.id)await window.GoBotRealtime.close('Настройки B изменены. Включите GoBot для новой сессии.','settings_changed');if(all&&patch.enabled===false)await window.GoBotLive?.close('Owner Full Test выключен');const r=await fetch('/api/realtime/owner-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)});if(!r.ok)throw Error();await this.refresh();await window.GoBotExpertUI?.refresh();}catch(_){this.info.textContent='Настройки не применены. Платный запуск не выполнялся.';}

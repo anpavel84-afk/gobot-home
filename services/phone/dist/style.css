@@ -20,3 +20,5 @@ body.browser-product{--bg:#0c141a;--surface:#15232c;--surface2:#192c36;--ink:#ee
 .weather-condition{font-size:24px;margin:12px 0}.weather-forecast{font-size:12px;border-collapse:collapse;width:100%;display:block;overflow-x:auto}.weather-forecast td,.weather-forecast th{padding:8px 5px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 
 .expert-panel{margin:20px auto;padding:16px;border:1px solid #29414c;border-radius:16px;max-width:760px;color:#edf5f4}.expert-panel label{display:flex;gap:10px;align-items:center;margin:12px 0}.expert-panel select{max-width:100%}.expert-panel button{margin:12px 0}.expert-panel article{border-top:1px solid #29414c;padding:12px 0}.expert-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.expert-panel p{font-size:13px;color:#9cafb7}.expert-panel a{color:#a3e5cd}
+
+#owner-debug-journal{max-width:100%;overflow-wrap:anywhere}#owner-debug-journal article{padding:12px;border-top:1px solid #2a3d47}#owner-debug-journal button{margin:6px;min-height:44px}.debug-journal-events{max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}

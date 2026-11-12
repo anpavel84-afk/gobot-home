@@ -42,6 +42,10 @@ class Service:
         self.settings=settings;self.memory=Memory(settings.db);self.running={};self.limit=asyncio.Semaphore(4);self.router=SmartRouter(settings.router);self.context_manager=ContextManager.configured();self.tools=LocalTools(self.memory);self.verifier=SelectiveVerifier();self.visual=VisualService(cache=ImageCache(Path(settings.db).parent/'visual-cache'))
         self.configuration=SettingsTools(self.memory,Path(settings.db).resolve().parent/'browser-devices')
     async def prepare(self,req):
+        journal=getattr(self,'debug_journal',None)
+        if journal and getattr(req,'_debug_engine',None) not in {'B','C'}:
+            req._debug_journal=journal
+            journal.legacy_event(req,'user_input',{'text':req.text,'remember':req.remember,'requested_model':req.model_id})
         try:return await asyncio.to_thread(self.memory.start,req)
         except Conflict as e:raise HTTPException(409,str(e))
     def warm_from_final(self,text,owner,utterance,trace,epoch=None):
@@ -583,6 +587,9 @@ def create_app(settings=None):
             try:
                 async for item in iterator:
                     if item['type']=='audio_chunk':trace.mark('audio_transport_send')
+                    if item['type'] in {'audio_start','audio_stop','tts_status','tts_error','speech_text','opening_status'}:
+                        journal=getattr(chat_req,'_debug_journal',None)
+                        if journal:journal.legacy_event(chat_req,item['type'],item.get('data',{}))
                     if item['type']=='final':item['data']['telemetry']=trace.snapshot()
                     yield 'event: '+item['type']+'\ndata: '+json.dumps(item,ensure_ascii=False)+'\n\n'
             finally:

@@ -478,3 +478,13 @@ null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отд
 current/tomorrow2calls; paid developer0. Все существующие policy/profile rows
 сохранены по byte-сверке с WAL backup202742. Новые Live voice/iPhone trials
 не выполнялись; прежние реальные canaries не названы проверкой нового prompt.
+
+### Журнал отладки — Owner Direct, CURRENT_STATUS §40
+
+| Требование | Реализация | Граница проверки |
+| --- | --- | --- |
+| Протокол A/B/C после Close | Единый DebugJournal, вопросы/ответы/события/результаты/usage | Текст транскрипта, не исходное аудио/не доказательство услышанного |
+| Сохранение приватности | DPAPI payload, owner binding + principal/client/epoch scope | Не семейная память; epoch rotation не открывает прежнюю историю |
+| Управление записью | Existing Owner Full Test, включение/1..7дней/удаление | Отдельное согласие владельца; remember=false не индексирует диалоги |
+| Не задерживать голос | Bounded background writer, health/dropped events | Не lossless при сбое процесса/диска/переполнении |
+| Разбор отказа погоды | Конкретный reason, verified=false, invalid-cache eviction | Старый незаписанный инцидент не реконструирован |

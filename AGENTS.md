@@ -67,7 +67,8 @@ stays RAM-only. Profile change/revocation/close never transfers results or auto-
 Catalog metadata and offline isolation are not real entitlement, latency or iPhone acceptance.
 Blocked expert admission must not become an awaiting-confirmation job. Expose effective admission
 to Realtime instructions and the existing expert panel; only accepted=true means submitted.
-Persist allowlisted stage/rejection counters only, never household transcripts for diagnostics.
+By default persist allowlisted stage/rejection counters only. The explicit owner debug
+journal amendment below separately permits scoped encrypted text diagnostics.
 Owner requested A restored for manual comparison: isolate its browser settings/consents from B,
 preserve frozen baseline bytes and Russian formatter; opening A must not invoke STT/CLI/TTS.
 Any bound manual-consent bootstrap applies once and respects subsequent local revocation.
@@ -162,3 +163,15 @@ archive. The existing assistant-skills.json carries reviewed dialogue rules,
 not permission/capability grants. Normalize conversational wrappers only in the
 read-only weather path; do not make destructive action parsing fuzzy. Preserve
 source verification, geographic time zone, finite quotas and explicit setup.
+
+OWNER DIRECT debugging journal supersedes the blanket diagnostic transcript ban
+only for the bound owner's explicitly enabled debug journal. Record A/B/C questions,
+answer transcripts, routes, tool results/failures, model/job IDs, usage and lifecycle
+in local Windows-DPAPI encrypted SQLite. Never raw audio, embeddings, credentials,
+full instructions, personal preference prompts or context archives. Keep it separate
+from semantic memory: remember=false must not index/save chat to long-term memory.
+Access is authenticated and scoped to principal/device/profile epoch, no cross-family
+history. Show the opt-in, 1..7-day retention, health/dropped events and deletion in
+the existing Owner Full Test panel. Bounded background writing must not block voice;
+do not claim exhaustive/lossless recording during failure or recover older transcripts.
+No household text or journal database in Git. Preserve all expense limits.

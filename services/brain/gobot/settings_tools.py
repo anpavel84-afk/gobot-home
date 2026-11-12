@@ -70,6 +70,26 @@ class SettingsResult(ToolResult):
 class SettingsTools:
     def __init__(self,memory,root):self.memory=memory;self.devices=DeviceStore(root);self.weather=WeatherClient();self.weather_locks={}
 
+    @staticmethod
+    def weather_failure(error,method):
+        code=str(error)
+        messages={
+            'weather_source_timeout':'Open-Meteo не ответил вовремя.',
+            'weather_provider_rate_limit':'Open-Meteo временно ограничил запросы.',
+            'weather_rate_limit':'Достигнут лимит частоты запросов к погодному источнику.',
+            'weather_source_unavailable':'Не удалось связаться с Open-Meteo.',
+            'weather_source_rejected':'Open-Meteo отклонил погодный запрос.',
+            'weather_invalid_data':'Ответ Open-Meteo не прошёл проверку данных.',
+            'weather_response_limit':'Ответ Open-Meteo превысил допустимый размер.',
+            'weather_data_not_fresh':'Open-Meteo вернул устаревшие текущие данные.',
+            'weather_forecast_not_fresh':'Даты прогноза Open-Meteo не соответствуют запрошенному периоду.',
+            'weather_forecast_incomplete':'Open-Meteo не вернул весь запрошенный прогноз.',
+            'weather_forecast_horizon':'Запрошенный период выходит за доступный прогноз.',
+        }
+        if code not in messages:code='weather_invalid_data'
+        text=messages[code]+(' Прогноз пока не получен.' if method=='weather_forecast_api' else 'Текущая погода пока не получена.')
+        return SettingsResult(text,evidence={'method':method,'verified':False,'abstained':True,'reason':code})
+
     def setup_result(self,req,step,status,text,*,next_action='',subtitle='',reason=None):
         setup={'tool':'weather','provider':'open_meteo','step':step,'total_steps':4,'status':status,'next_action':next_action}
         if reason:setup['reason']=reason
@@ -162,12 +182,12 @@ class SettingsTools:
         if operation=='weather_status':return SettingsResult('Для погоды выбран '+profile.weather.location_name+'. Источник — Open-Meteo; домашние датчики не подключены.')
         if operation=='weather_forecast':
             try:forecast=await self.weather.forecast(profile.weather,offset=slots.get('offset',0),days=slots.get('days',7),weekday=slots.get('weekday'))
-            except WeatherError:return SettingsResult('Не удалось получить проверенный прогноз. Температуру или осадки выдумывать не буду.',evidence={'abstained':True})
+            except WeatherError as error:return self.weather_failure(error,'weather_forecast_api')
             if not is_current():return SettingsResult('Запрос отменён.')
             return self.forecast_result(req,profile,forecast)
         if operation=='weather_current':
             try:weather=await self.weather.current(profile.weather)
-            except WeatherError:return SettingsResult('Погодный источник сейчас недоступен или данные устарели. Не буду подставлять выдуманную температуру.',evidence={'abstained':True})
+            except WeatherError as error:return self.weather_failure(error,'weather_api')
             return self.weather_result(req,profile,weather)
         return SettingsResult('Эта настройка через голос пока не поддерживается. '+HELP)
 

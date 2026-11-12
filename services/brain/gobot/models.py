@@ -50,4 +50,6 @@ class Event(BaseModel):
     data: dict = Field(default_factory=dict)
 
 def event(req, kind, **data):
+    journal=getattr(req,'_debug_journal',None)
+    if journal:journal.legacy_event(req,kind,data)
     return Event(type=kind, **{k:getattr(req,k) for k in ["correlation_id","device_id","conversation_id","turn_id"]}, data=data)

@@ -3,3 +3,5 @@
 #realtime-heard{flex-basis:100%;max-width:38ch;text-align:center;overflow-wrap:anywhere;color:#9cafb7;font-size:12px;margin:8px 0}
 
 .expert-panel{margin:20px auto;padding:16px;border:1px solid #29414c;border-radius:16px;max-width:760px;color:#edf5f4}.expert-panel label{display:flex;gap:10px;align-items:center;margin:12px 0}.expert-panel select{max-width:100%}.expert-panel button{margin:12px 0}.expert-panel article{border-top:1px solid #29414c;padding:12px 0}.expert-panel pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.expert-panel p{font-size:13px;color:#9cafb7}.expert-panel a{color:#a3e5cd}
+
+#owner-debug-journal{max-width:100%;overflow-wrap:anywhere}#owner-debug-journal article{padding:12px;border-top:1px solid #2a3d47}#owner-debug-journal button{margin:6px;min-height:44px}.debug-journal-events{max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}

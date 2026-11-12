@@ -19,6 +19,8 @@ async def bounded_json(request,limit=70000):
     except (ValueError,TypeError):raise HTTPException(422,'invalid_realtime_request')
 
 def attach_brain_realtime(app,manager,auth):
+    from .debug_journal_api import attach_brain_journal
+    attach_brain_journal(app,manager,auth)
     @app.get('/api/v1/realtime/owner-test',dependencies=[Depends(auth)])
     async def owner_test_status(binding:str):
         return await asyncio.to_thread(manager.owner_status,binding)

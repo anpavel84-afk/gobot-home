@@ -38,6 +38,8 @@ class OwnerTestPolicy(BaseModel):
     live_backend_enabled:bool=False
     live_backend_requests_per_day:int=Field(default=500,ge=1,le=10000)
     developer_live_backend_limit:int=Field(default=0,ge=0,le=14)
+    debug_journal_enabled:bool=False
+    debug_journal_retention_days:int=Field(default=7,ge=1,le=7)
 
 class OwnerTesting:
     def __init__(self,root):
@@ -56,7 +58,7 @@ class OwnerTesting:
         p=self.policy();return bool(p.authorization and binding and p.allowed_client_id==binding)
     def update(self,binding,patch):
         if not self.bound(binding):raise PermissionError('owner_device_required')
-        if set(patch)-{'enabled','api_estimate_usd_per_day','realtime_responses_per_day','expert_jobs_per_day','image_attempts_per_day','experts_enabled','images_enabled','device_settings_enabled','realtime_model','audio_preset','live_enabled','live_minutes_per_day','live_session_seconds','live_backend_enabled','live_backend_requests_per_day'}:raise ValueError('owner_policy_field_denied')
+        if set(patch)-{'enabled','api_estimate_usd_per_day','realtime_responses_per_day','expert_jobs_per_day','image_attempts_per_day','experts_enabled','images_enabled','device_settings_enabled','realtime_model','audio_preset','live_enabled','live_minutes_per_day','live_session_seconds','live_backend_enabled','live_backend_requests_per_day','debug_journal_enabled','debug_journal_retention_days'}:raise ValueError('owner_policy_field_denied')
         with self.lock:
             p=self.policy();value=OwnerTestPolicy.model_validate({**p.model_dump(),**patch,'revision':p.revision+1})
             temp=self.policy_path.with_suffix('.tmp');temp.write_text(value.model_dump_json(indent=2),encoding='utf-8');os.replace(temp,self.policy_path)

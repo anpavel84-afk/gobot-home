@@ -88,6 +88,7 @@ class LiveSession(VoiceVisualSession):
         if turn:turn.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def emit(self,kind,**data):
         if self.closed and kind!='closed':return
+        self.manager.journal.session_event(self,'C',kind,data)
         self.event_serial+=1
         self.event_counts[kind]=min(10000,self.event_counts.get(kind,0)+1)
         self.events.append({'serial':self.event_serial,'type':kind,'session_id':self.id,'conversation_id':self.offer.conversation_id,
@@ -102,6 +103,9 @@ class LiveSession(VoiceVisualSession):
         task.add_done_callback(settled);return task
     async def send(self,event):
         if self.closed or not self.ws:raise RuntimeError('live_session_closed')
+        record={'event_type':event.get('type'),'delegation_id':event.get('delegation_id')}
+        if event.get('type')!='session.instructions.append':record['event']=event
+        self.manager.journal.session_event(self,'C','provider_command',record)
         async with self.send_lock:await self.ws.send(json.dumps(event,ensure_ascii=False))
     async def append(self,kind,text,delegation_id=None):
         if kind not in {'commentary','thinking','instructions'}:raise ValueError('invalid_live_append')
@@ -118,6 +122,7 @@ class LiveSession(VoiceVisualSession):
             device_id=self.access.effective_scope,profile_epoch=self.offer.profile_epoch,client_id=self.offer.client_id,
             client_kind=self.offer.client_kind,remember=False,screen_preferences=self.profile.screen)
         req._owner_test_budget=self.manager.owner_testing;req._owner_test_binding=self.owner_test_binding
+        req._debug_engine='C'
         req._owner_test_origin='developer' if self.offer.developer_acceptance else 'owner'
         return req
     def settings_request(self,text,turn):return self.request(text,turn).model_copy(update={'device_id':self.offer.device_id})
@@ -201,6 +206,7 @@ class LiveSession(VoiceVisualSession):
         self.emit('ready',model=LIVE_MODEL,voice=voice,configuration_confirmed=True,store=False,private_access=False,
             memory_mode='guest_ram_only',input_mode=self.offer.input_mode,requested_version='1.1',actual_version='1',
             mode_conversation_id=self.mode_flow.id if self.mode_flow else None,idle_seconds=IDLE_SECONDS)
+        self.emit('debug_journal_status',**self.manager.journal.status(self.owner_test_binding))
         self.emit('speaker_readiness',**await asyncio.to_thread(self.speaker.status));self.emit('speaker_segment',segment_id=self.speaker.begin())
         self.timer=asyncio.create_task(self.expire())
         return answer
@@ -216,6 +222,9 @@ class LiveSession(VoiceVisualSession):
 
     async def handle(self,event):
         kind=event.get('type');ident=event.get('event_id')
+        self.manager.journal.session_event(self,'C','provider_event',{'event_type':kind,'event_id':ident,
+            'delegation_id':event.get('delegation',{}).get('id'),'client_event_id':event.get('client_event_id'),
+            'start_ms':event.get('start_ms'),'end_ms':event.get('end_ms'),'offset_ms':event.get('offset_ms')})
         if ident and ident in self.seen:return
         if ident:self.seen.add(ident)
         if len(self.seen)>4096:raise RuntimeError('live_event_capacity')
@@ -291,6 +300,10 @@ class LiveSession(VoiceVisualSession):
     async def finish_turn(self,heard):
         turn=self.current
         if not turn:return
+        if heard or not turn.stored:
+            self.manager.journal.session_event(self,'C','dialogue_turn',{'question':turn.query,'answer_transcript':turn.answer,
+                'playback':'client_playback_reported' if heard else 'unconfirmed_or_interrupted','truncated':bool(turn.truncated),
+                'not_acoustic_proof':True})
         if not heard:turn.truncated=True
         if turn.stored:
             if heard and not self.speech_stopped and turn.req:await asyncio.to_thread(self.manager.brain.memory.complete_native_continuation,turn.req,turn.answer,'openai:'+LIVE_MODEL,turn.trace)
@@ -490,7 +503,7 @@ class LiveSession(VoiceVisualSession):
         # such as "нет, завтра" can refine it while the first lookup is pending.
         self.weather_topic=quick.executor=='settings' and quick.slots.get('operation') in {'weather_current','weather_forecast'}
         if self.weather_topic:self.weather_last_request={k:quick.slots[k] for k in ('operation','offset','days','weekday') if k in quick.slots}
-        self.emit('local_tool_status',state='running',tool=quick.executor,intent=quick.intent)
+        self.emit('local_tool_status',state='running',tool=quick.executor,intent=quick.intent,operation=quick.slots.get('operation'))
         slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
         try:
             if quick.executor=='settings':
@@ -527,7 +540,12 @@ class LiveSession(VoiceVisualSession):
         self.operations[operation]='completed'
         self.operation_results[operation]=result.text[:2000]
         if len(self.operation_results)>64:self.operation_results.pop(next(iter(self.operation_results)))
-        self.emit('local_tool_status',state='completed',tool=quick.executor,has_widget=bool(result.widget),has_source=bool(result.evidence))
+        evidence=result.evidence or {}
+        self.emit('local_tool_status',state='failed' if evidence.get('abstained') and evidence.get('reason') else 'completed',
+            tool=quick.executor,operation=quick.slots.get('operation'),has_widget=bool(result.widget),
+            has_source=evidence.get('verified') is True,reason=evidence.get('reason'))
+        self.manager.journal.session_event(self,'C','tool_result',{'tool':quick.executor,'operation':quick.slots.get('operation'),
+            'text':result.text,'evidence':evidence})
         await self.append('commentary',spoken_fields(result.text)['spoken_text'],did)
 
     async def mode_control(self,query):
@@ -610,6 +628,10 @@ class LiveSession(VoiceVisualSession):
         if self.closed or self.closing:return {'closed':True}
         if not await asyncio.to_thread(self.manager.budget.claim,self.id,command.command_id):return {'duplicate':True}
         action=command.action
+        activity=(command.input_active,command.playback_active)
+        if action!='activity' or activity!=getattr(self,'_journal_activity',None):
+            self.manager.journal.session_event(self,'C','client_command',command.model_dump(exclude_none=True))
+        if action=='activity':self._journal_activity=activity
         if action=='end':return await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,command.reason)
         if action in {'mute','unmute'}:
             ident=uuid4().hex;future=asyncio.get_running_loop().create_future();self.acks[ident]=future
@@ -659,6 +681,7 @@ class LiveSession(VoiceVisualSession):
 class LiveManager:
     def __init__(self,realtime,*,provider=None,root=None):
         self.realtime=realtime;self.brain=realtime.brain;self.identity=realtime.identity;self.owner_testing=realtime.owner_testing;self.expert_store=realtime.expert_store
+        self.journal=realtime.journal
         self.provider=provider or LiveProvider();self.budget=LiveBudget(root or realtime.budget.root.parent/'live',self.owner_testing)
         from .live_backend import LiveBackend
         self.backend=LiveBackend(self.budget.root,self.owner_testing)
@@ -759,6 +782,7 @@ class LiveManager:
         if self.mode_timer:self.mode_timer.cancel()
         for s in list(self.sessions.values()):await self.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'server_shutdown')
         for flow in self.modes.items.values():self.modes.end(flow,'server_shutdown')
+        await self.journal.flush()
     async def expire_modes(self):
         try:
             while True:
