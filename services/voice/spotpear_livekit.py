@@ -46,6 +46,7 @@ class LocalMediaRelay:
         self.closed=False
         self.microphone_active=False
         self.speaker_active=False
+        self.speaker_until=0.
         self.pre_source_frames=0
     def token(self,identity):
         now=int(time.time())
@@ -85,7 +86,8 @@ class LocalMediaRelay:
     async def consume(self,stream,queue,counter):
         async for item in stream:
             if ((counter=="input_frames" and not self.microphone_active)
-                    or (counter=="output_frames" and not self.speaker_active)):
+                    or (counter=="output_frames" and (not self.speaker_active
+                        or asyncio.get_running_loop().time()>self.speaker_until))):
                 # A subscribed Opus track can produce comfort noise before its AudioSource
                 # has received any microphone PCM. It must not fill the question queue
                 # while the provider's SDP/sideband handshake is in progress.
@@ -108,6 +110,10 @@ class LocalMediaRelay:
         await self.mic.capture_frame(rtc.AudioFrame(pcm,16000,1,len(pcm)//2))
     async def send_speaker(self,pcm):
         self.speaker_active=True
+        # The remote Opus track keeps producing concealment/silence after the real
+        # provider stops sending. Do not keep the device's playback/idle alive with
+        # those frames. Allow the source's bounded queue plus local codec transit.
+        self.speaker_until=asyncio.get_running_loop().time()+self.speaker.queued_duration+len(pcm)/48000+.15
         await self.speaker.capture_frame(rtc.AudioFrame(pcm,24000,1,len(pcm)//2))
     async def output(self,consumer):
         while True:

@@ -33,7 +33,8 @@ class LiveBudget:
             origin='developer' if offer.developer_acceptance else 'owner'
             if grant:
                 origin='hardware:'+grant.grant_id
-                limit=min(grant.session_seconds,int(grant.expires_at-time.time()))
+                limit=grant.session_seconds
+                if grant.expires_at is not None:limit=min(limit,int(grant.expires_at-time.time()))
             if origin=='developer':
                 all_dev=c.execute("SELECT reserved,seconds,final,reason FROM calls WHERE origin='developer'").fetchall()
                 remaining=p.developer_live_seconds-sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,reason in all_dev)

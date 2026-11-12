@@ -49,6 +49,38 @@ def test_scoped_board_allowance(tmp_path):
     assert DeviceProfile(client_id=board,client_kind='spotpear').capabilities()['kind']=='spotpear'
 
 
+def test_fifty_manual_board_sessions_keep_phone_and_prior_usage_separate(tmp_path,monkeypatch):
+    owner=OwnerTesting(tmp_path/'owner')
+    board='fixture-board'
+    grant=HardwareVoiceGrant(client_id=board,grant_id=uuid4().hex,expires_at=None,
+                             sessions=50,session_seconds=60,backend_calls=0,estimate_usd=2.5)
+    policy=OwnerTestPolicy(enabled=True,authorization='fixture',allowed_client_id='phone',
+                           live_enabled=True,live_backend_enabled=True,hardware_voice=grant)
+    owner.policy_path.write_text(policy.model_dump_json())
+    budget=LiveBudget(tmp_path/'live',owner)
+    offer=LiveOffer(session_id=uuid4().hex,conversation_id=uuid4().hex,consent=True,
+                    device_id=board,client_id=board,conversation_mode='unified',
+                    sdp='v=0'+' '*32,personalization_mode='guest',remember=False)
+    with owner.connect() as db:
+        db.execute('INSERT INTO attempts VALUES(?,?,?,?,?,?)',
+                   ('prior-board-attempt',int(time.time()//86400),'live',.0316667,0,'hardware:prior-grant'))
+    initial_time=time.time()
+    for index in range(50):
+        if index==25:monkeypatch.setattr(time,'time',lambda:initial_time+2*86400)
+        assert owner.hardware_voice_ready(board)
+        assert budget.reserve(offer.model_copy(update={'session_id':uuid4().hex}))==60
+    assert not owner.hardware_voice_ready(board)
+    with pytest.raises(PermissionError,match='hardware_voice_limit'):
+        budget.reserve(offer.model_copy(update={'session_id':uuid4().hex}))
+    for kind in ('live_backend','expert','image'):
+        with pytest.raises(PermissionError):owner.reserve(board,kind,uuid4().hex,estimate=.001)
+    assert owner.authorized('phone') and not owner.authorized(board)
+    assert owner.policy().allowed_client_id=='phone'
+    with owner.connect() as db:
+        assert db.execute('SELECT count(*) FROM attempts').fetchone()[0]==51
+    with pytest.raises(ValueError):HardwareVoiceGrant.model_validate({**grant.model_dump(),'sessions':51})
+
+
 def test_audio_reaches_track_before_end_and_buffer_is_bounded():
     async def run():
         track=StreamingSpeech()
