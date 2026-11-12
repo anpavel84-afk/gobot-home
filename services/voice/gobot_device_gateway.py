@@ -292,7 +292,8 @@ class Gateway:
             self.stats['errors'] += 1
             safe={'audio_outside_capture','control_too_large','invalid_control','wrong_session','invalid_hello','invalid_state_transition','only_wake_auto_turn_supported','audio_packet_limit','audio_duration_limit','hardware_input_backlog_or_state'}
             print(json.dumps({'event':'device_connection_error','kind':type(error).__name__,
-                              'code':str(error) if str(error) in safe else 'other','state':state}),flush=True)
+                              'code':str(error) if str(error) in safe else 'other','state':state,
+                              'input':stream.diagnostics() if stream is not None else None}),flush=True)
             with contextlib.suppress(Exception): await ws.close(1008, 'Invalid or expired turn')
         finally:
             if tts_finished and response_task and not response_task.done():
@@ -366,6 +367,7 @@ class Gateway:
                             # Brain reserves the exact grant atomically before it creates a provider session.
                             flow = await live_turn(client, self.config, self.auth, wav, turn_id, send,
                                                    lambda packet: self.send_audio(ws, packet), OpusOutput())
+                            self.stats['live_input']=wav.diagnostics()
                             self.mode_flow = self.confirmed_legacy(flow)
                 elif self.config['mode'] == 'legacy_a':
                     await self.brain_response(ws, send, wav, turn_id)
@@ -382,7 +384,8 @@ class Gateway:
             raise
         except Exception as error:
             self.stats['errors'] += 1
-            print(json.dumps({'event': 'device_response_error', 'kind': type(error).__name__}), flush=True)
+            print(json.dumps({'event': 'device_response_error', 'kind': type(error).__name__,
+                              'input':wav.diagnostics() if hasattr(wav,'diagnostics') else None}), flush=True)
             with contextlib.suppress(Exception): await ws.close(1011, 'GoBot response unavailable')
 
     @staticmethod

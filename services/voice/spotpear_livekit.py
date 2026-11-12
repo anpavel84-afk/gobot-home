@@ -15,7 +15,9 @@ class RelayInput(AudioStreamTrack):
         super().__init__()
         self.queue=queue
         self.position=0
+        self.started=asyncio.Event()
     async def recv(self):
+        self.started.set()
         pcm=await asyncio.wait_for(self.queue.get(),5)
         frame=av.AudioFrame.from_ndarray(np.frombuffer(pcm,"<i2").reshape(1,-1),format="s16",layout="mono")
         frame.sample_rate=16000;frame.pts=self.position;frame.time_base=Fraction(1,16000)
@@ -42,6 +44,9 @@ class LocalMediaRelay:
         self.counts={"input_frames":0,"output_frames":0}
         self.error=asyncio.get_running_loop().create_future()
         self.closed=False
+        self.microphone_active=False
+        self.speaker_active=False
+        self.pre_source_frames=0
     def token(self,identity):
         now=int(time.time())
         return jwt.encode({"iss":self.settings["key"],"sub":identity,"nbf":now-3,"exp":now+240,
@@ -79,16 +84,30 @@ class LocalMediaRelay:
         await asyncio.wait_for(asyncio.gather(*(event.wait() for event in self.ready)),8)
     async def consume(self,stream,queue,counter):
         async for item in stream:
+            if ((counter=="input_frames" and not self.microphone_active)
+                    or (counter=="output_frames" and not self.speaker_active)):
+                # A subscribed Opus track can produce comfort noise before its AudioSource
+                # has received any microphone PCM. It must not fill the question queue
+                # while the provider's SDP/sideband handshake is in progress.
+                self.pre_source_frames+=1
+                continue
             queue.put_nowait(bytes(item.frame.data))
             self.counts[counter]+=1
         if not self.closed:
             raise ConnectionError("livekit_media_track_closed")
-    async def microphone(self,capture):
+    async def microphone(self,capture,*,wait_for_transport=False):
+        if wait_for_transport:
+            await asyncio.wait_for(self.input_track.started.wait(),5)
+        self.microphone_active=True
         while True:
             frame=await capture.recv()
             pcm=frame.to_ndarray().astype("<i2",copy=False).tobytes()
-            await self.mic.capture_frame(rtc.AudioFrame(pcm,16000,1,len(pcm)//2))
+            await self.send_microphone(pcm)
+    async def send_microphone(self,pcm):
+        self.microphone_active=True
+        await self.mic.capture_frame(rtc.AudioFrame(pcm,16000,1,len(pcm)//2))
     async def send_speaker(self,pcm):
+        self.speaker_active=True
         await self.speaker.capture_frame(rtc.AudioFrame(pcm,24000,1,len(pcm)//2))
     async def output(self,consumer):
         while True:

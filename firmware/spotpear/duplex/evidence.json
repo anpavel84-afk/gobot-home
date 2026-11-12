@@ -53,14 +53,57 @@
     "provider_calls": 0
   },
   "model_trials": {
-    "sessions": 2,
+    "sessions": 3,
     "confirmed_seconds": [
+      15,
       15,
       15
     ],
-    "estimated_usd": 0.025,
-    "gateway_errors": 2,
+    "estimated_usd": 0.0375,
+    "gateway_errors": 3,
     "owner_heard_response": false,
-    "original_error_detail_not_recorded": true
+    "original_error_detail_not_recorded": true,
+    "last_failure": "hardware_input_backlog_or_state",
+    "last_trial_uplink_packets": 68,
+    "last_trial_downlink_not_proven_speech": true,
+    "post_fix_provider_calls": 0
+  },
+  "hardware_webrtc_startup_probe": {
+    "received_packets": 248,
+    "downlink_packets": 147,
+    "continuous_ack": 1,
+    "playback_started": 30,
+    "microphone_frames": 447,
+    "speaker_frames": 400,
+    "nonzero_microphone_frames": 318,
+    "microphone_during_speaker": 400,
+    "fixture_closes": 1,
+    "peak_input_backlog_ms": 5919,
+    "input_backlog_ms": 5919,
+    "setup_delay_ms": 5000,
+    "provider_calls": 0,
+    "activation": "USB diagnostic, not physical touch",
+    "idle_upload": 0,
+    "capture_continues_during_output": true,
+    "fixture_not_brain": true,
+    "provider_speech_verified": false
+  },
+  "startup_fix": {
+    "setup_deadline_seconds": 10,
+    "max_ram_backlog_seconds": 12,
+    "discard_before_source_pcm": true,
+    "no_end_of_utterance_gate": true,
+    "tests_targeted_passed": 15,
+    "firmware_reflashed": false,
+    "human_barge_in": "not_passed",
+    "latency_limitation": "setup audio backlog is preserved, not a low-latency benchmark",
+    "regression": {
+      "passed": 2108,
+      "skipped": 3,
+      "xfailed": 1,
+      "subtests": 118,
+      "seconds": 228.79,
+      "paid_calls": 0
+    }
   }
 }
