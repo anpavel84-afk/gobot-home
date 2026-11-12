@@ -68,7 +68,7 @@ def observe(seconds, volume=None, sound_check=False, pause_check=False):
             pending = lines.pop()[-8192:]
             for line in lines:
                 value = line.decode(errors="replace")
-                found = re.search(r"(GOBOT_(?:STATUS version=[\w.-]+(?: \w+=\d+)+|TOUCH_STATUS events=\d+ activations=\d+|ENDPOINT auto_ends=\d+ local=\d+|PAUSE_CHECK armed=1|AUTO_END local=\d+ elapsed_ms=\d+|VOLUME percent=\d+|SOUND_CHECK local=1|LCD atlas=1 size=240x240|ACTIVATION source=(?:touch|button) number=\d+|UTTERANCE_END upload=0)|CST816D not found|Guru Meditation Error|Get chip ID: 0x[\da-fA-F]+)", value)
+                found = re.search(r"(GOBOT_(?:MWW (?:\w+=-?\d+ ?)+|PARITY rows=\d+ hash=\d+|MWW_MEMORY (?:\w+=\d+ ?)+|STATUS version=[\w.-]+(?: \w+=\d+)+|TOUCH_STATUS events=\d+ activations=\d+|ENDPOINT auto_ends=\d+ local=\d+|PAUSE_CHECK armed=1|AUTO_END local=\d+ elapsed_ms=\d+|VOLUME percent=\d+|SOUND_CHECK local=1|LCD atlas=1 size=240x240|ACTIVATION source=(?:touch|button|wake) number=\d+|UTTERANCE_END upload=0)|CST816D not found|Guru Meditation Error|Get chip ID: 0x[\da-fA-F]+)", value)
                 if found:
                     print(found[0], flush=True)
 
