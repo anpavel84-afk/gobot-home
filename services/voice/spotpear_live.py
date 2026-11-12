@@ -119,6 +119,17 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
 
         if isinstance(capture,StreamingSpeech):
             tasks.append(asyncio.create_task(activity()))
+        answer_has_audio = asyncio.Event()
+        question_transcribed = asyncio.Event()
+        if isinstance(capture, StreamingSpeech):
+            async def provider_end_signal():
+                await question_transcribed.wait()
+                await answer_has_audio.wait()
+                if not capture.finished:
+                    await send({"type":"gobot_input_end"})
+                # Keep task lifetime bound to the turn, not its first output.
+                await asyncio.Future()
+            tasks.append(asyncio.create_task(provider_end_signal()))
         last_sound = [0.]
         resampler = av.AudioResampler(format="s16", layout="mono", rate=24000)
         async def output():
@@ -134,6 +145,7 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                         continue
                     if not started:
                         if isinstance(capture, StreamingSpeech):
+                            answer_has_audio.set()
                             await asyncio.wait_for(capture.ended.wait(), timeout=26)
                         await send({"type":"tts","state":"start"})
                         started = True
@@ -158,6 +170,8 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
                             continue
                         await send(scene)
                     elif kind == "input_transcript":
+                        if data["text"].strip():
+                            question_transcribed.set()
                         await send({"type":"stt","text":data["text"][:512]})
                     elif kind == "closed":
                         if not data.get("final_usage_confirmed"):

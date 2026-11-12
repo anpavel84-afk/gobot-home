@@ -26,7 +26,7 @@ def tone():
     return sink.getvalue()
 
 
-@pytest.mark.parametrize("streaming",[False, True])
+@pytest.mark.parametrize("streaming",[False, True, "provider_end"])
 def test_live_roundtrip_and_close(streaming):
     async def scenario():
         remote = RTCPeerConnection(RTCConfiguration(iceServers=[]))
@@ -45,7 +45,7 @@ def test_live_roundtrip_and_close(streaming):
                 frame = await track.recv()
                 if np.max(np.abs(frame.to_ndarray().astype(float))) > 100:
                     input_received.set()
-                    if streaming:
+                    if streaming is True:
                         # The real remote WebRTC track already received speech before end-of-input.
                         capture.finish()
 
@@ -56,10 +56,15 @@ def test_live_roundtrip_and_close(streaming):
         async def handler(req):
             if req.method == "GET":
                 assert req.url.params["client_id"] == "spotpear-unit"
-                await asyncio.wait_for(input_received.wait(), 5)
-                await asyncio.wait_for(output_received.wait(), 5)
-                event = {"type":"closed", "session_id":ident, "data":{"final_usage_confirmed":True}}
-                return httpx.Response(200, text="data: " + json.dumps(event) + "\n\n")
+                class Events(httpx.AsyncByteStream):
+                    async def __aiter__(self):
+                        await asyncio.wait_for(input_received.wait(),5)
+                        query={"type":"input_transcript","session_id":ident,"data":{"text":"Погода"}}
+                        yield ("data: "+json.dumps(query)+"\n\n").encode()
+                        await asyncio.wait_for(output_received.wait(),5)
+                        closed={"type":"closed","session_id":ident,"data":{"final_usage_confirmed":True}}
+                        yield ("data: "+json.dumps(closed)+"\n\n").encode()
+                return httpx.Response(200, stream=Events())
             body = json.loads(req.content)
             if req.url.path.endswith("/command"):
                 if body['action'] == 'end':
@@ -76,6 +81,9 @@ def test_live_roundtrip_and_close(streaming):
 
         async def send(control):
             controls.append(control)
+            if control['type']=='gobot_input_end' and streaming=='provider_end':
+                assert input_received.is_set() and not capture.finished
+                capture.finish()
         async def send_audio(packet):
             packets.append(packet)
             if len(packets) >= 3:
@@ -86,7 +94,10 @@ def test_live_roundtrip_and_close(streaming):
         try:
             async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
                 await asyncio.wait_for(live_turn(client,config,{},capture,ident,send,send_audio,OpusOutput()), 9)
-            assert controls[0]["state"] == "start" and controls[-1]["state"] == "stop"
+            tts=[control["state"] for control in controls if control["type"]=="tts"]
+            assert tts==["start","stop"]
+            if streaming=="provider_end":
+                assert sum(control["type"]=="gobot_input_end" for control in controls)==1
             decoder = OpusInput()
             for packet in packets:
                 decoder.feed(packet)
