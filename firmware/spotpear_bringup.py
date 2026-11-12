@@ -22,8 +22,13 @@ def digest(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback"])
+    parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
+                        help="Existing owner-private backup and enrollment directory")
     opts = parser.parse_args()
+    global PRIVATE, FACTORY
+    PRIVATE = opts.hardware_data.resolve()/"gobot-v1"
+    FACTORY = opts.hardware_data.resolve()/"factory"/SECOND.name
     lock = PRIVATE / "bringup.lock"
     with lock.open("x") as f:
         f.write(str(os.getpid()))
@@ -55,7 +60,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous"):
+        if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback"):
             release = json.loads((ROOT/"firmware/spotpear/touch_release.json").read_text())
             app = PRIVATE / "touch/gobot-touch-auto.bin"
             old = PRIVATE / "candidate/gobot-app.bin"
@@ -71,9 +76,17 @@ def main():
                 "touch-auto": (PRIVATE/"touch/gobot-touch-volume.bin", release["previous_volume_sha256"]),
                 "previous": (app, release["app_sha256"]),
             }
+            target = old if opts.action=="previous" else app
+            if opts.action in ("wake-probe", "wake-rollback"):
+                kw = json.loads((ROOT/"firmware/spotpear/microwake/installed.json").read_text())
+                probe = PRIVATE/"touch/gobot-wake-probe.bin"
+                require(probe.stat().st_size == kw["app_bytes"] <= 0x3f0000 and
+                        digest(probe.read_bytes()) == kw["app_sha256"], "Wake binary mismatch")
+                sources["wake-probe"] = (app, release["app_sha256"])
+                sources["wake-rollback"] = (probe, kw["app_sha256"])
+                target = probe if opts.action=="wake-probe" else app
             source, expected_sha = sources[opts.action]
             require(digest(source.read_bytes())==expected_sha, "Source image mismatch")
-            target = old if opts.action=="previous" else app
             require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")
             print("Verified preflash snapshot; writing only ota_0",hex(0x20000),target.stat().st_size,digest(target.read_bytes()),flush=True)
             esp("write-flash","0x20000",target)

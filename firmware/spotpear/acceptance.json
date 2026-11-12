@@ -3,7 +3,7 @@
   "plan_base": "531caf9",
   "accepted": false,
   "installed": {
-    "version": "0.2.3-dev-touch-auto",
+    "version": "0.3.0-dev-mww-probe",
     "usb": "COM3",
     "chip": "ESP32-S3 rev 0.2",
     "flash_mib": 16,
@@ -28,6 +28,14 @@
     "exercised": false
   },
   "local_wake": {
+    "engine": "microWakeWord streaming MixedNet with ESP-IDF TFLM",
+    "model_sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010",
+    "local_probe_running": true,
+    "brain_routing": false,
+    "owner_labeled_trials": 0,
+    "report": "microwake/installed.json"
+  },
+  "previous_multinet_experiment": {
     "engine": "MultiNet7 English, experimental custom phonemes",
     "board_synthetic": {
       "positive_hits": 0,
@@ -250,6 +258,8 @@
       "cli": 0,
       "images": 0
     },
+    "volume_100_owner_feedback": "louder",
+    "automatic_phrase_end_owner_feedback": "pause not recognized",
     "all_six_confirmed_seconds": 128,
     "all_six_estimated_usd": 0.10667
   }
