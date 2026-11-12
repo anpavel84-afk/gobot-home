@@ -57,7 +57,7 @@ class LiveBackend:
             c.execute('UPDATE calls SET status=?,counted_input=coalesce(?,counted_input),usage=?,model=coalesce(?,model) WHERE operation=?',(status,count,json.dumps(safe),model,key))
             if status in {'completed','not_generated'}:c.execute('DELETE FROM lease WHERE operation=?',(key,))
     async def answer(self,query,packet,*,binding,operation,developer=False,on_text=None,is_current=lambda:True):
-        if not self.owner.authorized(binding) or not self.owner.policy().live_backend_enabled:raise PermissionError('live_backend_disabled')
+        if not self.owner.voice_authorized(binding) or not self.owner.policy().live_backend_enabled:raise PermissionError('live_backend_disabled')
         if not is_current():raise asyncio.CancelledError()
         if self.lock.locked():raise PermissionError('live_backend_busy')
         async with self.lock,asyncio.timeout(25):

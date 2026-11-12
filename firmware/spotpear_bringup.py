@@ -22,7 +22,7 @@ def digest(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "previous"])
     opts = parser.parse_args()
     lock = PRIVATE / "bringup.lock"
     with lock.open("x") as f:
@@ -55,6 +55,32 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
+        if opts.action in ("touch","touch-audio","touch-volume","previous"):
+            release = json.loads((ROOT/"firmware/spotpear/touch_release.json").read_text())
+            ui = PRIVATE / "touch/gobot-touch.bin"
+            audio = PRIVATE / "touch/gobot-touch-audio.bin"
+            require(digest(audio.read_bytes())==release["previous_audio_sha256"], "Touch audio rollback mismatch")
+            app = PRIVATE / "touch/gobot-touch-volume.bin"
+            require(digest(ui.read_bytes())==release["previous_ui_sha256"], "Touch UI rollback mismatch")
+            old = PRIVATE / "candidate/gobot-app.bin"
+            assets = PRIVATE / "candidate/gobot-assets.bin"
+            require(digest(app.read_bytes()) == release["app_sha256"] and app.stat().st_size==release["app_bytes"] and app.stat().st_size<=0x3f0000, "Unexpected touch candidate")
+            require(digest(old.read_bytes()) == IMAGES["gobot-app.bin"][2], "Previous app mismatch")
+            require(digest(assets.read_bytes()) == IMAGES["gobot-assets.bin"][2] == release["assets_sha256"], "Shared assets mismatch")
+            require(current[0x800000:0x800000+assets.stat().st_size]==assets.read_bytes(), "Installed assets changed")
+            source, target = (old,app)
+            if opts.action=="touch-audio":
+                source = ui
+            if opts.action=="touch-volume":
+                source = audio
+            if opts.action=="previous":
+                source, target = app, old
+            require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")
+            print("Verified preflash snapshot; writing only ota_0",hex(0x20000),target.stat().st_size,digest(target.read_bytes()),flush=True)
+            esp("write-flash","0x20000",target)
+            esp("verify-flash","0x20000",target)
+            print("Installed app verified on device", flush=True)
+            return
         parts = []
         for name,(offset,limit,sha) in IMAGES.items():
             if opts.action=="restore":

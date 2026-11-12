@@ -15,15 +15,25 @@ class LiveBudget:
     def scope(offer):return hashlib.sha256(json.dumps([offer.device_id,offer.client_id,offer.profile_epoch]).encode()).hexdigest()
     def reserve(self,offer):
         p=self.owner.policy();binding=offer.owner_test_binding or offer.client_id
-        if not offer.consent or not self.owner.authorized(binding) or not p.live_enabled:raise PermissionError('live_owner_mode_or_consent_required')
+        if p.hardware_voice and offer.client_id==p.hardware_voice.client_id and binding!=offer.client_id:
+            raise PermissionError('hardware_guest_binding_required')
+        grant=self.owner.hardware_grant(binding)
+        if grant and (offer.client_id!=offer.device_id or offer.owner_test_binding or offer.profile_epoch or
+                      offer.confirmed_profile_epoch or offer.personalization_mode!='guest' or offer.expert_quota_consent or
+                      offer.conversation_mode!='unified' or offer.remember or offer.speaker_consent or offer.developer_acceptance):
+            raise PermissionError('hardware_guest_binding_required')
+        if not offer.consent or not self.owner.voice_authorized(binding) or not p.live_enabled:raise PermissionError('live_owner_mode_or_consent_required')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_setup_cancelled')
             if c.execute('SELECT 1 FROM calls WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_session_already_attempted')
-            rows=c.execute('SELECT reserved,seconds,final,origin,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            rows=c.execute('SELECT reserved,seconds,final,origin,reason FROM calls WHERE day=? AND origin NOT LIKE "hardware:%"',(int(time.time()//86400),)).fetchall()
             used=sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,_,reason in rows)
             limit=min(p.live_session_seconds,int(p.live_minutes_per_day*60-used))
             origin='developer' if offer.developer_acceptance else 'owner'
+            if grant:
+                origin='hardware:'+grant.grant_id
+                limit=min(grant.session_seconds,int(grant.expires_at-time.time()))
             if origin=='developer':
                 all_dev=c.execute("SELECT reserved,seconds,final,reason FROM calls WHERE origin='developer'").fetchall()
                 remaining=p.developer_live_seconds-sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,reason in all_dev)

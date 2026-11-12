@@ -1,0 +1,13 @@
+{
+  "version": "0.2.2-dev-touch-volume",
+  "ui": "visual-language/1.0.0-draft",
+  "base": "0.1.1-dev-display",
+  "board": "sp-esp32-s3-1.28-box",
+  "app_bytes": 2542992,
+  "app_sha256": "cc5248b6ce2955903a123e1e2b8f6cdbcc25bf93a6a0201650b4c693fe953068",
+  "previous_audio_sha256": "736246fd421aa610b64e4c2125714b86d89d158b90e4ff14cded213cc178d710",
+  "previous_ui_sha256": "2f161aa5db3ca9d8595e13940f08a91c908c834e979d247f1dc6bef87fcc56c7",
+  "assets_sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0",
+  "partition_table_sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+  "sdk": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587"
+}

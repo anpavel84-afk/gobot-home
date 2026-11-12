@@ -72,10 +72,12 @@ class ConversationModes:
         flow.provider_session=offer.session_id;flow.provider_closed=False;flow.last_activity=time.monotonic()
         return flow
     def authorized(self,flow):
-        if not flow.active or not self.owner_testing.authorized(flow.binding):raise PermissionError('conversation_mode_inactive')
+        if not flow.active or not self.owner_testing.voice_authorized(flow.binding):raise PermissionError('conversation_mode_inactive')
     def select(self,flow,target):
         self.authorized(flow)
         if target not in {'live','legacy'}:raise ValueError('invalid_conversation_mode')
+        if target=='legacy' and not self.owner_testing.authorized(flow.binding):
+            raise PermissionError('hardware_cli_not_authorized')
         flow.mode=target;flow.last_activity=time.monotonic()
         flow.input_active=False;flow.playback_active=False
         return flow.public()
@@ -97,6 +99,7 @@ class ConversationModes:
     def legacy_request(self,req):
         flow=self.owned(req.mode_conversation_id,req.device_id,req.client_id,req.profile_epoch)
         self.authorized(flow)
+        if not self.owner_testing.authorized(flow.binding):raise PermissionError('hardware_cli_not_authorized')
         if flow.mode!='legacy' or not flow.provider_closed:raise PermissionError('conversation_mode_not_ready')
         if flow.legacy_turn:raise PermissionError('conversation_mode_busy')
         flow.legacy_turn=req.turn_id;flow.last_activity=time.monotonic()

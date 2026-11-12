@@ -39,13 +39,55 @@ class CapturedSpeech(AudioStreamTrack):
         return frame
 
 
+class StreamingSpeech(AudioStreamTrack):
+    """16 kHz mono PCM, at most four seconds of post-contact setup backlog."""
+    def __init__(self):
+        super().__init__()
+        self.buffer = bytearray()
+        self.position = 0
+        self.next_frame = None
+        self.finished = False
+        self.playing = False
+        self.input_seen = False
+        self.ended = asyncio.Event()
+
+    def feed(self, pcm):
+        if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>16000*2*4:
+            raise ValueError("hardware_input_backlog_or_state")
+        self.buffer.extend(pcm)
+        self.input_seen |= bool(pcm)
+
+    def finish(self):
+        self.finished = True
+        if not self.buffer:
+            self.ended.set()
+
+    async def recv(self):
+        loop = asyncio.get_running_loop()
+        if self.next_frame is None:
+            self.next_frame = loop.time()
+        await asyncio.sleep(max(0, self.next_frame-loop.time()))
+        raw = bytes(self.buffer[:640])
+        del self.buffer[:640]
+        if self.finished and not self.buffer:
+            self.ended.set()
+        frame = av.AudioFrame.from_ndarray(np.frombuffer(raw.ljust(640, bytes(1)),"<i2").reshape(1,-1),
+                                           format="s16",layout="mono")
+        frame.pts = self.position
+        frame.time_base = Fraction(1,16000)
+        frame.sample_rate = 16000
+        self.position += 320
+        self.next_frame = max(self.next_frame+.02,loop.time())
+        return frame
+
+
 async def live_turn(client, config, headers, wav, turn_id, send, send_audio, encoder):
     if config.get("hardware_live_consent") is not True:
         raise PermissionError("hardware_live_permission_required")
     scope = {"device_id": config["device_id"], "client_id": config["device_id"]}
     base = config["brain_url"] + "/api/v1/live/sessions"
     peer = RTCPeerConnection(RTCConfiguration(iceServers=[]))
-    capture = CapturedSpeech(wav)
+    capture = wav if isinstance(wav,StreamingSpeech) else CapturedSpeech(wav)
     peer.addTrack(capture)
     tracks = []
     peer.on("track", tracks.append)
@@ -66,16 +108,33 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
         if len(tracks) != 1 or tracks[0].kind != "audio":
             raise ValueError("hardware_live_audio_track_missing")
 
+        async def activity():
+            while True:
+                command = dict(**scope,action="activity",command_id=uuid.uuid4().hex,
+                               input_active=capture.input_seen and not capture.ended.is_set(),
+                               playback_active=capture.playing)
+                response = await client.post(f"{base}/{turn_id}/command",headers=headers,json=command)
+                response.raise_for_status()
+                await asyncio.sleep(.65)
+
+        if isinstance(capture,StreamingSpeech):
+            tasks.append(asyncio.create_task(activity()))
+        last_sound = [0.]
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=24000)
         async def output():
             nonlocal started
-            resampler = av.AudioResampler(format="s16", layout="mono", rate=24000)
             while True:
                 frame = await tracks[0].recv()
                 for converted in resampler.resample(frame):
                     pcm = converted.to_ndarray()
+                    now = asyncio.get_running_loop().time()
+                    if np.max(np.abs(pcm.astype(np.int32))) >= 8:
+                        last_sound[0] = now
+                    elif not started or now - last_sound[0] > .30:
+                        continue
                     if not started:
-                        if np.max(np.abs(pcm.astype(np.int32))) < 8:
-                            continue
+                        if isinstance(capture, StreamingSpeech):
+                            await asyncio.wait_for(capture.ended.wait(), timeout=26)
                         await send({"type":"tts","state":"start"})
                         started = True
                     for packet in encoder.feed(pcm.astype("<i2").tobytes(), 24000):
@@ -110,6 +169,9 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
         terminal = asyncio.create_task(events())
         tasks.extend((media, terminal))
         done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            if task not in (media,terminal):
+                task.result()
         if media in done:
             from aiortc.mediastreams import MediaStreamError
             try:
@@ -120,6 +182,14 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
             await asyncio.wait_for(terminal, timeout=12)
         else:
             terminal.result()
+            # A terminal control event can precede RTP still in the jitter buffer.
+            # Only after this event can sustained trailing silence end transport drain.
+            loop=asyncio.get_running_loop()
+            arrived=loop.time()
+            while not media.done() and loop.time()-max(arrived,last_sound[0])<.45:
+                if loop.time()-arrived>3:
+                    raise ValueError("hardware_live_media_drain_unconfirmed")
+                await asyncio.sleep(.02)
         media.cancel()
         await asyncio.gather(media, return_exceptions=True)
         flow = terminal.result()
@@ -129,6 +199,9 @@ async def live_turn(client, config, headers, wav, turn_id, send, send_audio, enc
             await send({"type":"tts","state":"start"})
             await send({"type":"tts","state":"sentence_start","text":"Экспертный режим"})
         else:
+            for frame in resampler.resample(None):
+                for packet in encoder.feed(frame.to_ndarray().astype("<i2").tobytes(), 24000):
+                    await send_audio(packet)
             for packet in encoder.finish():
                 await send_audio(packet)
         await send({"type":"tts","state":"stop"})

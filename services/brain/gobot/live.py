@@ -81,7 +81,20 @@ class LiveSession(VoiceVisualSession):
         self.create_attempted=False;self.create_rejected=False
         self.input_seen_at=0;self.closed_phrase=None;self.speech_stopped=False
         self.backend_task=None;self.activity_at=0;self.mode_control_task=None
-        self.weather_last_request=None;self.weather_topic=False
+        self.weather_last_request=None;self.weather_topic=False;self.timer_topic=False
+        grant=manager.owner_testing.hardware_grant(offer.client_id)
+        self.touch_context_key=(offer.client_id,offer.conversation_id,grant.grant_id) if grant and self.mode_flow else None
+        if self.touch_context_key:
+            self.policy.expert_jobs_allowed=False
+            self.policy.image_generation_allowed=False
+            self.profile.screen=self.profile.screen.model_copy(update={'generation_allowed':False,'generation_consent':False})
+            previous=manager.touch_context
+            if previous and previous[0]==self.touch_context_key and previous[1]>time.monotonic():
+                _,_,scope,conversation,self.weather_last_request,self.weather_topic,self.timer_topic=previous
+                self.mode_flow.scope=scope
+                self.mode_flow.conversation=conversation
+                self.access=replace(self.access,effective_scope=scope,context_conversation=conversation)
+            manager.touch_context=None
 
     def task_revision(self):return self.revision
     def mark_turn(self,turn,name):
@@ -472,7 +485,7 @@ class LiveSession(VoiceVisualSession):
             self.emit('backend_status',state='running',model='gpt-6-luna')
             try:
                 result=await self.manager.backend.answer(query,packet,binding=self.owner_test_binding,operation=self.id+':'+operation,
-                    developer=self.offer.developer_acceptance,on_text=deliver,is_current=lambda:not self.closed and not self.closing and turn is self.current and self.manager.owner_testing.authorized(self.owner_test_binding) and self.manager.owner_testing.policy().live_backend_enabled)
+                    developer=self.offer.developer_acceptance,on_text=deliver,is_current=lambda:not self.closed and not self.closing and turn is self.current and self.manager.owner_testing.voice_authorized(self.owner_test_binding) and self.manager.owner_testing.policy().live_backend_enabled)
                 if not self.closed and turn is self.current:self.emit('backend_status',state='completed',model=result['model'],usage=result['usage'],timings=result['timings'],estimated_usd=result['estimated_usd'])
             except asyncio.CancelledError:raise
             except (PermissionError,ValueError,RuntimeError,TimeoutError,httpx.HTTPError) as error:
@@ -606,7 +619,7 @@ class LiveSession(VoiceVisualSession):
                 await asyncio.sleep(.5)
                 await self.expired_timers()
                 if time.monotonic()-self.started>=self.limit:reason='session_time_limit'
-                elif not self.manager.owner_testing.authorized(self.owner_test_binding) or not self.manager.owner_testing.policy().live_enabled:reason='owner_mode_disabled'
+                elif not self.manager.owner_testing.voice_authorized(self.owner_test_binding) or not self.manager.owner_testing.policy().live_enabled:reason='owner_mode_disabled'
                 elif self.access.confirmed_profile_id and not await asyncio.to_thread(self.manager.identity.family.session_valid,self.access.confirmed_profile_id,self.offer.confirmed_profile_epoch):reason='profile_changed'
                 elif self.idle_due():reason='idle_timeout'
                 else:continue
@@ -688,6 +701,7 @@ class LiveManager:
         self.modes=ConversationModes(self.brain,self.owner_testing)
         self.sessions={};self.lock=realtime.lock # One server audio lease across B and C.
         self.mode_timer=None
+        self.touch_context=None
     def owned(self,ident,owner,client,epoch):
         s=self.sessions.get(ident)
         if not s or (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)!=(owner,client,epoch):raise KeyError('live_session_not_found')
@@ -737,6 +751,9 @@ class LiveManager:
         async with s.close_lock:
             if s.closed:return {'closed':True,'final_usage_confirmed':s.final_usage_confirmed}
             s.closing=True;s.ready=False
+            if s.touch_context_key and reason=='idle_timeout':
+                self.touch_context=(s.touch_context_key,time.monotonic()+120,s.mode_flow.scope,s.mode_flow.conversation,
+                                    s.weather_last_request,s.weather_topic,s.timer_topic)
             s.close_reason=reason
             s.emit('closing',reason=reason)
             if s.backend_task and not s.backend_task.done():s.backend_task.cancel()
@@ -789,7 +806,7 @@ class LiveManager:
                 await asyncio.sleep(.5)
                 for flow in self.modes.items.values():
                     if not flow.active or flow.mode!='legacy':continue
-                    if not self.owner_testing.authorized(flow.binding):self.modes.end(flow,'owner_mode_disabled')
+                    if not self.owner_testing.voice_authorized(flow.binding):self.modes.end(flow,'owner_mode_disabled')
                     elif flow.owner.startswith('personal:') and not await asyncio.to_thread(self.identity.family.session_valid,flow.owner.split(':',1)[1],flow.confirmed_epoch):self.modes.end(flow,'profile_changed')
                     elif self.modes.idle(flow):self.modes.end(flow,'idle_timeout')
         except asyncio.CancelledError:pass

@@ -19,8 +19,12 @@ def attach_brain_live(app,manager,auth):
     @app.get('/api/v1/live/status',dependencies=[Depends(auth)])
     async def status(binding:str=''):
         from .skill_catalogue import summary,catalogue
+        board_grant = manager.owner_testing.hardware_grant(binding) if binding else None
+        enabled = (not binding or manager.owner_testing.authorized(binding) or
+                   (board_grant is not None and manager.owner_testing.hardware_voice_ready(binding)))
         return {'engine':'gpt_live','requested_version':'1.1','actual_candidate_model':LIVE_MODEL,'version_1_1_verified':False,
-            'enabled':manager.owner_testing.policy().live_enabled and (not binding or manager.owner_testing.authorized(binding)),'delegation':'client','store':False,
+            'enabled':manager.owner_testing.policy().live_enabled and enabled,
+            'admission_reason':'hardware_voice_limit' if board_grant and not enabled else None,'delegation':'client','store':False,
             'billing':manager.budget.status(),'active_sessions':sum(not s.closed for s in manager.sessions.values()),
             'default_changed':True,'product_default_engine':'live','conversation_modes':['live','legacy'],'idle_seconds':10,
             'input_action_bridge_version':3,'native_tools':['clock','timer','weather_current','weather_forecast','weather_setup','utility','skill_readiness'],'skill_catalogue':summary(),

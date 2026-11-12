@@ -1,9 +1,9 @@
 {
   "date_utc": "2026-11-12",
-  "plan_base": "bffaa24",
+  "plan_base": "531caf9",
   "accepted": false,
   "installed": {
-    "version": "0.1.0-dev-gobot",
+    "version": "0.2.2-dev-touch-volume",
     "usb": "COM3",
     "chip": "ESP32-S3 rev 0.2",
     "flash_mib": 16,
@@ -17,7 +17,9 @@
     "bootloader_partition_table_inactive_slot_preserved": true,
     "secure_boot": false,
     "flash_encryption": false,
-    "independent_postflash_full_read_compared_app_and_assets": true
+    "independent_postflash_full_read_compared_app_and_assets": false,
+    "postflash_app_verify": true,
+    "assets_matched_during_full_preflash_read": true
   },
   "factory_recovery": {
     "two_local_copies": true,
@@ -101,18 +103,6 @@
     "usb_unmuted_verified": true,
     "rearm": false
   },
-  "brain": {
-    "deployed_scoped_live_status_http": 200,
-    "device_live_enabled": false,
-    "live_model": "gpt-live-1",
-    "active_live_sessions_at_check": 0,
-    "real_device_turns": 0,
-    "paid_developer_calls": 0,
-    "cli_calls": 0,
-    "real_device_C_A_switch": "not_run",
-    "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture",
-    "billing_gate": "Owner Full Test admits its bound client; a separate hardware-scoped grant is required alongside the phone."
-  },
   "media": {
     "actual_local_webrtc_peers": 2,
     "mock_brain_transport": true,
@@ -131,14 +121,14 @@
   "firmware_guard_host_assertions": 43,
   "gateway_and_media_pytest_passed": 17,
   "remaining": [
-    "Improve Russian KWS generalization and validate on a consenting human.",
-    "Measure continuous armed standby, offline wake, same-phrase capture, speaker drain and acoustic false wakes.",
-    "Scope a bounded C grant to the hardware identity; verify real device weather, timer, C/A mode change and safe reconnect.",
-    "Verify graphics, timer and render acknowledgement on the physical round display."
+    "Physical weather follow-up, acoustic acceptance at volume 85 and confirmation of the full LCD countdown.",
+    "Verify stop, mute and reconnect on the final firmware.",
+    "Physical artwork and optional image acknowledgement.",
+    "Separate human acceptance for Russian wake word."
   ],
   "code_commits": {
-    "plan": "a36c066",
-    "public_review": "c7639e2"
+    "previous_plan": "531caf9",
+    "previous_public_review": "9f325b8"
   },
   "regression_on_plan": {
     "passed": 2095,
@@ -147,5 +137,104 @@
     "subtests_passed": 118,
     "seconds": 179.23
   },
-  "public_review": "https://github.com/anpavel84-afk/gobot-home/pull/1"
+  "public_review": "https://github.com/anpavel84-afk/gobot-home/pull/1",
+  "history_0_1_0": {
+    "installed": {
+      "version": "0.1.0-dev-gobot",
+      "usb": "COM3",
+      "chip": "ESP32-S3 rev 0.2",
+      "flash_mib": 16,
+      "psram_mib": 8,
+      "app_offset": "0x20000",
+      "assets_offset": "0x800000",
+      "flash_verify": true,
+      "usb_boot_verified": true,
+      "wifi": true,
+      "enrolled": true,
+      "bootloader_partition_table_inactive_slot_preserved": true,
+      "secure_boot": false,
+      "flash_encryption": false,
+      "independent_postflash_full_read_compared_app_and_assets": true
+    },
+    "brain": {
+      "deployed_scoped_live_status_http": 200,
+      "device_live_enabled": false,
+      "live_model": "gpt-live-1",
+      "active_live_sessions_at_check": 0,
+      "real_device_turns": 0,
+      "paid_developer_calls": 0,
+      "cli_calls": 0,
+      "real_device_C_A_switch": "not_run",
+      "unified_mode_handle": "revalidated against Brain on next wake; tested ownership/terminal checks with fixture",
+      "billing_gate": "Owner Full Test admits its bound client; a separate hardware-scoped grant is required alongside the phone."
+    }
+  },
+  "touch_ui": {
+    "installed": true,
+    "usb_boot_confirmed": true,
+    "previous_ui_owner_photo": "0.2.0",
+    "physical_touch_owner_observation": "ready -> listening -> ready on 0.2.0",
+    "renderer_reference_cases": 8,
+    "final_layout_lcd_owner_confirmation": false,
+    "physical_touch_core_verified": true,
+    "physical_ready_photo_version": "0.2.0"
+  },
+  "real_voice": {
+    "mode": "live_c",
+    "scope": "board_guest",
+    "scoped_status_enabled": true,
+    "hardware_limit": {
+      "sessions": 4,
+      "seconds_per_session": 45,
+      "backend_calls": 2,
+      "estimated_usd": 1,
+      "cli": false,
+      "image_api": false
+    },
+    "initial_failed_transports": 3,
+    "initial_provider_reported_seconds": 45,
+    "voice_e2e_verified": true,
+    "weather_followup_verified_on_board": false,
+    "timer_verified_on_board": false,
+    "owner_heard_reply": true,
+    "owner_reported_low_volume": true,
+    "timer_created_and_completed_in_board_scope": true,
+    "owner_confirmed_timer_set": true,
+    "timer_lcd_ack_verified": false,
+    "physical_success": {
+      "firmware": "0.2.1-dev-touch-audio",
+      "uplink_opus_packets": 120,
+      "downlink_opus_packets": 103,
+      "provider_seconds": 27,
+      "final_usage_confirmed": true,
+      "close_reason": "idle_timeout",
+      "setup_ms": 1643.39
+    },
+    "first_grant_final": {
+      "attempts": 4,
+      "seconds": 72,
+      "estimated_usd": 0.06,
+      "luna": 0
+    },
+    "second_owner_grant": {
+      "sessions": 2,
+      "seconds_per_session": 45,
+      "estimate_usd": 0.075,
+      "luna": 0,
+      "image_api": false,
+      "cli": false
+    },
+    "weather_source_on_plan": [
+      "current",
+      "forecast_followup"
+    ],
+    "volume": {
+      "version": "0.2.2-dev-touch-volume",
+      "codec": "ES8311",
+      "before": 70,
+      "after": 85,
+      "local_preview_command_observed": true,
+      "owner_acoustic_confirmation": false
+    }
+  }
 }
