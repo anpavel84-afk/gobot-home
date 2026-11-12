@@ -19,6 +19,8 @@ Owner issue #2 выбирает путь 2B: защищённый WSS/Opus от 
 
 На PLAN работает локальный LiveKit Server 1.13.11 на loopback. В согласованной C-сессии TurnGuard не завершает фразу по 800 мс, шлюз не ждёт finish микрофона для ответа, вход продолжает передаваться во время TTS. Stop/Close освобождают Room и provider session через прежний Brain. Полная регрессия после ремонта startup: **2108 passed, 3 skipped, 1 xfailed, 118 subtests passed** (228.79 с); реальные opt-in loopback LiveKit tests включены, платных API нет. Отдельный повтор проверки новых числовых diagnostics и ACK: 4 passed.
 
+Checkpoint кода ремонта: PLAN `bb2dfdd`, опубликован в PR #1 как `fc5a86c`. Gateway после checkpoint перезапущен только при active=false и подтвердил готовность WSS/TLS в duplex_test; Brain/телефон и установленный app не перезапускались. Запрошен один новый аппаратный допуск 1×60 секунд/$0.05 без backend/CLI/Image/авторетрая; до явного ответа он не применён и provider не вызывается.
+
 [Аппаратные данные](../firmware/spotpear/duplex/evidence.json) · [Образы и воспроизведение](../firmware/spotpear/duplex/README.md).
 
 ## Аппаратная проверка Spotpear, 12 ноября 2026
