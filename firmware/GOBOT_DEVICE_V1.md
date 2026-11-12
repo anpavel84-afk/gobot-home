@@ -1,6 +1,6 @@
 # GoBot Home firmware v1 — hardware-first release contract
 
-Status (12 November 2026): **source/patch candidate only; NO image has been built or flashed**.
+Status (12 November 2026): **experimental 0.1.0-dev-gobot booted on Spotpear; local KWS gate failed**.
 Owner direction: hands-free local wake word is mandatory; no button-only release.
 Target physical hardware: Spotpear EN-V5 With-B-1, ESP32-S3 v0.2, 16 MB Flash,
 8 MB PSRAM, 240x240 round display. Board profile to be hardware-smoke validated:
@@ -37,18 +37,11 @@ Target physical hardware: Spotpear EN-V5 With-B-1, ESP32-S3 v0.2, 16 MB Flash,
 
 ## Local wake words
 
-- **Russian interim**: Espressif WakeNet10 model `wn10_ru_privetesp`
-  is documented for phrase «Привет ESP» (late Sep 2026). Must verify it exists
-  in the exact ESP-SR component/assets, embeds in our 16 MB layout and actually
-  triggers on this board. Name `wn10_ru_privetesp` is NOT a Kconfig flag.
-- XiaoZhi upstream snapshot pins `espressif/esp-sr: ==2.4.7`. Updating to
-  compatible >=2.6.x and revalidating API/asset build is a **build blocker**;
-  do not just change the version number and assert completion.
-- Diagnostic fallback: pinned 2.4.7 can be checked with `Hi ESP` WakeNet9
-  if supported by the model assets. It is not final Russian user acceptance.
-- **Brand wake word** «ГоБот» needs a trained, calibrated Russian KWS model.
-  Do not confuse custom textual config with a genuinely trained classifier.
-- No wake word model active = **no GoBot release**, even if PTT works.
+The only activation phrase is «ГоБот». On the physical board the MultiNet7
+English phonetic candidate detected 0/3 synthetic positive samples and 0/4
+negatives. Initialization failed closed. No human recognition has been measured.
+The trained Russian compact frontend experiment and results are in
+[the hardware evidence](spotpear/acceptance.json).
 
 ## Implementation assets already present
 
@@ -71,7 +64,7 @@ Target physical hardware: Spotpear EN-V5 With-B-1, ESP32-S3 v0.2, 16 MB Flash,
 - B. Factory rollback validated; no wipe of owner credentials/NVS by accident.
 - C. Real device: wake phrase 30/30 trials at several distances and noise
   conditions; 60 min standby without unintended turns; record actual errors.
-- D. Single turn without button: STT -> GoBot Brain -> speech + screen -> idle.
+- D. Single turn without button: native C -> GoBot Brain -> speech + screen -> idle; explicit A separately.
   Test reconnect, 3 failed connects, network loss during TTS and hard mute.
 - E. Ensure displayed speech/Opus frame boundaries, no audio-loop duplication,
   no hanging listening state, perceptible diagnostics on error; measure

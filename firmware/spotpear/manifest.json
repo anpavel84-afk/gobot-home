@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "kind": "experimental-hardware-bringup",
+  "firmware_version": "0.1.0-dev-gobot",
+  "upstream": "a73e9a7e266e3196d1368ba46c30bee0d81f0a64",
+  "idf_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "target": "esp32s3",
+  "flash_size": 16777216,
+  "board": "sp-esp32-s3-1.28-box",
+  "wake_word": "ГоБот",
+  "kws_engine": "MultiNet7 English acoustic model, explicit custom GoBot phonetics",
+  "russian_model_trained": false,
+  "acoustic_acceptance": false,
+  "factory_cloud_disabled": true,
+  "standby_upload": false,
+  "flash_plan": {
+    "app_offset": "select existing active OTA slot after local validation",
+    "assets_offset": "0x800000",
+    "preserve": [
+      "bootloader",
+      "partition_table",
+      "NVS",
+      "otadata",
+      "phy_init",
+      "inactive_app"
+    ]
+  },
+  "files": {
+    "gobot-app.bin": {
+      "size": 3752448,
+      "sha256": "5b7b14dc11722ddcf30feaf4afdcc266ed3ecb7eab00837fac3e35ee98fdaedf"
+    },
+    "gobot-assets.bin": {
+      "size": 3732985,
+      "sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0"
+    },
+    "partition-table.bin": {
+      "size": 3072,
+      "sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5"
+    }
+  },
+  "host_guard_tests": "TURN_GUARD_PASS checks=43",
+  "source_patch_sha256": "e6f025375c12751ebd3ac4c153a2dcdc1fa3dade979a07f106fae63de650d7f9"
+}
