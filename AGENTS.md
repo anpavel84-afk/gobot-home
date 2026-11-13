@@ -1,5 +1,12 @@
 # GoBot Home boundaries
 
+OWNER explicitly APPROVED the consolidated board B->A package on 2026-11-13:
+24h, one manual use of an existing minute B start, <=2 A turns via Codex
+SOL_HIGH/gpt-6.1-sol/high <=90s each, context<=3000 estimated tokens,
+result<=6000chars; <=2 STT attempts x26s, <=6000 TTS chars total, $1 API
+estimate (not guaranteed invoice cap). No automatic paid trials/retries. Use a
+separate persistent A batch; retain all prior B/C/CLI usage and phone identity.
+
 OWNER DIRECT subsequent 2026-11-13 correction authorizes actual hardware B->A
 mode handover, reusing existing ConversationModes/legacy streamed voice. Close B
 and confirm provider cleanup before A; transfer permitted question/context once.

@@ -138,10 +138,12 @@ def test_streaming_a_transport_reuses_question_without_second_stt(tmp_path):
         async def handle(req):
             calls.append(req.url.path);assert req.url.path=='/api/v1/chat/voice/stream'
             data=json.loads(req.content);assert data['text']=='Исходный вопрос' and data['mode_conversation_id']=='flow'
+            assert data['tts_character_limit']==3000
             return httpx.Response(200,stream=Events())
         def factory(**kw):return httpx.AsyncClient(transport=httpx.MockTransport(handle),**kw)
         config={'brain_url':'http://127.0.0.1:18781','device_id':'board','conversation_id':'conversation',
-            'paid_speech_consent':True,'stt_provider':'openai','tts_provider':'openai','tts_voice':'marin','cli_usage_consent':True}
+            'paid_speech_consent':True,'stt_provider':'openai','tts_provider':'openai','tts_voice':'marin','cli_usage_consent':True,
+            'hardware_a_batch':{'id':'a'*32,'turns':2}}
         gateway=Gateway(config,'fixture-token',client_factory=factory);gateway.quota_path=tmp_path/'quota.json'
         async def send(data):sent.append(data)
         async def audio(ws,packet):packets.append(packet);first_audio.set()

@@ -1,5 +1,16 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner approved B->A hardware package (2026-11-13)
+
+Owner's consolidated answer explicitly permits24h, one manual start from the
+existing seven B minute starts, up to2 A turns via Codex SOL_HIGH/high <=90s each,
+context<=3000 estimated tokens,result<=6000chars; <=2 STT attempts x26s and
+<=6000 TTS characters total, $1 API estimate, no automatic paid trials/retries.
+This supersedes "pending approval" below; activation/checkpoint follows.
+Gateway A sample/packet buffer is now explicitly26s even when base mode is B;
+batch voice requests permit3000chars/turn, retaining1600 for existing non-batch A.
+24 free handoff/gateway regressions passed. Firmware unchanged; no paid start.
+
 ## B -> actual A candidate (2026-11-13, source/free acceptance)
 
 **Runtime applied:**2887ac9fb98ccee0f4bd5f36d613f1afe67043af, private HTTPS
