@@ -22,9 +22,13 @@ def attach_brain_live(app,manager,auth):
         board_grant = manager.owner_testing.hardware_grant(binding) if binding else None
         enabled = (not binding or manager.owner_testing.authorized(binding) or
                    (board_grant is not None and manager.owner_testing.hardware_voice_ready(binding)))
+        pending=await asyncio.to_thread(manager.budget.pending)
+        unresolved=sum(not any(s.id==ident and not s.closed for s in manager.sessions.values())
+                       for ident,provider,attempted in pending)
         return {'engine':'gpt_live','requested_version':'1.1','actual_candidate_model':LIVE_MODEL,'version_1_1_verified':False,
-            'enabled':manager.owner_testing.policy().live_enabled and enabled,
-            'admission_reason':'hardware_voice_limit' if board_grant and not enabled else None,'delegation':'client','store':False,
+            'enabled':manager.owner_testing.policy().live_enabled and enabled and not unresolved,
+            'admission_reason':'live_previous_finalization_unconfirmed' if unresolved else ('hardware_voice_limit' if board_grant and not enabled else None),
+            'unresolved_previous_sessions':unresolved,'delegation':'client','store':False,
             'billing':manager.budget.status(),'active_sessions':sum(not s.closed for s in manager.sessions.values()),
             'default_changed':True,'product_default_engine':'live','conversation_modes':['live','legacy'],'idle_seconds':10,
             'input_action_bridge_version':3,'native_tools':['clock','timer','weather_current','weather_forecast','weather_setup','utility','skill_readiness'],'skill_catalogue':summary(),

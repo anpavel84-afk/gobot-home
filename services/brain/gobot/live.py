@@ -228,8 +228,15 @@ class LiveSession(VoiceVisualSession):
         try:
             async for raw in self.ws:await self.handle(json.loads(raw))
         except asyncio.CancelledError:raise
-        except Exception:
-            if not self.closing:self.emit('warning',code='live_sideband_disconnected')
+        except Exception as error:
+            # Never persist the raw message, headers, audio or household payload.
+            received=getattr(error,'rcvd',None)
+            close_code=getattr(received,'code',None)
+            http_status=getattr(getattr(error,'response',None),'status_code',None)
+            self.sideband_failure={'kind':type(error).__name__,
+                'close_code':close_code if type(close_code) is int and 1000<=close_code<=4999 else None,
+                'http_status':http_status if type(http_status) is int and 100<=http_status<=599 else None}
+            if not self.closing:self.emit('warning',code='live_sideband_disconnected',failure=self.sideband_failure)
         finally:
             if not self.closed and not self.closing:self.spawn(self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'sideband_closed'))
 
