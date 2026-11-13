@@ -177,15 +177,8 @@ class LiveSession(VoiceVisualSession):
         return context
     async def home_environment(self):
         """Shared device settings only; no coordinates or personal archive."""
-        def read():
-            devices=self.manager.brain.configuration.devices
-            scope=devices.scoped_owner(self.offer.device_id,self.offer.client_id)
-            weather=devices.profile(scope).weather
-            return {'weather_location_configured':weather.enabled,
-                    'weather_location':weather.location_name if weather.enabled else None,
-                    'location_basis':'configured_device_home_not_live_gps'}
-        try:return await asyncio.to_thread(read)
-        except ValueError:return {'weather_location_configured':False,'location_basis':'device_scope_unavailable'}
+        from .settings_tools import device_home_context
+        return await asyncio.to_thread(device_home_context,self.manager.brain.configuration.devices,self.offer.device_id,self.offer.client_id)
     def can_configure_device(self):return self.experts.owner_public_allowed() and self.manager.owner_testing.policy().device_settings_enabled
     def expert_audit(self,stage,reasons=()):self.emit('expert_progress',stage=stage,reasons=list(reasons))
     def speaker_cycle(self):
