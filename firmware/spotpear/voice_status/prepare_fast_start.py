@@ -40,6 +40,7 @@ def prepare(root):
     gobot_early_capture_=true;audio_service_.HoldStartupAudio(true);
     Board::GetInstance().SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
     audio_service_.EnableVoiceProcessing(true);audio_service_.EnableDeviceAec(true);
+    if(!audio_service_.IsAudioProcessorRunning()){GoBotFinish("capture_failed");return;}
     ESP_LOGI(TAG,"GOBOT_LOCAL_CAPTURE started_ms=%u",unsigned(gobot::NowMs()-touch_started_));
     notice_until_=0; weather_until_=0;''')
     change(app,'    case gobot::Phase::Connecting:page.view=View::Connecting;break;',
