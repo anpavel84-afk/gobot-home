@@ -13,7 +13,7 @@
 | W7 deployment/rollback | VERIFIED |Runtime4beb530/web168faae; flag preserves ledger |
 | W8 hardware | FIRMWARE_BUILT |0.4.4-night-contract;34% free; NOT_INSTALLED |
 | C incident | PRESERVED/BLOCKED |final=false/reserve60s unchanged |
-| Hardware B | PREPARED/OFF |Separate8×60s/$1; not deployed |
+| Hardware B | MANUAL_READY/ON |Runtime9819af6; separate8×60s/$1,0 starts at activation; physical voice NOT_RUN |
 
 [Фактический отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md). Ниже исторические checkpoint.
 

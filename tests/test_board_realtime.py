@@ -34,6 +34,25 @@ def test_preparation_disabled_and_never_rewrites_existing_policy(tmp_path,settin
         finally:await b.shutdown();await original.shutdown()
     asyncio.run(run())
 
+def test_board_forecast_read_does_not_require_or_enable_settings_writes(tmp_path,settings):
+    import json
+    from gobot.settings_tools import SettingsResult
+    original,b,p,path=prepared(tmp_path,settings);enable(path);calls=[]
+    async def execute(req,slots,**kwargs):
+        calls.append(slots['operation']);return SettingsResult('Проверенный прогноз fixture.',evidence={'verified':True})
+    original.brain.configuration.execute=execute
+    async def run():
+        try:
+            await b.start(offer());s=b.sessions['board-b-1'];assert not s.can_configure_device()
+            query='Какая погода завтра?';turn=await s.new_turn(query=query)
+            await s.tool('forecast-read','gobot_tool',json.dumps({'query':query}),turn)
+            assert calls==['weather_forecast'] and not s.can_configure_device()
+            query='Установи громкость 50 процентов';turn=await s.new_turn(query=query)
+            await s.tool('setting-write','gobot_tool',json.dumps({'query':query}),turn)
+            assert calls==['weather_forecast']
+        finally:await b.shutdown();await original.shutdown()
+    asyncio.run(run())
+
 @pytest.mark.parametrize('patch',[{'client_id':'phone'},{'owner_test_binding':'phone'},
     {'remember':True},{'speaker_consent':True},{'personalization_mode':'confirmed_profile'},
     {'requested_model':'gpt-realtime-2.1'},{'requested_voice':'cedar'},{'expert_quota_consent':True}])

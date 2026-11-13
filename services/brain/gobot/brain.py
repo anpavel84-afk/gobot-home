@@ -373,6 +373,7 @@ class Service:
                 self.maintenance.add_done_callback(lambda _:setattr(self,'maintenance',None))
 
 def create_app(settings=None):
+    runtime_configuration=settings is None
     if settings is None:
         from .config import load
         settings=load()
@@ -385,6 +386,12 @@ def create_app(settings=None):
     from .live_api import attach_brain_live
     live=LiveManager(realtime)
     realtime.live=live
+    board_realtime=None
+    board_root=Path(__file__).resolve().parents[3]/'run/voice-ab-b'
+    mount=board_root/'mount.json'
+    if runtime_configuration and mount.exists() and json.loads(mount.read_text(encoding='utf8')).get('enabled') is True:
+        from .board_realtime import BoardRealtime
+        board_realtime=BoardRealtime(realtime,board_root)
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)
@@ -397,6 +404,7 @@ def create_app(settings=None):
         service.warm_photos.clear()
         for flag in service.running.values():flag.set()
         await live.shutdown()
+        if board_realtime:await board_realtime.shutdown()
         await realtime.shutdown()
         await identity.close()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
@@ -405,6 +413,10 @@ def create_app(settings=None):
     app.state.realtime=realtime
     attach_brain_realtime(app,realtime,auth)
     app.state.live=live;attach_brain_live(app,live,auth)
+    app.state.board_realtime=board_realtime
+    if board_realtime:
+        from .board_realtime_api import attach_board_realtime
+        attach_board_realtime(app,board_realtime,auth)
     from .hybrid_api import attach_brain_hybrid
     attach_brain_hybrid(app,service,realtime,live,speech,auth)
     async def invalidate_voice_principal(owner,reason='profile_changed'):

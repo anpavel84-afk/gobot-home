@@ -573,7 +573,7 @@ class NativeSession(VoiceVisualSession):
                     if not user_quick or comparable(user_quick)!=comparable(quick):
                         raise ValueError('confirmed_user_command_required')
                 if quick.executor=='settings':
-                    if slots.get('operation') in {'weather_current','weather_status','help'} or self.can_configure_device():
+                    if slots.get('operation') in {'weather_current','weather_forecast','weather_status','help'} or self.can_configure_device():
                         def progress(result):
                             if not self.closed and turn is self.current and not turn.cancelled:
                                 self.emit('tool_setup',setup=result.setup)

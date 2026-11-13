@@ -1,5 +1,18 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Последующее поручение: ручная приёмка B на колонке
+
+После подтверждения Owner веб B изолированный hardware adapter включён.
+Runtime9819af68a04a191b6a51c4f9f1beb681fd427d64; gateway realtime_b,
+firmware0.4.3 не менялась. Прежний аппаратный пакет8×60s/8responses×512/$1estimate
+активирован без расширения caps/authorization. На момент включения8 remaining,
+0 provider starts/0 pending hangups. Phone/C allowances и C unknown reserve сохранены.
+22 free local peer/LiveKit tests +96 regressions PASS; no OpenAI calls.
+Физический B разговор ожидает Owner (один tap→короткий вопрос→ответ→новый вопрос
+без tap→удержание Stop). Не объявляется hardware/acoustic PASS заранее.
+`scripts/board_b_enable.py rollback` возвращает gateway C config при idle без
+отката ledger; исходная C quarantine остаётся. Полный текущий статус в CURRENT_STATUS.
+
 ## Последующий B dialogue repair
 
 Runtime **3de2eaa53873437203339242c5f66fdecdf4944c**, preview assets b-dialogue-1.
