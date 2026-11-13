@@ -2,6 +2,38 @@
 
 ## 2026-11-13: separate long B trial / one-phrase wake preparation
 
+**Applied checkpoint:** Brain runtime270f8f782db9b988b9cabead816bc4e0524e5baf,
+gateway remains realtime_b, extended manual grant enabled,1 start remaining,
+0 starts/0 reserved estimate/0 pending hangups at activation. Separate Sol High
+grant1 remaining; offline CLI isolation verified (mock HTTP1,real requests0).
+Original B7 remaining. C/phone policies and all historical ledgers unchanged.
+No firmware flash. Owner was invited to manually test; real CLI result NOT_RUN.
+Free final checks:349 passed,4 optional peers skipped in regression run;
+the4 loopback LiveKit/aiortc peer tests subsequently passed with actual local
+test configuration. Earlier invocation with an invalid config path failed before
+media setup; it did not call OpenAI. Portable C++ buffer test also passed.
+
+Diagnostic firmware0.4.4-dev-one-phrase-local BUILT in pinned IDF image, NOT
+INSTALLED; app2711984 bytes,34% free, SHA256
+87967cd0230511419cc228d4e270d73a483b8093c57abe176a6cd19b163cbf0e.
+Build retains the original diagnostic model1f3b425b...3010 and wake_route=0.
+New variant pilot dd93bc89...bedfd (29736 bytes) was trained once locally,
+but FAILED validation (11/15 hits,11 false events); held-out test15/15 hits,
+17 false events/198 negatives over617.61 synthetic seconds. Human trials0.
+No claim of reliable household/stress coverage; ambient qualification was not
+run after first gate failure. Model not installed or routed to paid services.
+[Pilot evidence](../firmware/spotpear/microwake/variant-pilot-report.json).
+Positive PCM uniqueness also limits accent claims:15/15 distinct clips for each
+Piper voice,9/15 eSpeak and8/15 each RHVoice voice. Some written stress forms
+synthesize identically; five spellings are not five verified acoustic variants.
+Runtime PSRAM/performance of the new buffer remains untested on hardware.
+
+Deployment backup:run/night-train/backups/20261113T132534808523Z. Trial rollback:
+idle `scripts/board_b_trial.py rollback`, then guarded idle Brain restart to load
+the restored original B mount. Never restore usage databases. Rollback refuses
+unconfirmed trial provider closes; resolve those through existing admin recovery.
+The original firmware0.4.3 and touch remain available throughout.
+
 Owner explicitly approved ONE manual board B session <=180s, <=12 responses,
 <=2048 output tokens/response, $1 estimated API allowance (not guaranteed invoice
 cap), plus ONE confirmed public-data Sol 6.1 High task: gpt-6.1-sol/high,
@@ -54,7 +86,7 @@ Live не использовался. Backend отказал в ответе н�
 session_time_limit (60s). Один turn имеет client_playback_reported/truncated,
 второй playback unconfirmed_or_interrupted/truncated. Это не полный диалоговый/
 акустический PASS. Вопрос о возможной ошибке распознавания второго запроса
-уточняется у Owner: отдельный transcript не доказывает исходно произнесённую речь.
+Owner подтвердил как намеренный: отдельный transcript сам по себе не доказывает речь.
 Исходное аудио не сохранялось. Тексты домашних вопросов/ответов не публикуются.
 
 B:7 sessions remaining,1 reserved estimate$0.125; reported response estimate

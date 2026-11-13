@@ -1,5 +1,15 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Subsequent Owner-approved long B / wake checkpoint
+
+Runtime270f8f7 now serves the separately approved ONE180s board B manual trial
+(Mini/marin,12x2048,$1 estimate) and ONE confirmed public Sol High job90s.
+Original7 minute B starts/C ledger preserved. No automatic provider trial.
+349 regression PASS plus4 real loopback peers PASS; firmware0.4.3 unchanged.
+One-phrase diagnostic firmware0.4.4 built,not installed. New offline accent
+model failed false-wake acceptance; wake-to-Brain remains off. See CURRENT_STATUS
+for exact hashes, pilot evidence and configuration-only rollback steps.
+
 ## Последующее поручение: ручная приёмка B на колонке
 
 После подтверждения Owner веб B изолированный hardware adapter включён.
