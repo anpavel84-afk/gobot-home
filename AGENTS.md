@@ -1,5 +1,11 @@
 # GoBot Home boundaries
 
+OWNER explicitly approved on 2026-11-13 installation of the prepared
+0.4.5-dev-fast-start-1 on this enrolled Spotpear and free local diagnostics
+without OpenAI. Preserve identity/NVS/recovery, limits and existing features.
+This extends the prior UI-only exception to this exact bounded startup-capture
+image; it does not authorize automatic paid conversations or wake enablement.
+
 OWNER explicitly approved on 2026-11-13 USB installation of the prepared
 0.4.4-dev-voice-status-1 UI-only candidate on the enrolled Spotpear, after identity
 and backup checks. This specific exception supersedes Night Train's no-flash rule
