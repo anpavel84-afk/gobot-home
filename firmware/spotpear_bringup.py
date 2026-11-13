@@ -1,5 +1,5 @@
 """Spotpear experiment, pinned to one enrolled unit and one audited app/assets pair."""
-import argparse, hashlib, json, os, re, subprocess, sys, time
+import argparse, hashlib, json, os, re, struct, subprocess, sys, time
 from pathlib import Path
 from serial.tools import list_ports
 
@@ -20,9 +20,42 @@ def require(ok, reason):
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
+
+def nvs_records(data):
+    """Fingerprint logical records, not NVS allocation/erase bookkeeping."""
+    records, namespaces = {}, {}
+    pages = sorted((struct.unpack_from('<I',data,a+4)[0],data[a:a+4096])
+                   for a in range(0x9000,0xd000,4096)
+                   if struct.unpack_from('<I',data,a)[0] in (0xfffffffe,0xfffffffc))
+    require(bool(pages),"No readable NVS pages")
+    for _,page in pages:
+        i=0
+        while i<126:
+            state=(page[32+i//4]>>((i%4)*2))&3
+            if state!=2:i+=1;continue
+            e=page[64+i*32:96+i*32]
+            ns,kind,span,chunk=e[:4]
+            key=e[8:24].split(b'\0')[0]
+            require(1<=span<=126-i and bool(re.fullmatch(rb'[A-Za-z_][A-Za-z0-9_.-]{0,14}',key)),"Unexpected NVS record")
+            value=e[24:]+page[64+(i+1)*32:64+(i+span)*32]
+            records[(ns,key,kind,chunk)]=digest(value)
+            if ns==0 and kind==1:namespaces[key]=e[24]
+            i+=span
+    return records,namespaces
+
+
+def verify_nvs_config(before,after):
+    a,ns=nvs_records(before);b,new_ns=nvs_records(after)
+    require(ns==new_ns and b'phy' in ns,"NVS namespaces changed")
+    changed=[k for k in a.keys()|b.keys() if a.get(k)!=b.get(k)]
+    # ESP-IDF may refresh RF calibration during the deliberate boot resets.
+    # No exemption for enrollment, network settings, volume or any other key.
+    require(all(k[0]==ns[b'phy'] and k[1]==b'cal_data' for k in changed),"NVS configuration changed")
+    return bool(changed)
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -121,6 +154,38 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
+        if opts.action in ("voice-status", "voice-status-rollback"):
+            report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
+            previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
+            new=PRIVATE/"touch/gobot-voice-status.bin"
+            previous=PRIVATE/"touch/gobot-media-ready.bin"
+            require(report["version"]=="0.4.4-dev-voice-status-1" and report["sha256"]=="ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866", "Unapproved UI candidate")
+            require(new.stat().st_size==report["bytes"]<=0x3f0000 and digest(new.read_bytes())==report["sha256"],"UI image mismatch")
+            require(previous.stat().st_size==previous_report["app_bytes"] and digest(previous.read_bytes())==previous_report["app_sha256"],"Media-ready rollback mismatch")
+            assets=PRIVATE/"candidate/gobot-assets.bin"
+            require(digest(assets.read_bytes())==IMAGES["gobot-assets.bin"][2] and current[0x800000:0x800000+assets.stat().st_size]==assets.read_bytes(),"Installed assets changed")
+            source,target=(previous,new) if opts.action=="voice-status" else (new,previous)
+            require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")
+            print("Verified preflash snapshot; writing only ota_0",hex(0x20000),target.stat().st_size,digest(target.read_bytes()),flush=True)
+            esp("write-flash","0x20000",target)
+            esp("verify-flash","0x20000",target)
+            # Independently verify all non-application regions including NVS,
+            # enrollment, boot/OTA metadata, inactive slot and shared assets.
+            device=None
+            try:
+                time.sleep(5)
+                device=cmds.detect_chip(port=ports[0],baud=460800).run_stub()
+                after_prefix=device.read_flash(0,0x20000)
+                require(after_prefix[:0x9000]==current[:0x9000] and after_prefix[0xd000:]==current[0xd000:0x20000],"Boot/OTA metadata changed")
+                recalibrated=verify_nvs_config(current,after_prefix)
+                for offset,size in ((0x410000,0x3f0000),(0x800000,0x800000)):
+                    require(device.flash_md5sum(offset,size).lower()==hashlib.md5(current[offset:offset+size]).hexdigest(),"Non-app region changed")
+            finally:
+                if device is not None:
+                    try:device.hard_reset()
+                    finally:device._port.close()
+            print("Installed UI app verified; NVS configuration/boot/inactive slot/assets unchanged; RF recalibration="+str(recalibrated),flush=True)
+            return
         if opts.action in ("touch","touch-audio","touch-volume","touch-auto","previous","wake-probe","wake-rollback","duplex","duplex-rollback","continuous","continuous-rollback","session-ack","session-ack-rollback","media-ready","media-ready-rollback"):
             release = json.loads((ROOT/"firmware/spotpear/touch_release.json").read_text())
             app = PRIVATE / "touch/gobot-touch-auto.bin"

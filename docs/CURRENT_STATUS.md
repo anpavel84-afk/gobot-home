@@ -1,5 +1,33 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## UI candidate installed on the enrolled Spotpear — 2026-11-13
+
+Owner explicitly approved USB installation of this specific UI-only candidate.
+Installed and USB boot-confirmed:0.4.4-dev-voice-status-1, app2712128bytes,
+SHA256 ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866.
+Actual serial status:Wi-Fi1,enrolled1,phase0,upload0,volume100. Local wake route
+remains disabled. Brain/gateway runtime3ec0569 and all financial allowances are
+unchanged; free readiness0active/0pending B,3 B starts and1 A attempt remain.
+No paid session was opened, no conversation interrupted, no ledger restored.
+
+Guarded install verified enrolled MAC,16MiB flash, disabled secure boot/encryption,
+factory copies/partition geometry and fresh full snapshots. Final preflash copy:
+data/hardware/gobot-v1/operation-1794592139526804000/before.bin; private independent
+verification evidence is alongside it. Wrote only ota_0 at0x20000. Esptool verify
+and independent chip MD5 confirm the app; boot/OTA metadata, inactive slot and
+shared assets match. The first postcheck correctly found byte-level NVS changes:
+logical comparison narrowed this to phy/cal_data RF recalibration during resets.
+All31 logical records retained; configuration/enrollment/volume unchanged.
+Three free NVS guard checks pass (unchanged, calibration refresh, setting rejection);
+52 handoff/gateway regressions pass. No claim that NVS bytes are identical.
+
+UI change shows actual A/B engine and Thinking separately from audio control.
+Host240x240 fixtures are reviewed; physical LCD/touch/voice acceptance after this
+installation awaits Owner. Previous NOT_INSTALLED statements below are historical.
+Rollback at idle: `data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py
+voice-status-rollback` (one line); restores verified0.4.3 app only, preserving NVS
+and ledgers. [Release and fixtures](../firmware/spotpear/voice_status/README.md).
+
 ## First real A handover: voice works, display feedback failed
 
 Owner confirmed a long audible answer after the latest handover. The scoped
