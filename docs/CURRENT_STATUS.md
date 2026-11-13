@@ -1,49 +1,37 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## Night Train v1 — web candidate, проверки перед deployment
+## Night Train v1 — действующий web preview
 
-Ветка `codex/hybrid-web-vnext` поверх `71dcb18`; recovery `032e4ea` и
-B preparation сохранены. Пакет Owner `325c331` перенесён docs-only `46fb07b`.
-W0: WAL-aware SQLite, конфигурация и web bundle сохранены приватно в
-`run/night-train/backups/20261113T024157Z`. Исходный runtime `e623dde`.
+**[Открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next)** ·
+[Утренний отчёт, evidence и откат](night-train-v1/MORNING_REPORT_TEMPLATE.md).
+Branch `codex/hybrid-web-vnext` поверх71dcb18; recovery032e4ea/B сохранены.
+Brain runtime **4beb530ffed6c40adab0541aac030e4688bcea2b**, web source **168faae**.
+W0–W8 доведены до integrated web candidate: contracts/реестр поверх Quick Intents,
+deterministic preflight/operation IDs, scoped context, SQLite timers, Open-Meteo,
+voice library100/100 и RAM narrator/Web Audio. Owner-only flag не даёт новых quotas.
+Платные STT/TTS/B только вручную с прежним admission, checkbox OFF.
 
-W1–W5: typed contracts, manifest поверх Quick Intents, deterministic dispatcher,
-scoped weather/pending context, transactional timer receipts, weather speech/display,
-100 готовых прежних клипов и dry-run, RAM storyteller и реальный Web Audio player,
-owner-only `/device-next` и API в прежнем Brain реализованы. Платный STT/TTS и
-ручной B используют существующие допуски, выключены по умолчанию в новом UI.
-C text handover не принят; карантин не блокирует локальные инструменты.
+**Финальный полный pytest:2379 passed/18 skipped/1 xfailed/118 subtests,260.48s.**
+Предшествующие73 и559 targeted PASS.150 authored semantic cases,34 API/security/media regressions;
+независимый Gemini/holdout NOT_RUN. Chromium390×844 S3 fixture + production HTTPS,
+без TLS bypass/overflow/JS errors; paid boundary calls=[]. Private smoke: clock,
+реальный прогноз завтра→суббота PASS, old/new pages200, Host/authority attacks denied.
+Null в16-м дне Open-Meteo больше не ломает полный прогноз ближайшего дня.
 
-W6: полный pytest — **2376 passed, 18 skipped, 1 xfailed, 118 subtests**,
-229.33 s; затем дополнительно 73 targeted checks прошли, включая два новых
-регрессионных теста. 150 авторских semantic cases внутри suite; независимого
-Gemini/holdout нет (self-review). Chromium S3: 390×844, настоящий AudioContext,
-timer restore, weather followups, pause/resume/Stop, без overflow/JS exceptions;
-provider boundary calls = []. Материал рассказа явно тестовый, сигналы не речь.
-Обнаруженная гонка освобождения audio lock при resume исправлена и перепроверена.
-Дефекты отмены pending и late STT после Stop также исправлены.
-Артефакты приватно: `run/night-train/full-tests.xml`, `browser/evidence.json`, screenshot.
+WAL/config/source/web backups; два guarded idle-only Brain+web restart (deployment
+и real-source fix); остальные services/LiveKit/плата не перезапускались. Financial
+rows/policies совпали с backup. Flag rollback проверен: preview403, old device200.
+C:221 confirmed seconds/$0.1841667 estimate; orphan final=false/reserve60s/$0.05
+сохранён, это не предел неизвестного счёта. Recovery использован, не продлён.
+Hardware B отдельный8×60s/$1 пакет OFF, не deployed. Master неизменён, PR draft.
 
-W7: подготовлен `scripts/night_preview.py`: idle-only deployment, свежие backups,
-один owned Brain restart + прежний private web gateway, immediate server flag rollback.
-Первый deployment 0c8d7ae выполнен: /device-next, /device, /demo2 HTTP200; clock
-и реальный private HTTPS Chromium smoke PASS. Ledger/policies совпали с WAL backup.
-Реальный Open-Meteo smoke обнаружил ранее существовавший дефект: пустой дальний
-16-й день отклонял даже полный прогноз на завтра. Исправлена валидация выбранного
-диапазона при общей проверке календаря; missing requested fields всё ещё отказ.
-559 затронутых проверок прошли. Следующий guarded restart устанавливает этот fix;
-реальный weather smoke повторяется после него.
-
-W8: candidate **0.4.4-night-contract** успешно собран в отдельной копии на
-vmi3510488, IDF 6.0.1 pinned container/network none. App 2711488 bytes, 34% app
-partition free; SHA `fe624dc9f020c4be738d05bb458cf800dcc16990a3ee4d1e8a5a2c3282b0d141`.
-Только negotiation patch; [hardware contract](../firmware/spotpear/vnext/CONTRACT.md).
-**Не установлен**; установленная 0.4.3, NVS, KWS, audio path не менялись.
-
-Новые автоматические платные пробы не запускались. C: прежние 221 confirmed
-seconds / $0.1841667 estimate; один orphan final=false, reserve60s/$0.05,
-неизвестный конечный расход не ограничен этим резервом. Recovery grant использован,
-не продлён. Hardware B отдельный пакет 8×60s/$1 подготовлен, выключен, не развёрнут.
+Candidate0.4.4-night-contract собран отдельно:2711488bytes,34% partition free,
+SHA fe624dc9f020c4be738d05bb458cf800dcc16990a3ee4d1e8a5a2c3282b0d141.
+[Hardware contract](../firmware/spotpear/vnext/CONTRACT.md), НЕ установлен.
+Installed0.4.3/NVS/KWS/audio сохранены. C text handover BLOCKED; manual paid voice,
+iPhone/Spotpear acoustic acceptance NOT_RUN. WEB_READY не означает PASS всех модулей.
+Быстрый откат: `.venv/Scripts/python.exe scripts/night_preview.py disable`.
+Ниже исторические этапы; текущий раздел и утренний отчёт приоритетны.
 
 Обновлён 13 ноября 2026 года (UTC; 12 ноября на PLAN). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
 Этот файл описывает **реализованный код, проверки и ограничения**. Требования

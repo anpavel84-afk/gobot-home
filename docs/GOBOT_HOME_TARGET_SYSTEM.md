@@ -1,5 +1,12 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Owner amendment Night Train v1:** [утверждённая web-first архитектура](night-train-v1/TARGET_SYSTEM_VNEXT.md)
+дополняет этот паспорт: deterministic household routing до открытия модели, общий
+Brain, voice library/narrator, scoped approval/replay и ручные B/C transitions.
+Preview не заменяет старые modes и не расширяет budgets. Реальная готовность —
+[CURRENT_STATUS](CURRENT_STATUS.md) и [утренний отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md).
+
+
 **Версия:** 0.5 DRAFT — единый разговор C ↔ A и графический язык владельца; не v1.0
 **Дата:** 11 ноября 2026 года
 **Статус:** DRAFT FOR REVIEW — вся спецификация ещё не утверждена как v1.0; четыре корректировки v0.2 согласованы владельцем  

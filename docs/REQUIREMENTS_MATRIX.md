@@ -1,5 +1,23 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Night Train v1 — актуальный web-first checkpoint
+
+| Требование | Факт | Evidence/ограничение |
+|---|---|---|
+| W0 preservation | DONE |WAL backup,71dcb18 base, recovery/B сохранены |
+| W1–W2 contracts/router | INTEGRATION_PASS |150 semantic cases; scoped receipts/full-plan preflight |
+| W3 household tools | WEB_READY |Real SQLite/renderer; real weather tomorrow/Saturday |
+| W4 library/player | BROWSER_PASS |100/100 WAV; AudioContext; custom provider NOT_RUN |
+| W5 auth/web/handover | WEB_READY PARTIAL |Owner /device-next; B fixtures; C handover BLOCKED |
+| W6 QA | PASS with gaps |2379 final full +559 targeted; S3 HTTPS; no holdout/acoustics |
+| W7 deployment/rollback | VERIFIED |Runtime4beb530/web168faae; flag preserves ledger |
+| W8 hardware | FIRMWARE_BUILT |0.4.4-night-contract;34% free; NOT_INSTALLED |
+| C incident | PRESERVED/BLOCKED |final=false/reserve60s unchanged |
+| Hardware B | PREPARED/OFF |Separate8×60s/$1; not deployed |
+
+[Фактический отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md). Ниже исторические checkpoint.
+
+
 **Разработка приостановлена владельцем 12 ноября 2026.** Текущая сводка и границы приёмки — [CURRENT_STATUS](CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки). Установлено 0.4.3, Brain 59e1280; исторические строки ниже не означают повторную приёмку.
 
 | Контролируемый C/B: уточнение Owner | Реализация | Проверка / ограничения |

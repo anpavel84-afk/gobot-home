@@ -1,5 +1,10 @@
 # GoBot Home
 
+> **Night Train web preview:** [открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next), Tailscale/Owner.
+> [Утренний отчёт: результаты, ограничения и откат](docs/night-train-v1/MORNING_REPORT_TEMPLATE.md).
+> Brain runtime4beb530, web168faae; прежние страницы и firmware0.4.3 сохранены.
+> Пауза ниже — исторический снимок; новое разрешение ограничено web-first пакетом.
+
 > **Разработка приостановлена владельцем 12 ноября 2026.**
 > [Актуальный обзор: устройство, стек, выполненные работы, тесты и ограничения](docs/CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки).
 > На Spotpear установлен **0.4.3-dev-media-ready**, Brain runtime **e623dde**, gateway **live_c**.

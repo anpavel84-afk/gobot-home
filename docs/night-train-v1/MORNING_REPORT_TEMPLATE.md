@@ -1,68 +1,174 @@
 # GoBot vNext — утренний отчёт исполнителя
 
-**Это пустой шаблон. Публикация пакета не означает выполнения работ. Все начальные статусы — NOT_RUN.**
-
 ## 1. Открыть и проверить
 
-- Реальный URL web preview: **NOT_DEPLOYED**.
-- Время завершения / timezone: **NOT_RUN**.
-- Runtime commit / branch / process build: **NOT_VERIFIED**.
-- Последний рабочий baseline и сохранённый rollback: **NOT_VERIFIED**.
-- Изменённые feature flags / кому доступен новый режим: **NOT_RUN**.
-- Нужно ли пользователю обновить страницу и какой режим выбрать: **NOT_RUN**.
+**https://plan.tailffc57c.ts.net:18786/device-next** — работающий Owner preview.
+На iPhone включить Tailscale, обновить страницу, выбрать «Гибрид».
+Brain runtime **4beb530ffed6c40adab0541aac030e4688bcea2b**, web bundle source **168faae**.
+Integration branch `codex/hybrid-web-vnext` поверх71dcb18, recovery032e4ea сохранён.
+Техническая приёмка завершена 2026-11-13 04:01 UTC; PLAN timezone America/Sao_Paulo.
+Флаг `run/night-train/preview-policy.json` включает прежний Owner phone и локальный
+PLAN preview binding. Desktop binding не получает платный API admission.
+Все paid checkbox в новой странице OFF. Старые /device,/demo2,A/B/C сохранены.
 
-Исполнитель заменяет поля фактами. Не придумывать URL/успешный deployment. Не раскрывать secrets, raw session IDs, домашние координаты или частные разговоры.
+Baseline runtime:e623dde0821af18dac1067782470efd5d01bdbde. WAL-aware backup до работы:
+`run/night-train/backups/20261113T024157Z`. Свежие deployment backups:
+`20261113T034336796074Z` и `20261113T034853172723Z` в том же каталоге, включая
+SQLite backup, policy/config, web-dist и runtime-source.zip. Секреты не опубликованы.
 
 ## 2. Готовность по возможностям
 
-| Возможность | Реализация | Evidence level | Что проверить Owner |
-|---|---|---|---|
-| Web hybrid + auth | NOT_RUN | none | Открытие, Start/Stop, route status |
-| Таймер и replay | NOT_RUN | none | Одна команда — один таймер |
-| Погода и followups | NOT_RUN | none | Завтра / суббота / смена места |
-| Речь и числительные | NOT_RUN | none | Слышимость и естественность |
-| Voice Library | NOT_RUN | none | Ready clips против missing |
-| Рассказчик player | NOT_RUN | none | Pause/resume/Stop и позиция |
-| Генерация новой истории | NOT_RUN | none | Разрешённый provider либо blocker |
-| B handover/полудуплекс | NOT_RUN | none | Реальная ручная сессия отдельно |
-| C handover/эталон | NOT_RUN | none | Инцидент/готовность отдельно |
-| Старая /device и /demo2 | NOT_RUN | none | Не сломаны |
-| Hardware contract/patch | NOT_RUN | none | Совместимость и оставшийся gap |
-| Firmware candidate build | NOT_RUN | none | Сборка не установка |
+| Возможность | Статус и evidence | Что проверить Owner |
+|---|---|---|
+| Web hybrid/auth | WEB_READY, S2 HTTP/S3 настоящий HTTPS | Text, Start/Stop |
+| Таймер/replay | INTEGRATION_PASS/BROWSER_PASS: настоящий SQLite/executor/renderer в изолированном scope | Создание/reload/истечение |
+| Погода/followups | REAL_SOURCE_PASS: production Brain/Open-Meteo tomorrow→Saturday | Домашнее место, значок, период |
+| Речь/числительные | FORMATTER_PASS; PROVIDER_NOT_RUN | Ручная слышимость/естественность |
+| Voice Library |100/100 READY; production browser cached audio graph | Прослушать готовый клип |
+| Narrator player | BROWSER_PASS: AudioContext, queue/pause/resume/Stop/ACK | Явно тестовый рассказ |
+| Новая история | IMPLEMENTED; PROVIDER_NOT_RUN, ручная кнопка существующего gpt-6-luna | Только по желанию, API расход |
+| Свой текст/TTS | IMPLEMENTED; PROVIDER_NOT_RUN, existing Speech/marin/Owner budget | Checkbox TTS, короткий текст |
+| Browser B handover | CONTRACT_PASS; PROVIDER_NOT_RUN, input_text/audio-only fixture | Отдельная ручная проба |
+| C handover | BLOCKED: quarantine/consumed recovery; text handover не принят | Не считать seamless готовым |
+| Старые страницы | HTTP_PASS200 + browser regressions | Старые закладки |
+| Hardware patch/build | FIRMWARE_PREPARED/FIRMWARE_BUILT | НЕ установлен, не acoustic PASS |
 
-Допустимые статусы различать: IMPLEMENTED_NOT_TESTED, FIXTURE_PASS, INTEGRATION_PASS, BROWSER_PASS, PROVIDER_NOT_RUN, HARDWARE_NOT_RUN, BLOCKED. Не сводить всё к одному PASS.
+## 3. Что изменено
 
-## 3. Что действительно изменено
+W0: фактический HEAD/WIP/runtime, сохранение локальных изменений, WAL backups.
+W1: typed SkillManifest/IntentCandidate/RouteDecision/ActionResult/AnswerEnvelope.
+W2: deterministic dispatcher поверх Quick Intents, bounded compound preflight,
+scoped pending/weather frames, server-issued operation/action IDs/replay receipts.
+W3: прежние таймеры/SQLite, Open-Meteo, speech/display envelope и реальные widgets.
+W4: inventory/dry-run готовых клипов, RAM story jobs и настоящий Web Audio player.
+W5: Owner-only /device-next/API в том же Brain и прежнем private web gateway.
+W6: бесплатные тесты/browser QA/self-review. Independent Gemini/holdout NOT_RUN.
+W7: safe deployment, два guarded idle-only Brain+web restart: первоначальный и
+исправление дефекта реального weather smoke. Другие сервисы/LiveKit/board gateway
+не перезапускались; active turns/B/C/media=0. W8: contract/candidate без установки.
 
-Короткая карта файлов/коммитов и runtime deployment. Какие старые функции переиспользованы, какие новые. Отдельно перечислить NOT_CHANGED: установленная прошивка, master, C transport, чужая инфраструктура, quotas/ledger. Если что-то из этого всё же изменено по отдельному разрешению — указать точное основание и diff, не замалчивать.
+Checkpoints:46fb07b docs-only пакет Owner325c331;8d7aabe contracts;ebac9c4 router;
+d11a86f web/player;0c8d7ae rollout/build;4beb530 source fix;168faae cached status.
+NOT_CHANGED: master, installed0.4.3/NVS/KWS, C audio transport, финансовые grants/
+policy/ledger, чужая инфраструктура. Общий weather adapter получил только исправление
+проверки выбранных дней; голосовая архитектура/модель C не менялась.
 
 ## 4. Испытания
 
-Команда → версия/среда → exit code → количество кейсов → артефакт. Базовый корпус и holdout отдельно. Новые failures / baseline failures / skipped / xfailed объяснены.
+- Полный pytest до последнего source fix:exit0,2376 passed/18 skipped/1 xfailed/
+  118 subtests,229.33s; private `run/night-train/full-tests.xml`.
+- Затем73 targeted tests exit0, включая новые regressions. После weather fix:
+  559 weather/context/hybrid/API checks exit0,49.39s; `weather-hotfix-tests.xml`.
+- Финальный `python -m pytest -q --junitxml=run/night-train/final-tests.xml`: **exit0,
+  2379 passed,18 skipped,1 xfailed,118 subtests,260.48s**. Это итоговый прогон после
+  source fix и уточнения fixture выбранного дня; предыдущее падение не скрывается.
+- Router dataset150 authored semantic cases:40 direct,25 context,20 compound,
+  25 indirect,20 free,20 unavailable. Независимого holdout нет.
+-34 API/security/media regressions отдельно от корпуса: scope/epoch, replay,
+  stale/forged ACK, concurrency, client authority injection, no-paid boundaries.
+- `python tests/night_browser.py`:exit0, Chromium1243,390×844, production JS/API на
+  fixture DB/HTTP. Реальный AudioContext, timer restore, weather followups,
+  pause/resume/Stop, no overflow/JS exceptions; paid boundary calls=[].
+- `python tests/night_private_browser.py`:exit0, настоящий private HTTPS без TLS
+  bypass, clock + cached clip,100/100 inventory, без новых provider calls.
+- `python scripts/night_smoke.py`:exit0; /device-next,/device,/demo2/assets200,
+  local clock verified, реальный Open-Meteo tomorrow→Saturday success; foreign
+  Host403, authority injection422. Financial tables/policies совпали с WAL backup.
+- JS syntax checks exit0. Voice-library dry-run:0 requests,missing0,цена неизвестна.
+- Server flag rollback проверен реально: preview403, прежний /device200;
+  флаг восстановлен, ledger не менялся.
 
-Реальные данные против fixtures, настоящий player против mock, browser automation против iPhone/hardware акустики. Метрики: n, условия прогрева, clocks, p50/p95 только где обоснованно. Полезный звук отдельно от filler.
+Исправлены resume/audio-lock race, late STT после Stop, «не надо» при pending,
+ложная подпись «B завершён» при cached playback без B. Реальный источник выявил
+null в16-м дне: раньше он ломал даже полный прогноз на завтра. Теперь глобально
+проверяется календарь, а числовые данные — запрошенных дней. Missing requested
+facts по-прежнему дают отказ, не нули. Первый firmware compile выявил missing
+include; preparation script исправлен, rebuild PASS. Никакие проверки не отключены. Регрессия cache eviction уточнена: null помещён
+именно в запрошенный день1 вместо незапрошенного дня0; отказ/eviction продолжают
+проверяться. Отдельный тест подтверждает, что дальний null не ломает завтра.
+Fixtures синтетические; household transcripts/coords не публикуются. Скриншоты и
+JSON приватно `run/night-train/browser/`. iPhone/Spotpear acoustic NOT_RUN.
+Полезный voice TTFA/p95 не измеряли. Audio graph и сигналы не доказывают слышимость.
 
 ## 5. Расходы и C incident
 
-- Автоматические paid provider calls: **NOT_MEASURED**, не подставлять 0 без evidence.
-- Изменение ручных grants/counters: **NOT_VERIFIED**.
-- C local_resources_released / provider_close_confirmed / final_usage: **NOT_VERIFIED**.
-- Старый unknown usage/reserve/provenance: сохранение **NOT_VERIFIED**.
-- B budget и admission readiness: **NOT_VERIFIED**.
-- Разрешённый developer subscription executor и фактическое использование, если доступно: **UNKNOWN**, не выдумывать денежную оценку.
+Automatic paid calls нового harness:0 на перехваченной provider boundary.
+Production smoke запросил только local tools/Open-Meteo/cached WAV. Все financial
+rows Live/Realtime/Owner и policy совпали с deployment backup. Grants не использованы.
+C:221 confirmed seconds/$0.1841667 по прежней проектной оценке; один старый orphan
+final=false, последние15 наблюдавшихся секунд не final. Reserve60s/$0.05 сохранён;
+**это не предел неизвестного конечного счёта**. Local release не подменяет provider
+close ACK. Одно recovery разрешение использовано ранее (51confirmed sec), не продлено.
+Новый C тест ночью не запускался; карантин не мешает household preview.
+Hardware B: отдельный8×60s,8responses×512,$1estimate,gpt-transcribe пакет OFF,
+не deployed/provider-tested. Browser B использует прежний phone admission, не этот
+пакет. Нет увеличения до5 минут, новых моделей или автоматических платных retries.
+Subscription CLI/reviewer не вызывался; цену текущей инженерной Codex-сессии не
+оценивали. Manual STT/TTS: существующий Owner budget, отдельные origins, консервативная
+pending оценка .50USD/call; actual usage adapters PROVIDER_NOT_RUN. Hard money cap
+не гарантирован. Mass synthesis не выполнен. Истории/текст RAM, remember=false,
+личный архив не подключён. Timer operational receipts не являются semantic memory.
+Новый preview не заявляет полный encrypted text journal каждого события.
 
 ## 6. Аппаратная подготовка
 
-Установленная версия до/после (должна остаться прежней), patch path, protocol version/capability negotiation, build command/result, binary SHA, partition/RAM notes и точные будущие действия. Flash/OTA: **NOT_PERFORMED** в рамках этого задания. Build host недоступен — явно указать, что подготовлен только patch, а не бинарник.
+[Contract и preparation script](../../firmware/spotpear/vnext/CONTRACT.md).
+Installed до/после:0.4.3-dev-media-ready, без flash/OTA/NVS/wake_to_brain.
+Candidate0.4.4-night-contract, отдельная копия vmi3510488:
+`/opt/gobot-firmware/20261112-gobot-v1/night-train-stage-v1/build/xiaozhi.bin`.
+2711488bytes, SHA256 fe624dc9f020c4be738d05bb458cf800dcc16990a3ee4d1e8a5a2c3282b0d141.
+Pinned IDF6.0.1 container/network none/no devices, esp-sr2.4.7 неизменён;
+partition34%free. Runtime RAM/performance не измерены. Contract3/scene2,
+playback activity_only/segment_position=false. Не precise playhead и не полный
+аппаратный narrator port. FIRMWARE_BUILT не означает INSTALLED/HARDWARE_ACCEPTED.
 
-## 7. Ручная проверка — минимальная последовательность
+## 7. Утренняя проверка — шесть действий
 
-Дать 4–6 действий из ACCEPTANCE, ожидаемый смысл результата и пример ошибки. Сначала text/бытовые функции без B/C, затем только разрешённые ручные голосовые маршруты. Указать, какие ручные затраты могут возникнуть. Не просить Owner перепроверять каждый unit test.
+1. С Tailscale откройте URL, «Гибрид», без paid checkbox. Введите «Поставь таймер
+   на три минуты», обновите страницу: один отсчёт должен сохраниться.
+2. «Какая погода завтра?» → «А в субботу?» → «Точно?»: прежнее домашнее место,
+   правильный период/значок/числа; при source failure нет скрытого B/C.
+3. «Поставь таймер» → «Который час?» → «Да»: часы отвечают, позднее согласие
+   не запускает таймер. «Не ставь таймер на пять минут» не создаёт действие.
+4. Явно откройте тестовый рассказ: play/pause/resume/Stop. Сигналы обозначены
+   тестовыми, не сказкой от модели; после Stop нет позднего звука.
+5. В голосовой библиотеке выберите готовый клип. Новый synthesis не нужен.
+   Свой текст/TTS и новая история Luna — отдельные ручные функции, расходующие API.
+6. По желанию, в прежнем phone admission: включите STT для короткой команды либо
+   Direct B + consent. Это платная ручная проба, ночью NOT_RUN. C не обозначен
+   готовым новым handover. /device и /demo2 остаются доступны.
 
 ## 8. Откат
 
-Точный server-side flag/config rollback, bundle/commit и штатная команда при необходимости. Возврат не удаляет новую финансовую историю или пользовательские данные. Проверка старого /device и health после rollback. Никаких `git reset --hard`/drop DB/очистки ledger.
+Из C:/Users/PLAN/gobot/GoBotHome:
 
-## 9. Что не готово и почему
+```powershell
+.venv/Scripts/python.exe -X utf8 scripts/night_preview.py disable
+```
 
-Для каждого blocker: пользовательское влияние, причина, evidence, безопасный обход в текущих правах, следующий необходимый шаг. Не выдавать отсутствующий доступ/бюджет за дефект модели. Не обещать фоновое продолжение после завершения этого прогона.
+Preview сразу403, прежний https://plan.tailffc57c.ts.net:18786/device остаётся200.
+Таймеры/пользовательские изменения/ledger не удаляются. Обратное включение:
+
+```powershell
+.venv/Scripts/python.exe -X utf8 scripts/night_preview.py enable
+.venv/Scripts/python.exe -X utf8 scripts/night_preview.py status
+```
+
+Полный source rollback — отдельная idle maintenance операция: runtime-source.zip
+и web-dist из backup развернуть в отдельный checkout; восстановить только код/web,
+штатно один Brain на прежней production DB. Financial DB не накатывать поверх
+новых записей, reset/clean не использовать. Проверенный быстрый rollback — флаг.
+Firmware rollback не требуется: она не менялась.
+
+## 9. Ограничения
+
+WEB_READY household vertical slice, не PASS всех голосовых модулей. B handover,
+manual STT/TTS/Luna, iPhone acoustics PROVIDER_NOT_RUN. C incident/text handover
+BLOCKED без нового risk approval. Compound: два полных local действия; tool+story/
+conversation пока clarification без первого side effect. Semantic plugin OFF;
+HassIL не установлен. Rain-window/hourly данных нет, не придумываются. Дальний
+день может отсутствовать. Gemini/holdout и hardware installation NOT_RUN.
+Private archive/неизвестные integrations/precise hardware resume не активированы.
+Heard-only context вычисляется и защищён в API; его полный переход из рассказчика
+в реальный B/C разговор ещё не принят. Полный narrator→conversation маршрут NOT_RUN.
+Невидимого фонового train/stress test после этой сессии не будет.
