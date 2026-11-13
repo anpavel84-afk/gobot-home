@@ -1,5 +1,58 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## B -> actual A candidate (2026-11-13, source/free acceptance)
+
+**Runtime applied:**2887ac9fb98ccee0f4bd5f36d613f1afe67043af, private HTTPS
+https://plan.tailffc57c.ts.net:18786/device-next. Gateway realtime_b; original B
+ledger7 starts remaining,0 active/0 pending hangups; extended spent package
+disabled without refund. A handoff implemented=true, financially_authorized=false.
+Prepared A grant remains disabled pending Owner's consolidated budget answer.
+No provider opened during preparation/deployment. Phone/C policies/ledger and
+installed firmware0.4.3 unchanged. Idle deployment backup:
+run/night-train/backups/20261113T150238930850Z. Supervisor/Bridge/media services
+were preserved; owned Brain/web restarted, gateway recycled for old B config.
+422 targeted checks passed (391 handoff/native/modes +31 gateway/Owner/recovery),
+plus5 local LiveKit/aiortc peer checks. No physical A handover/CLI/TTS PASS claimed.
+
+For a future enabled A allowance, immediate financial rollback is to disable
+run/hardware-a/policy.json (do not delete/restore its usage.sqlite), stop any
+active A conversation by device hold/turn cancellation, and keep the original
+B mount/config. The current A proposal is already disabled. Provider unknown
+hangups remain explicit blockers; no automatic cross-engine paid fallback.
+
+Owner explicitly resumed implementation of actual expert MODE handover. The
+board B manager now uses NativeHandoff + existing ConversationModes, not a new
+Brain/ExpertJobs loop. A direct "экспертный режим" or current confirmed server
+mode offer cancels native speech, closes B and waits for confirmed provider
+hangup. Unconfirmed hangup/503 denies A. Old physical playback must drain before
+A output. Gateway reuses the original question with existing /chat/voice/stream,
+without second STT or another question/tap. A streams sentence/audio chunks;
+the first audio was asserted BEFORE final text in a free mock-stream test.
+Short permitted B history goes to existing guest RAM flow, never private archive.
+Question snapshot, fixed operation ID, identity ownership and first-question
+checks prevent task replacement/duplicate mode creation; Stop targets actual A
+turn ID. End/idle clears the transferred RAM seed. Phone/C defaults preserved.
+
+**Not yet a fully accepted physical conversation.** Source is prepared; current
+predeployment runtime was270f8f7. Installed firmware0.4.3 unchanged. The
+first transferred question is automatic; further A questions retain existing
+device touch/capture behavior. Continuous automatic A followups without a new
+touch are NOT implemented/claimed. No false promise that Sol guarantees low TTFA.
+gpt-live-transcribe does not support server_vad: official transcription docs were
+checked; no unsupported parameters added to simulate automatic phrase endings.
+
+Separate hardware A admission uses existing ExpertBudget/ExpertPolicy, disabled
+proposal in run/hardware-a/policy.json:2 A attempts,SOL_HIGH,90s CLI each,
+context<=3000 estimated tokens,result<=6000 characters,TTS<=3000 chars/turn.
+Gateway finite batch counts failed speech attempts too across dates/restarts;
+historical daily/CLI/B/C ledgers never reset. This proposed grant is NOT approved
+or enabled. Previous one Sol task is spent; phone identity/grant is not borrowed.
+No automatic paid provider test, TTS synthesis or CLI task was run.
+
+Free acceptance:391 targeted tests passed;5 real loopback LiveKit/aiortc peer
+scenarios passed separately (including mode handoff, Stop/network/drain failures).
+Actual household acoustic/CLI/TTS acceptance awaits an explicit remaining A grant.
+
 ## Owner correction: expert MODE A is not background ExpertJobs
 
 Owner's latest manual board B trial actually reached Codex CLI SOL_HIGH

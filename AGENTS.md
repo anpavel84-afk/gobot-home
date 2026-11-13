@@ -1,5 +1,13 @@
 # GoBot Home boundaries
 
+OWNER DIRECT subsequent 2026-11-13 correction authorizes actual hardware B->A
+mode handover, reusing existing ConversationModes/legacy streamed voice. Close B
+and confirm provider cleanup before A; transfer permitted question/context once.
+Do not replace mode A with a buffered ExpertJobs summary. Free implementation /
+acceptance and guarded idle deployment are allowed; no new paid A grant is
+implied. The prior180s B start/one Sol job are consumed. Separate A proposal is
+disabled pending Owner answer; preserve original seven B starts and C ledger.
+
 OWNER DIRECT subsequent 2026-11-13 amendment: prepare one separately ledgered
 manual board B session <=180s,12 responses x2048 output tokens,$1 estimated API
 allowance; one confirmed public task SOL_HIGH (gpt-6.1-sol/high),<=90s,<=3000

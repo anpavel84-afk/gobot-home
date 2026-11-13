@@ -29,6 +29,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
     tracks=[];peer.on('track',tracks.append)
     tasks=[];attempted=False;last_pcm=0.;flushed=False;started_ack=False;drain_started=0.
     response_ready=asyncio.Event()
+    handoff_result=None
     now=lambda:asyncio.get_running_loop().time()
     async def command(action,**kw):
         response=await client.post(f'{base}/{ident}/command',headers=headers,
@@ -76,7 +77,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                     if state.state=='Speaking' and now()-last_pcm<.3:await relay.send_speaker(raw)
 
         async def events():
-            nonlocal flushed,started_ack,drain_started
+            nonlocal flushed,started_ack,drain_started,handoff_result
             from spotpear_scene import project_scene
             serial=0
             async with client.stream('GET',f'{base}/{ident}/events',headers=headers,params=scope) as response:
@@ -102,6 +103,17 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                         if scene:await send(scene)
                     elif kind=='error':raise ValueError('hardware_b_provider_error_no_retry')
                     elif kind=='closed':
+                        if data.get('reason')=='mode_switch':
+                            state.stop() # Stop relay delivery and close the microphone gate immediately.
+                            answer=await client.get(f'{base}/{ident}/handoff',headers=headers,params=scope)
+                            answer.raise_for_status();handoff_result=answer.json()
+                            if handoff_result.get('state')!='ready':raise ValueError('hardware_b_handoff_not_confirmed')
+                            deadline=now()+5
+                            while state.last_packet_at and not (not capture.playing and
+                                getattr(capture,'activity_at',0)>=state.last_packet_at and now()-state.last_packet_at>=.35):
+                                if now()>deadline:raise ValueError('handoff_playback_drain_unconfirmed')
+                                await asyncio.sleep(.02)
+                            return
                         await send({'type':'gobot_session_end','reason':data.get('reason')});return
             raise ValueError('hardware_b_control_lost_no_retry')
 
@@ -134,11 +146,12 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
         done,_=await asyncio.wait(tasks,return_when=asyncio.FIRST_COMPLETED)
         for task in done:task.result()
         if terminal not in done:raise ValueError('hardware_b_media_lost_no_retry')
+        return handoff_result
     finally:
         state.stop()
         for task in tasks:task.cancel()
         await asyncio.gather(*tasks,return_exceptions=True)
         capture.stop();await peer.close();await relay.close()
-        if attempted:
+        if attempted and handoff_result is None:
             with suppress(Exception):
                 async with asyncio.timeout(8):await command('close',close_reason='user_stop')

@@ -180,6 +180,9 @@ class NativeSession(VoiceVisualSession):
         # Existing ACL/context builder provides bounded, scoped facts. No development instructions.
         seed={k:packet[k] for k in ('messages','summary','facts','topic','active_visual_subject','runtime_environment') if packet.get(k)}
         instructions=INSTRUCTIONS+' Личная память в этом нативном режиме пока закрыта: личность говорящего не подтверждена. Не обещай сохранение настроек или личных фактов.\nКонтекст JSON:\n'+json.dumps(seed,ensure_ascii=False)
+        handoff=getattr(self.manager,'legacy_handoff',None)
+        if handoff:
+            instructions+='\nЭкспертный режим A — реальное переключение разговорного движка, не фоновая задача expert_propose/start. На просьбу перейти в экспертный режим сервер сам проверяет исходный транскрипт и закрытие B. Не объявляй переключение по своему решению. Доступ: '+json.dumps({'available':handoff.admission(self) is None,'blocked_reason':handoff.admission(self)},ensure_ascii=False)
         from .visual_images import source_config
         instructions+='\nВозможности visual_request, подтверждённые сервером: '+json.dumps({'wikimedia_search_configured':bool(source_config()),'local_fallback_cards':True,'generation_allowed':self.policy.image_generation_allowed and self.profile.screen.generation_allowed,'generation_consent':self.profile.screen.generation_consent,'generation_mode':self.profile.screen.generation_mode,'generation_daily_limit':self.profile.screen.generation_daily_limit,'source_policy':self.profile.screen.visual_source_policy})
         if self.offer.personalization_mode=='confirmed_profile':
@@ -316,6 +319,8 @@ class NativeSession(VoiceVisualSession):
                                     'openai:'+self.policy.model,turn.trace)
         from .quick_intents import resolve_quick
         self.emit('input_transcript',text=text,final=True,confirm_text_allowed=resolve_quick(text,{}) is None)
+        handoff=getattr(self.manager,'legacy_handoff',None)
+        if handoff and await handoff.request(self,turn,text):return
         if turn.answer:self.spawn(self.check_alignment(turn))
         proposal=self.experts.pending
         pending={'pending_action':{'kind':'expert_proposal','id':proposal.proposal_id,'expires':proposal.expires}} if proposal and proposal.state=='awaiting_confirmation' else {}
@@ -598,7 +603,15 @@ class NativeSession(VoiceVisualSession):
             # A source gap can offer analysis, never pretend that another model
             # independently verified current facts. Only the actual user transcript
             # defines the task; model tool arguments cannot authorize CLI work.
-            if (not quick and RiskAssessment().assess(req.text,context).verification_required and
+            handoff=getattr(self.manager,'legacy_handoff',None)
+            if (handoff and not quick and RiskAssessment().assess(req.text,context).verification_required and
+                (getattr(result,'evidence',None) or {}).get('abstained') and turn.query):
+                proposal=handoff.propose(self,turn)
+                output['mode_proposal']=proposal
+                if proposal['available']:
+                    output['text']+=' Могу перевести разговор в экспертный режим A с этим вопросом. Переключить? Сам переход не подключает источник свежих данных.'
+                    output['requires_user_confirmation']=True
+            elif (not quick and RiskAssessment().assess(req.text,context).verification_required and
                 (getattr(result,'evidence',None) or {}).get('abstained') and turn.query and
                 self.experts.status(include_profiles=False)['enabled'] and 'SOL_HIGH' in self.experts.budget.policy().allowed_profiles):
                 pending=self.experts.pending

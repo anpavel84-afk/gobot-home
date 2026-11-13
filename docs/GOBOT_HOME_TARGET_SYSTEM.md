@@ -1,5 +1,13 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Implementation amendment:** hardware B expert MODE uses the existing A stream
+after confirmed native hangup and physical playback drain. Transfer the existing
+question once and guest-only permitted dialogue context; do not transcribe it
+again. A mode admission and its CLI/STT/TTS costs are separate from a background
+expert job. Repeat/reconnect never implicitly starts a second paid task. The
+first question handoff is automatic; continuous A device followups need separate
+capture/phrase-end acceptance and must not be advertised from this transition.
+
 **Owner correction 2026-11-13 (expert MODE):** "перевести в экспертный режим"
 means handover to the existing A conversation engine with permitted context and
 incremental sentence/audio delivery, not one background ExpertJobs task followed
