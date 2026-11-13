@@ -182,7 +182,7 @@ class NativeSession(VoiceVisualSession):
         instructions=INSTRUCTIONS+' Личная память в этом нативном режиме пока закрыта: личность говорящего не подтверждена. Не обещай сохранение настроек или личных фактов.\nКонтекст JSON:\n'+json.dumps(seed,ensure_ascii=False)
         handoff=getattr(self.manager,'legacy_handoff',None)
         if handoff:
-            instructions+='\nЭкспертный режим A — реальное переключение разговорного движка, не фоновая задача expert_propose/start. На просьбу перейти в экспертный режим сервер сам проверяет исходный транскрипт и закрытие B. Не объявляй переключение по своему решению. Доступ: '+json.dumps({'available':handoff.admission(self) is None,'blocked_reason':handoff.admission(self)},ensure_ascii=False)
+            instructions+='\nЭкспертный режим A — реальное переключение разговорного движка, не фоновая задача expert_propose/start. Упоминание экспертного режима в реплике пользователя обрабатывает сервер: проверяет исходный транскрипт и закрытие B. Не объявляй переключение по своему решению. Если не можешь дать надёжный содержательный ответ, не заканчивай голым отказом: вызови gobot_tool с точным вопросом. Если сервер вернул доступное mode_proposal, коротко предложи экспертный режим A. После реального «да» сервер выполняет переход; до подтверждения не говори, что уже переключил. Экспертный режим не обходит права доступа и сам по себе не даёт источник свежих фактов. Доступ: '+json.dumps({'available':handoff.admission(self) is None,'blocked_reason':handoff.admission(self)},ensure_ascii=False)
         from .visual_images import source_config
         instructions+='\nВозможности visual_request, подтверждённые сервером: '+json.dumps({'wikimedia_search_configured':bool(source_config()),'local_fallback_cards':True,'generation_allowed':self.policy.image_generation_allowed and self.profile.screen.generation_allowed,'generation_consent':self.profile.screen.generation_consent,'generation_mode':self.profile.screen.generation_mode,'generation_daily_limit':self.profile.screen.generation_daily_limit,'source_policy':self.profile.screen.visual_source_policy})
         if self.offer.personalization_mode=='confirmed_profile':
@@ -604,7 +604,7 @@ class NativeSession(VoiceVisualSession):
             # independently verified current facts. Only the actual user transcript
             # defines the task; model tool arguments cannot authorize CLI work.
             handoff=getattr(self.manager,'legacy_handoff',None)
-            if (handoff and not quick and RiskAssessment().assess(req.text,context).verification_required and
+            if (handoff and not quick and RiskAssessment().assess(req.text,context).method!='memory_source' and
                 (getattr(result,'evidence',None) or {}).get('abstained') and turn.query):
                 proposal=handoff.propose(self,turn)
                 output['mode_proposal']=proposal

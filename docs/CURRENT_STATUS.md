@@ -1,11 +1,35 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner simplification: expert-mode keyword / abstention offer
+
+Owner requires ordinary mentions of "экспертный режим" in the actual user's
+utterance to select A, rather than an exact command template. Native handoff now
+accepts the keyword with inflection and ordinary ASR punctuation, keeping an
+attached first question. This supersedes the earlier quoted/narrated-mention
+exclusion for the keyword trigger; tool/model output still cannot select a mode.
+An explicit negative command remains a refusal, not activation. Existing financial,
+guest/privacy, executor-isolation and provider close/drain checks are unchanged.
+
+For an unresolved substantive question, native instructions require a real
+gobot_tool check; server abstention offers A when admitted. A real current "да"
+confirms the mode offer; no ExpertJobs worker is created. Lack of fresh data does
+not magically give A a verified source. Existing expense caps are not expanded.
+144 free regressions passed, plus the new server-abstention->offer->yes->actual
+handover case passed in the25-test handoff suite. No paid automatic trial.
+
+The previous manual retry used period-separated mode/question text, exposing
+the punctuation-dependent parser. It did not start A; the shared two-attempt A
+grant remains unused. Five B starts were available before that retry; its manual
+activation reduced the remaining B count to4. No active paid call was interrupted.
+Current deployment/usage checkpoint follows; earlier exact-template instructions
+and "no quoted mention" checks are historical, not the new Owner behavior.
+
 ## Natural A request / one-utterance handover repair
 
 **Deployed:** Brain cbdb0318c57447a57b42678ddcb5ada1695ab758; gateway d55045d,
 firmware0.4.3 unchanged.65 mode/handoff/board +87 native/gateway/expert free
 checks passed (152 total). Backup:run/night-train/backups/20261113T152059114968Z.
-At readiness check:original B5 remaining,A2 remaining,0 active/0 pending hangups,
+Before the latest manual retry:original B5 remaining,A2 remaining,0 active/0 pending hangups,
 handoff financially_authorized=true. Existing expiryNov14 12:14 Sao Paulo unchanged.
 No paid test/retry performed by developer. Owner invited to explicitly request
 expert mode AND its question in one utterance; physical acceptance remains pending.

@@ -25,12 +25,23 @@ def mode_intent(text):
     return None
 
 def expert_mode_request(text):
-    """Exact direct mode selection, optionally followed by its first question.
-    Whole quoted/narrated commands do not match. No substring/fuzzy actions.
+    """Owner-selected keyword trigger, applied only to an actual user transcript.
+    Financial/identity checks still happen in NativeHandoff, never from tool text.
     """
+    match=re.search(r'\bэкспертн(?:ый|ого|ом|ому|ым)\s+режим(?:а|е|у|ом)?\b',text,re.I)
+    if match:
+        before=text[:match.start()]
+        if re.search(r'\b(?:не\s+(?:включай|включать|переключай|переводи)|отмени)\b',before,re.I):return None
+        if re.match(r'^\s*(?:сравни|объясни|расскажи|разбери|проверь|как|почему|что|чем|сколько|како[йея])\b',before,re.I):return text.strip()[:8000]
+        question=text[match.end():].lstrip(' \t\r\n:;—.,?!«»"').strip()
+        if re.fullmatch(r'(?:[aа]|пожалуйста|сейчас|давай|включи|включить|переведи|переключи|меня|мне)(?:\s+(?:пожалуйста|сейчас|давай|меня|мне))*',question,re.I):return ''
+        return question[:8000]
     if mode_intent(text)=='legacy':return ''
-    parts=re.split(r'[:;—]|\?\s+',text,maxsplit=1)
-    if len(parts)==2 and mode_intent(parts[0])=='legacy' and parts[1].strip():return parts[1].strip()[:8000]
+    # Punctuation is supplied by ASR, not spoken by the user. Accept its stable
+    # separators and allow a wake-name comma before the complete mode command.
+    for separator in re.finditer(r'[:;—.,?!]\s*',text):
+        question=text[separator.end():].strip()
+        if question and mode_intent(text[:separator.start()])=='legacy':return question[:8000]
     return None
 
 @dataclass
