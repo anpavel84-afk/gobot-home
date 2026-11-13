@@ -14,13 +14,23 @@ def mode_intent(text):
     value=re.sub(r'^(?:гобот|го бот)\s+','',value)
     value=re.sub(r'^(?:ну |хорошо |ладно )','',value)
     value=re.sub(r'^пожалуйста | пожалуйста$','',value)
+    value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|можно ли)\s+','',value)
     value=re.sub(r' (?:давай|да)$','',value)
     if value in {'стоп','stop','закончи разговор','закончим разговор','заверши разговор','давай закончим','спасибо закончили'}:return 'end'
-    verb=r'(?:включи|включить|переключи(?:сь| меня| нас)?|перейди|перейдем|включим|давай (?:перейдем|включим|переключимся|переключи(?: меня)?|перейди))'
+    verb=r'(?:включи|включить|переключи(?:сь| меня| нас)?|переведи(?: меня| нас)?|перевести(?: меня| нас)?|перейди|перейдем|включим|давай (?:перейдем|включим|переключимся|переключи(?: меня)?|перейди))'
     prefix=r'(?:'+verb+r'(?: в| на)? )?'
     if re.fullmatch(prefix+r'(?:экспертный|вдумчивый) (?:режим|вариант)(?: [aа])?',value) or value in {'давай разберем подробно','разберем подробно'}:return 'legacy'
     if re.fullmatch(verb+r'(?: в| на)? режим [aа]',value):return 'legacy'
     if re.fullmatch(prefix+r'(?:обычный режим|быстрый режим|живой разговор)(?: [cс])?',value) or value in {'вернись к обычному разговору','вернись в обычный режим'}:return 'live'
+    return None
+
+def expert_mode_request(text):
+    """Exact direct mode selection, optionally followed by its first question.
+    Whole quoted/narrated commands do not match. No substring/fuzzy actions.
+    """
+    if mode_intent(text)=='legacy':return ''
+    parts=re.split(r'[:;—]|\?\s+',text,maxsplit=1)
+    if len(parts)==2 and mode_intent(parts[0])=='legacy' and parts[1].strip():return parts[1].strip()[:8000]
     return None
 
 @dataclass

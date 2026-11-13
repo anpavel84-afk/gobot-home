@@ -1,5 +1,22 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Natural A request / one-utterance handover repair
+
+Latest Owner manual trial did not enter A. Journal shows the direct natural
+request "Ты можешь включить экспертный режим?" arrived at57.40s but the strict
+mode parser did not accept the conversational wrapper. B then hit its60s limit;
+there was no mode-switch event or A executor. This is a parser/UX failure, not
+evidence that CLI failed. A's2 approved attempts remain unused; original B5
+starts remain at this check. No budget reset/extension or automatic paid retry.
+
+Source now accepts exact natural requests ("ты можешь включить", "можешь
+включить", "переведи меня") without matching quoted/narrated mentions. Explicit
+"Экспертный режим: <question>" supplies the first A question in ONE utterance,
+so a manual comparison need not spend most of B's minute hearing its answer.
+The same original A stream and native close/drain/admission checks are reused.
+65 free mode/handoff/board regressions passed; deployment follows. No new STT,
+model, firmware or financial allowance.
+
 ## Owner approved B->A hardware package (2026-11-13)
 
 **APPLIED:** board-bound A enabled until2026-11-14 12:14 America/Sao_Paulo.

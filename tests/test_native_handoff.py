@@ -8,6 +8,35 @@ from gobot.conversation_modes import ConversationModes
 from gobot.native_handoff import NativeHandoff
 from gobot.models import VoiceRequest
 
+@pytest.mark.parametrize('text',[
+    'Ты можешь включить экспертный режим?', 'Можешь включить экспертный режим?',
+    'Переведи меня в экспертный режим', 'Экспертный режим',
+])
+def test_natural_direct_mode_requests(text):
+    from gobot.conversation_modes import expert_mode_request
+    assert expert_mode_request(text)==''
+
+@pytest.mark.parametrize('text',[
+    'Что означает экспертный режим?', 'Он сказал: экспертный режим',
+    'Повтори фразу «Ты можешь включить экспертный режим?»',
+])
+def test_mode_mentions_are_not_mode_actions(text):
+    from gobot.conversation_modes import expert_mode_request
+    assert expert_mode_request(text) is None
+
+def test_single_utterance_goes_straight_to_a_with_original_question(tmp_path,settings):
+    original,b,provider,modes=setup(tmp_path,settings)
+    async def run():
+        try:
+            await b.start(offer());s=b.sessions['board-b-1']
+            await s.new_turn(query='Экспертный режим: сравни два способа выращивания растений')
+            result=await b.legacy_handoff.result(s)
+            assert result['state']=='ready' and result['question']=='сравни два способа выращивания растений'
+            assert s.closed and s.hangup_confirmed
+            assert not any(e['type']=='expert_job' for e in s.events)
+        finally:await b.shutdown();await original.shutdown()
+    asyncio.run(run())
+
 def setup(tmp_path,settings,authorized=True):
     original,b,provider,path=prepared(tmp_path,settings);enable(path)
     owner=SimpleNamespace(authorized=lambda binding:authorized and binding=='board',
