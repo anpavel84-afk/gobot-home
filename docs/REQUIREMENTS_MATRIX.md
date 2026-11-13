@@ -8,7 +8,7 @@
 | First question/context | Same transcript, scoped guest RAM, no second STT | Private history deliberately denied |
 | Streaming A | First audio before final text, actual existing gateway code | Model TTFA/acoustics unmeasured |
 | Device drain/Stop | 5 free local peer scenarios PASS | Installed0.4.3; no flash |
-| A expense admission | Separate finite disabled proposal, exact Sol High | New grant required; old task spent |
+| A expense admission | Owner approved/enabled2 A attempts untilNov14 12:14 Sao Paulo; exact Sol High | Real physical handoff awaits Owner; old task remains spent |
 | Further A questions | Existing A touch/capture cycle retained | Continuous hands-free followups NOT_DONE |
 
 ## 2026-11-13 board B / same-utterance wake

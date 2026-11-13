@@ -1,5 +1,28 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner approved B->A hardware package (2026-11-13)
+
+**APPLIED:** board-bound A enabled until2026-11-14 12:14 America/Sao_Paulo.
+At activation:2 A attempts remaining,7 original B minute starts,0 automatic paid
+calls. Native handoff status:implemented=true/financially_authorized=true.
+Gateway-only restart loaded d55045d capture/speech bounds; Brain remains2887ac9.
+No firmware/phone/C changes or new provider connection. WAL-aware backup of
+original/extended B, A, Live, Realtime and Owner ledgers plus configuration:
+run/hardware-a/backups/20261113T151453169578Z. All financial table fingerprints
+unchanged before/after. A uses its separate grant and persistent attempt batch,
+not the phone or spent background expert grant. First transferred question uses
+no additional STT. Actual physical B->A/CLI/TTS streaming is awaiting Owner.
+Owner received one manual scenario; no paid developer trial was started.
+
+Owner's consolidated answer explicitly permits24h, one manual start from the
+existing seven B minute starts, up to2 A turns via Codex SOL_HIGH/high <=90s each,
+context<=3000 estimated tokens,result<=6000chars; <=2 STT attempts x26s and
+<=6000 TTS characters total, $1 API estimate, no automatic paid trials/retries.
+This supersedes "pending approval" below; activation/checkpoint follows.
+Gateway A sample/packet buffer is now explicitly26s even when base mode is B;
+batch voice requests permit3000chars/turn, retaining1600 for existing non-batch A.
+24 free handoff/gateway regressions passed. Firmware unchanged; no paid start.
+
 ## B -> actual A candidate (2026-11-13, source/free acceptance)
 
 **Runtime applied:**2887ac9fb98ccee0f4bd5f36d613f1afe67043af, private HTTPS

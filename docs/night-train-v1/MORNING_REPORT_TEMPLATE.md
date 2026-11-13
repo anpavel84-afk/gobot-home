@@ -1,5 +1,14 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Owner's A allowance applied
+
+Board A package is now explicitly approved/enabled untilNov14 12:14 Sao Paulo:
+2 A attempts,Sol6.1High<=90s each,STT<=2x26s,TTS<=6000chars total,$1 API estimate.
+7 original B starts preserved. Financial fingerprints unchanged; no paid
+automatic call. Brain2887ac9;gateway d55045d;firmware0.4.3 unchanged.24 focused
+free regressions PASS for capture/speech caps. Owner manual transition invited;
+physical/real CLI/TTS streaming acceptance remains NOT_RUN.
+
 ## Actual B->A mode integration
 
 Runtime2887ac9 deployed at idle; original B7 minute starts restored without

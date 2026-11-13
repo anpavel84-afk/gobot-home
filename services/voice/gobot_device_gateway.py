@@ -286,6 +286,7 @@ class Gateway:
                                 stream=StreamingSpeech()
                                 maybe_respond()
                             elif self.config.get('continuous_live'):
+                                decoder=OpusInput(26) # A keeps its approved sample/packet cap, not B's 180s buffer.
                                 await send({'type':'gobot_access','allowed':True,'continuous':False})
                         deadline = asyncio.get_running_loop().time() + (MAX_TURN_SECONDS if stream is not None and self.config.get('continuous_live') else 26)
                     elif kind == 'listen' and obj.get('state') == 'stop' and state == 'capture':
@@ -487,7 +488,7 @@ class Gateway:
                        'tts_provider': config['tts_provider'], 'tts_voice': config['tts_voice'],
                        'paid_tts_consent': True, 'paid_chat_consent': config.get('paid_chat_consent',False),
                        'usage_consent': config.get('cli_usage_consent',False),
-                       'tts_character_limit': 1600, 'expensive_fallback_approved': False}
+                       'tts_character_limit': 3000 if config.get('hardware_a_batch') else 1600, 'expensive_fallback_approved': False}
             if flow_id:
                 request['mode_conversation_id'] = flow_id
             encoder = OpusOutput(); started = False; expected_seq = 0; audio_bytes = 0
