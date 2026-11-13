@@ -93,10 +93,13 @@ def attach_brain_hybrid(app,brain,realtime,live,speech,auth,*,policy_path=None):
             if len(raw)>4*1024*1024:raise HTTPException(413,'preview_recording_limit')
         pcm=await speech.decode(bytes(raw),request.headers.get('content-type',''))
         if not 3200<=len(pcm)<=16000*2*15:raise HTTPException(422,'truncated_or_empty_recording_not_transcribed')
-        realtime.owner_testing.reserve(binding,'realtime','web-stt:'+uuid4().hex,estimate=.5,origin='web_stt')
+        try:realtime.owner_testing.reserve(binding,'realtime','web-stt:'+uuid4().hex,estimate=.5,origin='web_stt')
+        except PermissionError as error:raise HTTPException(403,str(error))
         out=io.BytesIO()
         with wave.open(out,'wb') as f:f.setparams((1,2,16000,0,'NONE',''));f.writeframes(pcm)
-        return await speech.transcribe(out.getvalue(),'audio/wav','openai',paid_consent=True)
+        try:return await speech.transcribe(out.getvalue(),'audio/wav','openai',paid_consent=True)
+        except PermissionError:raise HTTPException(403,'speech_provider_consent_or_policy_denied')
+        except Exception:raise HTTPException(502,'speech_transcription_failed')
     @app.post('/api/v1/next/operation',dependencies=[Depends(auth)])
     async def operation(request:Request):
         body,scope=await parsed(request,Operation)
@@ -219,6 +222,10 @@ def attach_brain_hybrid(app,brain,realtime,live,speech,auth,*,policy_path=None):
 
 def attach_gateway_hybrid(app,settings,devices,subject,device_scope):
     auth={'Authorization':'Bearer '+settings.api_token}
+    def json_response(result):
+        try:body=result.json()
+        except ValueError:return JSONResponse({'detail':'preview_backend_invalid_response'},status_code=502)
+        return JSONResponse(body,status_code=result.status_code)
     async def identity(request):
         guest='browser-'+request.client.host.replace('.','-')
         profile=await asyncio.to_thread(devices.profile,device_scope(request,guest))
@@ -230,7 +237,7 @@ def attach_gateway_hybrid(app,settings,devices,subject,device_scope):
         async with httpx.AsyncClient(trust_env=False,timeout=55) as client:
             result=await client.post('http://127.0.0.1:18781/api/v1/next/'+path,headers=auth,json=payload)
         if binary:return Response(result.content,status_code=result.status_code,media_type=result.headers.get('content-type','application/octet-stream'))
-        return JSONResponse(result.json(),status_code=result.status_code)
+        return json_response(result)
     @app.get('/device-next')
     async def preview(request:Request):
         check=await forward(request,'status')
@@ -247,7 +254,7 @@ def attach_gateway_hybrid(app,settings,devices,subject,device_scope):
         scope=await identity(request);scope.pop('profile_epoch');scope['paid_consent']=str(paid_consent).lower()
         async with httpx.AsyncClient(trust_env=False,timeout=55) as client:
             result=await client.post('http://127.0.0.1:18781/api/v1/next/transcribe',headers={**auth,'Content-Type':request.headers.get('content-type','')},params=scope,content=bytes(raw))
-        return JSONResponse(result.json(),status_code=result.status_code)
+        return json_response(result)
     @app.post('/api/next/{path:path}')
     async def api(path:str,request:Request):
         if path not in {'open','operation','dispatch','timers','library','stories','speech','stories/generate'} and not __import__('re').fullmatch(r'stories/[a-f0-9]{32}/(?:command|ack|heard|audio/\d{1,2})',path):raise HTTPException(404)

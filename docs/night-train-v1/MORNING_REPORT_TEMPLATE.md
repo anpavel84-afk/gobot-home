@@ -1,5 +1,19 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Дополнение: отказ ручного STT после отчёта
+
+Owner сообщил «не работает». Логи подтвердили ошибку admission origin web_stt
+(и такой же дефект web_tts), затем non-JSON500 ломал ответ шлюза. Ошибка была до
+вызова STT API. Исправлено: строго два manual speech origins при прежнем Owner
+binding/kind=realtime/spend caps; JSON403/502 вместо необработанных исключений.
+46 targeted free checks passed, включая fake-provider HTTP success/limit refusal.
+Текущий Brain runtime **be5474fcc33c4b171a5459984a555916fc1a225d**, web168faae.
+Прежний process manager безопасно принял существующие workers без их перезапуска,
+затем обновлены только Brain/web. WAL backup20261113T071057720168Z. Private HTTPS/
+clock/real weather smoke PASS; financial policies/rows unchanged. Платная реальная
+speech приёмка NOT_RUN; предыдущие2379 full tests относятся к версии до hotfix.
+Это исправляет завышенную практическую оценку готовности manual speech в первом отчёте.
+
 ## 1. Открыть и проверить
 
 **https://plan.tailffc57c.ts.net:18786/device-next** — работающий Owner preview.
