@@ -1,5 +1,39 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Fast-start installed and free device checks passed — 2026-11-13
+
+Owner separately approved this specific capture-path firmware and free local
+diagnostics. Installed0.4.5-dev-fast-start-1,2712800bytes, SHA256
+c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764.
+Enrolled MAC/flash/security/factory backups/partition geometry checked; fresh
+full snapshot:data/hardware/gobot-v1/operation-1794596282531133400/before.bin.
+App-only USB write at0x20000 passed esptool verify and independent chip MD5.
+NVS logical configuration, boot/OTA metadata, inactive slot and shared assets
+verified unchanged. This pass did not require a PHY recalibration exemption.
+USB confirms exact version,Wi-Fi1,enrolled1,volume100,phase0,upload0.
+
+Three successful FREE tests on the real board used the existing authenticated
+TLS gateway with a temporary local fake backend; HTTP requests explicitly denied,
+no OpenAI/CLI/Image/STT/TTS call, no raw audio saved. With2s delayed media-ready:
+0samples uploaded before readiness;70064 real microphone samples received after
+release, peak queued backlog2439ms. Overflow cancelled with0 received samples;
+network close before readiness also cancelled with0 samples. Each returned to
+idle/upload0. Capture handler logged3ms for each USB diagnostic activation.
+These are NOT physical touch-to-first-sample timings or human speech-quality
+proof. Physical first syllable/LCD/hold Stop and real B followup await Owner.
+Two initial fixture runs exposed harness errors (HTTP client construction and
+stale idle sampling); corrected before all three successful checks. Five USB
+diagnostic activations total; none were claimed as physical touches.
+
+Actual B gateway restored in finally; original gateway configuration unchanged.
+Brain remains3ec0569,gateway codef4c5ab8; no provider session opened by developer,
+ledger/caps unchanged. Readiness0active/0pending B,B2 starts,A1 attempt remain.
+Specific approval recorded in AGENTS.md; wake routing remains OFF. Private
+numeric evidence:data/hardware/gobot-v1/fast-start-free-evidence.json.
+Rollback at idle:`data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py
+fast-start-rollback` (one line) restores verified0.4.4 app, preserving NVS/ledgers.
+Prior candidate/permission-pending statements below are historical.
+
 ## Activation latency repair — server deployed / firmware candidate built
 
 Owner reports2–5s after touch before speaking is allowed. Source confirms the
