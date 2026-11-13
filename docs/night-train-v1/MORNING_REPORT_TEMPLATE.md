@@ -1,5 +1,15 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Actual B->A mode integration
+
+Runtime2887ac9 deployed at idle; original B7 minute starts restored without
+resetting ledger. Native close confirmation -> existing A coordinator -> original
+question / guest context -> sentence/audio stream implemented.422 targeted checks
+plus5 local peer scenarios PASS. A grant disabled pending Owner's consolidated
+financial decision; real physical A handover NOT_RUN. Further A device questions
+retain existing touch/capture behavior; continuous automatic A followups NOT_DONE.
+Firmware0.4.3 unchanged. Exact current status/backups in CURRENT_STATUS.
+
 ## Subsequent Owner-approved long B / wake checkpoint
 
 Runtime270f8f7 now serves the separately approved ONE180s board B manual trial

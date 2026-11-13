@@ -2,6 +2,24 @@
 
 ## B -> actual A candidate (2026-11-13, source/free acceptance)
 
+**Runtime applied:**2887ac9fb98ccee0f4bd5f36d613f1afe67043af, private HTTPS
+https://plan.tailffc57c.ts.net:18786/device-next. Gateway realtime_b; original B
+ledger7 starts remaining,0 active/0 pending hangups; extended spent package
+disabled without refund. A handoff implemented=true, financially_authorized=false.
+Prepared A grant remains disabled pending Owner's consolidated budget answer.
+No provider opened during preparation/deployment. Phone/C policies/ledger and
+installed firmware0.4.3 unchanged. Idle deployment backup:
+run/night-train/backups/20261113T150238930850Z. Supervisor/Bridge/media services
+were preserved; owned Brain/web restarted, gateway recycled for old B config.
+422 targeted checks passed (391 handoff/native/modes +31 gateway/Owner/recovery),
+plus5 local LiveKit/aiortc peer checks. No physical A handover/CLI/TTS PASS claimed.
+
+For a future enabled A allowance, immediate financial rollback is to disable
+run/hardware-a/policy.json (do not delete/restore its usage.sqlite), stop any
+active A conversation by device hold/turn cancellation, and keep the original
+B mount/config. The current A proposal is already disabled. Provider unknown
+hangups remain explicit blockers; no automatic cross-engine paid fallback.
+
 Owner explicitly resumed implementation of actual expert MODE handover. The
 board B manager now uses NativeHandoff + existing ConversationModes, not a new
 Brain/ExpertJobs loop. A direct "экспертный режим" or current confirmed server
@@ -16,7 +34,7 @@ checks prevent task replacement/duplicate mode creation; Stop targets actual A
 turn ID. End/idle clears the transferred RAM seed. Phone/C defaults preserved.
 
 **Not yet a fully accepted physical conversation.** Source is prepared; current
-runtime still270f8f7 at this checkpoint. Installed firmware0.4.3 unchanged. The
+predeployment runtime was270f8f7. Installed firmware0.4.3 unchanged. The
 first transferred question is automatic; further A questions retain existing
 device touch/capture behavior. Continuous automatic A followups without a new
 touch are NOT implemented/claimed. No false promise that Sol guarantees low TTFA.

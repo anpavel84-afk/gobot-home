@@ -4,7 +4,7 @@
 
 | Requirement | Evidence | Gap |
 |---|---|---|
-| Close B before A | MOCK_PASS including failed hangup/503 | No paid physical handover yet |
+| Close B before A | DEPLOYED2887ac9;MOCK_PASS including failed hangup/503 | No paid physical handover yet |
 | First question/context | Same transcript, scoped guest RAM, no second STT | Private history deliberately denied |
 | Streaming A | First audio before final text, actual existing gateway code | Model TTFA/acoustics unmeasured |
 | Device drain/Stop | 5 free local peer scenarios PASS | Installed0.4.3; no flash |
