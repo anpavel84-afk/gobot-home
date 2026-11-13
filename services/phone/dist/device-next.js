@@ -25,7 +25,7 @@
   });
   window.GoBotClient={getSettings:()=>({volume:.8,voice:'marin',remember:false,speak:true}),conversationId:()=>state.conversation,
     cancelRecording:()=>window.GoBotCapture.active?.cancel()};
-  window.GoBotHooks={clientKind:'device',onNativeClosed:()=>status('B завершён. Домашние функции доступны.')};
+  window.GoBotHooks={clientKind:'device',onNativeClosed:({message})=>status(message||'Домашние функции доступны.')};
   function applyNative(item){
     const data=item.data||{};
     if(item.type==='turn_started'){manager.newTurn(item.turn_id);$('next-answer').textContent='';}
