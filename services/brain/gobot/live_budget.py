@@ -79,9 +79,14 @@ class LiveBudget:
     def status(self):
         with self.connect() as c:
             rows=c.execute('SELECT seconds,final,reserved,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            pending=c.execute('SELECT seconds,reserved FROM calls WHERE final=0').fetchall()
             latest=c.execute('SELECT payload FROM reports ORDER BY created DESC LIMIT 1').fetchone()
         return {'model':'gpt-live-1','requested_version':'1.1','model_version_1_1_verified':False,
-            'voice_seconds_observed':sum(r[0] for r in rows),'unconfirmed_sessions':sum(not r[1] for r in rows),
+            'voice_seconds_observed':sum(r[0] for r in rows),'unconfirmed_sessions':len(pending),
+            'pending_seconds_observed_all_days':sum(r[0] for r in pending),
+            'unknown_final_usage_reserve_seconds':sum(r[1] for r in pending),
+            'unknown_final_usage_reserve_estimated_usd':sum(r[1] for r in pending)*.05/60,
+            'unknown_final_usage_reserve_is_not_provider_cost_cap':True,
             'reserved_seconds_including_pending':sum((0 if r[3]=='not_created' else max(15,r[0])) if r[1] else r[2] for r in rows),
             'voice_usd_per_minute':.05,'backend_billed_separately':True,'cumulative_usage_not_summed':True,
             'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False,

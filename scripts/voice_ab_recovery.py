@@ -84,7 +84,7 @@ async def main(args):
     budget.recovery.orphan(args.session,row[0],local_evidence=evidence)
     if args.accept_unknown_provider_cost:
         budget.recovery.approve(args.session,row[0],owner_binding=policy['allowed_client_id'],risk_ack=True,
-            max_new_sessions=args.max_new_sessions,expires_at=time.time()+args.hours*3600)
+            max_new_sessions=args.max_new_sessions,expires_at=time.time()+(args.minutes*60 if args.minutes else args.hours*3600))
     print(json.dumps({'orphaned_unconfirmed':True,'provider_close_confirmed':False,'final_usage':False,
         'new_starts_authorized':args.max_new_sessions if args.accept_unknown_provider_cost else 0,
         'existing_quota_increased':False,'backup_directory':str(directory)}))
@@ -96,6 +96,7 @@ if __name__=='__main__':
     parser.add_argument('--accept-unknown-provider-cost',action='store_true')
     parser.add_argument('--max-new-sessions',type=int,choices=range(1,51),default=1)
     parser.add_argument('--hours',type=int,choices=range(1,25),default=24)
+    parser.add_argument('--minutes',type=int,choices=range(1,61),help='Short recovery window; overrides --hours')
     try:asyncio.run(main(parser.parse_args()))
     except Exception as error:
         # Raw HTTP exceptions/headers/configuration must never reach the console.

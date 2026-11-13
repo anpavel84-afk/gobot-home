@@ -84,6 +84,20 @@ def test_owner_rebinding_invalidates_approval(tmp_path):
     b.owner.policy_path.write_text(b.owner.policy().model_copy(update={'allowed_client_id':'new-owner'}).model_dump_json())
     assert not b.recovery.may_resume('old',b.scope(old))
 
+def test_unknown_financial_reserve_survives_utc_rollover_and_recovery(tmp_path):
+    b,old=setup(tmp_path)
+    with b.connect() as db:db.execute('UPDATE calls SET day=day-1')
+    approve(b,old)
+    status=b.status()
+    assert status['voice_seconds_observed']==0 and status['unconfirmed_sessions']==1
+    assert status['unknown_final_usage_reserve_seconds']==60
+    assert status['unknown_final_usage_reserve_estimated_usd']==.05
+    assert status['pending_seconds_observed_all_days']==15
+    b.reserve(old.model_copy(update={'session_id':'one-manual-test'}),resume_from=['old'])
+    assert b.status()['unknown_final_usage_reserve_seconds']==120
+    with b.owner.connect() as db:
+        assert db.execute('SELECT sum(cost),sum(pending) FROM attempts').fetchone()==(.1,2)
+
 def test_readiness_distinguishes_approved_orphan_from_final_usage(tmp_path):
     from types import SimpleNamespace
     from fastapi import FastAPI
