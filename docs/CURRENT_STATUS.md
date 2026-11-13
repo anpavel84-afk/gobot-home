@@ -1,5 +1,27 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner: B требовал повторных касаний — исправление автоматического диалога
+
+Причина найдена в /device-next: NativeVoice.followup был подменён текстом
+«Нажмите Говорить», а первый вопрос запускался pttStart и ждал ручного pttEnd.
+Подмена удалена; новый web B вызывает server-acknowledged listen/server_vad уже
+для первого вопроса. Кнопка включает разговор один раз, окончание фразы делает
+VAD, Brain создаёт ответ. После server+client playback drain ACK и echo guard
+микрофон включается автоматически, в той же сессии. Нет второй STT, ручного commit
+или новой provider session между репликами. Native legacy PTT API/defaults сохранены.
+
+Проверены бесплатно: первый вопрос +2 продолжения; no response.create до речи;
+повторный пакет не создаёт ответ; generation.done не включает микрофон до drain;
+случайное касание не обрывает ответ; double tap не очищает первые слова; Stop
+во время listen ACK не возвращает микрофон; старый turn_complete игнорируется.
+10 секунд ожидания без речи → нормальное закрытие, не ошибка. Непрерывный шум/
+незаконченная реплика ограничены30 сек без отправки обрезанной команды.
+96 targeted tests PASS, production JS Node fixture3 ответа/1session/0provider calls;
+Chromium390×844 regression PASS. Это не физическая Safari/acoustic приёмка.
+Платные B/C/STT/TTS пробы не запускались, quotas/ledger/firmware не менялись.
+Применение runtime ожидает guarded idle deployment.
+
+
 ## Owner-reported manual speech failure — hotfix
 
 После публикации Owner сообщил «не работает». Runtime logs подтвердили отказ

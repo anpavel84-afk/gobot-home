@@ -31,9 +31,9 @@
     if(item.type==='turn_started'){manager.newTurn(item.turn_id);$('next-answer').textContent='';}
     if(item.type==='text_delta')$('next-answer').textContent+=data.text;
     if(item.type==='visual_response')manager.frame(data.presentation,item.turn_id);
-    if(item.type==='turn_complete')status('Ответ B завершён. Можно задать новый вопрос.');
+    if(item.type==='turn_complete')status('Ответ закончен. Включаю микрофон…');
   }
-  native=new window.GoBotNativeVoice({emit:applyNative});native.followup=()=>status('B готов к следующему вопросу. Нажмите «Говорить».');
+  native=new window.GoBotNativeVoice({emit:applyNative,automaticDialogue:true});
   async function timers(){
     if(!state.ready)return;
     const data=await api('timers');const active=new Set(data.timers.map(t=>t.id));
@@ -87,8 +87,7 @@
     }
     if($('next-mode').value==='c')throw Error('C остаётся отдельным режимом: переход по тексту не принят, старый расход неизвестен.');
     if($('next-mode').value==='b'||native.ready){
-      await player.pause();await native.pttStart();state.recording=native.recording;
-      state.recordingLimit=setTimeout(guarded(async()=>{state.recording=false;native.mic(false);await native.command('ptt_cancel');status('Достигнут предел записи 15 секунд. Обрезанная команда не отправлена.');}),15000);return;
+      await player.pause();await native.beginDialogue();return;
     }
     if(!$('next-stt-consent').checked)throw Error('Для распознавания отметьте согласие на STT API. Текстовый ввод работает без него.');
     await player.pause();await player.unlock();state.recording=true;manager.state='listening';let began=performance.now();
@@ -123,7 +122,7 @@
     state.conversation=(await api('open')).conversation_id;state.ready=true;$('fixture-badge').hidden=!config.fixture_mode;
     await timers();status('Готов к следующему вопросу. Текстовые домашние команды не открывают B/C.');
     function draw(t){
-      const playback=native.ready?native.snapshot():player.snapshot();if(native.ready)manager.state=native.recording?'listening':playback.playing?'speaking':'idle';manager.tick(playback.playing);renderer.draw(manager,playback.level,t/1000);
+      const playback=native.ready?native.snapshot():player.snapshot();if(native.ready)manager.state=native.listening||native.recording?'listening':playback.playing?'speaking':native.thinking?'thinking':'idle';manager.tick(playback.playing);renderer.draw(manager,playback.level,t/1000);
       for(const el of $('next-timers').children){const remaining=Math.max(0,Math.ceil(Number(el.dataset.deadline)-Date.now()/1000));el.textContent=remaining?'Таймер · '+Math.floor(remaining/60)+':'+String(remaining%60).padStart(2,'0'):'Время вышло · услышал';}
       $('story-position').textContent='Проигрыватель: '+player.state+' · фрагмент '+(player.index+1)+' · '+player.snapshot().position.toFixed(1)+' с';
       requestAnimationFrame(draw);

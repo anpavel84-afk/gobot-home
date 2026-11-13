@@ -3,7 +3,8 @@
   'use strict';
   const uuid=()=>crypto.randomUUID();
   class NativeVoice {
-    constructor({fetcher=window.fetch.bind(window),Peer=window.RTCPeerConnection,media=navigator.mediaDevices,emit=()=>{}}={}){
+    constructor({fetcher=window.fetch.bind(window),Peer=window.RTCPeerConnection,media=navigator.mediaDevices,emit=()=>{},automaticDialogue=false}={}){
+      this.automaticDialogue=automaticDialogue;this.listening=false;this.thinking=false;this.listenEpoch=0;
       this.fetcher=fetcher;this.Peer=Peer;this.media=media;this.emit=emit;this.generation=0;this.id=null;this.ready=false;this.recording=false;this.pending=false;this.level=0;this.playing=false;this.events=null;this.closing=null;this.commands=Promise.resolve();this.response=null;this.drained=false;this.heard=false;this.followupTimer=null;this.held=false;this.sentPlayback=new Set();
     }
     status(text){document.getElementById('realtime-status')?.replaceChildren(document.createTextNode(text));document.getElementById('mic-status')?.replaceChildren(document.createTextNode(text));window.goBotDevice?.status(text);}
@@ -15,6 +16,7 @@
     selected(){return document.getElementById('conversation-engine')?.value==='realtime';}
     termination(reason){
       const normal={session_time_limit:'Проба завершена: достигнут лимит времени этой сессии.',response_budget_exhausted:'Проба завершена: достигнут лимит ответов.',budget_expired:'Время разрешённой пробы истекло.',followup_timeout:'Окно продолжения закрыто. Микрофон выключен.',idle_timeout:'Разговор завершён после паузы. Микрофон выключен.',conversation_ended:'Хорошо. Разговор завершён, микрофон выключен.',user_stop:'Ответ остановлен. Микрофон выключен.'};
+      normal.input_time_limit='Слушание завершено: фраза превысила 30 секунд. Незавершённая команда не отправлена.';
       return {message:normal[reason]||'Соединение Realtime закрыто. Причина: '+(reason||'неизвестна')+'. Микрофон выключен.',error:!normal[reason]};
     }
     async acquire(){
@@ -35,6 +37,7 @@
       this.status('Подключаю Realtime. Говори после сигнала готовности.');
       try{
         const admission=await (await this.fetcher('/api/realtime/status')).json();
+        this.dialogueSupported=admission.automatic_dialogue_version>=1;
         this.model=document.getElementById('realtime-model')?.value||admission.model||'gpt-realtime-2.1-mini';
         this.audioPreset=document.getElementById('realtime-audio-preset')?.value||'baseline';
         if(!admission.budget?.enabled)throw Error('Доступ к Realtime не активирован владельцем.');
@@ -120,6 +123,25 @@
       el.textContent=text||'';el.hidden=!text;
     }
     mic(enabled){this.stream?.getAudioTracks().forEach(t=>t.enabled=enabled);if(this.speakerMirror){this.speakerMirror.active=enabled;if(!enabled)this.speakerMirror.ring=[];}document.getElementById('device-mic')?.replaceChildren(document.createTextNode(enabled?'● Микрофон включён · аудио в OpenAI, локальный Speaker ID':'○ Микрофон закрыт'));}
+    async beginDialogue(){
+      if(this.listening||this.pending||this.armingDialogue)return;
+      if(this.playing||this.thinking){this.status('GoBot отвечает. Следующий вопрос можно задать после ответа.');return;}
+      await this.start();
+      if(!this.dialogueSupported){await this.close('Сервер ещё не поддерживает автоматический диалог. Обновите страницу.','settings_changed');return;}
+      await this.armDialogue('listen');
+    }
+    async armDialogue(action='listen'){
+      if(this.listening||this.armingDialogue)return;
+      const generation=this.generation,id=this.id,token=++this.listenEpoch;
+      const current=()=>generation===this.generation&&id===this.id&&token===this.listenEpoch&&this.ready&&!document.hidden;
+      if(!current()||this.playing||this.thinking)return;
+      this.armingDialogue=token;
+      try{
+        this.mic(false);await this.ensureMicrophone(generation);if(!current())return;
+        await this.command(action);if(!current())return;
+        this.listening=true;this.mic(true);this.status('Слушаю. Закончите фразу — отвечу сам.');window.GoBotHooks?.onListening?.();
+      }finally{if(this.armingDialogue===token)this.armingDialogue=null;}
+    }
     async pttStart(){
       if(this.recording||this.held)return false;
       const capture={};this.captureToken=capture;this.held=true;clearTimeout(this.followupTimer);this.mic(false);
@@ -146,7 +168,8 @@
     }
     async sendText(text){
       if(!text.trim())return;
-      await this.start({microphone:false});this.mic(false);await this.command('text',{text});
+      this.listenEpoch++;this.listening=false;clearTimeout(this.followupTimer);
+      await this.start({microphone:this.automaticDialogue});this.mic(false);this.thinking=true;await this.command('text',{text});
     }
     clearReview(){
       this.lastInputText='';this.reviewTurn=null;
@@ -154,6 +177,8 @@
     }
     event(item){
       if(item.session_id&&item.session_id!==this.id)return;
+      if(this.automaticDialogue&&item.type==='turn_complete'&&item.turn_id&&item.turn_id!==this.currentTurn)return;
+      if(this.automaticDialogue&&((item.type==='audio_diagnostic'&&item.data.stage==='server_audio_committed')||item.type==='turn_started'||item.type==='processing')){this.listenEpoch++;this.listening=false;this.thinking=true;this.mic(false);}
       if(item.type==='audio_diagnostic')this.diag(item.data);
       if(item.type==='input_transcript')this.diag({stage:'gpt_transcribe',text:item.data.text});
       if(item.type==='text_delta')this.diag({stage:'answer_delta',text:item.data.text});
@@ -182,7 +207,7 @@
       if(item.type==='playback_buffer_stopped'){if(this.response===item.data.response_id){this.drained=true;this.quietAt=performance.now();}}
       if(item.type==='playback_cleared'||item.type==='interrupted'){this.playing=false;this.level=0;this.heard=false;}
       if(item.type==='listening'){this.status('Слушаю…');}
-      if(item.type==='turn_complete'){void this.followup();}
+      if(item.type==='turn_complete'){this.thinking=false;void this.followup();}
       if(item.type==='followup_closed'){clearTimeout(this.followupTimer);this.mic(false);this.status(item.data.reason==='visual_running'?'Изображение готовится · микрофон закрыт. Для нового вопроса удерживайте круг.':'Эксперт работает · микрофон закрыт. Для нового вопроса удерживайте круг.');}
       if(item.type==='response_incomplete')this.status('Ответ ограничен лимитом длины тестовой пробы.');
       if(item.type==='turn_incomplete')this.status('Лимита не хватило для голосового ответа. Можно задать более короткий вопрос нажатием.');
@@ -196,13 +221,15 @@
     speakerStatus(text){document.getElementById('speaker-status')?.replaceChildren(document.createTextNode(text));document.getElementById('realtime-speaker-status')?.replaceChildren(document.createTextNode(text));}
     async followup(){
       const profile=window.goBotDevice?.profile;
-      if(!profile?.conversation?.followup_enabled||!this.ready||document.hidden)return;
+      if((!this.automaticDialogue&&!profile?.conversation?.followup_enabled)||!this.ready||document.hidden)return;
       clearTimeout(this.followupTimer);
+      const generation=this.generation;
       this.followupTimer=setTimeout(async()=>{
-        if(!this.ready||document.hidden||this.held)return;
+        if(generation!==this.generation||!this.ready||document.hidden||this.held)return;
+        if(this.automaticDialogue){try{await this.armDialogue();}catch(_){this.listening=false;this.mic(false);this.status('Не удалось включить продолжение. Завершите разговор и включите GoBot снова.');}return;}
         try{await this.command('followup');if(!this.ready)return;this.mic(true);this.status('Жду продолжение · '+profile.conversation.followup_seconds+' секунд');}
         catch(_){this.mic(false);}
-      },profile.conversation.echo_guard_ms);
+      },profile?.conversation?.echo_guard_ms||350);
     }
     meter(epoch){
       if(epoch!==this.generation||!this.ready)return;
@@ -227,7 +254,7 @@
       if(this.closing||!this.id)return this.closing||Promise.resolve();
       const id=this.id,epoch=this.generation;
       // Immediately stop sending/hearing audio, before resolving the server reason.
-      this.ready=false;this.recording=false;this.held=false;this.captureToken=null;this.mic(false);
+      this.listenEpoch++;this.listening=false;this.thinking=false;this.ready=false;this.recording=false;this.held=false;this.captureToken=null;this.mic(false);
       clearTimeout(this.followupTimer);clearTimeout(this.disconnectTimer);
       this.output?.pause();this.playing=false;this.level=0;
       this.status('Завершаю соединение · микрофон выключен');
@@ -246,7 +273,7 @@
     }
     close(message='GoBot выключен',reason='user_stop',error=false){
       if(this.closing)return this.closing;
-      const id=this.id;this.generation++;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
+      const id=this.id;this.generation++;this.listenEpoch++;this.armingDialogue=null;this.listening=false;this.thinking=false;this.ready=false;this.pending=false;this.held=false;this.captureToken=null;this.recording=false;
       this.clearReview();
       this.diag({stage:'closed'});
       this.visualStatus('');

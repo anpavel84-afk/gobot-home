@@ -260,6 +260,7 @@ class NativeSession(VoiceVisualSession):
                     await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'budget_expired');return
                 if self.policy.max_session_seconds is not None and time.monotonic()-self.started>=self.policy.max_session_seconds:reason='session_time_limit'
                 elif not self.manager.budget.active(policy) or policy.authorization!=self.policy.authorization:reason='budget_expired'
+                elif getattr(self,'auto_input_deadline',None) and time.monotonic()>self.auto_input_deadline:reason='input_time_limit'
                 elif time.monotonic()-self.last_activity>45 and not self.generating and not self.speaking and not self.experts.active() and not visual_pending:reason='idle_timeout'
                 elif self.followup_deadline and time.monotonic()>self.followup_deadline:
                     if self.experts.active() or visual_pending:
@@ -380,6 +381,7 @@ class NativeSession(VoiceVisualSession):
             self.emit('audio_diagnostic',stage='server_vad_started')
             if self.input_mode=='followup':self.emit('speaker_segment',segment_id=self.speaker.begin())
             if self.input_mode=='followup':self.followup_deadline=None
+            if self.input_mode=='followup' and getattr(self,'automatic_dialogue',False) and not getattr(self,'auto_input_deadline',None):self.auto_input_deadline=time.monotonic()+30
             self.last_activity=time.monotonic();self.emit('listening',active=True)
         elif kind=='input_audio_buffer.speech_stopped':
             self.input_ended=round((time.monotonic()-self.started)*1000,2)
@@ -391,7 +393,7 @@ class NativeSession(VoiceVisualSession):
             if self.input_mode not in {'ptt','followup'}:
                 if item_id:await self.send({'type':'conversation.item.delete','item_id':item_id})
                 return
-            self.input_mode='processing';self.ptt_committing=False
+            self.input_mode='processing';self.ptt_committing=False;self.auto_input_deadline=None
             await self.send({'type':'session.update','session':{'type':'realtime','audio':{'input':{'turn_detection':None}}}})
             await self.new_turn(item_id)
             await self.response()
@@ -679,14 +681,19 @@ class NativeSession(VoiceVisualSession):
                 await self.send({'type':'input_audio_buffer.commit'})
             elif action=='ptt_cancel':
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='idle';self.ptt_committing=False
-            elif action=='followup':
-                if self.speaking or self.generating or not self.current or not self.current.stored or self.current.cancelled:raise ValueError('playback_not_finished')
+            elif action in {'listen','followup'}:
+                initial=action=='listen' and self.current is None
+                if self.speaking or self.generating or (not initial and (not self.current or not self.current.stored or self.current.cancelled)):raise ValueError('playback_not_finished')
+                if action=='listen':self.automatic_dialogue=True
                 detection={'type':'server_vad','threshold':.30 if self.offer.audio_preset=='vad_sensitive' else .55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
-                self.mark_turn(self.current,'followup_requested')
+                if self.current:self.mark_turn(self.current,'followup_requested')
+                await self.send({'type':'input_audio_buffer.clear'})
                 await self.update_input(detection);self.input_mode='followup'
-                self.mark_turn(self.current,'followup_acknowledged')
-                self.followup_deadline=time.monotonic()+self.profile.conversation.followup_seconds
-                self.emit('followup',seconds=self.profile.conversation.followup_seconds)
+                if self.current:self.mark_turn(self.current,'followup_acknowledged')
+                seconds=min(10,self.profile.conversation.followup_seconds) if getattr(self,'automatic_dialogue',False) else self.profile.conversation.followup_seconds
+                self.followup_deadline=time.monotonic()+seconds
+                self.auto_input_deadline=None
+                self.emit('followup',seconds=seconds)
             elif action=='interrupt':await self.interrupt()
             elif action in {'visual_presented','visual_failed'}:
                 turn=self.current
@@ -906,6 +913,6 @@ class RealtimeManager:
                  'external_stt_calls':0,'embeddings_external':False,'per_turn_pcm_mirror':True,'accuracy_verified':False}
         policy=self.budget.policy()
         return {'target_engine':'realtime','default_engine':'realtime' if policy.accepted_as_default and policy.enabled else 'legacy','model':policy.model,'allowed_models':policy.allowed_models,'configuration_version':3,'expert_handoff_version':2,'expert_handoff_diagnostics_version':1,'key_configured':openai_key_present(),
-                'budget':self.budget.status(),'active_sessions':sum(not s.closed for s in self.sessions.values()),
+                'budget':self.budget.status(),'active_sessions':sum(not s.closed for s in self.sessions.values()),'automatic_dialogue_version':1,
                 'pending_hangups':len(self.hangups),'real_provider_verified':False,'iphone_verified':False,
                 'mandatory_audio_fact_gate_verified':False,'legacy_fallback':'explicit_only','identity':self.identity.status(),'speaker':speaker}
