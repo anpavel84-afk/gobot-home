@@ -32,6 +32,8 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
     response_ready=asyncio.Event()
     handoff_result=None
     now=lambda:asyncio.get_running_loop().time()
+    setup_started=now();capture.setup_ms={}
+    def mark(stage):capture.setup_ms[stage]=round((now()-setup_started)*1000,2)
     async def command(action,**kw):
         response=await client.post(f'{base}/{ident}/command',headers=headers,
             json={**scope,'command_id':uuid.uuid4().hex,'action':action,**kw})
@@ -42,10 +44,11 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
             await send_audio(packet);state.packet(now())
     try:
         async with asyncio.timeout(10):
-            await relay.connect()
+            await relay.connect(parallel=True);mark('local_relay_ready')
             tasks.extend([relay.task(relay.output(delivered)),asyncio.ensure_future(relay.error)])
             peer.addTrack(relay.input_track)
             await peer.setLocalDescription(await peer.createOffer())
+            mark('offer_ready')
             offer={**scope,'client_id':config['device_id'],'session_id':ident,
                 'conversation_id':config['conversation_id'],'sdp':peer.localDescription.sdp,
                 'consent':True,'remember':False,'speak':True,'client_kind':'device',
@@ -53,6 +56,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
             offer['expert_quota_consent']=config.get('hardware_expert_consent') is True
             attempted=True
             response=await client.post(base,headers=headers,json=offer);response.raise_for_status();answer=response.json()
+            mark('provider_answer')
             if (answer.get('session_id')!=ident or answer.get('model')!='gpt-realtime-2.1-mini' or
                 answer.get('voice')!='marin' or answer.get('configuration_confirmed') is not True):raise ValueError('hardware_b_configuration_unconfirmed')
             await peer.setRemoteDescription(RTCSessionDescription(sdp=answer['sdp'],type='answer'))
@@ -60,6 +64,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
             tasks.append(relay.task(relay.microphone(GatedCapture(capture,state),wait_for_transport=True)))
             await relay.input_track.started.wait()
             await command('followup');state.listen()
+            mark('input_ready')
             await send({'type':'gobot_media_ready'})
             await send(voice_status('B','listening'))
 

@@ -55,7 +55,7 @@ def verify_nvs_config(before,after):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -154,17 +154,25 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("voice-status", "voice-status-rollback"):
+        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback"):
             report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
             previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
             new=PRIVATE/"touch/gobot-voice-status.bin"
             previous=PRIVATE/"touch/gobot-media-ready.bin"
-            require(report["version"]=="0.4.4-dev-voice-status-1" and report["sha256"]=="ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866", "Unapproved UI candidate")
+            fast=opts.action.startswith('fast-start')
+            if fast:
+                previous_report={'app_bytes':report['bytes'],'app_sha256':report['sha256']}
+                report=json.loads((ROOT/"firmware/spotpear/voice_status/FAST_START_MANIFEST.json").read_text())
+                new=PRIVATE/"touch/gobot-fast-start.bin"
+                previous=PRIVATE/"touch/gobot-voice-status.bin"
+                require(report['version']=='0.4.5-dev-fast-start-1' and report['sha256']=='c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764','Unexpected fast-start candidate')
+            else:
+                require(report["version"]=="0.4.4-dev-voice-status-1" and report["sha256"]=="ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866", "Unapproved UI candidate")
             require(new.stat().st_size==report["bytes"]<=0x3f0000 and digest(new.read_bytes())==report["sha256"],"UI image mismatch")
             require(previous.stat().st_size==previous_report["app_bytes"] and digest(previous.read_bytes())==previous_report["app_sha256"],"Media-ready rollback mismatch")
             assets=PRIVATE/"candidate/gobot-assets.bin"
             require(digest(assets.read_bytes())==IMAGES["gobot-assets.bin"][2] and current[0x800000:0x800000+assets.stat().st_size]==assets.read_bytes(),"Installed assets changed")
-            source,target=(previous,new) if opts.action=="voice-status" else (new,previous)
+            source,target=(new,previous) if opts.action.endswith('-rollback') else (previous,new)
             require(current[0x20000:0x20000+source.stat().st_size]==source.read_bytes(),"Unexpected running image")
             print("Verified preflash snapshot; writing only ota_0",hex(0x20000),target.stat().st_size,digest(target.read_bytes()),flush=True)
             esp("write-flash","0x20000",target)

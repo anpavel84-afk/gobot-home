@@ -1,5 +1,45 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Activation latency repair — server deployed / firmware candidate built
+
+Owner reports2–5s after touch before speaking is allowed. Source confirms the
+installed media-ready firmware waits for gateway/provider setup BEFORE enabling
+voice processing. Prior B setup/settings evidence is2.48s in provider clock;
+physical touch-to-capture/answer is not measured. No promise of zero network or
+model latency and no paid standby session/prewarming.
+
+B-only setup now joins and publishes the two independent loopback LiveKit peers
+concurrently with structured cancellation on failure. C keeps its sequential
+default. Numeric cumulative setup marks separate local relay, SDP, provider and
+input readiness. Free evidence:8 real local peer/media scenarios,20 gateway/
+half-duplex regressions and2 concurrency/cancellation fixtures PASS;0 paid calls.
+Gateway f4c5ab8 deployed by guarded idle restart; Brain stays3ec0569, firmware
+stays0.4.4-dev-voice-status-1. Additional WAL-aware backup:
+run/hardware-a/backups/20261113T180441714933Z. No config/cap/ledger changes.
+At latest free readiness:B2 starts,A1 attempt remain,0active/0pending B.
+
+Isolated firmware candidate0.4.5-dev-fast-start-1 BUILT from installed0.4.4 UI:
+explicit touch starts local capture before TLS/model setup; Opus packets stay
+in bounded local RAM until the EXISTING access/media-ready gates authorize
+upload. Startup cap7.2s, overflow cancels instead of silently dropping initial
+words. Normal streaming queue stays2.4s; no second STT or whole-question recording.
+State/capture are not restarted when setup completes. Local startup skips the
+old120ms discard; pending packet payloads are cleared on finish/new activation.
+This requires separate firmware acceptance; current installed0.4.4 remains intact.
+Candidate app2712800bytes, SHA256 c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764.
+Pinned offline IDF build succeeded; six-file patch reproduction matches built
+source. Artifact transferred to private PLAN storage and hash verified. Guarded
+app-only install/rollback commands are prepared, NOT executed. The prior specific
+UI flash approval does not authorize this changed capture path; permission pending.
+Physical first-syllable capture, quiet speech, Stop and buffer-overflow handling
+on the device remain NOT_RUN for this candidate. Existing KWS admission unchanged.
+No measured claim of instant microphone readiness or faster useful answer yet.
+Server rollback:at idle restore only services/voice/{spotpear_livekit.py,
+spotpear_realtime.py,gobot_device_gateway.py} from private backup/source3ec0569,
+then guarded gateway_restart(); never restore financial databases. A firmware
+rollback after a future approved install uses spotpear_bringup.py fast-start-rollback,
+returning to the current UI-only0.4.4 app with preserved NVS and recovery.
+
 ## UI candidate installed on the enrolled Spotpear — 2026-11-13
 
 Owner explicitly approved USB installation of this specific UI-only candidate.

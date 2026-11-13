@@ -84,7 +84,10 @@ def test_two_way_b_listen_think_speak_drain_listen(scenario):
                 'model':'gpt-realtime-2.1-mini','voice':'marin','configuration_confirmed':True})
         async def send(control):
             controls.append(control)
-            if control['type']=='gobot_media_ready':media_ready.set()
+            if control['type']=='gobot_media_ready':
+                assert list(capture.setup_ms)==['local_relay_ready','offer_ready','provider_answer','input_ready']
+                assert list(capture.setup_ms.values())==sorted(capture.setup_ms.values())
+                media_ready.set()
         async def send_audio(packet):
             packets.append(packet);last_packet[0]=asyncio.get_running_loop().time()
             capture.playing=scenario!='missing_playback_ack';capture.activity_at=last_packet[0]

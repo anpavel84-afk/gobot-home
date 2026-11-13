@@ -1,0 +1,22 @@
+{
+  "version": "0.4.5-dev-fast-start-1",
+  "base": "0.4.4-dev-voice-status-1",
+  "sha256": "c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764",
+  "bytes": 2712800,
+  "artifact": "/opt/gobot-firmware/20261112-gobot-v1/fast-start-stage/build-status/xiaozhi.bin",
+  "local_artifact_verified": true,
+  "build_result": "success",
+  "idf_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "network": "none",
+  "devices_mounted": false,
+  "patch_reproduction": "six_files_match",
+  "startup_local_buffer_ms": 7200,
+  "normal_queue_ms": 2400,
+  "buffer_overflow": "cancel_no_silent_initial_drop",
+  "provider_prewarming": false,
+  "standby_upload": false,
+  "flashed": false,
+  "physical_capture_latency": "NOT_MEASURED",
+  "physical_stop_overflow_first_syllable": "NOT_RUN",
+  "wake_to_brain_changed": false
+}

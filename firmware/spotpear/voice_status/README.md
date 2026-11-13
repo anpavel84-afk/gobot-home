@@ -26,3 +26,16 @@ Physical LCD and touch acceptance still require the Owner's observation.
 Guarded rollback (idle board, fresh snapshot and identity checks):
 `data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py voice-status-rollback`.
 This restores the verified0.4.3 app only, without restoring financial data or NVS.
+
+## Touch-first capture candidate (not installed)
+
+`prepare_fast_start.py` applies only to a COPY of the installed UI source.
+`FAST_START_MANIFEST.json` identifies the pinned offline0.4.5 candidate. Touch
+enables local audio processing before network setup; an explicit bounded7.2s
+Opus queue retains the beginning until existing access/media-ready gates open.
+Overflow cancels, Stop clears pending packets, ordinary streaming keeps its2.4s
+queue policy. No paid standby session or second STT. Setup completion avoids
+restarting capture. The120ms warmup discard is skipped only for local startup.
+This changes capture and has NOT passed device acoustic/Stop/overflow acceptance.
+Firmware permission is pending; commands `fast-start` / `fast-start-rollback`
+are prepared only. Do not treat the earlier UI-only flash approval as this grant.
