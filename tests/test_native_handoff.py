@@ -8,6 +8,15 @@ from gobot.conversation_modes import ConversationModes
 from gobot.native_handoff import NativeHandoff
 from gobot.models import VoiceRequest
 
+@pytest.mark.parametrize('engine',['A','B','C'])
+@pytest.mark.parametrize('phase',['connecting','listening','thinking','speaking'])
+def test_voice_status_is_bounded_and_explicit(engine,phase):
+    from gobot.voice_status import voice_status
+    message=voice_status(engine,phase)
+    assert message['payload']['voice_engine']==engine and message['payload']['voice_phase']==phase
+    assert message['payload']['namespace']=='gobot.ui' and len(json.dumps(message).encode())<8192
+    with pytest.raises(ValueError):voice_status('unknown',phase)
+
 @pytest.mark.parametrize('text',[
     'Ты можешь включить экспертный режим?', 'Можешь включить экспертный режим?',
     'Переведи меня в экспертный режим', 'Экспертный режим',
@@ -64,6 +73,7 @@ def test_actual_close_before_a_scope_and_exact_first_question(tmp_path,settings)
             await s.new_turn(query='Экспертный режим')
             result=await b.legacy_handoff.result(s)
             assert s.closed and s.hangup_confirmed and not b.budget.pending_calls()
+            assert b.budget.latest_report()['close_reason']=='mode_switch'
             assert result['state']=='ready' and result['flow']['provider_closed']
             assert result['question']=='Сравни способы посадки растений'
             flow=modes.items[result['flow']['mode_conversation_id']]
@@ -176,10 +186,12 @@ def test_denied_transfer_keeps_b_and_cannot_borrow_phone(tmp_path,settings,kind)
         finally:await b.shutdown();await original.shutdown()
     asyncio.run(run())
 
-def test_streaming_a_transport_reuses_question_without_second_stt(tmp_path):
+def test_streaming_a_transport_reuses_question_without_second_stt(tmp_path,monkeypatch):
     import httpx,base64
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'services/voice'))
     from gobot_device_gateway import Gateway
+    from spotpear_live import StreamingSpeech
+    import spotpear_realtime
     async def run():
         sent=[];calls=[];packets=[];first_audio=asyncio.Event()
         pcm=base64.b64encode(bytes(9600)).decode()
@@ -195,19 +207,28 @@ def test_streaming_a_transport_reuses_question_without_second_stt(tmp_path):
                 yield evt('audio_stop',reason='finished')
         async def handle(req):
             calls.append(req.url.path);assert req.url.path=='/api/v1/chat/voice/stream'
-            data=json.loads(req.content);assert data['text']=='Исходный вопрос' and data['mode_conversation_id']=='flow'
+            data=json.loads(req.content);assert data['text']=='Исходный вопрос'
             assert data['tts_character_limit']==3000
+            assert any(v.get('payload',{}).get('voice_engine')=='A' and
+                v['payload'].get('voice_phase')=='thinking' for v in sent)
             return httpx.Response(200,stream=Events())
         def factory(**kw):return httpx.AsyncClient(transport=httpx.MockTransport(handle),**kw)
         config={'brain_url':'http://127.0.0.1:18781','device_id':'board','conversation_id':'conversation',
             'paid_speech_consent':True,'stt_provider':'openai','tts_provider':'openai','tts_voice':'marin','cli_usage_consent':True,
-            'hardware_a_batch':{'id':'a'*32,'turns':2}}
+            'hardware_a_batch':{'id':'a'*32,'turns':2},'mode':'realtime_b','continuous_live':True}
         gateway=Gateway(config,'fixture-token',client_factory=factory);gateway.quota_path=tmp_path/'quota.json'
         async def send(data):sent.append(data)
         async def audio(ws,packet):packets.append(packet);first_audio.set()
         gateway.send_audio=audio
-        await gateway.brain_response(None,send,None,'handoff-turn',flow_id='flow',recognized_text='Исходный вопрос')
+        gateway.save_stats=lambda:None
+        async def native(*args):return {'question':'Исходный вопрос','operation_id':'handoff-turn','flow':{
+            'active':True,'provider_closed':True,'mode':'legacy','mode_conversation_id':'00000000-0000-4000-8000-000000000001'}}
+        monkeypatch.setattr(spotpear_realtime,'realtime_turn',native)
+        class Socket:
+            async def close(self,*args):pass
+        await gateway.respond(Socket(),send,StreamingSpeech(),'original-b-turn')
         assert calls==['/api/v1/chat/voice/stream'] and packets
+        assert not any(v['type'] in {'gobot_access','gobot_input_end'} for v in sent)
         assert [v['text'] for v in sent if v.get('state')=='sentence_start']==['Первая часть ответа.','Вторая часть ответа.']
         assert sent[-1]=={'type':'tts','state':'stop'}
     asyncio.run(run())

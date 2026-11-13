@@ -1,5 +1,58 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## First real A handover: voice works, display feedback failed
+
+Owner confirmed a long audible answer after the latest handover. The scoped
+encrypted journal confirms B closed by mode_switch, real bridge:codex execution
+gpt-6.1-sol/high, and streamed TTS through the existing A pipeline. One approved
+A attempt was consumed; one remains. No claim of fact-checking or verification
+of every acoustically spoken word. Household question/answer/IDs are not published.
+
+Measured in the actual A server/Bridge traces: first text13.77s after A request,
+first server audio15.12s, text final87.99s, audio_stop finished at approximately
+103.59s after A stream start (252 chunks). Text/audio streamed before full text
+completion. B provider setup/settings took2.48s in its separate session clock.
+These are not a physical touch-to-useful-audio measurement or a p95. First mode
+and latency claims must not be inferred from voice timbre: both engines use marin.
+
+The installed0.4.3 fixed touch renderer overwrites/does not expose legacy
+SetStatus/SetChatMessage scene labels and leaves continuous native phase at
+Listening during backend work. A server-only input-end trick was rejected during
+free state review: it also changes capture/timeout state and can terminate audio.
+It was NOT deployed. Correct UI state must be independent of microphone control.
+
+Server patch DEPLOYED:3ec05696fe5d048c4083f713fcd27c56a13624c4, with the owned
+Brain/private web and device gateway restarted only after idle verification.
+Rollback source checkpoint:9d217791528a16178f82856cc66684e15648e311;
+deployment backup:run/night-train/backups/20261113T160543098092Z. Additional
+WAL-aware A/original-B/extended-B/C/Realtime/Owner usage and configuration backup:
+run/hardware-a/backups/20261113T160538058144Z. Rollback must never restore or
+erase financial ledgers. Firmware/configuration/allowance caps unchanged.
+Free readiness:0 active sessions,0 pending B hangups,B3 starts remaining,
+legacy A financially authorized with1 approved attempt remaining. No paid trial
+was opened. Old0.4.3 cannot display the new optional mode/phase metadata;
+physical UI improvement awaits specific flash permission and LCD acceptance.
+
+The deployed patch provides bounded engine/phase status scenes, numeric
+gateway setup timestamps and active/last engine diagnostics; first actual A TTS
+segment says "Экспертный режим включён" inside the existing character budget,
+with no extra model call. Metrics flag that this prefix is not useful-answer TTFA.
+Realtime reports now allow the actual mode_switch close reason instead of unknown.
+
+UI-only firmware candidate0.4.4-dev-voice-status-1 BUILT, NOT INSTALLED:
+app2712128bytes,SHA256 ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866,
+34% app partition free. Pinned IDF build with network disabled/no devices mounted;
+incremental recheck produced the same hash. Six-file patch reproduction matched
+candidate source. Actual audio path, KWS model and wake route remain unchanged.
+Host state/render checks passed; reviewed native240x240 fixtures show readable
+A/B labels, Thinking and retained timer. Physical LCD acceptance NOT_RUN.
+[Candidate and fixtures](../firmware/spotpear/voice_status/README.md).
+
+Free checks:122 focused regressions +5 real loopback peer tests PASS, no paid
+developer calls. Flash remains prohibited by Night Train OWNER DIRECT section5
+until a new specific Owner approval. COM3 enumerates, but identity/backups must
+be rechecked before any future write. Installed0.4.3 and recovery remain intact.
+
 ## Owner simplification: expert-mode keyword / abstention offer
 
 **Deployed:**9d217791528a16178f82856cc66684e15648e311. Idle backup:
