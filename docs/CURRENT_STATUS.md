@@ -1,5 +1,20 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner-reported manual speech failure — hotfix
+
+После публикации Owner сообщил «не работает». Runtime logs подтвердили отказ
+в `/api/v1/next/transcribe`: `web_stt` ошибочно считался developer origin, затем
+web gateway пытался декодировать non-JSON500 и скрывал причину. Это происходило
+до обращения к STT API. Аналогичная ошибка была в origin `web_tts`.
+Исправлены строго эти Owner manual origins для kind=realtime с прежними binding,
+quota/spend checks; никакие grants/caps не повышены. Отказы теперь JSON403/502.
+Добавлены HTTP tests с fake provider и настоящим budget ledger (success + отказ
+по лимиту);46 targeted checks passed, включая безопасное принятие существующих workers
+прежним process manager без их перезапуска.
+Голосовой provider/human acceptance по-прежнему не заявлены. Готовность прежнего
+отчёта относится к text/fixture/browser paths, не к проверенному платному голосу.
+Применение runtime hotfix ожидается после безопасного idle maintenance.
+
 ## Night Train v1 — действующий web preview
 
 **[Открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next)** ·

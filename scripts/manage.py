@@ -31,9 +31,33 @@ def worker(name):
         asyncio.run(VoiceMock(load(),init()['device_token']).serve(PORTS[name]));return
     factory={'brain':'gobot.brain:create_app','bridge':'gobot.bridge:create_app','images':'gobot.voice_mock:image_app'}[name]
     uvicorn.run(factory,factory=True,host='127.0.0.1',port=PORTS[name],access_log=False,log_level='warning',server_header=False)
-def supervise():
+class AdoptedWorker:
+    """Existing verified Windows worker; adoption never restarts its media service."""
+    def __init__(self,process):self.process=process;self.pid=process.pid
+    def poll(self):return None if self.process.is_running() else 0
+    def terminate(self):self.process.terminate()
+    def kill(self):self.process.kill()
+    def wait(self,timeout=None):
+        import psutil
+        try:return self.process.wait(timeout=timeout)
+        except psutil.TimeoutExpired:raise subprocess.TimeoutExpired('adopted_worker',timeout)
+
+def adopt_existing(manifest):
+    # Only explicit local maintenance after the old supervisor has exited.
+    previous=manifest['supervisor']
+    if identity(previous['pid'],previous['created']):raise RuntimeError('previous_supervisor_still_running')
+    result={}
+    if set(manifest['workers'])!=set(PORTS):raise RuntimeError('complete_owned_worker_set_required')
+    for name,entry in manifest['workers'].items():
+        p=identity(entry['pid'],entry['created'])
+        if not p or Path(p.cwd()).resolve()!=ROOT or p.cmdline()[-2:]!=['worker',name] or Path(p.cmdline()[-3]).resolve()!=ROOT/'scripts/manage.py' or entry['port']!=PORTS[name]:
+            raise RuntimeError('worker_adoption_identity_mismatch')
+        result[name]=AdoptedWorker(p)
+    return result
+
+def supervise(adopt=False):
     import psutil
-    init();children={};attempts={name:0 for name in PORTS};stopping=RUN/'stop.request';stopping.unlink(missing_ok=True)
+    init();children=adopt_existing(json.loads((RUN/'processes.json').read_text())) if adopt else {};attempts={name:0 for name in PORTS};stopping=RUN/'stop.request';stopping.unlink(missing_ok=True)
     def save():
         data={'supervisor':{'pid':os.getpid(),'created':psutil.Process().create_time()},'workers':{n:{'pid':p.pid,'created':psutil.Process(p.pid).create_time(),'port':PORTS[n]} for n,p in children.items() if p.poll() is None}}
         temp=RUN/'processes.tmp';temp.write_text(json.dumps(data,indent=2));temp.replace(RUN/'processes.json')
@@ -87,7 +111,7 @@ def stop():
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('command',choices=['init','start','stop','status','supervise','worker']);parser.add_argument('name',nargs='?');args=parser.parse_args()
     if args.command=='worker':worker(args.name)
-    elif args.command=='supervise':supervise()
+    elif args.command=='supervise':supervise(adopt=args.name=='adopt')
     elif args.command=='status':print((RUN/'processes.json').read_text() if (RUN/'processes.json').exists() else 'stopped')
     elif args.command=='init':init();print('Local keys initialized; values not printed')
     elif args.command=='start':start()

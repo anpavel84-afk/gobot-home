@@ -128,7 +128,7 @@ class OwnerTesting:
                 if count>=getattr(p,'developer_'+kind+'_limit'):raise PermissionError('developer_acceptance_limit')
                 spent_dev=c.execute("SELECT coalesce(sum(cost),0) FROM attempts WHERE origin='developer'").fetchone()[0]
                 if p.developer_estimate_usd_limit is not None and spent_dev+estimate>p.developer_estimate_usd_limit:raise PermissionError('developer_estimate_limit')
-            elif origin!='owner' or kind=='transcription':raise PermissionError('developer_acceptance_required')
+            elif (origin!='owner' and not (kind=='realtime' and origin in {'web_stt','web_tts'})) or kind=='transcription':raise PermissionError('developer_acceptance_required')
             count=c.execute("SELECT count(*) FROM attempts WHERE day=? AND kind=? AND origin NOT LIKE 'hardware:%'",(day,kind)).fetchone()[0]
             spent=c.execute("SELECT coalesce(sum(cost),0) FROM attempts WHERE day=? AND origin NOT LIKE 'hardware:%'",(day,)).fetchone()[0]
             if count>=caps[kind]:raise PermissionError('owner_'+kind+'_daily_limit')
