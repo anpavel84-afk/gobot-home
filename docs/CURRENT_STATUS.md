@@ -1,5 +1,57 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Voice-first product resumed — local wake remains NOT_ACCEPTED
+
+Owner explicitly resumed completion of the real "GoBot + question" interaction;
+touch remains fallback. Installed0.4.5/Brain8661454/weather repair and recovery
+are preserved. No paid-model call, new quota, flash or wake routing in this step.
+Current detector is local microWakeWord/TFLM with diagnostic UI only; it must not
+be presented as working wake-to-Brain. Existing failed acoustic checks remain.
+
+Implemented current-source product patch preparation (prepare_product.py): reuse
+fast-start UI/audio/StartGoBotTurn and the existing12s PSRAM rolling-prefix buffer,
+model-specific warmup, exact model/evaluation/ambient/human hash gates. Product
+routing requires the original real-acoustic targets (30 labelled calls,>=90%,
+recorded negative observation) as well as passing held-out/synthetic negatives.
+The guard has positive and rejection fixtures; it is not an unconditional OFF.
+No unrelated wake word, new Brain, external STT or English phonetic fallback.
+
+Completed model6:120-frame context,25% positive training mixture,negative weight4,
+same existing disjoint synthetic voices and train-only mined negatives. It FAILED:
+validation2/15 hits,0 false events in587.07s at cutoff191; held-out12/15 hits and
+8 false events in617.61s. NOT installed/accepted. Numeric provenance is in
+firmware/spotpear/microwake/model6-result.json. The additional bounded model7
+training/streaming evaluation (40 epochs,4 CPU threads,robust augmentation,
+same120-frame context,balanced labels) also FAILED:validation10/15 with7 false
+events/587.07s;held-out14/15 with7 false/617.61s at cutoff250. Model30336bytes,
+SHA ed9fe29cb5244061213e91bd00a60fc9463c5c2b27158842d25f83e52004867d.
+NOT installed; numeric provenance:model7-result.json. Both runs finished, no
+unbounded training loop left running. No paid GPU/TTS/model service or household
+data sent to the build host. Await real sample before further model experiments.
+
+Owner separately approved ONE <=60s local microphone sample on PLAN, no cloud,
+private retention<=24h. Implemented a50s recorder via the existing authenticated
+device TLS channel and a fake backend which rejects HTTP calls; DPAPI storage,
+one-use recording and exact-file deletion via Windows scheduled task at23h.
+Automatic deletion tasks registered. First10-minute armed window expired with
+NO touch,NO audio file; finally restored real B. Waiting for Owner's physical
+availability, without asking for repeat consent. Never arm/sample at boot or
+collect household audio in standby. Pending presence request supersedes the
+expired recording instructions; no recording currently armed.
+
+PLAN-only LiteRT2.3.0 +pymicro-features2.0.2 installed in a private project target,
+not global Python. Native frontend parity98/1987024791 matches the S3 reference;
+the existing INT8[1,3,40] model runs locally. evaluate_local_sample.py decrypts
+and evaluates on PLAN only; detected segments are not labelled human ground truth.
+Samples/features/voice identity are never published or sent to the build host.
+11 retention/path/product-gate unit tests PASS, including actual admission of
+matching passing evidence and rejection of failed/mismatched evidence. Human
+wake trials0 in this step. No sample file exists; normal B restored after timeout.
+No claim of fully working voice-first product: remaining blockers are model
+quality, the actual human sample/series, labelled background observation and
+real wake-to-Brain acceptance. B's original8 starts are exhausted; accounting
+was not reset or implicitly enlarged by the renewed engineering request.
+
 ## Hardware B weather-home regression — repair deployed
 
 Latest Owner report was reproduced in the scoped encrypted board journal:
