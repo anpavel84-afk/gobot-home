@@ -1,4 +1,4 @@
-import re,time
+import re,time,json,hashlib
 import threading
 from uuid import uuid4
 from dataclasses import dataclass
@@ -15,6 +15,7 @@ class LocalTools:
     def __init__(self,memory):
         self.memory=memory;self.timer_targets={};self.target_lock=threading.Lock()
         with memory.connect() as c:c.execute('''CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY,device_id TEXT,conversation_id TEXT,deadline REAL,status TEXT)''')
+        with memory.connect() as c:c.execute('CREATE TABLE IF NOT EXISTS timer_action_receipts(owner TEXT,action TEXT,payload_hash TEXT,result TEXT,PRIMARY KEY(owner,action))')
     @staticmethod
     def timer_scope(req):
         return (req.device_id,req.conversation_id,req.profile_epoch,req.client_id)
@@ -103,15 +104,27 @@ class LocalTools:
                 return ToolResult('На сколько минут или секунд поставить таймер?',evidence={'method':'timer_state','needs_parameters':True,'missing_slots':['duration']})
             if slots.get('status') not in {None,'validated'}:return ToolResult('Уточни одну длительность таймера без альтернатив и дополнительных команд.')
             if not 1<=seconds<=86400:return ToolResult('Таймер можно поставить на время от одной секунды до суток.')
-            ident=str(uuid4());deadline=time.time()+seconds
-            with self.memory.connect() as c:
-                c.execute("INSERT INTO timers VALUES(?,?,?,?,'running')",(ident,req.device_id,req.conversation_id,deadline))
-            self.clear_timer_context(req)
-            self.memory.settle_pending(req,'completed')
-            widget={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':seconds*1000,'timer_id':ident,'deadline':deadline}}
-            return ToolResult('Таймер запущен на '+duration_text(seconds)+'.',widget,
-                {'method':'timer_state','verified':True,'timer_id':ident,'duration_seconds':seconds,'deadline':deadline})
+            return self.start_timer_once(req,seconds)
         return ToolResult('Нужное действие пока не настроено.')
+
+    def start_timer_once(self,req,seconds,action_id=None):
+        """An explicit logical action ID, never text/argument similarity, deduplicates."""
+        if type(seconds) not in (int,float) or not 1<=seconds<=86400:raise ValueError('invalid_timer_duration')
+        digest=hashlib.sha256(json.dumps([seconds,req.conversation_id,req.client_id,req.profile_epoch]).encode()).hexdigest()
+        with self.memory.connect() as c:
+            c.execute('BEGIN IMMEDIATE')
+            old=c.execute('SELECT payload_hash,result FROM timer_action_receipts WHERE owner=? AND action=?',(req.device_id,action_id)).fetchone() if action_id else None
+            if old:
+                if old['payload_hash']!=digest:raise ValueError('action_payload_conflict')
+                return ToolResult(**json.loads(old['result']))
+            ident=str(uuid4());deadline=time.time()+seconds
+            c.execute("INSERT INTO timers VALUES(?,?,?,?,'running')",(ident,req.device_id,req.conversation_id,deadline))
+            widget={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start','duration_ms':seconds*1000,'timer_id':ident,'deadline':deadline}}
+            data={'text':'Таймер запущен на '+duration_text(seconds)+'.','widget':widget,
+                'evidence':{'method':'timer_state','verified':True,'timer_id':ident,'duration_seconds':seconds,'deadline':deadline}}
+            if action_id:c.execute('INSERT INTO timer_action_receipts VALUES(?,?,?,?)',(req.device_id,action_id,digest,json.dumps(data)))
+        self.clear_timer_context(req);self.memory.settle_pending(req,'completed')
+        return ToolResult(**data)
 
     def cancel_timer(self,req,target):
         # Numbering is explicitly shown by the status result: increasing deadline.

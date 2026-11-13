@@ -14,7 +14,7 @@ def manifests():
             allowed_context=['timer_duration'] if row['intent']=='timer_start' else [])
     for ident,category,status in [('weather.current','weather','implemented'),('weather.forecast','weather','implemented'),
         ('story.play','story','implemented'),('story.generate','story','unavailable'),('media.control','media','implemented'),
-        ('conversation.b','conversation','experimental'),('conversation.c','conversation','experimental')]:
+        ('conversation.b','conversation','experimental'),('conversation.c','conversation','experimental'),('device.volume','settings','implemented')]:
         result[ident]=SkillManifest(skill_id=ident,category=category,implementation_status=status,
             provider_dependencies=['Open-Meteo'] if category=='weather' else [],
             response_template='story_fixture_explicit' if ident=='story.play' else 'verified_result')

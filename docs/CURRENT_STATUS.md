@@ -10,7 +10,12 @@ Owner разрешил W0–W8 пакета `325c331`, без расширени
 старый C unknown reserve=60 секунд; допуски не изменены. Предыдущий baseline
 2154 passed /18 skipped /1 xfailed /118 subtests не выдаётся за новый прогон.
 W1: typed contracts и реестр поверх существующих Quick Intents добавлены.
-Реализация/приёмка/deployment остальных этапов продолжаются; preview ещё не опубликован.
+W2–W3: dispatcher/preflight, scoped pending/weather frames, атомарные timer receipts
+и speech/display weather envelope реализованы. 150 authored semantic cases +
+дополнительные unit/integration: 188 passed; затронутые timer/weather регрессии:
+404 passed. W4: все 100 прежних клипов проверены, dry-run=0 запросов; scoped
+story jobs, ACK-контракт и Web Audio player добавлены. W5: owner-only routes и
+страница интегрированы в исходники, browser QA/deployment ещё не завершены.
 
 Обновлён 13 ноября 2026 года (UTC; 12 ноября на PLAN). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
 Этот файл описывает **реализованный код, проверки и ограничения**. Требования
