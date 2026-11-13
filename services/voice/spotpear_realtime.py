@@ -48,6 +48,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                 'conversation_id':config['conversation_id'],'sdp':peer.localDescription.sdp,
                 'consent':True,'remember':False,'speak':True,'client_kind':'device',
                 'personalization_mode':'guest','requested_voice':'marin','requested_model':'gpt-realtime-2.1-mini'}
+            offer['expert_quota_consent']=config.get('hardware_expert_consent') is True
             attempted=True
             response=await client.post(base,headers=headers,json=offer);response.raise_for_status();answer=response.json()
             if (answer.get('session_id')!=ident or answer.get('model')!='gpt-realtime-2.1-mini' or
@@ -95,6 +96,10 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                     elif kind=='visual_response':
                         with suppress(KeyError,ValueError):await send(project_scene(data['presentation']))
                     elif kind=='input_transcript':await send({'type':'stt','text':data.get('text','')[:512]})
+                    elif kind=='expert_job':
+                        from spotpear_expert_scene import expert_scene
+                        scene=expert_scene(data)
+                        if scene:await send(scene)
                     elif kind=='error':raise ValueError('hardware_b_provider_error_no_retry')
                     elif kind=='closed':
                         await send({'type':'gobot_session_end','reason':data.get('reason')});return

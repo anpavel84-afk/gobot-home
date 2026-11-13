@@ -1,5 +1,15 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Owner amendment 2026-11-13:** wake activation must accept a SINGLE utterance
+«ГоБот, <question>», without a deliberate pause after the name. Local bounded
+pre-roll/setup buffering must preserve the question until transport readiness;
+no standby cloud STT or paid session. Include first/second Russian stress in
+acoustic training/evaluation, not text aliases as evidence. Buffer overflow is
+an explicit local cancellation, never silent truncation. Touch remains the safe
+alternative until real acoustic and false-wake acceptance. One separately
+approved board trial is180s/12x2048/$1 estimated, with one confirmed public
+SOL_HIGH task90s/context3000/result6000; no global cap increase or auto retries.
+
 **Owner amendment Night Train v1:** [утверждённая web-first архитектура](night-train-v1/TARGET_SYSTEM_VNEXT.md)
 дополняет этот паспорт: deterministic household routing до открытия модели, общий
 Brain, voice library/narrator, scoped approval/replay и ручные B/C transitions.

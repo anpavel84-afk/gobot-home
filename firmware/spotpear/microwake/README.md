@@ -29,3 +29,18 @@ python ambient.py model4 corpus/elena
 Результаты тестирования относятся к хешу модели, приведённому в отчёте. При повторной генерации проверить хеши манифестов. Использованные пакеты и seed задают воспроизводимый процесс. Побитовое совпадение ONNX-синтеза и TF не проверено на других процессорах.
 
 Для сборки предоставить отдельную копию проверенного дерева XiaoZhi, подготовленного по ../prepare_touch.py для 0.2.3. Выполнить `python prepare.py <копия> <папка модели>`. Затем собрать из корня копии `idf.py reconfigure` и `cmake --build build -j3` в закреплённом образе из ../touch_release.json. Проверить app, модель, таблицу разделов и assets независимо. Имя выходного bin само по себе не разрешает запись. На PLAN утилита firmware/spotpear_bringup.py проверяет физическое устройство, две заводские копии, текущий полный snapshot и ожидаемый ota_0. Операция wake-rollback возвращает ota_0 к 0.2.3. NVS и assets остаются на плате. Физическое восстановление заводского дампа не упражнялось.
+
+## One-phrase candidate (2026-11-13)
+
+Use prepare_one_phrase.py only on a copy of installed media-ready0.4.3.
+The candidate keeps diagnostic wake_route=0; touch and installed firmware remain.
+WakeQuestionBuffer retains1s local rolling prefix and12s total bounded PCM in
+PSRAM, drains once into existing audio engine, zeroizes consumed/reset memory,
+and cancels on overflow. This is connection prebuffering, not a second STT.
+
+corpus.py --wake-variants requires a NEW output directory. wake_variants.py
+defines first/second stress and separated/diphthong variants; five forms do not
+prove human acoustic coverage. Preserve old corpora/model reports. Train/evaluate
+with existing pinned CPU environment, held-out voice and continuous negatives.
+Host test: g++ -std=c++17 -Wall -Wextra -Werror test_wake_question_buffer.cc -o test-buffer && ./test-buffer.
+No cloud wake until acoustic qualification; no unattended paid session.

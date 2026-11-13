@@ -31,7 +31,7 @@ def prepare(root, pilot, voice_route=False):
             raise ValueError("Voice-route candidate failed continuous negative or held-out streaming evaluation")
     rows, probe=fingerprint()
     if rows!=98: raise ValueError("Unexpected frontend stride")
-    for name in ("gobot_mww.h","gobot_mww.cc"):
+    for name in ("gobot_mww.h","gobot_mww.cc","wake_question_buffer.h"):
         shutil.copyfile(HERE/name,main/name)
     (main/"gobot_mww.tflite").write_bytes(blob)
     # A diagnostic image cannot open a session on a false acoustic activation.

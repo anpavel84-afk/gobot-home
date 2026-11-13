@@ -121,7 +121,7 @@ class ExpertJobs:
         if not self.budget.active(policy):reasons.append('expert_budget_missing_or_expired')
         elif policy.allowed_client_id and policy.allowed_client_id!=getattr(self.session.offer,'client_id',None) and not owner_public:reasons.append('expert_budget_other_device')
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
-        if owner_public:
+        if owner_public and getattr(self.session,'owner_test_authorized',False):
             owner_state=self.session.manager.owner_testing.status(self.session.owner_test_binding)
             if owner_state['attempts_today'].get('expert',0)>=owner_state['policy']['expert_jobs_per_day']:reasons.append('owner_expert_daily_limit')
         return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status() if include_profiles else [],
@@ -130,6 +130,8 @@ class ExpertJobs:
 
     def owner_public_allowed(self):
         s=self.session
+        scoped=getattr(s,'scoped_public_expert_allowed',None)
+        if scoped and scoped():return True
         if not getattr(s,'owner_test_authorized',False) or not s.manager.owner_testing.authorized(s.owner_test_binding):return False
         if s.access.confirmed_profile_id:
             family=s.manager.identity.family

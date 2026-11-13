@@ -595,10 +595,23 @@ class NativeSession(VoiceVisualSession):
             if getattr(result,'frame',None):self.emit('visual_response',presentation=result.frame.model_dump())
             if getattr(result,'profile',None):self.emit('tool_status',status='settings_applied',profile=result.profile)
             output={'text':result.text,'evidence':result.evidence,'executed_by':'gobot_server'}
+            # A source gap can offer analysis, never pretend that another model
+            # independently verified current facts. Only the actual user transcript
+            # defines the task; model tool arguments cannot authorize CLI work.
+            if (not quick and RiskAssessment().assess(req.text,context).verification_required and
+                (getattr(result,'evidence',None) or {}).get('abstained') and turn.query and
+                self.experts.status(include_profiles=False)['enabled'] and 'SOL_HIGH' in self.experts.budget.policy().allowed_profiles):
+                pending=self.experts.pending
+                if not pending or pending.state not in {'awaiting_confirmation','queued','running'}:
+                    proposed=self.experts.propose(turn.query,'SOL_HIGH',turn)
+                    self.emit('expert_job',job=proposed)
+                    output['expert_proposal']=proposed
+                    output['text']+=' Можно подключить Sol High для разбора. Без проверенного источника свежие факты останутся неподтверждёнными. Подключить?'
+                    output['requires_user_confirmation']=not proposed['confirmed']
             if getattr(result,'setup',None):
                 output['setup']=result.setup;output['setup']['configuration_allowed']=self.can_configure_device()
                 self.emit('tool_setup',setup=output['setup'])
-            output.update(spoken_fields(result.text))
+            output.update(spoken_fields(output['text']))
             evidence=result.evidence or {}
             if evidence.get('method')=='server_clock' and re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',evidence.get('display','')):
                 output['spoken_value']=spoken_fields(evidence['display'],kind='time')['spoken_text']

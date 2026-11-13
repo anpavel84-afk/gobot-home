@@ -1,5 +1,6 @@
 #include "gobot_mww.h"
 #include "gobot_mww_config.h"
+#include "wake_question_buffer.h"
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -22,9 +23,10 @@ tflite::MicroResourceVariables* vars = nullptr;
 std::atomic<int> state{0};
 std::atomic<unsigned> frames{}, invocations{}, peak{}, max_us{}, hits{}, misses{}, clips{}, levels{}, drops{}, pauses{}, errors{};
 unsigned step{}, position{}, history[3]{}, warm{};
-constexpr size_t capacity = 24000;
+constexpr size_t capacity = 192000; // 12 seconds incl. 1s local prefix, 16kHz mono.
 int16_t* tail = nullptr;
-size_t read_at{}, write_at{};
+gobot::WakeQuestionBuffer question;
+std::atomic<bool> overflow{};
 unsigned parity_hash{};
 bool initialize() {
     FrontendConfig c{};
@@ -67,6 +69,7 @@ bool initialize() {
     auto var_memory=static_cast<uint8_t*>(heap_caps_aligned_alloc(16,2048,caps));
     tail=static_cast<int16_t*>(heap_caps_calloc(capacity,sizeof(int16_t),caps));
     if(!arena || !var_memory || !tail) return false;
+    question.Attach(tail,capacity,16000);
     auto allocator=tflite::MicroAllocator::Create(var_memory,2048);
     if(!allocator) return false;
     vars=tflite::MicroResourceVariables::Create(allocator,20);
@@ -90,13 +93,14 @@ void reset() {
         FrontendReset(&front);
         if(interpreter->Reset()!=kTfLiteOk || vars->ResetAll()!=kTfLiteOk) state=-1;
     }
-    if(tail && write_at) std::memset(tail,0,write_at*sizeof(*tail));
-    step=position=warm=0; read_at=write_at=0;
+    question.Clear();
+    step=position=warm=0;
     std::fill(std::begin(history),std::end(history),0u);
 }
 bool feed(const int16_t* mono,size_t count) {
     if(state==0) state=initialize()?1:-1;
     if(state!=1) return false;
+    question.Observe(mono,count); // Local RAM only; no transport in standby.
     unsigned level=0;
     for(size_t i=0;i<count;++i) {
         auto sample=unsigned(std::abs(int(mono[i])));
@@ -131,20 +135,15 @@ bool feed(const int16_t* mono,size_t count) {
         }
     }
     max_us=std::max(max_us.load(),unsigned(esp_timer_get_time()-start));
-    return detected;
+    return detected && question.Activate();
 }
 void retain(const int16_t* pcm,size_t count) {
-    if(!tail) return;
-    size_t keep=std::min(count,capacity-write_at);
-    std::memcpy(tail+write_at,pcm,keep*sizeof(*tail));write_at+=keep;
-    if(keep<count) ++drops;
+    if(!question.Append(pcm,count)) {++drops;overflow=true;}
 }
 size_t take(int16_t* pcm,size_t limit) {
-    size_t n=std::min(limit,write_at-read_at);
-    if(n) {std::memcpy(pcm,tail+read_at,n*sizeof(*pcm));read_at+=n;}
-    if(read_at==write_at && write_at) {std::memset(tail,0,write_at*sizeof(*tail));read_at=write_at=0;}
-    return n;
+    return question.Take(pcm,limit);
 }
+bool consume_overflow(){return overflow.exchange(false);}
 void report() {
     ESP_LOGI("mww","GOBOT_MWW state=%d frames=%u invokes=%u peak=%u hits=%u max_us=%u level=%u clipped=%u underrun=%u tail_drop=%u suspend=%u errors=%u parity=%u routed=%d",
              state.load(),frames.load(),invocations.load(),peak.load(),hits.load(),max_us.load(),levels.load(),

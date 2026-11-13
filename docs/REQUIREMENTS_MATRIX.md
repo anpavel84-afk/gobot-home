@@ -1,5 +1,17 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-13 board B / same-utterance wake
+
+| Requirement | Evidence | Remaining limit |
+|---|---|---|
+| Separate180s B /12x2048 | DEPLOYED270f8f7,one manual start available | No paid automatic test |
+| One confirmed Sol High | MOCK_PASS; isolated Bridge admission available | Real task awaits Owner; no fresh-source guarantee |
+| Original B/C accounting | Seven old B starts preserved; separate new ledger | Unknown C finalization remains explicit |
+| Expert offer on source gap | MOCK_PASS; actual transcript -> proposal -> confirmation | CLI is not independent fact verification |
+| Same-utterance local buffer | C++ PASS,diagnostic firmware BUILT | NOT_INSTALLED; no human delivery proof |
+| Stress variants KWS | Six-voice offline pilot trained/evaluated | FAILED:11 validation false/17 held-out false; human0 |
+| Wake-to-Brain | OFF,installed0.4.3 preserved | Requires qualified acoustic candidate |
+
 ## Night Train v1 — актуальный web-first checkpoint
 
 | Требование | Факт | Evidence/ограничение |
