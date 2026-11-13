@@ -2,6 +2,12 @@
 
 ## Owner simplification: expert-mode keyword / abstention offer
 
+**Deployed:**9d217791528a16178f82856cc66684e15648e311. Idle backup:
+run/night-train/backups/20261113T153022821823Z. Gateway d55045d / installed
+firmware0.4.3 unchanged; no quota extension, paid developer call or flash.
+Existing supervisor ownership was refreshed while preserving all four workers,
+then only owned Brain/web restarted. Latest physical handoff remains unconfirmed.
+
 Owner requires ordinary mentions of "экспертный режим" in the actual user's
 utterance to select A, rather than an exact command template. Native handoff now
 accepts the keyword with inflection and ordinary ASR punctuation, keeping an
