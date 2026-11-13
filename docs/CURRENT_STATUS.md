@@ -1,5 +1,41 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner confirmed web B; column switched to manual hardware B acceptance
+
+Owner подтвердил работу B в вебе и попросил проверить его на колонке. Изолированный
+BoardRealtime адаптер подключён явным host mount flag, gateway переключён с live_c
+на realtime_b. Runtime **9819af68a04a191b6a51c4f9f1beb681fd427d64**. На устройстве
+осталась **0.4.3-dev-media-ready**, без flash/OTA/NVS/wake_to_brain изменений.
+
+Точный model gpt-realtime-2.1-mini, marin. Прежний отдельный аппаратный пакет:
+8 ручных запусков по60s, максимум8 ответов×512 output tokens/сессию,
+gpt-transcribe, $1 estimate, no CLI/Luna/Image/retries. Authorization/caps не
+менялись, включён только enabled. На момент активации:8 remaining,0 reserved,
+0 provider sessions,0 pending B hangups. Phone grant не используется.
+C ledger/orphan final=false/reserve60s сохранены, C quarantine не отключён.
+
+Listening→Thinking→Speaking→Listening: streaming Opus/WSS→existing local LiveKit/
+WebRTC, микрофон закрыт во время ответа; новый вопрос после generation+provider
+drain+physical playback activity ACK+queue drain+echo guard. Отсутствующий playback
+ACK закрывает путь, не выдаётся за успех. Первый вопрос/конец фразы через VAD,
+без второго касания; silence10s/utterance30s/session60s bounds. Отдельный Stop.
+Прогноз погоды разрешён как read-only инструмент, настройка устройства по-прежнему
+запрещена этому гостевому пакету; regression это проверяет.
+
+Free evidence:22 tests PASS с двумя настоящими local aiortc peers/loopback LiveKit
+(conversation,Stop,network loss,missing playback ACK), без OpenAI; затем96 targeted
+regressions PASS. Board home profile/weather configured проверены без координат.
+Готовность API enabled=true,8 remaining, active=0; WSS gateway ready realtime_b.
+Физический разговор B/акустика **ещё не подтверждены**; Owner приглашён к двум
+коротким вопросам с одним касанием. Автоматические платные пробы не выполнялись.
+
+Config/financial WAL backups: `run/voice-ab-b/backups/20261113T120756639119Z`;
+Brain/web source backup: `run/night-train/backups/20261113T120757795059Z`.
+Откат только после idle: `.venv/Scripts/python.exe scripts/board_b_enable.py rollback`.
+Это возвращает прежнюю C gateway config/выключает B, **не восстанавливает ledger**
+и не объявляет C quarantine resolved. Прежний C может оставаться недоступным из-за
+неподтверждённого расхода. Веб B/A/C сохранены. Master unchanged, PR draft.
+
 ## Owner: B требовал повторных касаний — исправление автоматического диалога
 
 Причина найдена в /device-next: NativeVoice.followup был подменён текстом
