@@ -4,9 +4,9 @@
 
 | Контролируемый C/B: уточнение Owner | Реализация | Проверка / ограничения |
 |---|---|---|
-| C administrative recovery без ложного ACK | live_recovery.py, voice_ab_recovery.py; append-only orphan, WAL backup, loopback cleanup, отдельный Owner risk ACK, bounded exact-scope admission | Бесплатные fixtures; на рабочем ledger не применено, C не развёрнут, final=false сохранён; неизвестный прежний расход не погашается |
+| C administrative recovery без ложного ACK | e623dde в runtime; append-only orphan, WAL backup, loopback cleanup, Owner risk ACK, 1×60 с/45 минут | Применено; Owner использовал одну сессию, 51 с final usage; исходные строки/неизвестный резерв сохранены, допуск использован |
 | Изоляция нового разговора после recovery | Новые session/conversation, сброс touch context и старого mode flow; прежние квоты сохраняются | Mock manager: HTTP 503 не повторяется, операции старой сессии не запускаются |
-| Аппаратный B | Отдельный допуск 8×60 секунд подтверждён | Адаптер ещё не готов; paid tests/deployment не выполнены |
+| Аппаратный B | Board NativeSession adapter/router, отдельный ledger/binding, marin/Mini, полудуплекс, device drain ACK, echo guard, существующий hold Stop | Source only; 25 free tests с loopback LiveKit, синтетические peers/ACK. Router не mounted, физическая/платная B приёмка не выполнена |
 
 | Spotpear, 12.11.2026 | Проверено | Открыто |
 |---|---|---|

@@ -763,7 +763,8 @@ class LiveManager:
     async def start(self,offer,profile):
         live_sdp(offer.sdp)
         async with self.lock:
-            if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in [*self.sessions.values(),*self.realtime.sessions.values()]):raise ValueError('voice_session_already_active')
+            peers=[s for peer in getattr(self.realtime,'voice_peers',[]) for s in peer.sessions.values()]
+            if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in [*self.sessions.values(),*self.realtime.sessions.values(),*peers]):raise ValueError('voice_session_already_active')
             resume_from=[]
             for previous,provider,attempted in await asyncio.to_thread(self.budget.pending):
                 if any(s.id==previous and not s.closed for s in self.sessions.values()):continue

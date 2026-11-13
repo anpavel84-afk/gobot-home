@@ -715,7 +715,7 @@ class NativeSession(VoiceVisualSession):
             return {'accepted':True}
 
 class RealtimeManager:
-    def __init__(self,brain,*,provider=None,budget=None,profile_loader=None,identity=None):
+    def __init__(self,brain,*,provider=None,budget=None,profile_loader=None,identity=None,journal=None,owner_testing=None,session_factory=None):
         self.brain=brain;self.provider=provider or RealtimeProvider()
         self.budget=budget or RealtimeBudget(Path(__file__).resolve().parents[3]/'run/realtime')
         self.profile_loader=profile_loader;self.sessions={};self.tombstones={};self.hangups={};self.lock=asyncio.Lock()
@@ -724,10 +724,13 @@ class RealtimeManager:
         from .expert_store import ExpertStore
         self.expert_store=ExpertStore(brain.memory,self.identity.family)
         from .owner_testing import OwnerTesting
-        self.owner_testing=OwnerTesting(self.budget.root.parent/'owner-testing')
+        self.owner_testing=owner_testing or OwnerTesting(self.budget.root.parent/'owner-testing')
         from .debug_journal import DebugJournal
-        self.journal=DebugJournal(self.budget.root.parent/'debug-journal',self.owner_testing)
-        self.brain.debug_journal=self.journal
+        self.journal=journal or DebugJournal(self.budget.root.parent/'debug-journal',self.owner_testing)
+        self.owns_journal=journal is None
+        if journal is None:self.brain.debug_journal=self.journal
+        self.session_factory=session_factory or NativeSession
+        self.voice_peers=[]
         self.transition_context={}
 
     def owned(self,ident,owner,client,epoch):
@@ -796,6 +799,8 @@ class RealtimeManager:
     async def start(self,offer):
         audio_only_sdp(offer.sdp)
         async with self.lock:
+            if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id)
+                   for peer in self.voice_peers for s in peer.sessions.values()):raise ValueError('voice_session_already_active')
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in getattr(getattr(self,'live',None),'sessions',{}).values()):raise ValueError('voice_session_already_active')
             self.prune_lifecycle()
             for call in await asyncio.to_thread(self.budget.pending_calls):
@@ -818,7 +823,7 @@ class RealtimeManager:
                 store=DeviceStore(Path(self.brain.settings.db).resolve().parent/'browser-devices')
                 owner=await asyncio.to_thread(store.scoped_owner,offer.device_id,offer.client_id)
                 profile=await asyncio.to_thread(store.profile,owner)
-            s=NativeSession(self,offer,profile,p);self.sessions[s.id]=s
+            s=self.session_factory(self,offer,profile,p);self.sessions[s.id]=s
         try:
             answer=await s.initialize()
             if s.closed:raise RuntimeError('realtime_setup_cancelled')
@@ -884,7 +889,8 @@ class RealtimeManager:
                 await self.provider.hangup(call);self.hangups.pop(call,None)
                 await asyncio.to_thread(self.budget.close_call,call)
             except Exception:pass
-        await self.journal.close()
+        if self.owns_journal:await self.journal.close()
+        else:await self.journal.flush()
 
     async def invalidate_principal(self,owner,reason='profile_changed'):
         for s in list(self.sessions.values()):

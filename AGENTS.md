@@ -14,6 +14,12 @@ Subsequent OWNER DIRECT permits source-only C administrative recovery: preserve
 pending usage, verify local cleanup, append orphaned_unconfirmed and require a
 separate explicit Owner risk approval for bounded new sessions. No fabricated
 provider ACK, ledger reset, automatic paid trial or unaccepted C deployment.
+Subsequent OWNER DIRECT accepts 032e4ea and permits controlled C recovery
+deployment with rollback checks: this board only, one owner-manual <=60s start,
+short expiry, preserve unknown-cost reserve. No firmware/media-path change.
+That one recovered manual session is now used (51 provider-confirmed seconds).
+Do not renew its administrative admission automatically. B source/free local
+peer preparation remains authorized; B deployment/paid conversations not done.
 Do not infer a request to stop the deployed services or revoke existing manual
 testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
 
