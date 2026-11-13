@@ -1,5 +1,14 @@
 # GoBot Home boundaries
 
+OWNER DIRECT Night Train v1 supersedes the pause within docs/night-train-v1:
+implement W0-W8 web-first /device-next, one integration writer, same Brain;
+preserve recovery/B, /device, /demo2, existing transport and firmware 0.4.3.
+No automatic paid provider calls, quota changes, flash/OTA/NVS/wake enable.
+Safe owner-only private HTTPS web preview deployment is authorized after free
+checks, backups, no active sessions, and rollback. Master stays unchanged;
+PR draft. Independent Gemini review only if existing authorized read-only
+execution is available; otherwise documented self-review, no new provider.
+
 OWNER DIRECT 2026-11-12: development is paused. The current authorized work is
 documentation/GitHub status consolidation only. Do not resume implementation,
 training, firmware deployment or developer model trials until the owner resumes.

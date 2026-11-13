@@ -1,5 +1,17 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Night Train v1 — текущая реализация
+
+Owner разрешил W0–W8 пакета `325c331`, без расширения расходов/аппаратных прав.
+Интеграционная ветка `codex/hybrid-web-vnext` создана поверх `71dcb18`, пакет
+перенесён docs-only коммитом `46fb07b`. W0: backup SQLite через SQLite backup
+(включая WAL), web bundle/config backup и baseline находятся приватно в
+`run/night-train/`. При старте Brain runtime `e623dde`, active turns/media/B/C=0,
+старый C unknown reserve=60 секунд; допуски не изменены. Предыдущий baseline
+2154 passed /18 skipped /1 xfailed /118 subtests не выдаётся за новый прогон.
+W1: typed contracts и реестр поверх существующих Quick Intents добавлены.
+Реализация/приёмка/deployment остальных этапов продолжаются; preview ещё не опубликован.
+
 Обновлён 13 ноября 2026 года (UTC; 12 ноября на PLAN). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
 Этот файл описывает **реализованный код, проверки и ограничения**. Требования
 остаются в [единой целевой спецификации](GOBOT_HOME_TARGET_SYSTEM.md).
