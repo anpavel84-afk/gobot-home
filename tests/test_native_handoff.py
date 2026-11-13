@@ -8,6 +8,46 @@ from gobot.conversation_modes import ConversationModes
 from gobot.native_handoff import NativeHandoff
 from gobot.models import VoiceRequest
 
+@pytest.mark.parametrize('text',[
+    'Ты можешь включить экспертный режим?', 'Можешь включить экспертный режим?',
+    'Переведи меня в экспертный режим', 'Экспертный режим',
+])
+def test_natural_direct_mode_requests(text):
+    from gobot.conversation_modes import expert_mode_request
+    assert expert_mode_request(text)==''
+
+@pytest.mark.parametrize('text',[
+    'Он сказал: экспертный режим', 'Повтори фразу «Ты можешь включить экспертный режим?»',
+    'Я хочу экспертный режим', 'Давай экспертный режим пожалуйста',
+])
+def test_owner_keyword_mentions_trigger_mode(text):
+    from gobot.conversation_modes import expert_mode_request
+    assert expert_mode_request(text)==''
+
+def test_question_with_embedded_mode_keyword_keeps_the_full_question():
+    from gobot.conversation_modes import expert_mode_request
+    text='Сравни два подхода в экспертном режиме'
+    assert expert_mode_request(text)==text
+
+@pytest.mark.parametrize('separator',[': ','. ', ', ', ' — ', '? '])
+def test_single_utterance_goes_straight_to_a_with_original_question(tmp_path,settings,separator):
+    original,b,provider,modes=setup(tmp_path,settings)
+    async def run():
+        try:
+            await b.start(offer());s=b.sessions['board-b-1']
+            await s.new_turn(query='Экспертный режим'+separator+'сравни два способа выращивания растений')
+            result=await b.legacy_handoff.result(s)
+            assert result['state']=='ready' and result['question']=='сравни два способа выращивания растений'
+            assert s.closed and s.hangup_confirmed
+            assert not any(e['type']=='expert_job' for e in s.events)
+        finally:await b.shutdown();await original.shutdown()
+    asyncio.run(run())
+
+def test_wake_name_punctuation_does_not_hide_mode_question():
+    from gobot.conversation_modes import expert_mode_request
+    assert expert_mode_request('ГоБот, экспертный режим. Сравни два варианта.')=='Сравни два варианта.'
+    assert expert_mode_request('Не включай экспертный режим. Сравни два варианта.') is None
+
 def setup(tmp_path,settings,authorized=True):
     original,b,provider,path=prepared(tmp_path,settings);enable(path)
     owner=SimpleNamespace(authorized=lambda binding:authorized and binding=='board',
@@ -87,6 +127,24 @@ def test_offered_a_needs_current_real_confirmation(tmp_path,settings):
             await s.new_turn(query='Да')
             result=await b.legacy_handoff.result(s)
             assert result['state']=='ready' and result['question']=='Вопрос, требующий подробного разбора'
+        finally:await b.shutdown();await original.shutdown()
+    asyncio.run(run())
+
+def test_server_abstention_offers_a_then_real_yes_switches_without_expert_job(tmp_path,settings):
+    original,b,provider,modes=setup(tmp_path,settings)
+    async def run():
+        try:
+            await b.start(offer());s=b.sessions['board-b-1']
+            query='Какие актуальные новости тестовой компании?';turn=await s.new_turn(query=query)
+            await s.tool('source-check','gobot_tool',json.dumps({'query':query}),turn)
+            outputs=[json.loads(v['item']['output']) for v in s.ws.sent if v.get('item',{}).get('type')=='function_call_output']
+            output=outputs[-1]
+            assert output['mode_proposal']['available'] and output['requires_user_confirmation']
+            assert 'Переключить?' in output['text'] and not b.legacy_handoff.operations
+            assert not s.experts.jobs
+            await s.new_turn(query='Да')
+            result=await b.legacy_handoff.result(s)
+            assert result['state']=='ready' and result['question']==query
         finally:await b.shutdown();await original.shutdown()
     asyncio.run(run())
 

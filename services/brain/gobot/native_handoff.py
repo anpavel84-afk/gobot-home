@@ -4,7 +4,7 @@ Native close ACK and legacy admission are separate from a spoken promise.
 """
 import asyncio,re,time
 from uuid import uuid4
-from .conversation_modes import mode_intent
+from .conversation_modes import mode_intent,expert_mode_request
 
 def acknowledgment(text):
     return bool(re.fullmatch(r'(?:да|да спасибо|окей|ок|хорошо|ладно|понятно|спасибо)[.!?, ]*',text.casefold().strip()))
@@ -30,10 +30,11 @@ class NativeHandoff:
             if not state.get('available'):return state.get('reason') or 'a_executor_unavailable'
         return None
     async def request(self,s,turn,text):
+        direct_question=expert_mode_request(text)
         offered=self.offers.pop(s.id,None)
         confirmed=bool(offered and time.monotonic()<offered['expires'] and len(s.turns)==offered['turn_count']+1
             and re.fullmatch(r'(?:да|да давай|да переводи|подтверждаю)[.!?, ]*',text.casefold().strip()))
-        if mode_intent(text)!='legacy' and not confirmed:return False
+        if direct_question is None and not confirmed:return False
         if s.id in self.operations:return True
         if len(self.operations)>=32:
             s.emit('conversation_mode_blocked',target='legacy',reason='handoff_capacity',confirmed=False);return False
@@ -49,6 +50,7 @@ class NativeHandoff:
             if previous.query and not mode_intent(previous.query) and not acknowledgment(previous.query):question=previous.query
             if previous.query:messages.append({'role':'user','content':previous.query})
             if previous.stored and not previous.cancelled and previous.answer:messages.append({'role':'assistant','content':previous.answer})
+        if direct_question:question=direct_question
         operation={'operation_id':str(uuid4()),'state':'closing_native','flow':None,'question':question,'error':None}
         self.operations[s.id]=operation;turn.local_control=True
         s.emit('conversation_mode_switching',target='legacy',confirmed=False)

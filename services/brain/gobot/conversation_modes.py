@@ -14,13 +14,34 @@ def mode_intent(text):
     value=re.sub(r'^(?:гобот|го бот)\s+','',value)
     value=re.sub(r'^(?:ну |хорошо |ладно )','',value)
     value=re.sub(r'^пожалуйста | пожалуйста$','',value)
+    value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|можно ли)\s+','',value)
     value=re.sub(r' (?:давай|да)$','',value)
     if value in {'стоп','stop','закончи разговор','закончим разговор','заверши разговор','давай закончим','спасибо закончили'}:return 'end'
-    verb=r'(?:включи|включить|переключи(?:сь| меня| нас)?|перейди|перейдем|включим|давай (?:перейдем|включим|переключимся|переключи(?: меня)?|перейди))'
+    verb=r'(?:включи|включить|переключи(?:сь| меня| нас)?|переведи(?: меня| нас)?|перевести(?: меня| нас)?|перейди|перейдем|включим|давай (?:перейдем|включим|переключимся|переключи(?: меня)?|перейди))'
     prefix=r'(?:'+verb+r'(?: в| на)? )?'
     if re.fullmatch(prefix+r'(?:экспертный|вдумчивый) (?:режим|вариант)(?: [aа])?',value) or value in {'давай разберем подробно','разберем подробно'}:return 'legacy'
     if re.fullmatch(verb+r'(?: в| на)? режим [aа]',value):return 'legacy'
     if re.fullmatch(prefix+r'(?:обычный режим|быстрый режим|живой разговор)(?: [cс])?',value) or value in {'вернись к обычному разговору','вернись в обычный режим'}:return 'live'
+    return None
+
+def expert_mode_request(text):
+    """Owner-selected keyword trigger, applied only to an actual user transcript.
+    Financial/identity checks still happen in NativeHandoff, never from tool text.
+    """
+    match=re.search(r'\bэкспертн(?:ый|ого|ом|ому|ым)\s+режим(?:а|е|у|ом)?\b',text,re.I)
+    if match:
+        before=text[:match.start()]
+        if re.search(r'\b(?:не\s+(?:включай|включать|переключай|переводи)|отмени)\b',before,re.I):return None
+        if re.match(r'^\s*(?:сравни|объясни|расскажи|разбери|проверь|как|почему|что|чем|сколько|како[йея])\b',before,re.I):return text.strip()[:8000]
+        question=text[match.end():].lstrip(' \t\r\n:;—.,?!«»"').strip()
+        if re.fullmatch(r'(?:[aа]|пожалуйста|сейчас|давай|включи|включить|переведи|переключи|меня|мне)(?:\s+(?:пожалуйста|сейчас|давай|меня|мне))*',question,re.I):return ''
+        return question[:8000]
+    if mode_intent(text)=='legacy':return ''
+    # Punctuation is supplied by ASR, not spoken by the user. Accept its stable
+    # separators and allow a wake-name comma before the complete mode command.
+    for separator in re.finditer(r'[:;—.,?!]\s*',text):
+        question=text[separator.end():].strip()
+        if question and mode_intent(text[:separator.start()])=='legacy':return question[:8000]
     return None
 
 @dataclass

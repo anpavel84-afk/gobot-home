@@ -1,5 +1,12 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Owner simplification 2026-11-13:** an actual user mention of expert mode selects
+existing A under its effective admission, with the attached question if present.
+ASR punctuation does not define whether the command counts. If B cannot give a
+reliable substantive answer, it checks the backend and offers A; current user
+confirmation then selects A. Tool/model text cannot trigger the user-keyword
+action or grant expenses/permissions. Existing native close/drain/ACL remain.
+
 **Implementation amendment:** hardware B expert MODE uses the existing A stream
 after confirmed native hangup and physical playback drain. Transfer the existing
 question once and guest-only permitted dialogue context; do not transcribe it
