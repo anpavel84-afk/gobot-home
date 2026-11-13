@@ -22,7 +22,7 @@ def pcm16(samples, rate):
     factor = gcd(16000, rate)
     return np.clip(resample_poly(samples, 16000 // factor, rate // factor), -32768, 32767).astype("<i2")
 
-def generate(directory, out, speaker):
+def generate(directory, out, speaker, positive_phrases=None):
     paths = [directory / f"ru_RU-{speaker}-medium.{ext}" for ext in ("onnx", "onnx.json")]
     if speaker in HASHES:
         for path, digest in zip(paths, HASHES[speaker]):
@@ -35,7 +35,7 @@ def generate(directory, out, speaker):
     folder = out / speaker
     folder.mkdir(parents=True, exist_ok=True)
     rows = []
-    for label, phrases in (("positive", POSITIVE), ("negative", NEGATIVE)):
+    for label, phrases in (("positive", positive_phrases or POSITIVE), ("negative", NEGATIVE)):
         for index, phrase in enumerate(phrases):
             for speed in (82, 100, 118):
                 if speaker in ("elena", "anna", "aleksandr"):
@@ -66,6 +66,12 @@ if __name__ == "__main__":
     p.add_argument("voices", type=Path)
     p.add_argument("output", type=Path)
     p.add_argument("speakers", nargs="+", choices=[*HASHES, "espeak-ru","elena","anna","aleksandr"])
+    p.add_argument('--wake-variants',action='store_true',help='New isolated accent-variant corpus; existing output is forbidden')
     args = p.parse_args()
+    positives=None
+    if args.wake_variants:
+        from wake_variants import VARIANTS
+        if args.output.exists():raise ValueError('variant_corpus_requires_new_output_directory')
+        positives=[v['text'] for v in VARIANTS]
     for speaker in args.speakers:
-        generate(args.voices, args.output, speaker)
+        generate(args.voices, args.output, speaker, positives)

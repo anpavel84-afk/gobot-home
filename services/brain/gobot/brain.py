@@ -391,7 +391,12 @@ def create_app(settings=None):
     mount=board_root/'mount.json'
     if runtime_configuration and mount.exists() and json.loads(mount.read_text(encoding='utf8')).get('enabled') is True:
         from .board_realtime import BoardRealtime
-        board_realtime=BoardRealtime(realtime,board_root)
+        board_mount=json.loads(mount.read_text(encoding='utf8'))
+        if board_mount.get('profile')=='extended':
+            from .board_trial import TrialRealtime
+            board_realtime=TrialRealtime(realtime,board_root.parent/'voice-ab-b-extended')
+        elif board_mount.get('profile','original')=='original':board_realtime=BoardRealtime(realtime,board_root)
+        else:raise ValueError('unknown_board_budget_profile')
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)

@@ -1,5 +1,46 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## 2026-11-13: separate long B trial / one-phrase wake preparation
+
+Owner explicitly approved ONE manual board B session <=180s, <=12 responses,
+<=2048 output tokens/response, $1 estimated API allowance (not guaranteed invoice
+cap), plus ONE confirmed public-data Sol 6.1 High task: gpt-6.1-sol/high,
+<=90s, context<=3000 estimated tokens, result<=6000 characters. No automatic
+paid tests/retries, no C/Luna/Image allowance expansion. The original B ledger
+and its seven remaining minute starts are preserved. New source uses a separate
+voice-ab-b-extended ledger and separate experts ledger, expiry24h, exact enrolled
+board, guest/RAM scope. Expense consent does not grant personal memory/adult
+identity. Unknown provider hangups cannot be bypassed by rollback to old B.
+
+Source: board_trial.py, scripts/board_b_trial.py; stage/idle deployment/activate
+are distinct operations. A source-required question can offer Sol analysis after
+a real server source abstention; it cannot start until actual task confirmation.
+A stronger CLI with web tools disabled is NOT independent verification of recent
+news: the offer explicitly preserves this limitation. Expert state uses existing
+device scene protocol. This is mock-tested, not a completed real CLI trial.
+
+Owner confirmed the second topic in the recent device B conversation was intended;
+the journal's topic change is not evidence of an ASR error. Measured B response
+estimate $0.02332976 excludes separate gpt-transcribe; equivalent60s Live voice
+at the verified $0.05/min is $0.05 plus backend. Rough sample comparison is about
+2x cheaper for B, not a universal price/quality claim or final invoice.
+
+Wake: the installed detector is diagnostic, not wake-to-Brain. Existing corpus
+already had both Russian stress variants; adding strings does not qualify KWS.
+New isolated six-voice offline corpus adds five pronunciation forms. One bounded
+CPU training run is in progress; no paid training/model calls. New one-phrase
+buffer keeps1s local prefix + bounded12s total in PSRAM during connection setup,
+then drains once to the existing audio engine. Overflow fails closed; no silent
+truncation, idle uplink, recordings or second STT. Portable C++ prefix/order/
+overflow/zeroization checks passed on build host. A diagnostic0.4.4 candidate is
+being built from a COPY of installed0.4.3; it does not enable cloud wake or flash.
+Acoustic recognition/false wakes/same-utterance delivery remain unconfirmed.
+
+Validation checkpoint:348 passed,4 skipped across board/native/expert/quality/
+half-duplex suites before the final scene helper; remaining local-peer and final
+checks follow. Runtime at this checkpoint remains9819af6; installed firmware
+remains0.4.3-dev-media-ready. No paid developer call was made.
+
 ## First manual hardware B conversation: partial acceptance, limits/source gap
 
 Owner провёл один настоящий разговор на колонке и подтвердил слышимые ответы.

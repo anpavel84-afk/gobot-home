@@ -10,6 +10,7 @@ void report();
 void miss();
 void suspended();
 bool qualified();
+bool consume_overflow();
 void retain(const int16_t* pcm, size_t count);
 size_t take(int16_t* pcm, size_t limit);
 }

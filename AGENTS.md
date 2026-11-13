@@ -1,5 +1,13 @@
 # GoBot Home boundaries
 
+OWNER DIRECT subsequent 2026-11-13 amendment: prepare one separately ledgered
+manual board B session <=180s,12 responses x2048 output tokens,$1 estimated API
+allowance; one confirmed public task SOL_HIGH (gpt-6.1-sol/high),<=90s,<=3000
+context tokens,<=6000 result characters. No automatic paid calls/retries. Keep
+original seven minute B starts, C ledger/quarantine, guest ACL and firmware0.4.3.
+Local wake variations and same-utterance capture preparation/free CPU training
+are authorized; failed acoustic quality must not open paid background sessions.
+
 OWNER DIRECT Night Train v1 supersedes the pause within docs/night-train-v1:
 implement W0-W8 web-first /device-next, one integration writer, same Brain;
 preserve recovery/B, /device, /demo2, existing transport and firmware 0.4.3.
