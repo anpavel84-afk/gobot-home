@@ -1,6 +1,6 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## Hardware B weather-home regression — repair prepared
+## Hardware B weather-home regression — repair deployed
 
 Latest Owner report was reproduced in the scoped encrypted board journal:
 configured home weather remains enabled/present in the enrolled device profile,
@@ -26,8 +26,16 @@ day followup, topic reset and incomplete-period continuation.81 native/board/Liv
 checks PASS before the final clarification addition;373 weather/parser/handoff
 regressions PASS after it. A read of the actual bound profile confirms configured
 home and city present without exposing its value. No address reset or migration.
-Deployment pending guarded idle backup/restart. Firmware0.4.5 and expense grants
-unchanged; no paid automatic conversation, STT/TTS/CLI or Image call.
+DEPLOYED runtime86614547f2991aab7717a0af4325d8bf786aad08, guarded idle Brain/web
+restart. Gatewayf4c5ab8 and firmware0.4.5 unchanged. Rollback source3ec0569;
+backup run/night-train/backups/20261113T212553645140Z, additional financial WAL
+backup run/hardware-a/backups/20261113T212552056250Z. Never restore financial
+ledgers for code rollback. No paid automatic conversation, STT/TTS/CLI or Image
+call. Latest readiness0active/0pending B. All8 original B starts are now consumed;
+do not renew/refund/reset automatically. New physical paid B acceptance is blocked
+by the finite admission, not the saved location. The existing A allowance and C
+unknown-finalization accounting are preserved. No claim of real-model acceptance
+after this patch; no new firmware or address setup required for this code fix.
 
 ## Fast-start installed and free device checks passed — 2026-11-13
 
