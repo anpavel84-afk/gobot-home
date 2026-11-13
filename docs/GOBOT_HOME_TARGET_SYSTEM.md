@@ -1,5 +1,13 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Owner correction 2026-11-13 (expert MODE):** "перевести в экспертный режим"
+means handover to the existing A conversation engine with permitted context and
+incremental sentence/audio delivery, not one background ExpertJobs task followed
+by a summary in B. Keep these two operations distinct. Announce a completed mode
+switch only after actual provider cleanup and A admission. No silent CLI/model
+substitution, context loss or automatic budget expansion. B->A hardware handover
+is currently a required integration, not a passed capability.
+
 **Owner amendment 2026-11-13:** wake activation must accept a SINGLE utterance
 «ГоБот, <question>», without a deliberate pause after the name. Local bounded
 pre-roll/setup buffering must preserve the question until transport readiness;
