@@ -7,6 +7,7 @@
 | B->real CLI A->voice | Owner heard answer; journal bridge:codex/Sol6.1High; audio_stop finished | Not a universal acoustic/factual PASS |
 | Streaming | First server audio15.12s; final text87.99s after A request | Physical useful-answer onset unmeasured |
 | Engine/Thinking indication | Server status deployed; UI-only0.4.4-dev-voice-status-1 INSTALLED/USB boot verified | Owner approved specific USB write; LCD/touch acceptance awaits Owner; audio/KWS unchanged |
+| Touch-to-capture latency | B parallel local setup DEPLOYED;0.4.5 touch-first capture candidate BUILT/hash verified | Not flashed; physical first-syllable/Stop/overflow/latency not measured; no paid standby/prewarming |
 | Same voice | marin in both engines | Timbre does not identify engine |
 | A allowance | One A attempt remains, expiry unchanged | No automated paid repeat |
 
