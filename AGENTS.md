@@ -10,6 +10,10 @@ Separate B consent: 8 manual gpt-realtime-2.1-mini sessions up to 60 seconds,
 8 responses/session up to 512 output tokens, existing gpt-transcribe input
 transcription, $1 estimated server allowance; no CLI/Luna/Image/retries.
 Do not charge B to the existing C grant or change phone identity/policy globally.
+Subsequent OWNER DIRECT permits source-only C administrative recovery: preserve
+pending usage, verify local cleanup, append orphaned_unconfirmed and require a
+separate explicit Owner risk approval for bounded new sessions. No fabricated
+provider ACK, ledger reset, automatic paid trial or unaccepted C deployment.
 Do not infer a request to stop the deployed services or revoke existing manual
 testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
 

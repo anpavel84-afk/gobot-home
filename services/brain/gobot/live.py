@@ -764,15 +764,23 @@ class LiveManager:
         live_sdp(offer.sdp)
         async with self.lock:
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in [*self.sessions.values(),*self.realtime.sessions.values()]):raise ValueError('voice_session_already_active')
+            resume_from=[]
             for previous,provider,attempted in await asyncio.to_thread(self.budget.pending):
                 if any(s.id==previous and not s.closed for s in self.sessions.values()):continue
+                if await asyncio.to_thread(self.budget.recovery.may_resume,previous,self.budget.scope(offer)):
+                    resume_from.append(previous);continue
                 if not provider:raise RuntimeError('live_previous_finalization_unconfirmed')
                 if attempted or not await asyncio.to_thread(self.budget.cleanup_claim,previous):raise RuntimeError('live_previous_finalization_unconfirmed')
                 try:
                     final=await self.provider.cleanup(provider)
                     await asyncio.to_thread(self.budget.observe,previous,final.get('usage',{}).get('seconds',0),final=True,reason=final.get('reason'))
                 except Exception:raise RuntimeError('live_previous_finalization_unconfirmed') from None
-            limit=await asyncio.to_thread(self.budget.reserve,offer)
+            limit=await asyncio.to_thread(self.budget.reserve,offer,resume_from=resume_from)
+            if resume_from:
+                self.touch_context=None # Never replay orphaned input/actions into the new session.
+                for flow in self.modes.items.values():
+                    if flow.owner==offer.device_id or flow.client==offer.client_id:self.modes.end(flow,'administrative_recovery')
+                offer=offer.model_copy(update={'conversation_id':str(uuid4()),'mode_conversation_id':None})
             try:s=LiveSession(self,offer,profile,limit)
             except BaseException:
                 await asyncio.to_thread(self.budget.not_started,offer.session_id);raise
