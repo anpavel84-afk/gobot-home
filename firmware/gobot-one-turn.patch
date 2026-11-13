@@ -1,0 +1,109 @@
+warning: in the working copy of 'main/Kconfig.projbuild', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'main/application.cc', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'main/application.h', LF will be replaced by CRLF the next time Git touches it
+diff --git a/main/Kconfig.projbuild b/main/Kconfig.projbuild
+index 8966dec..da74c9d 100644
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -1246,3 +1246,12 @@ menu "TAIJIPAI_S3_CONFIG"
+ endmenu
+ 
+ endmenu
++
++config GOBOT_WAKE_ONLY
++    bool "GoBot wake-word only, single request per activation"
++    depends on USE_AFE_WAKE_WORD || USE_CUSTOM_WAKE_WORD
++    default n
++    help
++        Never resume server microphone after TTS; keep local wake model
++        active in idle. The wake model must be selected and packed
++        separately in the ESP-SR asset bundle.
+diff --git a/main/application.cc b/main/application.cc
+index e1f0719..bba3677 100644
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -225,6 +225,14 @@ void Application::Run() {
+         if (bits & MAIN_EVENT_PLAYBACK_DRAINED) {
+             if (audio_service_.IsPlaybackIdle()) {
+                 notify_player_.OnPlaybackDrained();
++#if CONFIG_GOBOT_WAKE_ONLY
++                // End exactly one conversation turn after playback is complete.
++                if (pending_gobot_standby_) {
++                    pending_gobot_standby_ = false;
++                    if (protocol_) protocol_->CloseAudioChannel();
++                    SetDeviceState(kDeviceStateIdle);
++                }
++#endif
+             }
+             // Deferred listening start (auto mode): the playback queue has
+             // drained, so it is now safe to enable voice processing.
+@@ -328,6 +336,7 @@ void Application::HandleNetworkConnectedEvent() {
+ }
+ 
+ void Application::HandleNetworkDisconnectedEvent() {
++    pending_gobot_standby_ = false;
+     // Close current conversation when network disconnected
+     auto state = GetDeviceState();
+     if (state == kDeviceStateNotifying) {
+@@ -649,16 +658,28 @@ void Application::InitializeProtocol() {
+             if (strcmp(state->valuestring, "start") == 0) {
+                 Schedule([this]() {
+                     aborted_ = false;
++                    pending_gobot_standby_ = false;
+                     SetDeviceState(kDeviceStateSpeaking);
+                 });
+             } else if (strcmp(state->valuestring, "stop") == 0) {
+                 Schedule([this]() {
+                     if (GetDeviceState() == kDeviceStateSpeaking) {
++#if CONFIG_GOBOT_WAKE_ONLY
++                        // Never auto-return to server listening after the answer.
++                        // Keep audio channel alive only until decoded playback drains.
++                        pending_gobot_standby_ = true;
++                        if (audio_service_.IsPlaybackIdle()) {
++                            pending_gobot_standby_ = false;
++                            if (protocol_) protocol_->CloseAudioChannel();
++                            SetDeviceState(kDeviceStateIdle);
++                        }
++#else
+                         if (listening_mode_ == kListeningModeManualStop) {
+                             SetDeviceState(kDeviceStateIdle);
+                         } else {
+                             SetDeviceState(kDeviceStateListening);
+                         }
++#endif
+                     }
+                 });
+             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
+@@ -920,6 +941,7 @@ void Application::HandleStopListeningEvent() {
+ }
+ 
+ void Application::HandleWakeWordDetectedEvent() {
++    pending_gobot_standby_ = false;
+     if (!protocol_) {
+         return;
+     }
+@@ -1279,7 +1301,12 @@ void Application::SetListeningMode(ListeningMode mode) {
+ }
+ 
+ ListeningMode Application::GetDefaultListeningMode() const {
++#if CONFIG_GOBOT_WAKE_ONLY
++    // Voice channel begins only after locally detected wake word.
++    return kListeningModeAutoStop;
++#else
+     return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
++#endif
+ }
+ 
+ void Application::Reboot() {
+diff --git a/main/application.h b/main/application.h
+index 1fa825e..16bec0a 100644
+--- a/main/application.h
++++ b/main/application.h
+@@ -155,6 +155,7 @@ private:
+     bool assets_version_checked_ = false;
+     bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
+     bool pending_listening_start_ = false;  // Waiting for playback to drain before starting listening (auto mode)
++    bool pending_gobot_standby_ = false;   // Wake-only: defer idle until output audio drains
+     int clock_ticks_ = 0;
+     TaskHandle_t activation_task_handle_ = nullptr;
+ 

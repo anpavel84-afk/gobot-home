@@ -84,8 +84,8 @@ class VoicePreferences(Strict):
 
 class DeviceProfile(Strict):
     version:Literal[1]=1
-    client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^browser-device-[a-f0-9-]{36}$')
-    client_kind:Literal['browser_device']='browser_device'
+    client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^(browser-device-[a-f0-9-]{36}|spotpear-[a-f0-9]{12})$')
+    client_kind:Literal['browser_device','spotpear']='browser_device'
     display:DeviceDisplay=Field(default_factory=DeviceDisplay)
     skin:DeviceSkin=Field(default_factory=DeviceSkin)
     screen:ScreenPreferences=Field(default_factory=ScreenPreferences)
@@ -97,7 +97,17 @@ class DeviceProfile(Strict):
     keep_screen_awake:bool=False
     has_screensaver:bool=False
 
+    @model_validator(mode='after')
+    def verify_identity_kind(self):
+        if self.client_id.startswith('spotpear-') != (self.client_kind == 'spotpear'):
+            raise ValueError('device_kind_mismatch')
+        return self
+
     def capabilities(self):
+        if self.client_kind == 'spotpear':
+            return {'client_id':self.client_id,'kind':'spotpear','presence':'unknown',
+                    'input':['touch','button'],'audio':['xiaozhi_opus'],'wake_word':'not_configured',
+                    'display':self.display.model_dump(),'skin':self.skin.model_dump()}
         return {'client_id':self.client_id,'kind':'browser_device','physical_device_connected':False,
                 'display':self.display.model_dump(),'ui_version':2,'input':['push_to_talk','tap_to_toggle'],
                 'audio':['browser_capture','server_stt','server_tts','realtime_webrtc_candidate'],'wake_word':'not_configured',

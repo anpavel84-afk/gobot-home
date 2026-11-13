@@ -1,5 +1,97 @@
 # GoBot Home boundaries
-Work only in this repository. No paid/model calls by default. No firmware flash/OTA/NVS.
+
+OWNER resumed the complete local Russian GoBot wake-to-question product on
+2026-11-13; touch is fallback, not the target interaction. Continue local wake
+implementation/quality checks without admitting an unqualified detector to paid
+sessions. Owner separately consented to ONE voluntary <=60s board microphone
+sample for wake training/testing on PLAN only, no cloud transfer, private storage
+and deletion within24h. This is not continuous household recording, API budget
+renewal, private-memory access or permission to publish speech/features.
+
+OWNER explicitly approved on 2026-11-13 installation of the prepared
+0.4.5-dev-fast-start-1 on this enrolled Spotpear and free local diagnostics
+without OpenAI. Preserve identity/NVS/recovery, limits and existing features.
+This extends the prior UI-only exception to this exact bounded startup-capture
+image; it does not authorize automatic paid conversations or wake enablement.
+
+OWNER explicitly approved on 2026-11-13 USB installation of the prepared
+0.4.4-dev-voice-status-1 UI-only candidate on the enrolled Spotpear, after identity
+and backup checks. This specific exception supersedes Night Train's no-flash rule
+for this image only. Preserve audio/KWS/NVS/recovery and all financial ledgers;
+no automatic paid trial. It does not authorize other firmware or wake enablement.
+
+OWNER explicitly APPROVED the consolidated board B->A package on 2026-11-13:
+24h, one manual use of an existing minute B start, <=2 A turns via Codex
+SOL_HIGH/gpt-6.1-sol/high <=90s each, context<=3000 estimated tokens,
+result<=6000chars; <=2 STT attempts x26s, <=6000 TTS chars total, $1 API
+estimate (not guaranteed invoice cap). No automatic paid trials/retries. Use a
+separate persistent A batch; retain all prior B/C/CLI usage and phone identity.
+
+OWNER DIRECT subsequent 2026-11-13 correction authorizes actual hardware B->A
+mode handover, reusing existing ConversationModes/legacy streamed voice. Close B
+and confirm provider cleanup before A; transfer permitted question/context once.
+Do not replace mode A with a buffered ExpertJobs summary. Free implementation /
+acceptance and guarded idle deployment are allowed; no new paid A grant is
+implied. The prior180s B start/one Sol job are consumed. Separate A proposal is
+disabled pending Owner answer; preserve original seven B starts and C ledger.
+
+OWNER DIRECT subsequent 2026-11-13 amendment: prepare one separately ledgered
+manual board B session <=180s,12 responses x2048 output tokens,$1 estimated API
+allowance; one confirmed public task SOL_HIGH (gpt-6.1-sol/high),<=90s,<=3000
+context tokens,<=6000 result characters. No automatic paid calls/retries. Keep
+original seven minute B starts, C ledger/quarantine, guest ACL and firmware0.4.3.
+Local wake variations and same-utterance capture preparation/free CPU training
+are authorized; failed acoustic quality must not open paid background sessions.
+
+OWNER DIRECT Night Train v1 supersedes the pause within docs/night-train-v1:
+implement W0-W8 web-first /device-next, one integration writer, same Brain;
+preserve recovery/B, /device, /demo2, existing transport and firmware 0.4.3.
+No automatic paid provider calls, quota changes, flash/OTA/NVS/wake enable.
+Safe owner-only private HTTPS web preview deployment is authorized after free
+checks, backups, no active sessions, and rollback. Master stays unchanged;
+PR draft. Independent Gemini review only if existing authorized read-only
+execution is available; otherwise documented self-review, no new provider.
+
+OWNER DIRECT 2026-11-12: development is paused. The current authorized work is
+documentation/GitHub status consolidation only. Do not resume implementation,
+training, firmware deployment or developer model trials until the owner resumes.
+Subsequent OWNER DIRECT authorizes only Controlled Voice A/B Comparison:
+audit and isolated hardware B adapter, free acceptance, owner-manual comparison.
+Preserve firmware 0.4.3 and C as reference, no master merge or general development.
+Separate B consent: 8 manual gpt-realtime-2.1-mini sessions up to 60 seconds,
+8 responses/session up to 512 output tokens, existing gpt-transcribe input
+transcription, $1 estimated server allowance; no CLI/Luna/Image/retries.
+Do not charge B to the existing C grant or change phone identity/policy globally.
+Subsequent OWNER DIRECT permits source-only C administrative recovery: preserve
+pending usage, verify local cleanup, append orphaned_unconfirmed and require a
+separate explicit Owner risk approval for bounded new sessions. No fabricated
+provider ACK, ledger reset, automatic paid trial or unaccepted C deployment.
+Subsequent OWNER DIRECT accepts 032e4ea and permits controlled C recovery
+deployment with rollback checks: this board only, one owner-manual <=60s start,
+short expiry, preserve unknown-cost reserve. No firmware/media-path change.
+That one recovered manual session is now used (51 provider-confirmed seconds).
+Do not renew its administrative admission automatically. B source/free local
+peer preparation remains authorized; B deployment/paid conversations not done.
+Do not infer a request to stop the deployed services or revoke existing manual
+testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
+
+### Spotpear touch release · 2026-11-12
+
+The enrolled round Spotpear may start a real turn by a deliberate touch. Keep the
+microphone uplink and provider session closed in standby. Local Russian «ГоБот»
+has separate acoustic acceptance. A failed wake detector must never disable touch
+capture. Keep the board's guest scope, grant and recovery separate from the phone.
+
+Work only in this repository. No paid/model calls by default. Firmware flash/OTA/NVS is disabled by default.
+OWNER DIRECT 2026-11-12 authorizes guarded USB bring-up and scoped enrollment
+of the single verified Spotpear S3 on PLAN. Check physical identity, security
+state, factory backups, partitions and recovery before writes. Preserve the
+other OTA slot. The hardware exception grants no API budget or phone identity.
+OWNER DIRECT 2026-11-12 subsequently authorizes a board-bound manual batch of
+50 GPT-Live 1 sessions, at most 60 seconds each (estimated $2.50 total), with no
+Luna, CLI, Image API or automatic paid retries. Keep earlier usage. This finite
+count survives dates/restarts until consumed; do not impose another daily renewal
+or ask approval for each activation. It grants no phone identity/private data.
 Never read, copy or mount CLI credentials. No shell from voice, no global installs, no firewall changes.
 Brain, Bridge, voice and image services use 127.0.0.1. The owner's iPhone testing request permits a persistent mock-only phone gateway on the specific Wi-Fi IPv4, restricted to that subnet, until stopped. No firewall/router changes, credentials, history access, arbitrary proxy, CLI or shell through this HTTP gateway. The separate private Tailscale HTTPS gateway uses exact peer, Host and Origin allowlists and may proxy validated product requests to Brain and save an OpenAI key through Windows DPAPI. Real CLI admission requires matching offline isolation evidence, no model tools, and explicit quota consent; no tests may spend quota without the owner's permission.
 Tests use mocks; preserve upstream SHAs and regression-test every patch. Do not claim mock audio is speech.
@@ -175,3 +267,7 @@ history. Show the opt-in, 1..7-day retention, health/dropped events and deletion
 the existing Owner Full Test panel. Bounded background writing must not block voice;
 do not claim exhaustive/lossless recording during failure or recover older transcripts.
 No household text or journal database in Git. Preserve all expense limits.
+OWNER DIRECT board-debug continuation explicitly includes this enrolled column's
+native text dialogue and actions. Use a separate diagnostic device-binding opt-in,
+not its expense grant or phone identity. Keep DPAPI, retention, owner-bound read API,
+no raw audio, no semantic-memory indexing and no recovery claims for missing logs.

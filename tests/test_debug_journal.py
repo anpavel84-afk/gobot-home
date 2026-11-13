@@ -108,6 +108,30 @@ def test_internal_journal_api_auth_binding_epoch_and_delete(tmp_path):
     asyncio.run(run())
 
 
+def test_explicit_board_journal_opt_in_does_not_grant_history_read_access(tmp_path):
+    async def run():
+        owner,j=setup(tmp_path)
+        board='fixture-board'
+        def record():return j.append(binding=board,owner=board,client=board,session='board-session',
+                                      engine='C',kind='input_transcript',data={'text':'SYNTHETIC weather'})
+        assert not record()
+        p=owner.policy()
+        owner.policy_path.write_text(OwnerTestPolicy.model_validate({**p.model_dump(),
+            'debug_journal_device_bindings':[board]}).model_dump_json())
+        assert record() and await j.flush()
+        app=FastAPI();attach_brain_journal(app,SimpleNamespace(journal=j,owner_testing=owner),lambda:None)
+        identity={'device_id':board,'client_id':board,'binding':board}
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app),base_url='http://test') as c:
+            assert (await c.get('/api/v1/debug-journal/board-session',params=identity)).status_code==403
+            data=(await c.get('/api/v1/debug-journal/board-session',params={**identity,'binding':'bound'})).json()
+            assert data['events'][0]['data']['text']=='SYNTHETIC weather'
+            assert not (await c.get('/api/v1/debug-journal/board-session',params={**identity,'binding':'bound','profile_epoch':'other'})).json()['events']
+        owner.update('bound',{'debug_journal_enabled':False})
+        assert not record() and not j.status(board)['enabled']
+        await j.close()
+    asyncio.run(run())
+
+
 def test_live_journal_survives_close_and_records_actual_weather_failure_and_recovery(tmp_path,settings):
     from test_live_native_tools import start,say
     async def run():
@@ -140,7 +164,9 @@ def test_live_journal_survives_close_and_records_actual_weather_failure_and_reco
 
 def test_invalid_weather_is_evicted_then_next_user_request_fetches_fresh():
     async def run():
-        client,calls,_=forecast_source(lambda d:d['temperature_2m_max'].__setitem__(0,None))
+        # The requested window is tomorrow (offset=1). Missing data in another
+        # day must not poison a complete tomorrow; selected missing data must.
+        client,calls,_=forecast_source(lambda d:d['temperature_2m_max'].__setitem__(1,None))
         place=WeatherPreferences(enabled=True,location_name='Synthetic',latitude=0,longitude=0)
         with pytest.raises(WeatherError,match='weather_invalid_data'):await client.forecast(place,offset=1,days=1)
         assert len(calls)==1 and not client.cache

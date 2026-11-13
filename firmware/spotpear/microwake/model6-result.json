@@ -1,0 +1,53 @@
+{
+  "model_sha256": "57f75a4def9eb3940ced19c3f827a0b46e30ce6c7fdb995f09b4145c6de66e2e",
+  "context_frames": 120,
+  "training_positive_fraction": 0.25,
+  "negative_weight": 4,
+  "cutoff": 191,
+  "validation": {
+    "tp": 2,
+    "positive": 15,
+    "false_events": 0,
+    "negative": 198,
+    "stream_seconds": 587.07275,
+    "mistakes": [
+      "positive-2-100.pcm",
+      "positive-0-100.pcm",
+      "positive-3-100.pcm",
+      "positive-0-82.pcm",
+      "positive-2-82.pcm",
+      "positive-4-82.pcm",
+      "positive-4-100.pcm",
+      "positive-1-82.pcm",
+      "positive-2-118.pcm",
+      "positive-1-118.pcm",
+      "positive-0-118.pcm",
+      "positive-3-82.pcm",
+      "positive-1-100.pcm"
+    ]
+  },
+  "test": {
+    "tp": 12,
+    "positive": 15,
+    "false_events": 8,
+    "negative": 198,
+    "stream_seconds": 617.61,
+    "mistakes": [
+      "positive-0-118.pcm",
+      "negative-34-118.pcm",
+      "negative-33-82.pcm",
+      "negative-62-82.pcm",
+      "negative-24-100.pcm",
+      "negative-60-82.pcm",
+      "negative-62-100.pcm",
+      "negative-33-100.pcm",
+      "positive-2-118.pcm",
+      "positive-1-118.pcm",
+      "negative-54-82.pcm"
+    ]
+  },
+  "candidate_passed": false,
+  "human_trials": 0,
+  "installed": false,
+  "owner_audio_used": false
+}

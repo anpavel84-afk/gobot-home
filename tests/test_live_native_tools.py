@@ -137,7 +137,9 @@ def test_native_weather_setup_permission_location_confirmation_source_and_isolat
         manager,s=await start(tmp_path,settings);calls=source(manager)
         manager.brain.configuration.devices.profile('other@fixture')
         try:
-            for i,text in enumerate(['Какая погода?','Да','Synthetic Town','Да']):
+            # An informational query is read-only. Explicit settings open the
+            # existing permission/location/confirmation/save wizard.
+            for i,text in enumerate(['Покажи настройки погоды','Да','Synthetic Town','Да']):
                 await say(s,text,i*5000)
             saved=manager.brain.configuration.devices.profile('browser-1@fixture')
             assert saved.weather.enabled and saved.weather.location_name=='Synthetic Town, Test Region, Fixture'

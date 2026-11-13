@@ -4,6 +4,7 @@ Candidate admission is OFF until a separate owner budget exists. This module nev
 invokes Speech, voiced_events or a CLI for an ordinary conversation turn.
 """
 import asyncio,json,time,hashlib,re
+from contextlib import suppress
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
@@ -24,6 +25,7 @@ INSTRUCTIONS=VOICE_STYLE+' '+CONTINUITY+'\n'+RUSSIAN_PRONUNCIATION+'''
 Произвольные файлы, shell, общий веб-браузер и MCP недоступны. Встроенный серверный поиск изображений Wikimedia доступен через visual_request. Не придумывай источники, результаты экспертов или выполненные действия.
 Для часов, таймеров, памяти, погоды, актуальных фактов и настроек вызывай gobot_tool.
 Погодный адаптер Open-Meteo установлен на сервере. Для проверки погоды всегда вызывай gobot_tool, не утверждай заранее, что доступа нет.
+home_context содержит сохранённое домашнее место устройства, а не GPS. Если weather_location_configured=true, погода без указанного города относится к этому месту: не спрашивай город заново и не говори, что местоположение неизвестно. «А завтра?» сохраняет место. В gobot_tool передавай исходную реплику, а не своё объяснение настройки. При обрезанном указании дня уточняй день, не город.
 Если инструмент вернул setup, веди настройку по его текущему шагу: предложи подключение, спроси город, уточни вариант, получи подтверждение и дождись проверки источника. Передавай в gobot_tool настоящую реплику пользователя, включая «да» и название города. Не говори «подключено», пока status не ready. Для этого не нужны shell или домашние датчики.
 До результата не называй непроверенные текущие числа, даты и погоду. Если источник не подключён, честно скажи это.
 Эксперт необязателен. Только сложный разбор или явный запрос конкретного эксперта оправдывает предложение.
@@ -97,6 +99,7 @@ class NativeSession(VoiceVisualSession):
         self.pending_response=False;self.input_mode='ptt';self.live_response=None;self.idle=None
         self.followup_deadline=None;self.last_activity=time.monotonic();self.config=None
         self.timings={'setup_started':0};self.last_scene=None
+        self.weather_topic=False;self.weather_last_request={}
         self.setup_done=False;self.hangup_confirmed=False
         self.access=manager.identity.native(offer)
         chosen_voice=profile.voice.voice or offer.requested_voice
@@ -179,7 +182,12 @@ class NativeSession(VoiceVisualSession):
         packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,req.text,context,'FAST_CHAT')
         # Existing ACL/context builder provides bounded, scoped facts. No development instructions.
         seed={k:packet[k] for k in ('messages','summary','facts','topic','active_visual_subject','runtime_environment') if packet.get(k)}
+        from .settings_tools import device_home_context
+        seed['home_context']=await asyncio.to_thread(device_home_context,self.manager.brain.configuration.devices,self.offer.device_id,self.offer.client_id)
         instructions=INSTRUCTIONS+' Личная память в этом нативном режиме пока закрыта: личность говорящего не подтверждена. Не обещай сохранение настроек или личных фактов.\nКонтекст JSON:\n'+json.dumps(seed,ensure_ascii=False)
+        handoff=getattr(self.manager,'legacy_handoff',None)
+        if handoff:
+            instructions+='\nЭкспертный режим A — реальное переключение разговорного движка, не фоновая задача expert_propose/start. Упоминание экспертного режима в реплике пользователя обрабатывает сервер: проверяет исходный транскрипт и закрытие B. Не объявляй переключение по своему решению. Если не можешь дать надёжный содержательный ответ, не заканчивай голым отказом: вызови gobot_tool с точным вопросом. Если сервер вернул доступное mode_proposal, коротко предложи экспертный режим A. После реального «да» сервер выполняет переход; до подтверждения не говори, что уже переключил. Экспертный режим не обходит права доступа и сам по себе не даёт источник свежих фактов. Доступ: '+json.dumps({'available':handoff.admission(self) is None,'blocked_reason':handoff.admission(self)},ensure_ascii=False)
         from .visual_images import source_config
         instructions+='\nВозможности visual_request, подтверждённые сервером: '+json.dumps({'wikimedia_search_configured':bool(source_config()),'local_fallback_cards':True,'generation_allowed':self.policy.image_generation_allowed and self.profile.screen.generation_allowed,'generation_consent':self.profile.screen.generation_consent,'generation_mode':self.profile.screen.generation_mode,'generation_daily_limit':self.profile.screen.generation_daily_limit,'source_policy':self.profile.screen.visual_source_policy})
         if self.offer.personalization_mode=='confirmed_profile':
@@ -260,6 +268,7 @@ class NativeSession(VoiceVisualSession):
                     await self.manager.close(self.id,self.offer.device_id,self.offer.client_id,self.offer.profile_epoch,'budget_expired');return
                 if self.policy.max_session_seconds is not None and time.monotonic()-self.started>=self.policy.max_session_seconds:reason='session_time_limit'
                 elif not self.manager.budget.active(policy) or policy.authorization!=self.policy.authorization:reason='budget_expired'
+                elif getattr(self,'auto_input_deadline',None) and time.monotonic()>self.auto_input_deadline:reason='input_time_limit'
                 elif time.monotonic()-self.last_activity>45 and not self.generating and not self.speaking and not self.experts.active() and not visual_pending:reason='idle_timeout'
                 elif self.followup_deadline and time.monotonic()>self.followup_deadline:
                     if self.experts.active() or visual_pending:
@@ -314,7 +323,12 @@ class NativeSession(VoiceVisualSession):
             await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'cancelled' if turn.cancelled else 'incomplete' if turn.truncated else 'completed',turn.answer if not turn.cancelled else '',
                                     'openai:'+self.policy.model,turn.trace)
         from .quick_intents import resolve_quick
+        weather_quick=resolve_quick(text,{'weather_followup':self.weather_topic,'weather_last_request':self.weather_last_request})
+        if not (weather_quick and weather_quick.executor=='settings' and weather_quick.slots.get('operation','').startswith('weather_')):
+            self.weather_topic=False;self.weather_last_request={}
         self.emit('input_transcript',text=text,final=True,confirm_text_allowed=resolve_quick(text,{}) is None)
+        handoff=getattr(self.manager,'legacy_handoff',None)
+        if handoff and await handoff.request(self,turn,text):return
         if turn.answer:self.spawn(self.check_alignment(turn))
         proposal=self.experts.pending
         pending={'pending_action':{'kind':'expert_proposal','id':proposal.proposal_id,'expires':proposal.expires}} if proposal and proposal.state=='awaiting_confirmation' else {}
@@ -380,6 +394,7 @@ class NativeSession(VoiceVisualSession):
             self.emit('audio_diagnostic',stage='server_vad_started')
             if self.input_mode=='followup':self.emit('speaker_segment',segment_id=self.speaker.begin())
             if self.input_mode=='followup':self.followup_deadline=None
+            if self.input_mode=='followup' and getattr(self,'automatic_dialogue',False) and not getattr(self,'auto_input_deadline',None):self.auto_input_deadline=time.monotonic()+30
             self.last_activity=time.monotonic();self.emit('listening',active=True)
         elif kind=='input_audio_buffer.speech_stopped':
             self.input_ended=round((time.monotonic()-self.started)*1000,2)
@@ -391,7 +406,7 @@ class NativeSession(VoiceVisualSession):
             if self.input_mode not in {'ptt','followup'}:
                 if item_id:await self.send({'type':'conversation.item.delete','item_id':item_id})
                 return
-            self.input_mode='processing';self.ptt_committing=False
+            self.input_mode='processing';self.ptt_committing=False;self.auto_input_deadline=None
             await self.send({'type':'session.update','session':{'type':'realtime','audio':{'input':{'turn_detection':None}}}})
             await self.new_turn(item_id)
             await self.response()
@@ -547,14 +562,22 @@ class NativeSession(VoiceVisualSession):
                 await self.response();return
             if name!='gobot_tool' or not isinstance(args,dict) or set(args)!={'query'} or not isinstance(args['query'],str) or not 1<=len(args['query'])<=8000:raise ValueError()
             if turn is not self.current or not turn or turn.cancelled:return
-            req=self.request(args['query'],turn.id)
+            if not turn.query and re.search(r'погод|прогноз',args['query'],re.I):
+                with suppress(TimeoutError):await asyncio.wait_for(turn.input_ready.wait(),3)
+            weather_context=await asyncio.to_thread(self.manager.brain.configuration.weather_query_context,self.settings_request(turn.query or args['query'],turn.id))
+            weather_context.update(weather_followup=self.weather_topic,weather_last_request=self.weather_last_request)
+            actual_quick=resolve_quick(turn.query,weather_context) if turn.query else None
+            actual_weather=bool(actual_quick and actual_quick.executor=='settings' and actual_quick.slots.get('operation','').startswith('weather_'))
+            query=turn.query if actual_weather else args['query']
+            req=self.request(query,turn.id)
             context=await asyncio.to_thread(self.manager.brain.memory.context,req)
-            settings_req=self.settings_request(args['query'],turn.id)
+            settings_req=self.settings_request(query,turn.id)
             settings_context=await asyncio.to_thread(self.manager.brain.memory.context,settings_req)
             tool_req=req.model_copy(update={'device_id':'realtime-device:'+self.offer.client_id})
             tool_context=await asyncio.to_thread(self.manager.brain.memory.context,tool_req)
             if tool_context.get('pending_action'):context['pending_action']=tool_context['pending_action']
             if settings_context.get('pending_action'):context['pending_action']=settings_context['pending_action']
+            context.update(weather_context)
             quick=resolve_quick(req.text,context)
             if quick:
                 slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
@@ -571,7 +594,7 @@ class NativeSession(VoiceVisualSession):
                     if not user_quick or comparable(user_quick)!=comparable(quick):
                         raise ValueError('confirmed_user_command_required')
                 if quick.executor=='settings':
-                    if slots.get('operation') in {'weather_current','weather_status','help'} or self.can_configure_device():
+                    if slots.get('operation') in {'weather_current','weather_forecast','weather_status','weather_unsupported','weather_other_place','weather_query_find','weather_query_choose','weather_query_cancel','weather_provider_unavailable','help'} or self.can_configure_device():
                         def progress(result):
                             if not self.closed and turn is self.current and not turn.cancelled:
                                 self.emit('tool_setup',setup=result.setup)
@@ -579,6 +602,11 @@ class NativeSession(VoiceVisualSession):
                         result=await self.manager.brain.configuration.execute(settings_req,slots,
                             is_current=lambda:not self.closed and turn is self.current and not turn.cancelled,
                             progress=progress)
+                        if slots.get('operation') in {'weather_current','weather_forecast'}:
+                            from .weather_queries import weather_request_context
+                            self.weather_topic=True;self.weather_last_request=weather_request_context(slots)
+                        elif (result.evidence or {}).get('reason')=='weather_ambiguous_period':
+                            self.weather_topic=True;self.weather_last_request={'operation':'weather_current'}
                     else:
                         from .settings_tools import SettingsResult
                         result=SettingsResult('Для изменения настроек этого устройства нужно разрешение владельца. Погодный адаптер установлен; доступ к сети не является причиной отказа.',evidence={'executed':False,'reason':'device_settings_permission_required'})
@@ -593,10 +621,31 @@ class NativeSession(VoiceVisualSession):
             if getattr(result,'frame',None):self.emit('visual_response',presentation=result.frame.model_dump())
             if getattr(result,'profile',None):self.emit('tool_status',status='settings_applied',profile=result.profile)
             output={'text':result.text,'evidence':result.evidence,'executed_by':'gobot_server'}
+            # A source gap can offer analysis, never pretend that another model
+            # independently verified current facts. Only the actual user transcript
+            # defines the task; model tool arguments cannot authorize CLI work.
+            handoff=getattr(self.manager,'legacy_handoff',None)
+            if (handoff and not quick and RiskAssessment().assess(req.text,context).method!='memory_source' and
+                (getattr(result,'evidence',None) or {}).get('abstained') and turn.query):
+                proposal=handoff.propose(self,turn)
+                output['mode_proposal']=proposal
+                if proposal['available']:
+                    output['text']+=' Могу перевести разговор в экспертный режим A с этим вопросом. Переключить? Сам переход не подключает источник свежих данных.'
+                    output['requires_user_confirmation']=True
+            elif (not quick and RiskAssessment().assess(req.text,context).verification_required and
+                (getattr(result,'evidence',None) or {}).get('abstained') and turn.query and
+                self.experts.status(include_profiles=False)['enabled'] and 'SOL_HIGH' in self.experts.budget.policy().allowed_profiles):
+                pending=self.experts.pending
+                if not pending or pending.state not in {'awaiting_confirmation','queued','running'}:
+                    proposed=self.experts.propose(turn.query,'SOL_HIGH',turn)
+                    self.emit('expert_job',job=proposed)
+                    output['expert_proposal']=proposed
+                    output['text']+=' Можно подключить Sol High для разбора. Без проверенного источника свежие факты останутся неподтверждёнными. Подключить?'
+                    output['requires_user_confirmation']=not proposed['confirmed']
             if getattr(result,'setup',None):
                 output['setup']=result.setup;output['setup']['configuration_allowed']=self.can_configure_device()
                 self.emit('tool_setup',setup=output['setup'])
-            output.update(spoken_fields(result.text))
+            output.update(spoken_fields(output['text']))
             evidence=result.evidence or {}
             if evidence.get('method')=='server_clock' and re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d',evidence.get('display','')):
                 output['spoken_value']=spoken_fields(evidence['display'],kind='time')['spoken_text']
@@ -679,14 +728,19 @@ class NativeSession(VoiceVisualSession):
                 await self.send({'type':'input_audio_buffer.commit'})
             elif action=='ptt_cancel':
                 await self.send({'type':'input_audio_buffer.clear'});self.input_mode='idle';self.ptt_committing=False
-            elif action=='followup':
-                if self.speaking or self.generating or not self.current or not self.current.stored or self.current.cancelled:raise ValueError('playback_not_finished')
+            elif action in {'listen','followup'}:
+                initial=action=='listen' and self.current is None
+                if self.speaking or self.generating or (not initial and (not self.current or not self.current.stored or self.current.cancelled)):raise ValueError('playback_not_finished')
+                if action=='listen':self.automatic_dialogue=True
                 detection={'type':'server_vad','threshold':.30 if self.offer.audio_preset=='vad_sensitive' else .55,'prefix_padding_ms':300,'silence_duration_ms':self.profile.conversation.silence_ms,'create_response':False,'interrupt_response':False,'idle_timeout_ms':None}
-                self.mark_turn(self.current,'followup_requested')
+                if self.current:self.mark_turn(self.current,'followup_requested')
+                await self.send({'type':'input_audio_buffer.clear'})
                 await self.update_input(detection);self.input_mode='followup'
-                self.mark_turn(self.current,'followup_acknowledged')
-                self.followup_deadline=time.monotonic()+self.profile.conversation.followup_seconds
-                self.emit('followup',seconds=self.profile.conversation.followup_seconds)
+                if self.current:self.mark_turn(self.current,'followup_acknowledged')
+                seconds=min(10,self.profile.conversation.followup_seconds) if getattr(self,'automatic_dialogue',False) else self.profile.conversation.followup_seconds
+                self.followup_deadline=time.monotonic()+seconds
+                self.auto_input_deadline=None
+                self.emit('followup',seconds=seconds)
             elif action=='interrupt':await self.interrupt()
             elif action in {'visual_presented','visual_failed'}:
                 turn=self.current
@@ -715,7 +769,7 @@ class NativeSession(VoiceVisualSession):
             return {'accepted':True}
 
 class RealtimeManager:
-    def __init__(self,brain,*,provider=None,budget=None,profile_loader=None,identity=None):
+    def __init__(self,brain,*,provider=None,budget=None,profile_loader=None,identity=None,journal=None,owner_testing=None,session_factory=None):
         self.brain=brain;self.provider=provider or RealtimeProvider()
         self.budget=budget or RealtimeBudget(Path(__file__).resolve().parents[3]/'run/realtime')
         self.profile_loader=profile_loader;self.sessions={};self.tombstones={};self.hangups={};self.lock=asyncio.Lock()
@@ -724,10 +778,13 @@ class RealtimeManager:
         from .expert_store import ExpertStore
         self.expert_store=ExpertStore(brain.memory,self.identity.family)
         from .owner_testing import OwnerTesting
-        self.owner_testing=OwnerTesting(self.budget.root.parent/'owner-testing')
+        self.owner_testing=owner_testing or OwnerTesting(self.budget.root.parent/'owner-testing')
         from .debug_journal import DebugJournal
-        self.journal=DebugJournal(self.budget.root.parent/'debug-journal',self.owner_testing)
-        self.brain.debug_journal=self.journal
+        self.journal=journal or DebugJournal(self.budget.root.parent/'debug-journal',self.owner_testing)
+        self.owns_journal=journal is None
+        if journal is None:self.brain.debug_journal=self.journal
+        self.session_factory=session_factory or NativeSession
+        self.voice_peers=[]
         self.transition_context={}
 
     def owned(self,ident,owner,client,epoch):
@@ -796,6 +853,8 @@ class RealtimeManager:
     async def start(self,offer):
         audio_only_sdp(offer.sdp)
         async with self.lock:
+            if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id)
+                   for peer in self.voice_peers for s in peer.sessions.values()):raise ValueError('voice_session_already_active')
             if any(not s.closed and (s.offer.device_id==offer.device_id or s.offer.client_id==offer.client_id) for s in getattr(getattr(self,'live',None),'sessions',{}).values()):raise ValueError('voice_session_already_active')
             self.prune_lifecycle()
             for call in await asyncio.to_thread(self.budget.pending_calls):
@@ -818,7 +877,7 @@ class RealtimeManager:
                 store=DeviceStore(Path(self.brain.settings.db).resolve().parent/'browser-devices')
                 owner=await asyncio.to_thread(store.scoped_owner,offer.device_id,offer.client_id)
                 profile=await asyncio.to_thread(store.profile,owner)
-            s=NativeSession(self,offer,profile,p);self.sessions[s.id]=s
+            s=self.session_factory(self,offer,profile,p);self.sessions[s.id]=s
         try:
             answer=await s.initialize()
             if s.closed:raise RuntimeError('realtime_setup_cancelled')
@@ -884,7 +943,8 @@ class RealtimeManager:
                 await self.provider.hangup(call);self.hangups.pop(call,None)
                 await asyncio.to_thread(self.budget.close_call,call)
             except Exception:pass
-        await self.journal.close()
+        if self.owns_journal:await self.journal.close()
+        else:await self.journal.flush()
 
     async def invalidate_principal(self,owner,reason='profile_changed'):
         for s in list(self.sessions.values()):
@@ -900,6 +960,6 @@ class RealtimeManager:
                  'external_stt_calls':0,'embeddings_external':False,'per_turn_pcm_mirror':True,'accuracy_verified':False}
         policy=self.budget.policy()
         return {'target_engine':'realtime','default_engine':'realtime' if policy.accepted_as_default and policy.enabled else 'legacy','model':policy.model,'allowed_models':policy.allowed_models,'configuration_version':3,'expert_handoff_version':2,'expert_handoff_diagnostics_version':1,'key_configured':openai_key_present(),
-                'budget':self.budget.status(),'active_sessions':sum(not s.closed for s in self.sessions.values()),
+                'budget':self.budget.status(),'active_sessions':sum(not s.closed for s in self.sessions.values()),'automatic_dialogue_version':1,
                 'pending_hangups':len(self.hangups),'real_provider_verified':False,'iphone_verified':False,
                 'mandatory_audio_fact_gate_verified':False,'legacy_fallback':'explicit_only','identity':self.identity.status(),'speaker':speaker}

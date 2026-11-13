@@ -59,6 +59,9 @@ class WeatherDay(Strict):
     high:float=Field(ge=-100,le=70,allow_inf_nan=False)
     rain_percent:float=Field(ge=0,le=100,allow_inf_nan=False)
     wind_kmh:float=Field(ge=0,le=500,allow_inf_nan=False)
+    gust_kmh:float|None=Field(default=None,ge=0,le=600,allow_inf_nan=False)
+    precipitation_mm:float|None=Field(default=None,ge=0,le=1000,allow_inf_nan=False)
+    uv_index:float|None=Field(default=None,ge=0,le=30,allow_inf_nan=False)
     weather_code:int
     icon:Literal['sun','partly_cloudy','cloud','rain','snow','storm','fog','unknown']
     condition:str=Field(max_length=80)
@@ -68,6 +71,8 @@ class WeatherDisplay(Strict):
     icon:Literal['sun','partly_cloudy','cloud','rain','snow','storm','fog','unknown']
     condition:str=Field(max_length=80)
     timezone:str=Field(default='',max_length=80)
+    metric:Literal['summary','temperature','wind','precipitation','umbrella','humidity','uv_index']='summary'
+    place:str=Field(default='',max_length=160)
     days:list[WeatherDay]=Field(default_factory=list,max_length=16)
 
 class VisualMetadata(Strict):

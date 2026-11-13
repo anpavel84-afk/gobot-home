@@ -10,20 +10,34 @@ class LiveBudget:
             c.execute('CREATE TABLE IF NOT EXISTS commands(session TEXT,id TEXT,PRIMARY KEY(session,id))')
             c.execute('CREATE TABLE IF NOT EXISTS cancelled(id TEXT PRIMARY KEY,scope TEXT)')
             c.execute('CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,created REAL,payload TEXT)')
+        from .live_recovery import LiveRecovery
+        self.recovery=LiveRecovery(self)
     def connect(self):return sqlite3.connect(self.path,timeout=5)
     @staticmethod
     def scope(offer):return hashlib.sha256(json.dumps([offer.device_id,offer.client_id,offer.profile_epoch]).encode()).hexdigest()
-    def reserve(self,offer):
+    def reserve(self,offer,*,resume_from=()):
         p=self.owner.policy();binding=offer.owner_test_binding or offer.client_id
-        if not offer.consent or not self.owner.authorized(binding) or not p.live_enabled:raise PermissionError('live_owner_mode_or_consent_required')
+        if p.hardware_voice and offer.client_id==p.hardware_voice.client_id and binding!=offer.client_id:
+            raise PermissionError('hardware_guest_binding_required')
+        grant=self.owner.hardware_grant(binding)
+        if grant and (offer.client_id!=offer.device_id or offer.owner_test_binding or offer.profile_epoch or
+                      offer.confirmed_profile_epoch or offer.personalization_mode!='guest' or offer.expert_quota_consent or
+                      offer.conversation_mode!='unified' or offer.remember or offer.speaker_consent or offer.developer_acceptance):
+            raise PermissionError('hardware_guest_binding_required')
+        if not offer.consent or not self.owner.voice_authorized(binding) or not p.live_enabled:raise PermissionError('live_owner_mode_or_consent_required')
         with self.connect() as c:
             c.execute('BEGIN IMMEDIATE')
             if c.execute('SELECT 1 FROM cancelled WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_setup_cancelled')
             if c.execute('SELECT 1 FROM calls WHERE id=?',(offer.session_id,)).fetchone():raise ValueError('live_session_already_attempted')
-            rows=c.execute('SELECT reserved,seconds,final,origin,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            for old in resume_from:self.recovery.consume(c,old,offer)
+            rows=c.execute('SELECT reserved,seconds,final,origin,reason FROM calls WHERE day=? AND origin NOT LIKE "hardware:%"',(int(time.time()//86400),)).fetchall()
             used=sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,_,reason in rows)
             limit=min(p.live_session_seconds,int(p.live_minutes_per_day*60-used))
             origin='developer' if offer.developer_acceptance else 'owner'
+            if grant:
+                origin='hardware:'+grant.grant_id
+                limit=grant.session_seconds
+                if grant.expires_at is not None:limit=min(limit,int(grant.expires_at-time.time()))
             if origin=='developer':
                 all_dev=c.execute("SELECT reserved,seconds,final,reason FROM calls WHERE origin='developer'").fetchall()
                 remaining=p.developer_live_seconds-sum((0 if reason=='not_created' else max(15,seconds)) if final else reserved for reserved,seconds,final,reason in all_dev)
@@ -65,12 +79,19 @@ class LiveBudget:
     def status(self):
         with self.connect() as c:
             rows=c.execute('SELECT seconds,final,reserved,reason FROM calls WHERE day=?',(int(time.time()//86400),)).fetchall()
+            pending=c.execute('SELECT seconds,reserved FROM calls WHERE final=0').fetchall()
             latest=c.execute('SELECT payload FROM reports ORDER BY created DESC LIMIT 1').fetchone()
         return {'model':'gpt-live-1','requested_version':'1.1','model_version_1_1_verified':False,
-            'voice_seconds_observed':sum(r[0] for r in rows),'unconfirmed_sessions':sum(not r[1] for r in rows),
+            'voice_seconds_observed':sum(r[0] for r in rows),'unconfirmed_sessions':len(pending),
+            'pending_seconds_observed_all_days':sum(r[0] for r in pending),
+            'unknown_final_usage_reserve_seconds':sum(r[1] for r in pending),
+            'unknown_final_usage_reserve_estimated_usd':sum(r[1] for r in pending)*.05/60,
+            'unknown_final_usage_reserve_is_not_provider_cost_cap':True,
             'reserved_seconds_including_pending':sum((0 if r[3]=='not_created' else max(15,r[0])) if r[1] else r[2] for r in rows),
             'voice_usd_per_minute':.05,'backend_billed_separately':True,'cumulative_usage_not_summed':True,
-            'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False,'latest_report':json.loads(latest[0]) if latest else None}
+            'hard_dollar_cap_guaranteed':False,'contains_conversation_content':False,
+            'administrative_recovery':self.recovery.status(),
+            'latest_report':json.loads(latest[0]) if latest else None}
 
     def record_report(self,session,reason):
         allowed={'mode_switch','user_stop','conversation_ended','idle_timeout','session_time_limit','owner_mode_disabled','page_hidden','network_offline','webrtc_failed','microphone_ended','profile_changed','settings_changed','events_disconnected','speaker_changed_or_uncertain','server_shutdown','setup_failed','sideband_closed','provider_closed'}

@@ -48,6 +48,27 @@ class Service:
             journal.legacy_event(req,'user_input',{'text':req.text,'remember':req.remember,'requested_model':req.model_id})
         try:return await asyncio.to_thread(self.memory.start,req)
         except Conflict as e:raise HTTPException(409,str(e))
+    async def tool_context(self,req,mode_flow=None):
+        """Merge only pending tool slots from an already authorized unified flow."""
+        context=await asyncio.to_thread(self.memory.context,req)
+        if not mode_flow:return context,req,req
+        # Allowed native dialogue only, in the coordinator's existing guest RAM scope.
+        if mode_flow.transition_messages:context['messages']=mode_flow.transition_messages+context.get('messages',[])
+        settings_req=req.model_copy(update={'device_id':mode_flow.owner})
+        timer_req=req.model_copy(update={'device_id':'realtime-device:'+mode_flow.client})
+        settings_context,timer_context=await asyncio.gather(
+            asyncio.to_thread(self.memory.context,settings_req),asyncio.to_thread(self.memory.context,timer_req))
+        weather_context=self.configuration.weather_query_context(settings_req)
+        candidates=[(name,item) for name,item in (
+            ('conversation',context.get('pending_action')),('settings',settings_context.get('pending_action')),
+            ('timer',timer_context.get('pending_action')),('weather_query',weather_context.get('weather_query_pending')))
+            if item and item.get('expires',0)>time.time()]
+        context.update(weather_context)
+        if candidates:context['pending_namespace'],context['pending_action']=max(candidates,key=lambda item:item[1]['expires'])
+        else:context.pop('pending_action',None)
+        snapshot=self.tools.timer_context(timer_req)
+        context.update(snapshot);context['timer_followup']=bool(snapshot.get('timer_list_ids'))
+        return context,settings_req,timer_req
     def warm_from_final(self,text,owner,utterance,trace,epoch=None):
         """Bound the STT-to-turn handoff, including recordings that are never submitted."""
         if not utterance or not text.strip() or len(text)>8000:return
@@ -132,12 +153,8 @@ class Service:
                 state='error';yield event(req,'error',code='busy');return
             async with asyncio.timeout(self.settings.timeout):
                 mark("context_start")
-                ctx=await asyncio.to_thread(self.memory.context,req)
                 mode_flow=getattr(req,'_mode_flow',None)
-                settings_req=req.model_copy(update={'device_id':mode_flow.owner}) if mode_flow else req
-                if mode_flow:
-                    settings_context=await asyncio.to_thread(self.memory.context,settings_req)
-                    if settings_context.get('pending_action'):ctx['pending_action']=settings_context['pending_action']
+                ctx,settings_req,timer_req=await self.tool_context(req,mode_flow)
                 mark("context_end")
                 decision=None;widget=None;selected=req.mode;verification=None;must_gate=False;spoken_override=None;visual_frame=None
                 if req.mode is not None or req.provider in {'codex','antigravity','google','gemini'}:
@@ -147,6 +164,7 @@ class Service:
                     admission={} if closing_intent(req.text,ctx) or local_intent or req.text.strip().lower() in {'да','нет','подтверждаю','отмена','отмени'} else await asyncio.to_thread(agent_status,req.usage_consent)
                     mark("admission_end")
                     decision=self.router.choose(request_for_route,ctx,admission,local_intent=local_intent)
+                    if mode_flow and decision.tool=='pending_decline':decision.slots['pending_namespace']=ctx.get('pending_namespace')
                     mark("router_end",route=decision.category,model=decision.model,concurrency=len(self.running))
                     opening=None
                     if opening_voice and decision.provider in {'antigravity','codex'} and not decision.quality.get('verification_required') and decision.quality.get('consequence_risk',0)<2:
@@ -179,8 +197,14 @@ class Service:
                         finally:
                             work.cancel();stop.cancel();await asyncio.gather(work,stop,return_exceptions=True)
                     elif decision.provider=='local':
-                        tool_req=req.model_copy(update={'device_id':'realtime-device:'+mode_flow.client}) if mode_flow and decision.tool in {'timer','timer_status'} else req
-                        tool_result=await self.configuration.execute(settings_req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,tool_req,decision.slots)
+                        timer_action=decision.tool in {'timer','timer_status'} or (decision.tool=='quick_clarify' and decision.slots.get('intent','').startswith('timer_'))
+                        tool_req=timer_req if mode_flow and timer_action else req
+                        namespace=decision.slots.get('pending_namespace') if mode_flow and decision.tool=='pending_decline' else None
+                        if namespace=='timer':tool_req=timer_req
+                        elif namespace=='settings':tool_req=settings_req
+                        if namespace=='weather_query':
+                            tool_result=await self.configuration.execute(settings_req,{'operation':'weather_query_cancel','pending_id':decision.slots.get('pending_id')})
+                        else:tool_result=await self.configuration.execute(settings_req,decision.slots) if decision.tool=='settings' else await asyncio.to_thread(self.tools.execute,decision.tool,tool_req,decision.slots)
                         widget=tool_result.widget
                         if (tool_result.evidence or {}).get('timer_cancelled_ids'):yield event(req,'timer_state',cancelled_ids=tool_result.evidence['timer_cancelled_ids'])
                         if decision.tool=='settings':
@@ -199,7 +223,15 @@ class Service:
                             visual_frame=Presentation(id=frame_id(req.turn_id,'local_result'),type='info_card',title='Время' if decision.tool=='clock' else 'Таймеры' if decision.tool=='timer_status' else 'Команды GoBot',text=(tool_result.evidence or {}).get('display',tool_result.text),metadata=VisualMetadata(backend='local_tool',facts={k:str(v) for k,v in (tool_result.evidence or {}).items() if k in {'utc_offset','as_of','active_count'}}))
                         elif decision.tool=='verification' and self.visual.intent.detect(req.text):visual_frame=self.visual.fallback(req,'Нужна проверка','verification_unavailable',kind='status_card',text=tool_result.text).frame
                     elif decision.provider=='mock':source=MockAgentAdapter().stream(req.text,ctx)
-                    else:source=bridge_stream(self.settings,source_req,ctx)
+                    else:
+                        if mode_flow and mode_flow.legacy_profile:
+                            from .hardware_legacy import bound_packet
+                            ctx=bound_packet(req.text,ctx,mode_flow.legacy_policy)
+                        source=(bridge_stream(self.settings,source_req,ctx,expert_profile=mode_flow.legacy_profile)
+                            if mode_flow and mode_flow.legacy_profile else bridge_stream(self.settings,source_req,ctx))
+                        if mode_flow and mode_flow.legacy_policy:
+                            from .hardware_legacy import bounded_stream
+                            source=bounded_stream(source,mode_flow.legacy_policy)
                     must_gate=bool(decision.quality.get('verification_required') and decision.provider not in {'local','mock'})
                 else:
                     # Explicit legacy diagnostics retain the original fixture API contract.
@@ -351,6 +383,7 @@ class Service:
                 self.maintenance.add_done_callback(lambda _:setattr(self,'maintenance',None))
 
 def create_app(settings=None):
+    runtime_configuration=settings is None
     if settings is None:
         from .config import load
         settings=load()
@@ -362,7 +395,21 @@ def create_app(settings=None):
     from .live import LiveManager
     from .live_api import attach_brain_live
     live=LiveManager(realtime)
+    if runtime_configuration:
+        from .hardware_legacy import HardwareLegacy
+        live.modes.hardware_legacy=HardwareLegacy(Path(__file__).resolve().parents[3]/'run/hardware-a')
     realtime.live=live
+    board_realtime=None
+    board_root=Path(__file__).resolve().parents[3]/'run/voice-ab-b'
+    mount=board_root/'mount.json'
+    if runtime_configuration and mount.exists() and json.loads(mount.read_text(encoding='utf8')).get('enabled') is True:
+        from .board_realtime import BoardRealtime
+        board_mount=json.loads(mount.read_text(encoding='utf8'))
+        if board_mount.get('profile')=='extended':
+            from .board_trial import TrialRealtime
+            board_realtime=TrialRealtime(realtime,board_root.parent/'voice-ab-b-extended')
+        elif board_mount.get('profile','original')=='original':board_realtime=BoardRealtime(realtime,board_root)
+        else:raise ValueError('unknown_board_budget_profile')
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)
@@ -375,6 +422,7 @@ def create_app(settings=None):
         service.warm_photos.clear()
         for flag in service.running.values():flag.set()
         await live.shutdown()
+        if board_realtime:await board_realtime.shutdown()
         await realtime.shutdown()
         await identity.close()
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
@@ -383,6 +431,12 @@ def create_app(settings=None):
     app.state.realtime=realtime
     attach_brain_realtime(app,realtime,auth)
     app.state.live=live;attach_brain_live(app,live,auth)
+    app.state.board_realtime=board_realtime
+    if board_realtime:
+        from .board_realtime_api import attach_board_realtime
+        attach_board_realtime(app,board_realtime,auth)
+    from .hybrid_api import attach_brain_hybrid
+    attach_brain_hybrid(app,service,realtime,live,speech,auth)
     async def invalidate_voice_principal(owner,reason='profile_changed'):
         await realtime.invalidate_principal(owner,reason);await live.invalidate_principal(owner,reason)
     attach_family(app,family,identity,speech,auth,on_preferences_changed=invalidate_voice_principal,openings=service.openings)
@@ -392,7 +446,7 @@ def create_app(settings=None):
     async def ready():
         await asyncio.to_thread(service.memory.status,'readiness');return {'ready':True,'mode':'mock' if settings.fast_provider=='mock' else 'configured','voice_hardware_ready':False}
     @app.get('/api/v1/status',dependencies=[Depends(auth)])
-    async def status():return {'active_turns':len(service.running),'active_voice_streams':service.active_voice_streams,'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'visual':{**service.visual.available(),'presentation_policy':service.presentation_planner.policy.model_dump()},'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
+    async def status():return {'active_turns':len(service.running),'active_voice_streams':service.active_voice_streams,'runtime_code_commit':getattr(getattr(service,'debug_journal',None),'code_commit',None),'voice':speech.status(),'agents':await asyncio.to_thread(agent_status),'real_e2e_verified':False,'visual':{**service.visual.available(),'presentation_policy':service.presentation_planner.policy.model_dump()},'speaker_identity':{'installed':identity.engine.installed(),'calibrated':bool(await asyncio.to_thread(family.calibration)),'experimental':True}}
     @app.get('/api/v1/visual/assets/{asset}/{variant}.jpg',dependencies=[Depends(auth)])
     async def visual_asset(asset:str,variant:str):
         from fastapi import Response
@@ -563,7 +617,7 @@ def create_app(settings=None):
             try:flow,req=live.modes.legacy_request(req)
             except PermissionError as error:raise HTTPException(403,str(error))
             intent=mode_intent(req.text)
-            ctx=await asyncio.to_thread(service.memory.context,req)
+            ctx,_,_=await service.tool_context(req,flow)
             if intent=='end' or closing_intent(req.text,ctx)=='end_conversation':intent='end'
             if intent:
                 flow.legacy_turn=None
@@ -576,6 +630,8 @@ def create_app(settings=None):
             flow.legacy_turn=req.turn_id;flow.last_activity=time.monotonic()
         chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id','tts_character_limit','mode_conversation_id'}))
         if flow:chat_req._mode_flow=flow
+        if flow and flow.legacy_policy:req.tts_character_limit=min(3000 if req.tts_character_limit is None else req.tts_character_limit,3000)
+        if flow and flow.pending_question and chat_req.turn_id==flow.handoff_turn_id:flow.pending_question=''
         trace=service.traces.get(chat_req.device_id,chat_req.trace_id or chat_req.utterance_id or chat_req.turn_id);trace.mark("memory_prepare_start")
         try:replay=await service.prepare(chat_req)
         except BaseException:

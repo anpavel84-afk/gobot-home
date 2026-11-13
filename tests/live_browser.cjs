@@ -16,7 +16,11 @@ vm.createContext(sandbox);vm.runInContext(fs.readFileSync('services/phone/dist/l
  c.event({type:'local_tool_status',data:{state:'completed',tool:'timer',has_widget:true}});assert(!c.toolPending&&!playback.at(-1).pending);
  c.event({type:'local_tool_status',data:{state:'running',tool:'settings'}});assert(c.toolPending);
  c.event({type:'local_tool_status',data:{state:'failed',tool:'settings'}});assert(!c.toolPending&&!playback.at(-1).pending);
+ const beforeClear=requests.length;c.event({type:'playback_cleared',data:{}});assert(c.output.muted&&track.enabled);assert.equal(c.output.srcObject,null);assert.equal(requests.length,beforeClear,'server playback event must not echo a command');
  await c.stopSpeech();assert(c.output.muted&&track.enabled);assert.equal(c.output.srcObject,null);assert(!requests.some(r=>r.body?.action==='end'));
+ c.event({type:'live_input_delta',data:{end_ms:1000,text:'Новая реплика после Stop'}});assert(c.inputAfterStop);
+ c.event({type:'playback_cleared',data:{}});assert(c.inputAfterStop,'late server ACK must preserve the newer input');
+ c.remoteStream={synthetic:true};c.stopQuietAt=performance.now()-600;c.meter(c.generation);assert(!c.speechBlocked&&!c.output.muted&&track.enabled);
  await c.toggleMute();assert(!track.enabled);await c.toggleMute();assert(track.enabled);
  c.event({type:'closing',data:{reason:'idle_timeout'}});assert(!track.enabled&&c.output.muted);
  c.event({type:'closed',data:{reason:'idle_timeout',final_usage_confirmed:true}});await c.closing;assert.equal(closures.at(-1).error,false);assert(track.stopped);
