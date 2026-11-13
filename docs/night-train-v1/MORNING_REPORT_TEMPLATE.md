@@ -1,5 +1,21 @@
 # GoBot vNext — утренний отчёт исполнителя
 
+## Последующий B dialogue repair
+
+Runtime **3de2eaa53873437203339242c5f66fdecdf4944c**, preview assets b-dialogue-1.
+Owner обнаружил, что B требовал касания и для записи, и для отправки. Причина:
+preview override отключал NativeVoice.followup, а первый вопрос использовал PTT.
+Теперь один явный Start включает server-ACKed VAD для первого вопроса; конец фразы
+обрабатывается без второго касания. После обеих playback drain ACK и echo guard
+микрофон включается автоматически в той же сессии. B остаётся полудуплексом.
+10s silent waiting closes normally;30s unfinished speech/noise closes without
+committing a truncated command. Stop/late ACK/double tap/stale turn защищены.
+96 targeted free tests passed; JS fixture:3 answers/1session/0provider calls.
+Real Chromium regression + actual private HTTPS/capability smoke passed. Phone
+acoustic/provider acceptance NOT_RUN (Owner приглашён к ручной пробе). Нет новых
+квот, developer paid trials, firmware/C/audio capture preset changes.
+Официальный VAD контракт: https://developers.openai.com/api/docs/guides/realtime-vad .
+
 ## Дополнение: отказ ручного STT после отчёта
 
 Owner сообщил «не работает». Логи подтвердили ошибку admission origin web_stt

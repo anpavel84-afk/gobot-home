@@ -19,7 +19,12 @@ VAD, Brain создаёт ответ. После server+client playback drain AC
 96 targeted tests PASS, production JS Node fixture3 ответа/1session/0provider calls;
 Chromium390×844 regression PASS. Это не физическая Safari/acoustic приёмка.
 Платные B/C/STT/TTS пробы не запускались, quotas/ledger/firmware не менялись.
-Применение runtime ожидает guarded idle deployment.
+Установлено в runtime **3de2eaa53873437203339242c5f66fdecdf4944c**, preview assets
+cache version b-dialogue-1. WAL/config/source backup20261113T094229295444Z.
+Фактический HTTPS /api/realtime/status сообщил automatic_dialogue_version=1;
+новая страница/JS проверены, private Chromium smoke без TLS bypass PASS.
+Financial tables/policies совпали с backup; B/C active=0. Платная phone voice
+приёмка ожидает Owner, автоматический provider test не запускался.
 
 
 ## Owner-reported manual speech failure — hotfix
