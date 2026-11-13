@@ -2,7 +2,8 @@
 
 > **Night Train web preview:** [открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next), Tailscale/Owner.
 > [Утренний отчёт: результаты, ограничения и откат](docs/night-train-v1/MORNING_REPORT_TEMPLATE.md).
-> Brain runtime3de2eaa, B dialogue assets b-dialogue-1; прежние страницы и firmware0.4.3 сохранены.
+> Brain runtime9819af6; web B подтверждён Owner, колонка переключена на ручную B-приёмку (8×60s).
+> B dialogue assets b-dialogue-1; прежние страницы и firmware0.4.3 сохранены, physical B voice ещё ожидает проверки.
 > Пауза ниже — исторический снимок; новое разрешение ограничено web-first пакетом.
 
 > **Разработка приостановлена владельцем 12 ноября 2026.**
