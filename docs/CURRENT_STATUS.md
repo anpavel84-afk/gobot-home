@@ -21,7 +21,19 @@ Listening during backend work. A server-only input-end trick was rejected during
 free state review: it also changes capture/timeout state and can terminate audio.
 It was NOT deployed. Correct UI state must be independent of microphone control.
 
-Server patch (pending deployment): bounded engine/phase status scenes, numeric
+Server patch DEPLOYED:3ec05696fe5d048c4083f713fcd27c56a13624c4, with the owned
+Brain/private web and device gateway restarted only after idle verification.
+Rollback source checkpoint:9d217791528a16178f82856cc66684e15648e311;
+deployment backup:run/night-train/backups/20261113T160543098092Z. Additional
+WAL-aware A/original-B/extended-B/C/Realtime/Owner usage and configuration backup:
+run/hardware-a/backups/20261113T160538058144Z. Rollback must never restore or
+erase financial ledgers. Firmware/configuration/allowance caps unchanged.
+Free readiness:0 active sessions,0 pending B hangups,B3 starts remaining,
+legacy A financially authorized with1 approved attempt remaining. No paid trial
+was opened. Old0.4.3 cannot display the new optional mode/phase metadata;
+physical UI improvement awaits specific flash permission and LCD acceptance.
+
+The deployed patch provides bounded engine/phase status scenes, numeric
 gateway setup timestamps and active/last engine diagnostics; first actual A TTS
 segment says "Экспертный режим включён" inside the existing character budget,
 with no extra model call. Metrics flag that this prefix is not useful-answer TTFA.
