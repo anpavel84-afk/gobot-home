@@ -2,6 +2,14 @@
 
 ## Natural A request / one-utterance handover repair
 
+**Deployed:** Brain cbdb0318c57447a57b42678ddcb5ada1695ab758; gateway d55045d,
+firmware0.4.3 unchanged.65 mode/handoff/board +87 native/gateway/expert free
+checks passed (152 total). Backup:run/night-train/backups/20261113T152059114968Z.
+At readiness check:original B5 remaining,A2 remaining,0 active/0 pending hangups,
+handoff financially_authorized=true. Existing expiryNov14 12:14 Sao Paulo unchanged.
+No paid test/retry performed by developer. Owner invited to explicitly request
+expert mode AND its question in one utterance; physical acceptance remains pending.
+
 Latest Owner manual trial did not enter A. Journal shows the direct natural
 request "Ты можешь включить экспертный режим?" arrived at57.40s but the strict
 mode parser did not accept the conversational wrapper. B then hit its60s limit;
