@@ -16,15 +16,18 @@ def write(path,value):
     path.parent.mkdir(parents=True,exist_ok=True)
     temp=path.with_suffix('.tmp');temp.write_text(json.dumps(value,indent=2),encoding='utf8');temp.replace(path)
 
-def request(path):
+def request(path,optional=False):
     token=json.loads((ROOT/'run/keys.json').read_text())['api_token']
     with httpx.Client(trust_env=False,timeout=15) as client:
-        r=client.get('http://127.0.0.1:18781'+path,headers={'Authorization':'Bearer '+token});r.raise_for_status();return r.json()
+        r=client.get('http://127.0.0.1:18781'+path,headers={'Authorization':'Bearer '+token})
+        if optional and r.status_code==404:return {'active_sessions':0}
+        r.raise_for_status();return r.json()
 
 def idle():
     main=request('/api/v1/status');b=request('/api/v1/realtime/status');c=request('/api/v1/live/status')
+    board=request('/api/v1/voice-ab/b/status',optional=True)
     gateway=json.loads((ROOT/'data/hardware/gobot-v1/gateway-status.json').read_text())
-    if main['active_turns'] or main['active_voice_streams'] or b['active_sessions'] or c['active_sessions'] or gateway['active']:
+    if main['active_turns'] or main['active_voice_streams'] or b['active_sessions'] or board['active_sessions'] or c['active_sessions'] or gateway['active']:
         raise RuntimeError('active_conversation_deployment_deferred')
     return main
 

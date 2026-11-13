@@ -1,6 +1,6 @@
 """Opt-in hardware B, same NativeSession/Brain, separate admission and ledger.
 
-This module is not attached by create_app. C deployment does not activate B.
+Attached only by the explicit host mount flag. C deployment does not activate B.
 """
 import asyncio,time,json
 from pathlib import Path
@@ -51,6 +51,7 @@ class BoardSession(NativeSession):
         profile=profile.model_copy(deep=True)
         profile.voice=profile.voice.model_copy(update={'voice':'marin'})
         super().__init__(manager,offer,profile,policy)
+        self.automatic_dialogue=True
 
     async def listen_initial(self):
         async with self.lock:
