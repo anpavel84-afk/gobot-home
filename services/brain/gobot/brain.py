@@ -52,6 +52,8 @@ class Service:
         """Merge only pending tool slots from an already authorized unified flow."""
         context=await asyncio.to_thread(self.memory.context,req)
         if not mode_flow:return context,req,req
+        # Allowed native dialogue only, in the coordinator's existing guest RAM scope.
+        if mode_flow.transition_messages:context['messages']=mode_flow.transition_messages+context.get('messages',[])
         settings_req=req.model_copy(update={'device_id':mode_flow.owner})
         timer_req=req.model_copy(update={'device_id':'realtime-device:'+mode_flow.client})
         settings_context,timer_context=await asyncio.gather(
@@ -221,7 +223,15 @@ class Service:
                             visual_frame=Presentation(id=frame_id(req.turn_id,'local_result'),type='info_card',title='Время' if decision.tool=='clock' else 'Таймеры' if decision.tool=='timer_status' else 'Команды GoBot',text=(tool_result.evidence or {}).get('display',tool_result.text),metadata=VisualMetadata(backend='local_tool',facts={k:str(v) for k,v in (tool_result.evidence or {}).items() if k in {'utc_offset','as_of','active_count'}}))
                         elif decision.tool=='verification' and self.visual.intent.detect(req.text):visual_frame=self.visual.fallback(req,'Нужна проверка','verification_unavailable',kind='status_card',text=tool_result.text).frame
                     elif decision.provider=='mock':source=MockAgentAdapter().stream(req.text,ctx)
-                    else:source=bridge_stream(self.settings,source_req,ctx)
+                    else:
+                        if mode_flow and mode_flow.legacy_profile:
+                            from .hardware_legacy import bound_packet
+                            ctx=bound_packet(req.text,ctx,mode_flow.legacy_policy)
+                        source=(bridge_stream(self.settings,source_req,ctx,expert_profile=mode_flow.legacy_profile)
+                            if mode_flow and mode_flow.legacy_profile else bridge_stream(self.settings,source_req,ctx))
+                        if mode_flow and mode_flow.legacy_policy:
+                            from .hardware_legacy import bounded_stream
+                            source=bounded_stream(source,mode_flow.legacy_policy)
                     must_gate=bool(decision.quality.get('verification_required') and decision.provider not in {'local','mock'})
                 else:
                     # Explicit legacy diagnostics retain the original fixture API contract.
@@ -385,6 +395,9 @@ def create_app(settings=None):
     from .live import LiveManager
     from .live_api import attach_brain_live
     live=LiveManager(realtime)
+    if runtime_configuration:
+        from .hardware_legacy import HardwareLegacy
+        live.modes.hardware_legacy=HardwareLegacy(Path(__file__).resolve().parents[3]/'run/hardware-a')
     realtime.live=live
     board_realtime=None
     board_root=Path(__file__).resolve().parents[3]/'run/voice-ab-b'
@@ -617,6 +630,8 @@ def create_app(settings=None):
             flow.legacy_turn=req.turn_id;flow.last_activity=time.monotonic()
         chat_req=ChatRequest.model_validate(req.model_dump(exclude={'speak','tts_provider','tts_voice','paid_tts_consent','speaker_job_id','tts_character_limit','mode_conversation_id'}))
         if flow:chat_req._mode_flow=flow
+        if flow and flow.legacy_policy:req.tts_character_limit=min(3000 if req.tts_character_limit is None else req.tts_character_limit,3000)
+        if flow and flow.pending_question and chat_req.turn_id==flow.handoff_turn_id:flow.pending_question=''
         trace=service.traces.get(chat_req.device_id,chat_req.trace_id or chat_req.utterance_id or chat_req.turn_id);trace.mark("memory_prepare_start")
         try:replay=await service.prepare(chat_req)
         except BaseException:

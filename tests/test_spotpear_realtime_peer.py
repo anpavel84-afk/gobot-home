@@ -11,7 +11,7 @@ from spotpear_realtime import realtime_turn
 from gobot_device_gateway import OpusOutput
 
 @pytest.mark.skipif(not os.environ.get('GOBOT_LOCAL_LIVEKIT_TEST'),reason='Requires loopback LiveKit, no provider')
-@pytest.mark.parametrize('scenario',['conversation','stop','network_loss','missing_playback_ack'])
+@pytest.mark.parametrize('scenario',['conversation','stop','network_loss','missing_playback_ack','handoff'])
 def test_two_way_b_listen_think_speak_drain_listen(scenario):
     async def run():
         remote=RTCPeerConnection(RTCConfiguration(iceServers=[]))
@@ -45,6 +45,9 @@ def test_two_way_b_listen_think_speak_drain_listen(scenario):
         async def handler(request):
             assert request.url.host=='127.0.0.1' and '/voice-ab/b/' in request.url.path
             if request.method=='GET':
+                if request.url.path.endswith('/handoff'):
+                    return httpx.Response(200,json={'state':'ready','question':'Исходный вопрос','operation_id':'handoff-op',
+                        'flow':{'active':True,'provider_closed':True,'mode':'legacy','mode_conversation_id':'00000000-0000-4000-8000-000000000001'}})
                 class Events(httpx.AsyncByteStream):
                     async def __aiter__(self):
                         serial=0
@@ -56,6 +59,9 @@ def test_two_way_b_listen_think_speak_drain_listen(scenario):
                         yield event('audio_diagnostic',stage='server_audio_committed')
                         yield event('processing',response_id='response-1')
                         tone_on.set()
+                        if scenario=='handoff':
+                            await asyncio.wait_for(output_seen.wait(),5)
+                            yield event('closed',reason='mode_switch');return
                         if scenario=='network_loss':
                             await asyncio.wait_for(output_seen.wait(),5)
                             raise httpx.ReadError('synthetic control loss')
@@ -108,9 +114,17 @@ def test_two_way_b_listen_think_speak_drain_listen(scenario):
                     with pytest.raises(httpx.ReadError):await asyncio.wait_for(operation[0],20)
                 elif scenario=='missing_playback_ack':
                     with pytest.raises(ValueError,match='playback_ack_missing'):await asyncio.wait_for(operation[0],20)
+                elif scenario=='handoff':
+                    result=await asyncio.wait_for(operation[0],20)
+                    assert result['state']=='ready' and not capture.playing and remote.connectionState!='new'
                 else:await asyncio.wait_for(operation[0],20)
             actions=[c['action'] for c in commands]
-            assert len(offers)==1 and actions[-1]=='close' and actions.count('close')==1
+            assert len(offers)==1
+            if scenario=='handoff':
+                assert 'close' not in actions and actions.count('followup')==1
+                assert not any(c['type']=='gobot_session_end' for c in controls)
+                return
+            assert actions[-1]=='close' and actions.count('close')==1
             if scenario=='conversation':
                 assert actions==['followup','playback_started','playback_stopped','followup','close']
                 assert packets and quiet_during_output[0]>5

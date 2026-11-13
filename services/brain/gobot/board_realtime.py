@@ -76,6 +76,10 @@ class BoardRealtime(RealtimeManager):
             identity=original.identity,journal=original.journal,owner_testing=original.owner_testing,session_factory=self.session_type)
         self.lock=original.lock
         self.live=getattr(original,'live',None)
+        if self.live and hasattr(self.live,'modes'):
+            from .native_handoff import NativeHandoff
+            from .live_agents import agent_status
+            self.legacy_handoff=NativeHandoff(self,self.live.modes,executor_status=lambda:agent_status(True).get('codex',{}))
         # One lease for shared device across native C, phone B and this opt-in adapter.
         self.voice_peers=[original];original.voice_peers.append(self)
 

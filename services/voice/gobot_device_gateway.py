@@ -156,6 +156,20 @@ class Gateway:
         self.max_daily_turns = int(config.get('max_daily_turns', 20))
 
     def reserve_manual_turn(self) -> None:
+        batch=self.config.get('hardware_a_batch')
+        if batch is not None:
+            # Explicit host approval, finite across dates/restarts. Failed STT also
+            # consumes an attempt; no hidden retry against a fresh daily bucket.
+            if (not isinstance(batch,dict) or set(batch)!={'id','turns'} or
+                not isinstance(batch['id'],str) or len(batch['id'])!=32 or batch['turns'] not in (1,2)):
+                raise ValueError('invalid_hardware_a_batch')
+            path=self.quota_path.with_name('legacy-batch-usage.json')
+            values=json.loads(path.read_text()) if path.exists() else {}
+            count=values.get(batch['id'],0)
+            if count>=batch['turns']:raise ValueError('hardware_a_attempts_exhausted')
+            values[batch['id']]=count+1
+            temp=path.with_suffix('.tmp');temp.write_text(json.dumps(values));temp.replace(path)
+            return
         # Durable, bounded count. Never reset by restarting the gateway.
         day = time.strftime('%Y-%m-%d', time.gmtime())
         value = json.loads(self.quota_path.read_text()) if self.quota_path.exists() else {}
@@ -210,7 +224,7 @@ class Gateway:
                             self.stats['streams_with_audio'] += 1
                             self.save_stats()
                         if stream is not None:
-                            stream.feed(decoder.pcm)
+                            if stream.phase!='legacy_a':stream.feed(decoder.pcm)
                             decoder.pcm.clear()
                             maybe_respond()
                         continue
@@ -235,14 +249,16 @@ class Gateway:
                             await send({'type':'gobot_access','allowed':True,'reason':None,'continuous':True})
                         elif self.config['mode'] in {'live_c','realtime_b'}:
                             async with self.client_factory(trust_env=False,timeout=3) as client:
+                                legacy=await self.active_legacy_flow(client)
                                 endpoint='/api/v1/voice-ab/b/status' if self.config['mode']=='realtime_b' else '/api/v1/live/status'
                                 status = await client.get(self.config['brain_url']+endpoint,
                                     headers=self.auth, params={'binding':self.config['device_id']})
                                 consent='hardware_realtime_consent' if self.config['mode']=='realtime_b' else 'hardware_live_consent'
                                 allowed = status.is_success and status.json().get('enabled') is True and self.config.get(consent) is True
+                                if legacy:allowed=self.config.get('paid_speech_consent') is True and self.config.get('cli_usage_consent') is True
                             reason = status.json().get('admission_reason') if status.is_success else 'hardware_voice_unavailable'
                             await send({'type':'gobot_access','allowed':allowed,'reason':None if allowed else reason,
-                                        'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False)), 'continuous':self.config.get('continuous_live') is True})
+                                        'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False)), 'continuous':self.config.get('continuous_live') is True and not legacy})
                             if not allowed:
                                 state='blocked'
                                 continue
@@ -265,7 +281,7 @@ class Gateway:
                         if self.config['mode'] in {'live_c','realtime_b','duplex_test'}:
                             from spotpear_live import StreamingSpeech
                             async with self.client_factory(trust_env=False,timeout=3) as client:
-                                legacy=await self.active_legacy_flow(client) if self.config['mode']=='live_c' else None
+                                legacy=await self.active_legacy_flow(client) if self.config['mode'] in {'live_c','realtime_b'} else None
                             if not legacy:
                                 stream=StreamingSpeech()
                                 maybe_respond()
@@ -318,10 +334,10 @@ class Gateway:
             if response_task:
                 response_task.cancel()
                 await asyncio.gather(response_task, return_exceptions=True)
-            if self.legacy_turn == turn_id:
+            if self.legacy_turn is not None:
                 with contextlib.suppress(Exception):
                     async with self.client_factory(trust_env=False, timeout=3) as client:
-                        await client.post(self.config['brain_url'] + '/api/v1/turns/' + turn_id + '/cancel', headers=self.auth)
+                        await client.post(self.config['brain_url'] + '/api/v1/turns/' + self.legacy_turn + '/cancel', headers=self.auth)
             self.legacy_turn = None
             self.active = False
             self.save_stats()
@@ -371,10 +387,24 @@ class Gateway:
                 elif self.config['mode']=='realtime_b':
                     from spotpear_live import StreamingSpeech
                     from spotpear_realtime import realtime_turn
-                    if not isinstance(wav,StreamingSpeech):raise ValueError('hardware_b_requires_stream')
                     async with self.client_factory(trust_env=False,timeout=httpx.Timeout(35,connect=3)) as client:
-                        await realtime_turn(client,self.config,self.auth,wav,turn_id,send,
-                            lambda packet:self.send_audio(ws,packet),OpusOutput())
+                        if self.mode_flow and not isinstance(wav,StreamingSpeech):
+                            await self.brain_response(ws,send,wav,turn_id,flow_id=self.mode_flow)
+                        else:
+                            if not isinstance(wav,StreamingSpeech):raise ValueError('hardware_b_requires_stream')
+                            handoff=await realtime_turn(client,self.config,self.auth,wav,turn_id,send,
+                                lambda packet:self.send_audio(ws,packet),OpusOutput())
+                            if handoff:
+                                wav.phase='legacy_a' # Native track is closed; never accumulate/replay mic over A output.
+                                self.mode_flow=self.confirmed_legacy(handoff.get('flow'))
+                                if not self.mode_flow:raise ValueError('hardware_a_not_confirmed')
+                                await send({'type':'custom','payload':{'namespace':'gobot.ui','version':2,'command':'presentation.show',
+                                    'type':'status_card','title':'Экспертный режим A','text':'CLI · потоковый ответ'}})
+                                if handoff.get('question'):
+                                    await self.brain_response(ws,send,None,handoff['operation_id'],flow_id=self.mode_flow,
+                                        recognized_text=handoff['question'])
+                                else:
+                                    await send({'type':'tts','state':'start'});await send({'type':'tts','state':'stop'})
                 elif self.config['mode'] == 'live_c':
                     if self.config.get('hardware_live_consent') is not True:
                         raise PermissionError('hardware_live_permission_required')
@@ -432,19 +462,21 @@ class Gateway:
         self.mode_flow = self.confirmed_legacy(response.json())
         return self.mode_flow
 
-    async def brain_response(self, ws, send, wav: bytes, turn_id: str, flow_id=None):
+    async def brain_response(self, ws, send, wav: bytes, turn_id: str, flow_id=None,*,recognized_text=None):
         if not self.config.get('paid_speech_consent'):
             raise ValueError('speech_permission_required')
         self.reserve_manual_turn()
         config = self.config
         async with self.client_factory(trust_env=False, timeout=httpx.Timeout(100, connect=3)) as client:
-            response = await client.post(config['brain_url']+'/api/v1/audio/transcribe', content=wav,
-                params={'provider': config['stt_provider'], 'paid_consent': True,
-                        'device_id': config['device_id'], 'trace_id': turn_id},
-                headers={**self.auth, 'Content-Type': 'audio/wav'})
-            response.raise_for_status()
-            recognized = response.json()
-            text = recognized.get('text', '').strip()
+            if recognized_text is not None:
+                if not flow_id or not isinstance(recognized_text,str):raise ValueError('confirmed_handoff_required')
+                text=recognized_text.strip()
+            else:
+                response = await client.post(config['brain_url']+'/api/v1/audio/transcribe', content=wav,
+                    params={'provider': config['stt_provider'], 'paid_consent': True,
+                            'device_id': config['device_id'], 'trace_id': turn_id},
+                    headers={**self.auth, 'Content-Type': 'audio/wav'})
+                response.raise_for_status();text=response.json().get('text', '').strip()
             if not text or len(text) > 8000:
                 raise ValueError('no_speech')
             await send({'type': 'stt', 'text': text})

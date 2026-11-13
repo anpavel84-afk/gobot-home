@@ -25,6 +25,9 @@ def attach_board_realtime(app,manager,auth):
         state['pending_hangups']=len(unresolved)
         state['admission_reason']='board_previous_hangup_unconfirmed' if unresolved else None if state['enabled'] and state['sessions_remaining'] else 'board_budget_disabled_or_exhausted'
         state['enabled']=state['enabled'] and state['sessions_remaining']>0 and not unresolved
+        coordinator=getattr(manager,'legacy_handoff',None)
+        state['legacy_a_handoff']={'implemented':bool(coordinator),'financially_authorized':bool(coordinator and
+            coordinator.modes.legacy_allowed(manager.budget.policy().allowed_client_id)),'background_expert_job':False}
         return state
 
     @app.post(base+'/sessions',dependencies=[Depends(auth)])
@@ -33,6 +36,16 @@ def attach_board_realtime(app,manager,auth):
         except PermissionError as error:raise HTTPException(403,str(error))
         except ValueError:raise HTTPException(409,'invalid_or_busy_board_session')
         except Exception:raise HTTPException(502,'board_setup_failed_no_retry')
+
+    @app.get(base+'/sessions/{ident}/handoff',dependencies=[Depends(auth)])
+    async def handoff(ident:str,device_id:str):
+        s=owned(ident,device_id)
+        coordinator=getattr(manager,'legacy_handoff',None)
+        if not coordinator:raise HTTPException(409,'handoff_unavailable')
+        try:result=await coordinator.result(s)
+        except TimeoutError:raise HTTPException(409,'native_close_still_unconfirmed')
+        if not result:raise HTTPException(409,'handoff_not_requested')
+        return result
 
     @app.post(base+'/sessions/{ident}/command',dependencies=[Depends(auth)])
     async def command(ident:str,request:Request):
@@ -66,5 +79,9 @@ def attach_board_realtime(app,manager,auth):
                     except TimeoutError:yield ': heartbeat\n\n'
             finally:
                 s.subscriber=False
-                await manager.close(ident,device_id,device_id,None,'client_events_disconnected')
+                coordinator=getattr(manager,'legacy_handoff',None)
+                pending=coordinator.operations.get(s.id) if coordinator else None
+                if pending:
+                    await asyncio.gather(asyncio.shield(pending['task']),return_exceptions=True)
+                else:await manager.close(ident,device_id,device_id,None,'client_events_disconnected')
         return StreamingResponse(generate(),media_type='text/event-stream',headers={'Cache-Control':'no-store'})

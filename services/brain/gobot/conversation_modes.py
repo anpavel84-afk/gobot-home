@@ -43,6 +43,11 @@ class ModeConversation:
     legacy_turn:str|None=None
     reason:str|None=None
     confirmed_epoch:str|None=None
+    transition_messages:list=field(default_factory=list)
+    pending_question:str=''
+    handoff_turn_id:str|None=None
+    legacy_profile:str|None=None
+    legacy_policy:object=None
 
     def public(self):
         return {'mode_conversation_id':self.id,'mode':self.mode if self.active else 'live',
@@ -51,7 +56,9 @@ class ModeConversation:
             'wake_word_ready':False}
 
 class ConversationModes:
-    def __init__(self,brain,owner_testing):self.brain=brain;self.owner_testing=owner_testing;self.items={}
+    def __init__(self,brain,owner_testing):self.brain=brain;self.owner_testing=owner_testing;self.items={};self.hardware_legacy=None
+    def legacy_allowed(self,binding):
+        return self.owner_testing.authorized(binding) or bool(self.hardware_legacy and self.hardware_legacy.allowed(binding))
     def owned(self,ident,owner,client,epoch):
         flow=self.items.get(ident)
         if not flow or (flow.owner,flow.client,flow.epoch)!=(owner,client,epoch):raise PermissionError('conversation_mode_not_owned')
@@ -72,17 +79,36 @@ class ConversationModes:
         flow.provider_session=offer.session_id;flow.provider_closed=False;flow.last_activity=time.monotonic()
         return flow
     def authorized(self,flow):
-        if not flow.active or not self.owner_testing.voice_authorized(flow.binding):raise PermissionError('conversation_mode_inactive')
+        if not flow.active or not (self.owner_testing.voice_authorized(flow.binding) or self.legacy_allowed(flow.binding)):raise PermissionError('conversation_mode_inactive')
+    def from_native(self,offer,messages,question,operation_id):
+        """Reuse the same A coordinator. Caller must first confirm native hangup.
+
+        Guest RAM only, exact financial binding; never impersonate the phone.
+        """
+        binding=offer.owner_test_binding or offer.client_id
+        if not self.legacy_allowed(binding):raise PermissionError('hardware_cli_not_authorized')
+        if offer.personalization_mode!='guest' or offer.remember or offer.profile_epoch or offer.confirmed_profile_epoch:
+            raise PermissionError('native_handoff_guest_scope_required')
+        for flow in self.items.values():
+            if flow.active and (flow.owner==offer.device_id or flow.client==offer.client_id):raise PermissionError('conversation_mode_already_active')
+        if len(self.items)>=256:raise PermissionError('conversation_mode_capacity')
+        flow=ModeConversation(offer.device_id,offer.client_id,None,binding,mode='legacy')
+        flow.transition_messages=[{'role':m['role'],'content':m['content'][:1600]} for m in messages[-6:]
+            if m.get('role') in {'user','assistant'} and isinstance(m.get('content'),str)]
+        flow.pending_question=question[:8000];flow.handoff_turn_id=operation_id
+        self.items[flow.id]=flow
+        return flow
     def select(self,flow,target):
         self.authorized(flow)
         if target not in {'live','legacy'}:raise ValueError('invalid_conversation_mode')
-        if target=='legacy' and not self.owner_testing.authorized(flow.binding):
+        if target=='legacy' and not self.legacy_allowed(flow.binding):
             raise PermissionError('hardware_cli_not_authorized')
         flow.mode=target;flow.last_activity=time.monotonic()
         flow.input_active=False;flow.playback_active=False
         return flow.public()
     def end(self,flow,reason='conversation_ended'):
         flow.active=False;flow.mode='live';flow.reason=reason;flow.last_activity=time.monotonic()
+        flow.transition_messages.clear();flow.pending_question=''
         if flow.legacy_turn and flow.legacy_turn in self.brain.running:self.brain.running[flow.legacy_turn].set()
         return flow.public()
     def idle(self,flow,now=None):
@@ -99,10 +125,16 @@ class ConversationModes:
     def legacy_request(self,req):
         flow=self.owned(req.mode_conversation_id,req.device_id,req.client_id,req.profile_epoch)
         self.authorized(flow)
-        if not self.owner_testing.authorized(flow.binding):raise PermissionError('hardware_cli_not_authorized')
+        if not self.legacy_allowed(flow.binding):raise PermissionError('hardware_cli_not_authorized')
         if flow.mode!='legacy' or not flow.provider_closed:raise PermissionError('conversation_mode_not_ready')
         if flow.legacy_turn:raise PermissionError('conversation_mode_busy')
+        if flow.pending_question:
+            if req.turn_id!=flow.handoff_turn_id or req.text!=flow.pending_question:raise PermissionError('handoff_question_required_first')
+        if not self.owner_testing.authorized(flow.binding):
+            flow.legacy_policy=self.hardware_legacy.reserve(flow.binding,req.turn_id)
+            flow.legacy_profile='SOL_HIGH'
         flow.legacy_turn=req.turn_id;flow.last_activity=time.monotonic()
         # Guest scope is generated by Brain, not provided by the browser or a PIN cookie.
         return flow,req.model_copy(update={'device_id':flow.scope,'conversation_id':flow.conversation,
-            'remember':False,'mode':'auto','provider':'auto','model_id':None})
+            'remember':False,'mode':'codex' if flow.legacy_profile else 'auto',
+            'provider':'codex' if flow.legacy_profile else 'auto','model_id':'gpt-6.1-sol' if flow.legacy_profile else None})

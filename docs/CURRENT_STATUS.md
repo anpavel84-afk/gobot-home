@@ -1,5 +1,40 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## B -> actual A candidate (2026-11-13, source/free acceptance)
+
+Owner explicitly resumed implementation of actual expert MODE handover. The
+board B manager now uses NativeHandoff + existing ConversationModes, not a new
+Brain/ExpertJobs loop. A direct "экспертный режим" or current confirmed server
+mode offer cancels native speech, closes B and waits for confirmed provider
+hangup. Unconfirmed hangup/503 denies A. Old physical playback must drain before
+A output. Gateway reuses the original question with existing /chat/voice/stream,
+without second STT or another question/tap. A streams sentence/audio chunks;
+the first audio was asserted BEFORE final text in a free mock-stream test.
+Short permitted B history goes to existing guest RAM flow, never private archive.
+Question snapshot, fixed operation ID, identity ownership and first-question
+checks prevent task replacement/duplicate mode creation; Stop targets actual A
+turn ID. End/idle clears the transferred RAM seed. Phone/C defaults preserved.
+
+**Not yet a fully accepted physical conversation.** Source is prepared; current
+runtime still270f8f7 at this checkpoint. Installed firmware0.4.3 unchanged. The
+first transferred question is automatic; further A questions retain existing
+device touch/capture behavior. Continuous automatic A followups without a new
+touch are NOT implemented/claimed. No false promise that Sol guarantees low TTFA.
+gpt-live-transcribe does not support server_vad: official transcription docs were
+checked; no unsupported parameters added to simulate automatic phrase endings.
+
+Separate hardware A admission uses existing ExpertBudget/ExpertPolicy, disabled
+proposal in run/hardware-a/policy.json:2 A attempts,SOL_HIGH,90s CLI each,
+context<=3000 estimated tokens,result<=6000 characters,TTS<=3000 chars/turn.
+Gateway finite batch counts failed speech attempts too across dates/restarts;
+historical daily/CLI/B/C ledgers never reset. This proposed grant is NOT approved
+or enabled. Previous one Sol task is spent; phone identity/grant is not borrowed.
+No automatic paid provider test, TTS synthesis or CLI task was run.
+
+Free acceptance:391 targeted tests passed;5 real loopback LiveKit/aiortc peer
+scenarios passed separately (including mode handoff, Stop/network/drain failures).
+Actual household acoustic/CLI/TTS acceptance awaits an explicit remaining A grant.
+
 ## Owner correction: expert MODE A is not background ExpertJobs
 
 Owner's latest manual board B trial actually reached Codex CLI SOL_HIGH
