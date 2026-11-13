@@ -46,6 +46,17 @@ def forecast_source(change=None):
     def handle(request):calls.append(request);return httpx.Response(200,json={'timezone':'America/Sao_Paulo','daily':daily})
     return WeatherClient(transport=httpx.MockTransport(handle),clock=lambda:STAMP),calls,today
 
+def test_partial_distant_day_does_not_hide_complete_tomorrow():
+    def change(data):
+        for name in ('weather_code','temperature_2m_min','temperature_2m_max','wind_speed_10m_max'):
+            data[name][15]=None
+    async def run():
+        client,_,_=forecast_source(change)
+        place=WeatherPreferences(enabled=True,location_name='Fixture',latitude=0,longitude=0)
+        assert len((await client.forecast(place,offset=1,days=1))['days'])==1
+        with pytest.raises(WeatherError):await client.forecast(place,offset=15,days=1)
+    asyncio.run(run())
+
 def test_forecast_local_tomorrow_16_days_cache_and_source_params():
     async def run():
         client,calls,today=forecast_source();place=WeatherPreferences(enabled=True,location_name='Synthetic',latitude=0,longitude=0)

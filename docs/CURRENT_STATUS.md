@@ -26,7 +26,13 @@ provider boundary calls = []. Материал рассказа явно тес�
 
 W7: подготовлен `scripts/night_preview.py`: idle-only deployment, свежие backups,
 один owned Brain restart + прежний private web gateway, immediate server flag rollback.
-Deployment пока НЕ выполнен; фактический URL/runtime будет записан после smoke.
+Первый deployment 0c8d7ae выполнен: /device-next, /device, /demo2 HTTP200; clock
+и реальный private HTTPS Chromium smoke PASS. Ledger/policies совпали с WAL backup.
+Реальный Open-Meteo smoke обнаружил ранее существовавший дефект: пустой дальний
+16-й день отклонял даже полный прогноз на завтра. Исправлена валидация выбранного
+диапазона при общей проверке календаря; missing requested fields всё ещё отказ.
+559 затронутых проверок прошли. Следующий guarded restart устанавливает этот fix;
+реальный weather smoke повторяется после него.
 
 W8: candidate **0.4.4-night-contract** успешно собран в отдельной копии на
 vmi3510488, IDF 6.0.1 pinned container/network none. App 2711488 bytes, 34% app

@@ -114,9 +114,14 @@ class WeatherClient:
             if not 1<=size<=16 or any(len(daily[k])!=size for k in names):raise ValueError()
             rows=[]
             for i in range(size):
-                stamp=date.fromisoformat(daily['time'][i]);code=int(daily['weather_code'][i])
-                low=float(daily['temperature_2m_min'][i]);high=float(daily['temperature_2m_max'][i]);wind=float(daily['wind_speed_10m_max'][i]);rain=float(daily['precipitation_probability_max'][i])
+                stamp=date.fromisoformat(daily['time'][i])
                 if stamp!=today+timedelta(days=i):raise WeatherError('weather_forecast_not_fresh')
+                # Sources may omit the last forecast day while tomorrow is complete.
+                # Validate calendar continuity globally, numerical facts only for the
+                # requested window. Missing requested values still fail, never zero-fill.
+                if not offset<=i<offset+days:continue
+                code=int(daily['weather_code'][i])
+                low=float(daily['temperature_2m_min'][i]);high=float(daily['temperature_2m_max'][i]);wind=float(daily['wind_speed_10m_max'][i]);rain=float(daily['precipitation_probability_max'][i])
                 if not all(math.isfinite(v) for v in [low,high,wind,rain]) or not -100<=low<=high<=70 or not 0<=wind<=500 or not 0<=rain<=100:raise ValueError()
                 icon,label=condition(code)
                 result={'date':stamp.isoformat(),'low':low,'high':high,'rain_percent':rain,'wind_kmh':wind,'weather_code':code,'icon':icon,'condition':label}
@@ -129,7 +134,7 @@ class WeatherClient:
                             if not math.isfinite(number) or not 0<=number<=maximum:raise ValueError()
                             result[target]=number
                 rows.append(result)
-            selected=rows[offset:offset+days]
+            selected=rows
             if len(selected)!=days:raise WeatherError('weather_forecast_incomplete')
             return {'timezone':data['timezone'],'days':selected,'fetched_at':self.clock(),'horizon_days':16}
         except WeatherError:
