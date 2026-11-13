@@ -34,6 +34,7 @@ PRIVATE = ROOT / 'data/hardware/gobot-v1'
 MAX_PCM = 16000 * 2 * 26
 MAX_PACKET = 4096
 sys.path.insert(0, str(ROOT / 'services/brain'))
+from gobot.voice_status import voice_status
 MAX_TURN_SECONDS = 180
 
 
@@ -190,6 +191,8 @@ class Gateway:
         self.stats['accepted'] += 1
         self.save_stats()
         session = str(uuid.uuid4())
+        connection_started=asyncio.get_running_loop().time()
+        self.stats['last_setup_ms']={}
         turn_id = str(uuid.uuid4())
         response_task = None
         state = 'hello'
@@ -200,6 +203,15 @@ class Gateway:
         deadline = asyncio.get_running_loop().time() + 8
         async def send(obj):
             nonlocal tts_finished
+            status=obj.get('payload',{})
+            if status.get('voice_engine') in {'A','B','C'} and status.get('voice_phase') in {'connecting','listening','thinking','speaking'}:
+                self.stats.update(active_engine=status['voice_engine'],last_engine=status['voice_engine'],voice_phase=status['voice_phase'])
+                self.save_stats()
+            stage=('media_ready' if obj.get('type')=='gobot_media_ready' else
+                'first_audio_announced' if obj.get('type')=='tts' and obj.get('state')=='start' else None)
+            if stage and stage not in self.stats['last_setup_ms']:
+                self.stats['last_setup_ms'][stage]=round((asyncio.get_running_loop().time()-connection_started)*1000,2)
+                self.save_stats()
             await ws.send(json.dumps({**obj, 'session_id': session}, ensure_ascii=False))
             if obj.get('type') == 'tts' and obj.get('state') == 'stop':
                 tts_finished = True
@@ -245,6 +257,7 @@ class Gateway:
                             raise ValueError('invalid_hello')
                         await send({'type': 'hello', 'version': 1, 'transport': 'websocket',
                                     'audio_params': {'format': 'opus', 'sample_rate': 24000, 'channels': 1, 'frame_duration': 60}})
+                        self.stats['last_setup_ms']['hello_ack']=round((asyncio.get_running_loop().time()-connection_started)*1000,2)
                         if self.config['mode']=='duplex_test':
                             await send({'type':'gobot_access','allowed':True,'reason':None,'continuous':True})
                         elif self.config['mode'] in {'live_c','realtime_b'}:
@@ -262,6 +275,7 @@ class Gateway:
                             if not allowed:
                                 state='blocked'
                                 continue
+                            await send(voice_status('A' if legacy else 'B' if self.config['mode']=='realtime_b' else 'C','connecting'))
                         else:
                             await send({'type':'gobot_access','allowed':True,'continuous':False})
                         state = 'ready'
@@ -341,6 +355,7 @@ class Gateway:
                         await client.post(self.config['brain_url'] + '/api/v1/turns/' + self.legacy_turn + '/cancel', headers=self.auth)
             self.legacy_turn = None
             self.active = False
+            self.stats.update(active_engine=None,voice_phase='idle')
             self.save_stats()
 
     def save_stats(self):
@@ -399,6 +414,7 @@ class Gateway:
                                 wav.phase='legacy_a' # Native track is closed; never accumulate/replay mic over A output.
                                 self.mode_flow=self.confirmed_legacy(handoff.get('flow'))
                                 if not self.mode_flow:raise ValueError('hardware_a_not_confirmed')
+                                await send(voice_status('A','thinking'))
                                 await send({'type':'custom','payload':{'namespace':'gobot.ui','version':2,'command':'presentation.show',
                                     'type':'status_card','title':'Экспертный режим A','text':'CLI · потоковый ответ'}})
                                 if handoff.get('question'):
@@ -503,6 +519,7 @@ class Gateway:
                         raise ValueError('wrong_brain_turn')
                     if kind=='audio_start':
                         if started: raise ValueError('duplicate_audio_start')
+                        if flow_id:await send(voice_status('A','speaking'))
                         started=True; await send({'type':'tts','state':'start'}); await asyncio.sleep(.08)
                     elif kind=='audio_chunk':
                         if not started or data.get('seq')!=expected_seq or data.get('format')!='pcm_s16le':

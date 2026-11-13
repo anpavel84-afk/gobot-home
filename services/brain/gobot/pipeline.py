@@ -62,6 +62,10 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
     async def consume_audio(synthesizer):
         nonlocal seq, tts_failed
         first = True;segment_sequence=0;characters=0;budget_exhausted=False
+        flow=getattr(request,'_mode_flow',None)
+        confirm_mode=bool(flow and getattr(flow,'handoff_turn_id',None)==request.turn_id
+            and flow.provider_closed and flow.mode=='legacy')
+        mode_announced=False
         while True:
             text = await sentences.get()
             if text is None:
@@ -70,6 +74,8 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                 continue
             segment_id=None
             try:
+                if confirm_mode and not mode_announced and text.strip():
+                    text='Экспертный режим включён. '+text;mode_announced=True
                 mark("formatter_start")
                 text=formatter.format(text)
                 mark("formatter_end")
@@ -81,6 +87,9 @@ async def voiced_events(service, speech, request, *, speak=True, tts_provider="o
                     continue
                 characters+=len(text)
                 measurements['tts_characters_submitted']=characters
+                if confirm_mode and segment_sequence==0:
+                    measurements['first_audio_contains_mode_confirmation']=True
+                    measurements['useful_audio_start_measured']=False
                 segment_id=audio_id+':'+str(segment_sequence);segment_sequence+=1
                 service.memory.archive.speech(request,segment_id,segment_sequence,text,'submitted_to_tts')
                 synthesis_started=time.perf_counter();mark("tts_segment_submit",voice=tts_voice,transport="realtime_ws",audio_role="answer")

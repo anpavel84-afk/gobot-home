@@ -9,6 +9,7 @@ import av,numpy as np
 from aiortc import RTCPeerConnection,RTCConfiguration,RTCSessionDescription
 from spotpear_half_duplex import HalfDuplex
 from spotpear_livekit import LocalMediaRelay
+from gobot.voice_status import voice_status
 
 class GatedCapture:
     def __init__(self,capture,state):self.capture=capture;self.state=state
@@ -60,6 +61,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
             await relay.input_track.started.wait()
             await command('followup');state.listen()
             await send({'type':'gobot_media_ready'})
+            await send(voice_status('B','listening'))
 
         async def media():
             nonlocal last_pcm
@@ -73,6 +75,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                         last_pcm=now()
                         if not state.response_id:await asyncio.wait_for(response_ready.wait(),.5)
                         if state.state=='Thinking':
+                            await send(voice_status('B','speaking'))
                             state.state='Speaking';await send({'type':'tts','state':'start'})
                     if state.state=='Speaking' and now()-last_pcm<.3:await relay.send_speaker(raw)
 
@@ -88,7 +91,8 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                     if event.get('session_id')!=ident:raise ValueError('unexpected_hardware_b_session')
                     if event['serial']<=serial:continue
                     serial=event['serial'];kind,data=event['type'],event['data']
-                    if kind=='audio_diagnostic' and data.get('stage')=='server_audio_committed':state.commit()
+                    if kind=='audio_diagnostic' and data.get('stage')=='server_audio_committed':
+                        state.commit();await send(voice_status('B','thinking'))
                     elif kind=='processing' and data.get('response_id'):
                         state.response(data['response_id']);flushed=False;started_ack=False;drain_started=0.
                         response_ready.set()
@@ -138,6 +142,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                         await command('followup') # Effective session.updated ACK before gate opens.
                         state.listen();response_ready.clear()
                         await send({'type':'tts','state':'stop'})
+                        await send(voice_status('B','listening'))
                     elif now()-drain_started>5:raise ValueError('hardware_b_playback_ack_missing')
                 await asyncio.sleep(.02)
 

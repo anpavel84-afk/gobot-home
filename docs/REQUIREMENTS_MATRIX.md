@@ -1,5 +1,15 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## First physical A response / UI feedback
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| B->real CLI A->voice | Owner heard answer; journal bridge:codex/Sol6.1High; audio_stop finished | Not a universal acoustic/factual PASS |
+| Streaming | First server audio15.12s; final text87.99s after A request | Physical useful-answer onset unmeasured |
+| Engine/Thinking indication | Server status contract and UI-only firmware BUILT | Installed0.4.3 does not render it correctly; flash approval needed |
+| Same voice | marin in both engines | Timbre does not identify engine |
+| A allowance | One A attempt remains, expiry unchanged | No automated paid repeat |
+
 ## Actual B -> A handover candidate
 
 | Requirement | Evidence | Gap |

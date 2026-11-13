@@ -1,0 +1,21 @@
+{
+  "version": "0.4.4-dev-voice-status-1",
+  "base": "0.4.3-dev-media-ready",
+  "artifact": "/opt/gobot-firmware/20261112-gobot-v1/voice-status-stage/build-status/xiaozhi.bin",
+  "sha256": "ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866",
+  "bytes": 2712128,
+  "app_partition_bytes": 4128768,
+  "partition_free_percent": 34,
+  "idf_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "build_network": "none",
+  "devices_mounted": false,
+  "build_result": "success",
+  "incremental_recheck": "success_same_hash",
+  "host_state_and_render_test": "PASS",
+  "render_fixtures_reviewed": true,
+  "flashed": false,
+  "physical_lcd_acceptance": "NOT_RUN",
+  "audio_path_changed": false,
+  "wake_to_brain_changed": false,
+  "wake_model_sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010"
+}

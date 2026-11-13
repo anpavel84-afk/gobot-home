@@ -1,5 +1,13 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Device voice-state contract:** show the actual engine A/B/C independently of
+voice timbre, and Connecting/Listening/Thinking/Speaking from authenticated
+session-scoped status. UI phase changes do not alter audio capture or fabricate
+playback completion. Timers retain priority and mode labels fit the round safe
+area. First A speech may identify the confirmed mode within its existing TTS
+budget; this acknowledgment is not measured as useful-answer latency. Installed
+firmware compatibility and physical rendering must be reported separately.
+
 **Owner simplification 2026-11-13:** an actual user mention of expert mode selects
 existing A under its effective admission, with the attached question if present.
 ASR punctuation does not define whether the command counts. If B cannot give a
