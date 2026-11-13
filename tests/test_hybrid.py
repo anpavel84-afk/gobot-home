@@ -45,6 +45,16 @@ def test_pending_slot_escape_and_late_yes(settings):
         assert timer_count(brain)==1
     asyncio.run(run())
 
+def test_decline_clears_pending_without_starting_timer(settings):
+    brain,h,scope,c=make(settings)
+    async def run():
+        await dispatch(h,scope,c,'Поставь таймер')
+        result=await dispatch(h,scope,c,'Не надо')
+        assert result.route_type=='MEDIA_CONTROL'
+        assert (await dispatch(h,scope,c,'На пять')).route_type=='CLARIFY_SLOT'
+        assert timer_count(brain)==0
+    asyncio.run(run())
+
 @pytest.mark.parametrize('text',['Не ставь таймер','Как поставить таймер?','Я купил таймер',
     'Поставь таймер на пять минут и удали мои файлы','Поставь таймер, только если завтра дождь',
     'Поставь таймер на пять или десять минут','Поставь таймер на три минуты, нет, на пять',

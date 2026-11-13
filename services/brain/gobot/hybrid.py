@@ -69,6 +69,8 @@ class Hybrid:
         from .quality import arithmetic_expression
         if arithmetic_expression(value):return ('EXECUTE_TOOL',QuickIntent('calculation','calculator',{}),None)
         if re.match(r'^(?:что будет|что произойдет),? если\b',value):return ('NO_ACTION',None,'hypothetical_not_command')
+        if re.fullmatch(r'отмена|нет(?:,? спасибо)?|не надо',value):
+            return ('MEDIA_CONTROL',None,'cancel_pending' if context.get('pending_action') or context.get('weather_query_pending') else 'stop')
         if c.frame and c.frame.domain=='weather' and value in {'точно','а точно','сколько точно','точная температура'}:
             return ('EXECUTE_TOOL',QuickIntent('weather_exact','settings',c.frame.slots),None)
         if c.frame and c.frame.domain=='weather' and re.fullmatch(r'почему ты советуешь зонт(?:ик)?|почему нужен зонт|можно (?:ли )?купаться|а на пляж',value):

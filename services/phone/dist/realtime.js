@@ -276,6 +276,7 @@
   for(const event of ['pagehide','offline'])window.addEventListener(event,()=>void client.close('Прослушивание приостановлено',event==='offline'?'network_offline':'page_hidden').catch(()=>{}));
   document.addEventListener('visibilitychange',()=>{if(document.hidden)void client.close('Возобнови GoBot после возвращения','page_hidden').catch(()=>{});});
   window.addEventListener('DOMContentLoaded',()=>{
+    if(document.body.dataset.nextPreview==='true')return;
     let select=document.getElementById('conversation-engine');
     if(!select){
       const section=document.createElement('section');section.className='reply';

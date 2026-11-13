@@ -405,6 +405,8 @@ def create_app(settings=None):
     app.state.realtime=realtime
     attach_brain_realtime(app,realtime,auth)
     app.state.live=live;attach_brain_live(app,live,auth)
+    from .hybrid_api import attach_brain_hybrid
+    attach_brain_hybrid(app,service,realtime,live,speech,auth)
     async def invalidate_voice_principal(owner,reason='profile_changed'):
         await realtime.invalidate_principal(owner,reason);await live.invalidate_principal(owner,reason)
     attach_family(app,family,identity,speech,auth,on_preferences_changed=invalidate_voice_principal,openings=service.openings)

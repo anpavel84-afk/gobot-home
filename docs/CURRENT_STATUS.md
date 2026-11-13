@@ -1,21 +1,43 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## Night Train v1 — текущая реализация
+## Night Train v1 — web candidate, проверки перед deployment
 
-Owner разрешил W0–W8 пакета `325c331`, без расширения расходов/аппаратных прав.
-Интеграционная ветка `codex/hybrid-web-vnext` создана поверх `71dcb18`, пакет
-перенесён docs-only коммитом `46fb07b`. W0: backup SQLite через SQLite backup
-(включая WAL), web bundle/config backup и baseline находятся приватно в
-`run/night-train/`. При старте Brain runtime `e623dde`, active turns/media/B/C=0,
-старый C unknown reserve=60 секунд; допуски не изменены. Предыдущий baseline
-2154 passed /18 skipped /1 xfailed /118 subtests не выдаётся за новый прогон.
-W1: typed contracts и реестр поверх существующих Quick Intents добавлены.
-W2–W3: dispatcher/preflight, scoped pending/weather frames, атомарные timer receipts
-и speech/display weather envelope реализованы. 150 authored semantic cases +
-дополнительные unit/integration: 188 passed; затронутые timer/weather регрессии:
-404 passed. W4: все 100 прежних клипов проверены, dry-run=0 запросов; scoped
-story jobs, ACK-контракт и Web Audio player добавлены. W5: owner-only routes и
-страница интегрированы в исходники, browser QA/deployment ещё не завершены.
+Ветка `codex/hybrid-web-vnext` поверх `71dcb18`; recovery `032e4ea` и
+B preparation сохранены. Пакет Owner `325c331` перенесён docs-only `46fb07b`.
+W0: WAL-aware SQLite, конфигурация и web bundle сохранены приватно в
+`run/night-train/backups/20261113T024157Z`. Исходный runtime `e623dde`.
+
+W1–W5: typed contracts, manifest поверх Quick Intents, deterministic dispatcher,
+scoped weather/pending context, transactional timer receipts, weather speech/display,
+100 готовых прежних клипов и dry-run, RAM storyteller и реальный Web Audio player,
+owner-only `/device-next` и API в прежнем Brain реализованы. Платный STT/TTS и
+ручной B используют существующие допуски, выключены по умолчанию в новом UI.
+C text handover не принят; карантин не блокирует локальные инструменты.
+
+W6: полный pytest — **2376 passed, 18 skipped, 1 xfailed, 118 subtests**,
+229.33 s; затем дополнительно 73 targeted checks прошли, включая два новых
+регрессионных теста. 150 авторских semantic cases внутри suite; независимого
+Gemini/holdout нет (self-review). Chromium S3: 390×844, настоящий AudioContext,
+timer restore, weather followups, pause/resume/Stop, без overflow/JS exceptions;
+provider boundary calls = []. Материал рассказа явно тестовый, сигналы не речь.
+Обнаруженная гонка освобождения audio lock при resume исправлена и перепроверена.
+Дефекты отмены pending и late STT после Stop также исправлены.
+Артефакты приватно: `run/night-train/full-tests.xml`, `browser/evidence.json`, screenshot.
+
+W7: подготовлен `scripts/night_preview.py`: idle-only deployment, свежие backups,
+один owned Brain restart + прежний private web gateway, immediate server flag rollback.
+Deployment пока НЕ выполнен; фактический URL/runtime будет записан после smoke.
+
+W8: candidate **0.4.4-night-contract** успешно собран в отдельной копии на
+vmi3510488, IDF 6.0.1 pinned container/network none. App 2711488 bytes, 34% app
+partition free; SHA `fe624dc9f020c4be738d05bb458cf800dcc16990a3ee4d1e8a5a2c3282b0d141`.
+Только negotiation patch; [hardware contract](../firmware/spotpear/vnext/CONTRACT.md).
+**Не установлен**; установленная 0.4.3, NVS, KWS, audio path не менялись.
+
+Новые автоматические платные пробы не запускались. C: прежние 221 confirmed
+seconds / $0.1841667 estimate; один orphan final=false, reserve60s/$0.05,
+неизвестный конечный расход не ограничен этим резервом. Recovery grant использован,
+не продлён. Hardware B отдельный пакет 8×60s/$1 подготовлен, выключен, не развёрнут.
 
 Обновлён 13 ноября 2026 года (UTC; 12 ноября на PLAN). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
 Этот файл описывает **реализованный код, проверки и ограничения**. Требования
