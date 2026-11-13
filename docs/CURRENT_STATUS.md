@@ -1,5 +1,28 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## First manual hardware B conversation: partial acceptance, limits/source gap
+
+Owner провёл один настоящий разговор на колонке и подтвердил слышимые ответы.
+Encrypted diagnostic journal содержит ready: gpt-realtime-2.1-mini/marin, два
+input transcripts, один gobot_tool request/result, три provider response attempts.
+Live не использовался. Backend отказал в ответе на актуальный факт: проверенный
+источник для такого запроса не подключён в этом аппаратном пакете. CLI/Luna/Image
+этому пакету не разрешены; попытки эксперта не было. Это не «вообще нет интернета».
+
+Две provider responses завершились incomplete/max_output_tokens (cap512), затем
+session_time_limit (60s). Один turn имеет client_playback_reported/truncated,
+второй playback unconfirmed_or_interrupted/truncated. Это не полный диалоговый/
+акустический PASS. Вопрос о возможной ошибке распознавания второго запроса
+уточняется у Owner: отдельный transcript не доказывает исходно произнесённую речь.
+Исходное аудио не сохранялось. Тексты домашних вопросов/ответов не публикуются.
+
+B:7 sessions remaining,1 reserved estimate$0.125; reported response estimate
+$0.02332976 excluding separate transcription (не invoice/final total). Pending
+B hangups=0, active=0; quota/ledger не сбрасывались, developer paid calls=0.
+Лимиты512/60s/8 sessions не повышались. Следующий шаг — развести source readiness,
+ASR и test truncation; не выдавать transport/несколько слышимых реплик за готовность
+полного домашнего помощника. C quarantine/unknown usage по-прежнему сохранены.
+
 ## Owner confirmed web B; column switched to manual hardware B acceptance
 
 Owner подтвердил работу B в вебе и попросил проверить его на колонке. Изолированный
