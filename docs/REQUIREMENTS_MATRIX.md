@@ -32,7 +32,7 @@
 | Expert offer on source gap | MOCK_PASS; actual transcript -> proposal -> confirmation | CLI is not independent fact verification |
 | Same-utterance local buffer | C++ PASS,diagnostic firmware BUILT | NOT_INSTALLED; no human delivery proof |
 | Stress variants KWS | Six-voice offline pilot trained/evaluated | FAILED:11 validation false/17 held-out false; human0 |
-| Wake-to-Brain | OFF,installed0.4.3 preserved | Requires qualified acoustic candidate |
+| Wake-to-Brain | OFF,installed0.4.5 preserved;voice-first goal resumed | Models6/7 failed;PLAN-only sample/evaluation prepared;human sample not received,voice route not accepted |
 
 ## Night Train v1 — актуальный web-first checkpoint
 

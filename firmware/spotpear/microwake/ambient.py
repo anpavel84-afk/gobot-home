@@ -1,5 +1,6 @@
 """Count events in a continuous synthetic negative stream; never opens a microphone."""
 import json
+import hashlib
 import sys
 from pathlib import Path
 import numpy as np
@@ -46,7 +47,8 @@ def run(model, negative_dir, minutes=30):
                 unlocked=cursor+24000
             features.clear()
     result=dict(kind="synthetic confusables with generated hum, silence and noise",seconds=cursor/16000,
-                false_events=events,false_per_hour=events*3600/(cursor/16000),real_household_seconds=0)
+                false_events=events,false_per_hour=events*3600/(cursor/16000),real_household_seconds=0,
+                model_sha256=hashlib.sha256((model/'gobot.tflite').read_bytes()).hexdigest())
     (model/"ambient.json").write_text(json.dumps(result,indent=2))
     print(result)
 if __name__=="__main__":

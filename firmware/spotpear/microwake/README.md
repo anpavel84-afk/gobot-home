@@ -44,3 +44,39 @@ prove human acoustic coverage. Preserve old corpora/model reports. Train/evaluat
 with existing pinned CPU environment, held-out voice and continuous negatives.
 Host test: g++ -std=c++17 -Wall -Wextra -Werror test_wake_question_buffer.cc -o test-buffer && ./test-buffer.
 No cloud wake until acoustic qualification; no unattended paid session.
+
+## Resumed voice-first product checkpoint (2026-11-13)
+
+Installed0.4.5 touch-first remains the rollback; no failed model was installed.
+`prepare_product.py` targets a COPY of that current source, preserving fast-start
+capture/UI and existing native KWS/audio ownership. The existing1s rolling prefix
+and12s bounded question buffer feed the SAME audio engine once. Product routing
+requires matching model hashes, held-out and30min synthetic-negative success,
+labelled30-call human recall>=90% and background observation. The11 free tests
+cover gates/expiry/path safety, not acoustic readiness.
+
+Two bounded CPU experiments completed with no paid service or household speech:
+
+```sh
+python train.py one-phrase-v1/corpus-variants model6 --frames 120 --positive-fraction .25 --negative-weight 4 --mined mined.npy
+python evaluate.py one-phrase-v1/corpus-variants model6
+python train.py one-phrase-v1/corpus-variants model7 --frames 120 --robust --mined mined.npy
+python evaluate.py one-phrase-v1/corpus-variants model7
+```
+
+Both FAILED streaming acceptance; see model6-result.json/model7-result.json.
+No further unattended model search. More same-TTS tests do not establish human
+recognition. Owner allowed ONE <=60s PLAN-only microphone sample. The prepared
+recorder uses existing authenticated TLS, rejects backend HTTP, waits for touch,
+captures at most50s, encrypts with Windows DPAPI and registers exact-file deletion
+at23h via Windows Task Scheduler. No raw sound/features to Git, remote build host,
+external STT or semantic memory. First armed10min window timed out without touch;
+no sample exists, real gateway restored. Re-arm only when Owner is present, under
+the same unconsumed sample consent; this is calibration, not the product's wake UX.
+
+PLAN-only feature/inference dependencies are in private local-wake-runtime,
+ai-edge-litert2.3.0 and pymicro-features2.0.2; parity98/1987024791 matches ESP32.
+`evaluate_local_sample.py` reads only DPAPI samples before their expiry and reports
+numeric scores/segments. These are unlabelled until verified against real trials.
+The voice-first product remains NOT_ACCEPTED; do not replace this status with
+source/build/unit-test counts. C/B ledgers and finite admissions stay unchanged.

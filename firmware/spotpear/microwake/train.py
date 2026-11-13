@@ -56,13 +56,13 @@ def window(clip, rng, positive):
     warmup = rng.normal(0, floor, HOP * rng.integers(35, 200))
     return features(np.clip(np.concatenate([warmup,noise]), -32768, 32767))[-FRAMES:]
 
-def dataset(folder, count, seed):
+def dataset(folder, count, seed, positive_fraction=.5):
     rng = np.random.default_rng(seed)
     positives = [np.fromfile(p, "<i2") for p in sorted(folder.glob("positive-*.pcm"))]
     negatives = [np.fromfile(p, "<i2") for p in sorted(folder.glob("negative-*.pcm"))]
     if not positives or not negatives:
         raise ValueError(f"Missing corpus {folder}")
-    ys = rng.integers(0, 2, count)
+    ys = rng.integers(0, 2, count) if positive_fraction==.5 else (rng.random(count)<positive_fraction).astype(np.int32)
     xs = []
     for y in ys:
         group = positives if y else negatives
@@ -72,17 +72,23 @@ def dataset(folder, count, seed):
         xs.append(window(sample, rng, y))
     return np.stack(xs), ys.astype(np.float32)
 
-def main(corpus, output, mined=None, robust=False):
+def main(corpus, output, mined=None, robust=False,frames=75,positive_fraction=.5,negative_weight=1.):
+    global FRAMES
+    if frames<75 or frames>150 or frames%STRIDE or not 0<positive_fraction<=.5 or not 1<=negative_weight<=10:
+        raise ValueError('Unbounded training profile')
+    FRAMES=frames
     output.mkdir(parents=True, exist_ok=True)
     tf.keras.utils.set_random_seed(SEED)
     tf.config.experimental.enable_op_determinism()
-    train_sets = [dataset(corpus / speaker, 3072, SEED+i*37) for i,speaker in enumerate(("denis","espeak-ru","anna","aleksandr"))]
+    train_sets = [dataset(corpus / speaker, 3072, SEED+i*37,positive_fraction) for i,speaker in enumerate(("denis","espeak-ru","anna","aleksandr"))]
     x,y = (np.concatenate(parts) for parts in zip(*train_sets))
     if mined is not None:
         negatives=np.load(mined,allow_pickle=False)
+        if negatives.shape[1]<FRAMES:
+            negatives=np.pad(negatives,((0,0),(FRAMES-negatives.shape[1],0),(0,0)),mode='edge')
         x=np.concatenate((x, negatives[:len(negatives)//BATCH*BATCH]))
         y=np.pad(y,(0,len(x)-len(y)))
-    val,labels = dataset(corpus / "dmitri", 512, SEED+1)
+    val,labels = dataset(corpus / "dmitri", 512, SEED+1,positive_fraction)
     flags = SimpleNamespace(pointwise_filters="24,24,24", repeat_in_block="1,1,1",
         mixconv_kernel_sizes="[3],[5],[7]", residual_connection="0,0,0", first_conv_filters=24,
         first_conv_kernel_size=3, stride=STRIDE, max_pool=False, pooled=True, spatial_attention=False)
@@ -113,7 +119,8 @@ def main(corpus, output, mined=None, robust=False):
                     if rng.random()<.4:
                         at=rng.integers(1,37)
                         samples[j,:,at:at+2]=0
-            net.train_on_batch(samples, y[batch])
+            if negative_weight==1:net.train_on_batch(samples, y[batch])
+            else:net.train_on_batch(samples,y[batch],sample_weight=np.where(y[batch]>.5,1.,negative_weight).astype(np.float32))
         net.reset_metrics()
         if robust:
             probs=np.concatenate([net(val[b:b+BATCH],training=False).numpy().ravel()
@@ -161,6 +168,7 @@ def main(corpus, output, mined=None, robust=False):
     metadata = dict(sha256=hashlib.sha256(blob).hexdigest(), bytes=len(blob), train=["denis","espeak-ru","anna","aleksandr"], validation="dmitri",
                     test="elena", input_quantization=inp["quantization"], output_quantization=out["quantization"],
                     ops=sorted(set(op["op_name"] for op in interp._get_ops_details())), human_trials=0)
+    metadata.update(context_frames=FRAMES,positive_fraction=positive_fraction,negative_weight=negative_weight)
     (output / "model.json").write_text(json.dumps(metadata, indent=2))
 if __name__ == "__main__":
     p=argparse.ArgumentParser()
@@ -168,5 +176,8 @@ if __name__ == "__main__":
     p.add_argument("output",type=Path)
     p.add_argument("--mined",type=Path)
     p.add_argument("--robust",action="store_true")
+    p.add_argument('--frames',type=int,default=75)
+    p.add_argument('--positive-fraction',type=float,default=.5)
+    p.add_argument('--negative-weight',type=float,default=1.)
     a=p.parse_args()
-    main(a.corpus,a.output,a.mined,a.robust)
+    main(a.corpus,a.output,a.mined,a.robust,a.frames,a.positive_fraction,a.negative_weight)

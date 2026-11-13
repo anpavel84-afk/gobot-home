@@ -1,5 +1,13 @@
 # GoBot Home boundaries
 
+OWNER resumed the complete local Russian GoBot wake-to-question product on
+2026-11-13; touch is fallback, not the target interaction. Continue local wake
+implementation/quality checks without admitting an unqualified detector to paid
+sessions. Owner separately consented to ONE voluntary <=60s board microphone
+sample for wake training/testing on PLAN only, no cloud transfer, private storage
+and deletion within24h. This is not continuous household recording, API budget
+renewal, private-memory access or permission to publish speech/features.
+
 OWNER explicitly approved on 2026-11-13 installation of the prepared
 0.4.5-dev-fast-start-1 on this enrolled Spotpear and free local diagnostics
 without OpenAI. Preserve identity/NVS/recovery, limits and existing features.

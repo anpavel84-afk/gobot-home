@@ -1,0 +1,50 @@
+{
+  "model_sha256": "ed9fe29cb5244061213e91bd00a60fc9463c5c2b27158842d25f83e52004867d",
+  "context_frames": 120,
+  "training_positive_fraction": 0.5,
+  "negative_weight": 1,
+  "robust_augmentation": true,
+  "cutoff": 250,
+  "validation": {
+    "tp": 10,
+    "positive": 15,
+    "false_events": 7,
+    "negative": 198,
+    "stream_seconds": 587.07275,
+    "mistakes": [
+      "negative-23-118.pcm",
+      "positive-0-100.pcm",
+      "negative-59-118.pcm",
+      "positive-0-82.pcm",
+      "negative-27-100.pcm",
+      "negative-21-100.pcm",
+      "positive-1-82.pcm",
+      "positive-1-118.pcm",
+      "positive-0-118.pcm",
+      "negative-54-118.pcm",
+      "negative-54-100.pcm",
+      "negative-27-118.pcm"
+    ]
+  },
+  "test": {
+    "tp": 14,
+    "positive": 15,
+    "false_events": 7,
+    "negative": 198,
+    "stream_seconds": 617.61,
+    "mistakes": [
+      "negative-31-118.pcm",
+      "negative-33-82.pcm",
+      "negative-59-118.pcm",
+      "negative-21-118.pcm",
+      "negative-62-118.pcm",
+      "negative-5-118.pcm",
+      "positive-1-118.pcm",
+      "negative-27-118.pcm"
+    ]
+  },
+  "candidate_passed": false,
+  "human_trials": 0,
+  "installed": false,
+  "owner_audio_used": false
+}
