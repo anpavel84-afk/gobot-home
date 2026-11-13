@@ -119,6 +119,7 @@ def weather_query(value):
     if not re.search(r'\b'+topic+r'\b',value):return None
     if not re.search(r'погод|прогноз',value) and not re.search(r'завтра|послезавтра|сегодня|сейчас|через|недел|выходн|будет|будут|ожида|нужен|на улице|за окном',value):return None
     if not re.match(r'^(?:(?:какая|какой|какие|как|сколько|покажи|показать|проверь|проверить|узнай|узнать|посмотри|посмотреть|скажи|сказать|подскажи|подсказать|расскажи|что|будет|будут|нужен|нужны|ожидается|ожидаются|сейчас|завтра|послезавтра|сегодня|в|во|сравни)\b|'+topic+r'\b)',value):return None
+    if re.search(r'\b(?:на|за|через)\s*$',value):return {'operation':'weather_unsupported','reason':'ambiguous_period'}
     if re.search(r'вчера|историческ|прошл\w*',value):return {'operation':'weather_unsupported','reason':'past'}
     if 'weather.com' in value:return {'operation':'weather_provider_unavailable'}
     if re.search(r'почасов|вечером|утром|ночью|во сколько|в \d{1,2}(?::\d{2})?',value):return {'operation':'weather_unsupported','reason':'hourly'}

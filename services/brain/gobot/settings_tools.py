@@ -12,6 +12,16 @@ from .weather import condition
 
 HELP='Могу настроить город для погоды, громкость и голос OpenAI, режим модели, вступления, продолжение разговора, иллюстрации и лицо. Например: «Настрой погоду для моего города», «Громкость 40 процентов», «Выключи вступления».'
 
+def device_home_context(devices,device_id,client_id):
+    """Shared configured home only; no GPS, coordinates or private history."""
+    try:
+        scope=devices.scoped_owner(device_id,client_id)
+        weather=devices.profile(scope).weather
+        return {'weather_location_configured':weather.enabled,
+                'weather_location':weather.location_name if weather.enabled else None,
+                'location_basis':'configured_device_home_not_live_gps'}
+    except ValueError:return {'weather_location_configured':False,'location_basis':'device_scope_unavailable'}
+
 def settings_intent(value,context=None):
     """Returns a typed operation; no fuzzy state-changing matches."""
     pending=(context or {}).get('pending_action')
@@ -175,6 +185,8 @@ class SettingsTools:
         if operation=='restricted':return SettingsResult('Расходы, доступ к файлам и семейные права этой голосовой командой не изменены. Для них нужно подтверждение владельца в панели. Обычные настройки звука, экрана и погоды доступны через диалог.')
         if operation=='weather_provider_unavailable':return SettingsResult('Weather.com пока не подключён: нужен ключ официального API The Weather Company. Сейчас работает Open-Meteo с прогнозом до 16 дней. Могу показать его данные.',evidence={'abstained':True,'verified':False,'reason':'provider_not_configured'})
         if operation=='weather_unsupported':
+            if slots.get('reason')=='ambiguous_period':
+                return SettingsResult('На какой день показать погоду: сегодня или завтра?',evidence={'abstained':True,'verified':False,'reason':'weather_ambiguous_period'})
             comparison=slots.get('reason') in {'comparison','multiple_places'}
             text='Сравнение погоды нескольких городов пока не подключено. Можно запросить каждый город отдельно.' if comparison else 'Сейчас доступен дневной прогноз до 16 дней вперёд; почасовой прогноз и историческая погода в GoBot пока не подключены. Могу показать завтра, неделю или 16 дней.'
             return SettingsResult(text,evidence={'abstained':True,'verified':False,'reason':'comparison_not_implemented' if comparison else 'weather_'+slots.get('reason','unsupported')})

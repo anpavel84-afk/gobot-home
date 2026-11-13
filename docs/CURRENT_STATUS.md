@@ -1,5 +1,34 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Hardware B weather-home regression — repair prepared
+
+Latest Owner report was reproduced in the scoped encrypted board journal:
+configured home weather remains enabled/present in the enrolled device profile,
+but B startup omitted the home context which C already supplies. The model also
+replaced the actual question with an explanatory setup paragraph in gobot_tool;
+the strict parser routed that paragraph to unavailable/verification rather than
+weather. This is a product integration failure, not loss of the saved address.
+No household location, transcript, provider IDs or diagnostic DB published.
+
+B now receives the existing city-only home context via a shared scoped helper
+also used by C (same data contract, no GPS/coordinates/private history). Actual
+recognized weather queries take precedence over model paraphrases; pending weather
+query and scoped day/place followups are preserved, unrelated topic clears the
+frame. Read-only weather clarification is admitted without granting settings
+writes. Incomplete temporal suffixes ask for the day rather than assume current
+weather or ask the city; subsequent "tomorrow" continues that clarification.
+An incomplete transcription occurred in the latest trial; this patch does NOT
+claim to fix speech recognition or prove what the native audio model heard.
+
+Free verification:6 targeted real-Brain/fake-provider cases PASS, including
+startup home context/no coordinates/client isolation, model paraphrase replacement,
+day followup, topic reset and incomplete-period continuation.81 native/board/Live
+checks PASS before the final clarification addition;373 weather/parser/handoff
+regressions PASS after it. A read of the actual bound profile confirms configured
+home and city present without exposing its value. No address reset or migration.
+Deployment pending guarded idle backup/restart. Firmware0.4.5 and expense grants
+unchanged; no paid automatic conversation, STT/TTS/CLI or Image call.
+
 ## Fast-start installed and free device checks passed — 2026-11-13
 
 Owner separately approved this specific capture-path firmware and free local

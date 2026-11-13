@@ -4,6 +4,7 @@ Candidate admission is OFF until a separate owner budget exists. This module nev
 invokes Speech, voiced_events or a CLI for an ordinary conversation turn.
 """
 import asyncio,json,time,hashlib,re
+from contextlib import suppress
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
@@ -24,6 +25,7 @@ INSTRUCTIONS=VOICE_STYLE+' '+CONTINUITY+'\n'+RUSSIAN_PRONUNCIATION+'''
 Произвольные файлы, shell, общий веб-браузер и MCP недоступны. Встроенный серверный поиск изображений Wikimedia доступен через visual_request. Не придумывай источники, результаты экспертов или выполненные действия.
 Для часов, таймеров, памяти, погоды, актуальных фактов и настроек вызывай gobot_tool.
 Погодный адаптер Open-Meteo установлен на сервере. Для проверки погоды всегда вызывай gobot_tool, не утверждай заранее, что доступа нет.
+home_context содержит сохранённое домашнее место устройства, а не GPS. Если weather_location_configured=true, погода без указанного города относится к этому месту: не спрашивай город заново и не говори, что местоположение неизвестно. «А завтра?» сохраняет место. В gobot_tool передавай исходную реплику, а не своё объяснение настройки. При обрезанном указании дня уточняй день, не город.
 Если инструмент вернул setup, веди настройку по его текущему шагу: предложи подключение, спроси город, уточни вариант, получи подтверждение и дождись проверки источника. Передавай в gobot_tool настоящую реплику пользователя, включая «да» и название города. Не говори «подключено», пока status не ready. Для этого не нужны shell или домашние датчики.
 До результата не называй непроверенные текущие числа, даты и погоду. Если источник не подключён, честно скажи это.
 Эксперт необязателен. Только сложный разбор или явный запрос конкретного эксперта оправдывает предложение.
@@ -97,6 +99,7 @@ class NativeSession(VoiceVisualSession):
         self.pending_response=False;self.input_mode='ptt';self.live_response=None;self.idle=None
         self.followup_deadline=None;self.last_activity=time.monotonic();self.config=None
         self.timings={'setup_started':0};self.last_scene=None
+        self.weather_topic=False;self.weather_last_request={}
         self.setup_done=False;self.hangup_confirmed=False
         self.access=manager.identity.native(offer)
         chosen_voice=profile.voice.voice or offer.requested_voice
@@ -179,6 +182,8 @@ class NativeSession(VoiceVisualSession):
         packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,req.text,context,'FAST_CHAT')
         # Existing ACL/context builder provides bounded, scoped facts. No development instructions.
         seed={k:packet[k] for k in ('messages','summary','facts','topic','active_visual_subject','runtime_environment') if packet.get(k)}
+        from .settings_tools import device_home_context
+        seed['home_context']=await asyncio.to_thread(device_home_context,self.manager.brain.configuration.devices,self.offer.device_id,self.offer.client_id)
         instructions=INSTRUCTIONS+' Личная память в этом нативном режиме пока закрыта: личность говорящего не подтверждена. Не обещай сохранение настроек или личных фактов.\nКонтекст JSON:\n'+json.dumps(seed,ensure_ascii=False)
         handoff=getattr(self.manager,'legacy_handoff',None)
         if handoff:
@@ -318,6 +323,9 @@ class NativeSession(VoiceVisualSession):
             await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'cancelled' if turn.cancelled else 'incomplete' if turn.truncated else 'completed',turn.answer if not turn.cancelled else '',
                                     'openai:'+self.policy.model,turn.trace)
         from .quick_intents import resolve_quick
+        weather_quick=resolve_quick(text,{'weather_followup':self.weather_topic,'weather_last_request':self.weather_last_request})
+        if not (weather_quick and weather_quick.executor=='settings' and weather_quick.slots.get('operation','').startswith('weather_')):
+            self.weather_topic=False;self.weather_last_request={}
         self.emit('input_transcript',text=text,final=True,confirm_text_allowed=resolve_quick(text,{}) is None)
         handoff=getattr(self.manager,'legacy_handoff',None)
         if handoff and await handoff.request(self,turn,text):return
@@ -554,14 +562,22 @@ class NativeSession(VoiceVisualSession):
                 await self.response();return
             if name!='gobot_tool' or not isinstance(args,dict) or set(args)!={'query'} or not isinstance(args['query'],str) or not 1<=len(args['query'])<=8000:raise ValueError()
             if turn is not self.current or not turn or turn.cancelled:return
-            req=self.request(args['query'],turn.id)
+            if not turn.query and re.search(r'погод|прогноз',args['query'],re.I):
+                with suppress(TimeoutError):await asyncio.wait_for(turn.input_ready.wait(),3)
+            weather_context=await asyncio.to_thread(self.manager.brain.configuration.weather_query_context,self.settings_request(turn.query or args['query'],turn.id))
+            weather_context.update(weather_followup=self.weather_topic,weather_last_request=self.weather_last_request)
+            actual_quick=resolve_quick(turn.query,weather_context) if turn.query else None
+            actual_weather=bool(actual_quick and actual_quick.executor=='settings' and actual_quick.slots.get('operation','').startswith('weather_'))
+            query=turn.query if actual_weather else args['query']
+            req=self.request(query,turn.id)
             context=await asyncio.to_thread(self.manager.brain.memory.context,req)
-            settings_req=self.settings_request(args['query'],turn.id)
+            settings_req=self.settings_request(query,turn.id)
             settings_context=await asyncio.to_thread(self.manager.brain.memory.context,settings_req)
             tool_req=req.model_copy(update={'device_id':'realtime-device:'+self.offer.client_id})
             tool_context=await asyncio.to_thread(self.manager.brain.memory.context,tool_req)
             if tool_context.get('pending_action'):context['pending_action']=tool_context['pending_action']
             if settings_context.get('pending_action'):context['pending_action']=settings_context['pending_action']
+            context.update(weather_context)
             quick=resolve_quick(req.text,context)
             if quick:
                 slots={**quick.slots,'intent':quick.intent,'status':quick.status,'reason':quick.reason}
@@ -578,7 +594,7 @@ class NativeSession(VoiceVisualSession):
                     if not user_quick or comparable(user_quick)!=comparable(quick):
                         raise ValueError('confirmed_user_command_required')
                 if quick.executor=='settings':
-                    if slots.get('operation') in {'weather_current','weather_forecast','weather_status','help'} or self.can_configure_device():
+                    if slots.get('operation') in {'weather_current','weather_forecast','weather_status','weather_unsupported','weather_other_place','weather_query_find','weather_query_choose','weather_query_cancel','weather_provider_unavailable','help'} or self.can_configure_device():
                         def progress(result):
                             if not self.closed and turn is self.current and not turn.cancelled:
                                 self.emit('tool_setup',setup=result.setup)
@@ -586,6 +602,11 @@ class NativeSession(VoiceVisualSession):
                         result=await self.manager.brain.configuration.execute(settings_req,slots,
                             is_current=lambda:not self.closed and turn is self.current and not turn.cancelled,
                             progress=progress)
+                        if slots.get('operation') in {'weather_current','weather_forecast'}:
+                            from .weather_queries import weather_request_context
+                            self.weather_topic=True;self.weather_last_request=weather_request_context(slots)
+                        elif (result.evidence or {}).get('reason')=='weather_ambiguous_period':
+                            self.weather_topic=True;self.weather_last_request={'operation':'weather_current'}
                     else:
                         from .settings_tools import SettingsResult
                         result=SettingsResult('Для изменения настроек этого устройства нужно разрешение владельца. Погодный адаптер установлен; доступ к сети не является причиной отказа.',evidence={'executed':False,'reason':'device_settings_permission_required'})
