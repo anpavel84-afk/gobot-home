@@ -1,5 +1,31 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Activation latency repair — server preparation
+
+Owner reports2–5s after touch before speaking is allowed. Source confirms the
+installed media-ready firmware waits for gateway/provider setup BEFORE enabling
+voice processing. Prior B setup/settings evidence is2.48s in provider clock;
+physical touch-to-capture/answer is not measured. No promise of zero network or
+model latency and no paid standby session/prewarming.
+
+B-only setup now joins and publishes the two independent loopback LiveKit peers
+concurrently with structured cancellation on failure. C keeps its sequential
+default. Numeric cumulative setup marks separate local relay, SDP, provider and
+input readiness. Free evidence:8 real local peer/media scenarios,20 gateway/
+half-duplex regressions and2 concurrency/cancellation fixtures PASS;0 paid calls.
+Gateway deployment pending guarded idle restart; Brain does not need restarting.
+
+An isolated firmware candidate is being built from installed0.4.4 UI source:
+explicit touch starts local capture before TLS/model setup; Opus packets stay
+in bounded local RAM until the EXISTING access/media-ready gates authorize
+upload. Startup cap7.2s, overflow cancels instead of silently dropping initial
+words. Normal streaming queue stays2.4s; no second STT or whole-question recording.
+State/capture are not restarted when setup completes. Local startup skips the
+old120ms discard; pending packet payloads are cleared on finish/new activation.
+This requires separate firmware acceptance; current installed0.4.4 remains intact.
+Physical first-syllable capture, quiet speech, Stop and buffer-overflow handling
+on the device remain NOT_RUN for this candidate. Existing KWS admission unchanged.
+
 ## UI candidate installed on the enrolled Spotpear — 2026-11-13
 
 Owner explicitly approved USB installation of this specific UI-only candidate.

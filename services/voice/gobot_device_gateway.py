@@ -211,6 +211,8 @@ class Gateway:
                 'first_audio_announced' if obj.get('type')=='tts' and obj.get('state')=='start' else None)
             if stage and stage not in self.stats['last_setup_ms']:
                 self.stats['last_setup_ms'][stage]=round((asyncio.get_running_loop().time()-connection_started)*1000,2)
+                if stage=='media_ready' and stream is not None:
+                    self.stats['last_media_setup_ms']=dict(getattr(stream,'setup_ms',{}))
                 self.save_stats()
             await ws.send(json.dumps({**obj, 'session_id': session}, ensure_ascii=False))
             if obj.get('type') == 'tts' and obj.get('state') == 'stop':

@@ -61,7 +61,7 @@ class LocalMediaRelay:
                 self.error.set_exception(t.exception())
         task.add_done_callback(done)
         return task
-    async def connect(self):
+    async def connect(self, *, parallel=False):
         def subscribe(room, expected, name, queue, index, rate):
             @room.on("track_subscribed")
             def subscribed(track,publication,participant):
@@ -73,15 +73,29 @@ class LocalMediaRelay:
                 self.task(self.consume(stream,queue,"input_frames" if index==0 else "output_frames"))
         subscribe(self.brain,self.device_id,"mic",self.input_queue,0,16000)
         subscribe(self.device,self.brain_id,"speaker",self.output_queue,1,24000)
-        await self.device.connect(self.settings["url"],self.token(self.device_id),rtc.RoomOptions(connect_timeout=8))
-        await self.brain.connect(self.settings["url"],self.token(self.brain_id),rtc.RoomOptions(connect_timeout=8))
+        async def join(room, identity):
+            await room.connect(self.settings["url"],self.token(identity),rtc.RoomOptions(connect_timeout=8))
+        if parallel:
+            async with asyncio.TaskGroup() as group:
+                group.create_task(join(self.device,self.device_id))
+                group.create_task(join(self.brain,self.brain_id))
+        else:
+            await join(self.device,self.device_id)
+            await join(self.brain,self.brain_id)
         self.mic=rtc.AudioSource(16000,1,queue_size_ms=100)
         self.speaker=rtc.AudioSource(24000,1,queue_size_ms=100)
         self.sources=[self.mic,self.speaker]
-        for room,source,name in ((self.device,self.mic,"mic"),(self.brain,self.speaker,"speaker")):
+        async def publish(room,source,name):
             track=rtc.LocalAudioTrack.create_audio_track(name,source)
             options=rtc.TrackPublishOptions(source=rtc.TrackSource.SOURCE_MICROPHONE)
             await room.local_participant.publish_track(track,options)
+        if parallel:
+            async with asyncio.TaskGroup() as group:
+                group.create_task(publish(self.device,self.mic,"mic"))
+                group.create_task(publish(self.brain,self.speaker,"speaker"))
+        else:
+            await publish(self.device,self.mic,"mic")
+            await publish(self.brain,self.speaker,"speaker")
         await asyncio.wait_for(asyncio.gather(*(event.wait() for event in self.ready)),8)
     async def consume(self,stream,queue,counter):
         async for item in stream:
