@@ -13,14 +13,20 @@ quota/spend checks; никакие grants/caps не повышены. Отказ
 прежним process manager без их перезапуска.
 Голосовой provider/human acceptance по-прежнему не заявлены. Готовность прежнего
 отчёта относится к text/fixture/browser paths, не к проверенному платному голосу.
-Применение runtime hotfix ожидается после безопасного idle maintenance.
+Hotfix установлен: **be5474fcc33c4b171a5459984a555916fc1a225d**.
+WAL backup `run/night-train/backups/20261113T071057720168Z`; source rollback
+предыдущего runtime4beb530 сохранён. Прежний process manager получил explicit
+adoption существующих проверенных workers: manager process перезапущен без
+остановки workers, затем только Brain/web обновлены. Bridge/Voice/Images/LiveKit/
+board gateway сохранены. HTTPS/clock/real weather smoke PASS, financial rows и
+policies неизменны. Новая реальная speech/API trial не выполнялась.
 
 ## Night Train v1 — действующий web preview
 
 **[Открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next)** ·
 [Утренний отчёт, evidence и откат](night-train-v1/MORNING_REPORT_TEMPLATE.md).
 Branch `codex/hybrid-web-vnext` поверх71dcb18; recovery032e4ea/B сохранены.
-Brain runtime **4beb530ffed6c40adab0541aac030e4688bcea2b**, web source **168faae**.
+Первый Night Train runtime4beb530; актуальный runtime hotfix **be5474f**, web source **168faae**.
 W0–W8 доведены до integrated web candidate: contracts/реестр поверх Quick Intents,
 deterministic preflight/operation IDs, scoped context, SQLite timers, Open-Meteo,
 voice library100/100 и RAM narrator/Web Audio. Owner-only flag не даёт новых quotas.
