@@ -1,5 +1,31 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner correction: expert MODE A is not background ExpertJobs
+
+Owner's latest manual board B trial actually reached Codex CLI SOL_HIGH
+(gpt-6.1-sol/high), completed in about43.74s, recorded CLI usage8442 tokens.
+It was NOT an A mode handover. ExpertJobs buffered the entire result; a subsequent
+short acknowledgment changed the turn revision, making voice_deferred=true.
+The session then closed by followup_timeout. This confirms CLI execution, but
+FAILS spoken-result delivery and FAILS the intended expert-mode acceptance.
+The expert had no web/source tool and returned an honest source abstention;
+fresh-news verification is NOT confirmed. Household text/result/IDs stay private.
+
+Owner clarified the desired route is actual transition into existing mode A:
+close B safely -> retain allowed question/context -> existing streaming CLI /
+SpeechFormatter / sentence-TTS -> subsequent conversation in A. This supersedes
+treating the background ExpertJobs scenario as the requested mode switch.
+Existing ConversationModes/live coordinator and legacy voice stream must be
+reused. Hardware B->A transition is NOT implemented/accepted yet. Do not label
+queued ExpertJobs as "expert mode enabled" or guarantee lower latency from model
+choice. Ordinary task delegation remains a separate operation.
+
+The separate180s B start and one Sol task are consumed, not renewed/refunded.
+Reported B response estimate$0.04088608 excludes transcription and is not the
+$1 reservation or a final invoice. No active B session/pending B hangup remains.
+Original seven minute B starts and C accounting remain untouched. No new paid
+trial, firmware change, runtime deployment or implicit A STT/TTS allowance here.
+
 ## 2026-11-13: separate long B trial / one-phrase wake preparation
 
 **Applied checkpoint:** Brain runtime270f8f782db9b988b9cabead816bc4e0524e5baf,
