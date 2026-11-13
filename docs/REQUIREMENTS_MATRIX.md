@@ -1,6 +1,30 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Night Train v1 — актуальный web-first checkpoint
+
+| Требование | Факт | Evidence/ограничение |
+|---|---|---|
+| W0 preservation | DONE |WAL backup,71dcb18 base, recovery/B сохранены |
+| W1–W2 contracts/router | INTEGRATION_PASS |150 semantic cases; scoped receipts/full-plan preflight |
+| W3 household tools | WEB_READY |Real SQLite/renderer; real weather tomorrow/Saturday |
+| W4 library/player | BROWSER_PASS |100/100 WAV; AudioContext; custom provider NOT_RUN |
+| W5 auth/web/handover | WEB_READY PARTIAL |Owner /device-next; B fixtures; C handover BLOCKED |
+| W6 QA | PASS with gaps |2379 final full +559 targeted; S3 HTTPS; no holdout/acoustics |
+| W7 deployment/rollback | VERIFIED |Runtime4beb530/web168faae; flag preserves ledger |
+| W8 hardware | FIRMWARE_BUILT |0.4.4-night-contract;34% free; NOT_INSTALLED |
+| C incident | PRESERVED/BLOCKED |final=false/reserve60s unchanged |
+| Hardware B | PREPARED/OFF |Separate8×60s/$1; not deployed |
+
+[Фактический отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md). Ниже исторические checkpoint.
+
+
 **Разработка приостановлена владельцем 12 ноября 2026.** Текущая сводка и границы приёмки — [CURRENT_STATUS](CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки). Установлено 0.4.3, Brain 59e1280; исторические строки ниже не означают повторную приёмку.
+
+| Контролируемый C/B: уточнение Owner | Реализация | Проверка / ограничения |
+|---|---|---|
+| C administrative recovery без ложного ACK | e623dde в runtime; append-only orphan, WAL backup, loopback cleanup, Owner risk ACK, 1×60 с/45 минут | Применено; Owner использовал одну сессию, 51 с final usage; исходные строки/неизвестный резерв сохранены, допуск использован |
+| Изоляция нового разговора после recovery | Новые session/conversation, сброс touch context и старого mode flow; прежние квоты сохраняются | Mock manager: HTTP 503 не повторяется, операции старой сессии не запускаются |
+| Аппаратный B | Board NativeSession adapter/router, отдельный ledger/binding, marin/Mini, полудуплекс, device drain ACK, echo guard, существующий hold Stop | Source only; 25 free tests с loopback LiveKit, синтетические peers/ACK. Router не mounted, физическая/платная B приёмка не выполнена |
 
 | Spotpear, 12.11.2026 | Проверено | Открыто |
 |---|---|---|
@@ -15,18 +39,22 @@
 | Журнал колонки | Отдельный диагностический opt-in активен, DPAPI и authenticated owner API проверены на реальном сервере; прямое чтение board запрещено; remember=false не меняется | Старый диалог записан не был; будущие настоящие тексты проверяются в следующей ручной сессии |
 | Разделение данных | Гостевой scope, RAM, отдельный идентификатор, явные допуски | Семейный сценарий на физическом устройстве |
 
+
 Источник требований: [GOBOT_HOME_TARGET_SYSTEM.md](GOBOT_HOME_TARGET_SYSTEM.md), v0.2 `96e0f3d` и новые решения владельца §36–40.
 <details>
 <summary>Историческая матрица и отчёты прежних runtime. Актуальная аппаратная сводка выше, полный обзор — CURRENT_STATUS.</summary>
 
-До синхронизации: чистая master `bd487ff`; после docs-only fast-forward `96e0f3d`.
-Это evidence, не новая спецификация. Обновление стабилизации 10 ноября: baseline 2f0eefc; прежние строки без новых проверок не считаются повторно принятыми.
+История синхронизации: чистая master `bd487ff` → docs-only `96e0f3d`;
+стабилизация 10 ноября начиналась с `2f0eefc`. Эти SHA не обозначают текущий runtime.
+Текущее бытовое расширение: code `7649463e3b82b73b47c040ef56293cdb6ee41b4f` в локальном Git PLAN,
+push не выполнялся в этом этапе; коммиты сохранены на PLAN, runtime `7649463e3b82b73b47c040ef56293cdb6ee41b4f`; deployment/evidence — CURRENT_STATUS §41.
+Это evidence, не новая спецификация. Прежние строки без новых проверок не считаются повторно принятыми.
 Пути к Python-модулям ниже относительно services/brain/gobot; tests — относительно tests/.
 
 | ID | Требование | Фактический статус | Код | Проверка | Пробел |
 |---|---|---|---|---|---|
 | R-001 | Единый Brain для браузера и ESP32 | частично | brain.py Service / voice_mock.py | test_security_ui_protocol.py | ESP32/upstream только fixtures |
-| R-002 | Заменено §36: Realtime Mini — целевой обычный разговор; CLI — legacy и подтверждаемые эксперты | native candidate fixtures + model metadata HTTP 200; default legacy до приёмки | realtime.py / realtime_provider.py / expert_jobs.py / routing.py | test_realtime_native.py / test_realtime_experts.py | Реальные native audio/iPhone и допуск default не проверены |
+| R-002 | Обычный C — GPT-Live/client + утверждённый Luna; A — существующий legacy/экспертный путь; B — прежний Realtime Mini | Owner Direct C↔A; текущие изменения code 7649463e3b82b73b47c040ef56293cdb6ee41b4f, runtime 7649463e3b82b73b47c040ef56293cdb6ee41b4f | live.py / live_backend.py / conversation_modes.py / unified.js | CURRENT_STATUS §§34–41; [runtime-coverage.json](behavior-library-20261111/runtime-coverage.json) | Provider/browser/iPhone текущего изменения учитываются отдельно; Live 1.1 не подтверждён |
 | R-003 | Gemini CLI/API не используются | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
 | R-004 | Native Realtime input; OpenAI STT основной в legacy, Whisper только вручную | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
 | R-005 | Native Realtime output; OpenAI TTS основной в legacy, локальный голос только явно | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
@@ -69,16 +97,16 @@
 | R-042 | Источник/тип изображения и атрибуция сохраняются | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-043 | Генерация не имитируется локальным SVG | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-044 | Ассеты проверяются и кэш ограничен | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
-| R-045 | Tool Executor отделён от текста LLM | fixture, fail-closed | quick_intents.py / routing.py / local_tools.py | test_dialogue_stabilization.py | HA/Music не подключены; action slots проверены до executor |
-| R-046 | Таймеры и напоминания персистентны | fixture + локальное серверное состояние | local_tools.py / memory.py | test_dialogue_stabilization.py / test_timer_duration.py | Целевая отмена проверена на отдельной БД; scheduler напоминаний отсутствует |
-| R-047 | Результат действия подтверждается инструментом | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
+| R-045 | Tool Executor отделён от текста LLM | Bounded parser и реальные исполнители; unavailable по серверному registry, каталог не даёт capability | quick_intents.py / behavior_library.py / skill_catalogue.py / local_tools.py | test_behavior_library.py / test_household_runtime.py / test_household_behavior_acceptance.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не универсальное NLU; music/calendar/smart-home adapters не добавлены |
+| R-046 | Таймеры и напоминания персистентны | Таймеры в SQLite; scoped duration/unit clarification и ordinal snapshot | local_tools.py / memory.py / brain.py / live.py | test_household_runtime.py / test_household_legacy_scope.py / test_timer_duration.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Scheduler напоминаний/будильников отсутствует; имена/пауза/продление/перезапуск не реализованы; due не равен услышанному сигналу |
+| R-047 | Результат действия подтверждается инструментом | Source-backed weather и SQLite timer result; result ID связывает инструмент с карточкой; abstained/unavailable отделены | settings_tools.py / weather.py / local_tools.py / live.py | test_weather_query_context.py / test_household_behavior_acceptance.py / test_household_runtime.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Внешнее IO в новых regression синтетическое; новая акустика и отсутствующие интеграции не доказаны |
 | R-048 | Музыка может воспроизводиться внешним плеером | отсутствует реальная интеграция | integrations.py / visual.py music fallback | test_additional.py | Нужен разрешённый реальный Music Assistant/player |
 | R-049 | Умный дом ограничен whitelist и правами | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
 | R-050 | Host Bridge не является сетевым shell | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
 | R-051 | Реальные model/executable/usage видны в диагностике | частично | brain.py final / browser.js / telemetry.py | test_latency_v02.py / test_agents.py | Usage только доступный от CLI; полного биллинга STT/TTS нет |
-| R-052 | API/события версионированы и идемпотентны | fixture, идемпотентность действия | memory.py / brain.py | test_duplicate_delivery_does_not_repeat_tool | Повтор request_id не создаёт второй таймер; намеренный новый request_id допускается |
+| R-052 | API/события версионированы и идемпотентны | Общая native/delegation operation claim, stale/corrected guards; повтор consumed pending не создаёт таймер; поздний Stop ACK не теряет новый input | live.py / live.js / brain.py / memory.py / local_tools.py | test_live_native_tools.py / test_weather_timer_expansion.py / test_household_behavior_acceptance.py / test_household_legacy_scope.py / live_browser.cjs; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не гарантия любой сетевой доставки; unknown close не принимается за успех; natural barge-in C002 отдельно |
 | R-053 | Ключи и биометрия не попадают в Git/логи/клиент | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
-| R-054 | Временный режим не индексируется постоянно | fixture, RAM pending | memory.py transient_pending / conversation_control.py | test_pending_decline_is_scoped_and_does_not_close_session | Pending с TTL и owner/epoch работает без архива; не переживает restart |
+| R-054 | Временный режим не индексируется постоянно | Погодные места/pending, timer snapshot и C dialogue slots — bounded RAM с client/conversation/epoch scope; pending decline не равен End | settings_tools.py / weather_queries.py / local_tools.py / conversation_control.py / live.py / brain.py | test_weather_query_context.py / test_household_runtime.py / test_household_legacy_scope.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не переживает restart; W069/C004 native private antecedents не интегрированы; debug journal отдельно от semantic memory |
 | R-055 | Восстановление не повторяет опасные действия | fixture + прежний restart test | memory.py recover / scripts/manage.py | test_brain.py / reliability-results.json | Нет нового soak/hardware restart |
 | R-056 | Прошивка только после backup и проверки профиля | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
 | R-057 | Совместимость XiaoZhi проверяется по версии | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
@@ -446,7 +474,7 @@ clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84
 | Естественная команда засечь таймер |250 формулировок + настоящие SQLite timer records; original duration guard preserved | ASR real canaries после отдельного допуска |
 | Счётчик между вопросами и после idle | SceneManager timer state + small overlay; cloud idle не продлевается ради timer | Suspended/closed Safari не системный будильник |
 | Отмена реально прекращает графику | Actual DB cancellation→timer_state IDs→DOM/Canvas | Phone network/acoustics отдельно |
-|400 сценариев | Inventory+free routing checks:100 local/240conditional/60blocked; зависимости явные | Не400 независимых integrations и не доказательство полного parity |
+|400 сценариев | Исторические inventory labels выпуска §37:100 local/240conditional/60blocked; зависимости явные | Не текущий итог runtime traces и не400 независимых integrations; актуальное покрытие — §41 |
 | Расход новых trials конечный | Отдельное3Live/180s/10Luna/$2estimate; server grants preserve counters | Финальные фактические usage/результаты фиксируются после canaries |
 
 Реальные canaries97d64be: timer5s/widget/expiry, tomorrow forecast card + начало
@@ -483,9 +511,11 @@ null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отд
 
 ### Домашние продолжения — CURRENT_STATUS §39
 
+История выпуска §39; последующее расширение временного города/слотов и проверки — §41 ниже.
+
 | Требование | Реализация | Граница |
 | --- | --- | --- |
-| Без города — домашнее место | Scoped saved DeviceStore + compact home_context | Не GPS телефона/не guessed IP; если нет настройки — Setup |
+| Без города — домашнее место | Scoped saved DeviceStore + compact home_context | Не GPS/IP; после §41 при отсутствии home read-only запрос уточняет разовый город, а Setup вызывается явно |
 | «Хорошо…завтра», «там же», «а ветер?» | Weather-only wrapper parsing + last request slots | Только активная тема/сессия, не чужой профиль |
 | Источник вместо догадки | Existing WeatherClient/SettingsTools, source-backed cards/voice text | Реальные2free HTTP, Live speech после фикса отдельно |
 | Правила домашних разговоров |10reviewed rules в существующем400catalogue, используются Live | Не400working integrations, правила не заменяют ACL |
@@ -506,5 +536,44 @@ current/tomorrow2calls; paid developer0. Все существующие policy/
 | Управление записью | Existing Owner Full Test, включение/1..7дней/удаление | Отдельное согласие владельца; remember=false не индексирует диалоги |
 | Не задерживать голос | Bounded background writer, health/dropped events | Не lossless при сбое процесса/диска/переполнении |
 | Разбор отказа погоды | Конкретный reason, verified=false, invalid-cache eviction | Старый незаписанный инцидент не реконструирован |
+
+### Бытовое поведение и текущая P0-приёмка — CURRENT_STATUS §41
+
+Код `7649463e3b82b73b47c040ef56293cdb6ee41b4f` в локальном Git PLAN; push не выполнялся в этом этапе; коммиты сохранены на PLAN;
+фактический runtime `7649463e3b82b73b47c040ef56293cdb6ee41b4f`, развёртывание завершено; startup pin проверен через authenticated Brain status, 14 исходников совпадают с code commit.
+Старые SHA и результаты выше сохранены как история отдельных выпусков.
+Актуальные coverage/traces:
+[runtime-coverage.json](behavior-library-20261111/runtime-coverage.json),
+[runtime-traces.json](behavior-library-20261111/runtime-traces.json);
+deployment/HTTP — [runtime-check.json](behavior-library-20261111/runtime-check.json).
+Подробный scope — [CURRENT_STATUS §41](CURRENT_STATUS.md#41-бытовое-поведение-временная-погода-уточнения-и-проверяемые-действия).
+
+| Требование | Реализация текущего этапа | Граница проверки / зависимость |
+| --- | --- | --- |
+| Разовый город не меняет home | Query find/choose/cancel отделены от явного home setup; без home задаётся один вопрос | 28 weather-context tests passed; профильные P0 contracts — в runtime-coverage.json; сохранение дома требует owner confirmation/source check |
+| Place/date/timezone/metric продолжения | Scoped RAM/TTL/opaque ref, канонизация actual result, проверенные поля формируют speech/card | 28 weather-context tests passed; профильные P0 contracts — в runtime-coverage.json; source HTTP в regression синтетический; полный absolute/hourly/history интерфейс не заявлен |
+| Источник не подменяется выдуманным результатом | Конкретные timeout/rate-limit/unavailable/validation reasons, no retry, stale-result guard | offline source-failure/replay cases passed в полном gate; это не новая real provider приёмка |
+| Таймер уточняет недостающее один раз | Scoped quantity+unit pending и единый timer namespace в native C/unified A | 6 runtime и 6 unified-A scope tests passed; T001–T010 contracts passed; реальный Brain/SQLite, не акустика |
+| Номер таймера относится к показанному списку | Snapshot IDs/deadline order/TTL/client/conversation/epoch; потеря binding требует уточнения | server snapshot/TTL/client/epoch regressions passed в полном gate; имена, пауза и изменение длительности не добавлены |
+| Отказ и завершение различаются | Server pending ID/namespace, pending decline сохраняет разговор; End/STOP имеет прежнюю отдельную семантику | pending decline и namespace regressions passed в полном gate; не обещание понимания любой разговорной формы |
+| Stop/ACK не теряет новую реплику | Повторный playback_cleared сохраняет inputAfterStop; нет echo command; кнопка Stop сохраняет mic/session | production live_browser.cjs прошёл внутри test_live.py; live_browser.cjs с fake media/network, не natural barge-in/iPhone и не закрытие C002 |
+| Библиотека компактна и не предоставляет права | Исходные IDs, validated companion, ≤4 rules/1200 chars; Luna ≤1000 chars в том же token count | 24 behavior-library tests passed; provider-count fixture включает compact rules; 400 inventory +120 chains не равны 520 работающим интеграциям |
+| Неподключённое действие не подтверждается | Bounded full grammar + реальный callable registry; цитата/отрицание/обсуждение не исполняются | guard/negative/quote/registry fixtures passed; 243 прежних quality-router tests passed; registry не отменяет ACL, внешние adapters нужны отдельно |
+| Native C исполняет действие однократно | Общие operation claim/executor, input-end/answer gate, actual result ID/stale guards | 52 P0 passed; оставшиеся четыре positive contracts явно blocked; provider IO синтетическое, новых paid retries нет |
+| Unified A сохраняет tool scope | ASGI→Brain/SQLite проверяет settings/timer/weather_query pending, client/epoch/ordinal binding | 6 real-ASGI unified-A scope tests passed; speech/CLI/iPhone E2E и полная C↔A weather-ellipsis parity не заявлены |
+
+| Case | Явный blocker | Учёт результата |
+| --- | --- | --- |
+| W018 | Нет bounded two-place weather executor | `blocked:not_implemented`; реальный отказ без source/home effects проверяется, positive contract остаётся xfail |
+| W069 | Нет авторизованного native C private-weather antecedent | `blocked:not_implemented`; fixture grant не заменяет integration/ACL; общая scope isolation проверяется отдельно |
+| C004 | Нет приватной calendar integration/pending в native C | `blocked:not_implemented`; общий epoch reset не является полным сценарием календаря |
+| C002 | Нет достаточного client playback/voice evidence для natural interruption/rephrase | `blocked:client_evidence_required`; Stop/ACK unit не превращает его в pass |
+
+P0: **52 passed / 0 failed / 3 skipped / 1 xfailed из 56**.
+Full gate: **2078 passed / 0 failed / 3 skipped / 1 xfailed; 118 subtests passed; 208.89 s**. Provider/browser/iPhone/hardware:
+Новые provider, настоящий браузер с audio и iPhone/ESP32 проверки: not_run. Production JS выполнялся в Node с fake media/network; Canvas — offline Skia. Это не новая акустическая приёмка. `specified`, `implemented`,
+`offline_pass`, `provider_verified`, `browser_verified`,
+`iphone_acoustic_verified`, `hardware_verified` учитываются отдельно.
+Xfail/skip не включаются в число положительно прошедших сценариев.
 
 </details>

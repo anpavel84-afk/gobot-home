@@ -1,0 +1,103 @@
+{
+  "package": "GoBot_Home_Scenarios_v1",
+  "schema_version": 1,
+  "authored_date": "2026-11-11",
+  "timezone": "America/Sao_Paulo",
+  "source_commit": "effd1ff7be7150683ffacb0fa69934fd46142e87",
+  "intent": "implementation_specification_for_existing_Brain",
+  "counts": {
+    "inventory": 400,
+    "dialogue_cases": 120,
+    "utterance_examples": 1200,
+    "response_examples": 800,
+    "shared_rules": 36
+  },
+  "runtime_verified": false,
+  "files": [
+    {
+      "name": "ARTIFACT_QA.json",
+      "size_bytes": 465,
+      "sha256": "4ef1b1f52581a26f481611970821fae7bfb7afe913613ed0978f3b08017d2189"
+    },
+    {
+      "name": "CATALOGUE.html",
+      "size_bytes": 2279247,
+      "sha256": "278ce0d3fb239ef728d9dbd099b7d9b7edab4532a5a086360940412a047baad7"
+    },
+    {
+      "name": "CODEX_TASK.md",
+      "size_bytes": 12878,
+      "sha256": "065776f79fd8e5e412ff08b65dcfde384efa6888d9343fa787a398522a2c4e2a"
+    },
+    {
+      "name": "COMPETITOR_AUDIT.md",
+      "size_bytes": 12051,
+      "sha256": "c01173d9387d86e000201fa7f9fb87b03ad2afac63cd81f5bece9118b644599e"
+    },
+    {
+      "name": "README.md",
+      "size_bytes": 34534,
+      "sha256": "1add4179c2be1eeda6811c0d2db68ea8145c1a80006b635701f7fd8c3ea564de"
+    },
+    {
+      "name": "SOURCE_AUDIT.md",
+      "size_bytes": 17610,
+      "sha256": "d88027f3114b248c4e102874b3befe28676ce59e633a376436c752819e0ecc38"
+    },
+    {
+      "name": "VALIDATION.json",
+      "size_bytes": 1061,
+      "sha256": "b19fc6b43801cee5133faeadb4ea9a4d23646641f613e2cb9f47b22826c364ca"
+    },
+    {
+      "name": "capability-map.json",
+      "size_bytes": 5129,
+      "sha256": "8bbc9686da0e1ace0bbe020e390e7bb3d908fc1d2c6315b56bc551f38165f344"
+    },
+    {
+      "name": "check_trace.py",
+      "size_bytes": 2628,
+      "sha256": "0216054d6ba7f9ecdd854d46dec904627409266814a53d47472a4c8e8aff71eb"
+    },
+    {
+      "name": "dialogue-case.schema.json",
+      "size_bytes": 2110,
+      "sha256": "f525e9b18ef1460ecbac9df723e4c92af67ff084ca983578df447abd2a1861cc"
+    },
+    {
+      "name": "dialogue-cases.json",
+      "size_bytes": 248997,
+      "sha256": "392f28c50f046e7dfa8e7faae887fa6f25f600d054f96436ca472621ad5130ff"
+    },
+    {
+      "name": "dialogue-rules.json",
+      "size_bytes": 10174,
+      "sha256": "b0f535f4e12f1890bf5deeaec9a4b27860b39aa7e347e49477c7d1f39da5d4b8"
+    },
+    {
+      "name": "fixtures.json",
+      "size_bytes": 24964,
+      "sha256": "fc02c45dcb5ae57b7ccebaeb00eaf9827084f533e25a70965b71a11c7ed958c4"
+    },
+    {
+      "name": "scenario-library.json",
+      "size_bytes": 1968061,
+      "sha256": "8850c883945e7b1c17ede3f2fb4e2f74f4860090068ab2cd8c88772b2d3a2f0e"
+    },
+    {
+      "name": "scenario.schema.json",
+      "size_bytes": 3723,
+      "sha256": "682ea6b9fba46fdac22c70eec9829ab5f6c8f399c0dd65b970774640e0ec3644"
+    },
+    {
+      "name": "source-inventory.json",
+      "size_bytes": 192527,
+      "sha256": "b12552b5d321ef4ae5344fa8049acbfd564db3fbe32da71aec9529e02a1b54a8"
+    },
+    {
+      "name": "validate_package.py",
+      "size_bytes": 5569,
+      "sha256": "593bc177b28bc51635daf93ac0e664754242efad6ca71126ffd7fdf2174315cf"
+    }
+  ]
+}

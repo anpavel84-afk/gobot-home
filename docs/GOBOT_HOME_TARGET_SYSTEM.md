@@ -1,5 +1,12 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Owner amendment Night Train v1:** [утверждённая web-first архитектура](night-train-v1/TARGET_SYSTEM_VNEXT.md)
+дополняет этот паспорт: deterministic household routing до открытия модели, общий
+Brain, voice library/narrator, scoped approval/replay и ручные B/C transitions.
+Preview не заменяет старые modes и не расширяет budgets. Реальная готовность —
+[CURRENT_STATUS](CURRENT_STATUS.md) и [утренний отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md).
+
+
 **Версия:** 0.5 DRAFT — единый разговор C ↔ A и графический язык владельца; не v1.0
 **Дата:** 11 ноября 2026 года
 **Статус:** DRAFT FOR REVIEW — вся спецификация ещё не утверждена как v1.0; четыре корректировки v0.2 согласованы владельцем  
@@ -10,6 +17,27 @@
 **Единый документ:** `docs/GOBOT_HOME_TARGET_SYSTEM.md`  
 **Проверенная база кода для этой редакции:** `bd487fff1e6cb88cdc34e3fc53ebd15dbde1cb11`  
 **Источник v0.1:** `main@fb4034946cc542d63251e5de6ab506dc2cf4fac8`, blob `27120a30362ebae70609e6932580faa133633afa`.
+
+**Owner amendment, Controlled C/B recovery:** неизвестное terminal usage не
+подменяется успешным close и не удаляется. После проверенного освобождения
+локальных ресурсов можно отдельно записать `orphaned_unconfirmed` и получить
+явный административный Owner ACK на риск неизвестного прежнего расхода.
+Ограниченное по scope/count/expiry согласование разрешает новые ручные сессии
+в пределах существующего бюджета, с новой provider history и без повтора
+инструментов старой сессии. Оно не является provider ACK, не подтверждает
+окончательную стоимость и не разрешает автоматические платные повторения.
+Эталонный C/firmware меняются только после отдельной приёмки.
+
+**Owner amendment, аппаратное сравнение B:** B использует существующий Brain и
+прошивку 0.4.3 через изолированный Realtime Mini/marin adapter, отдельные ledger
+и device binding. Полудуплекс Listening → Thinking → Speaking → Listening:
+generation_done не заменяет device playback drain ACK; input открывается после
+очистки очередей и echo guard, без автоматического barge-in. Stop — существующее
+удержание; новое поведение короткого tap без прошивки не обещается. Контрольный
+допуск B: 8 ручных сессий до 60 секунд, 8 ответов до 512 output tokens, отдельная
+асинхронная gpt-transcribe, $1 оценочного allowance без абсолютной гарантии invoice.
+C finalization incident не расходует/блокирует B budget; общий активный audio lease
+сохраняется. Опциональный B router подключается только в принятом deployment.
 
 **Приоритет новых решений:** §36–37 заменяют конфликтующие правила v0.2 об основном CLI-разговоре. Историческая база выше не является командой отката; фактическая база этого прохода — `master@b09f2f369eb183f22b47fa72b4018324b1aa8c0d` с сохранённой незавершённой работой голосовых настроек. Фактический runtime и проверки — только в CURRENT_STATUS.md.
 

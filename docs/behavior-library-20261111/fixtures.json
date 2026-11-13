@@ -1,0 +1,720 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "id": "synthetic_home_v1",
+      "synthetic": true,
+      "description": "Все числа, IDs, пользователи и состояния вымышленные тестовые данные. Не загружать как реальные домашние настройки.",
+      "clock_utc": "2026-11-11T23:00:00Z",
+      "locale": "ru-RU",
+      "mode": "C",
+      "device_id": "device_a",
+      "principal_id": "fixture_owner",
+      "profile_epoch": 1,
+      "identity_scope": "guest",
+      "home_place_id": "home",
+      "timezone": "America/Sao_Paulo",
+      "active_domain": null,
+      "remember": false,
+      "can_configure_device": true,
+      "places": {
+        "home": {
+          "display_name": "Сан-Паулу",
+          "timezone": "America/Sao_Paulo"
+        },
+        "rio": {
+          "display_name": "Рио-де-Жанейро",
+          "timezone": "America/Sao_Paulo"
+        },
+        "lisbon": {
+          "display_name": "Лиссабон",
+          "timezone": "Europe/Lisbon"
+        },
+        "moscow": {
+          "display_name": "Москва",
+          "timezone": "Europe/Moscow"
+        },
+        "new_york": {
+          "display_name": "Нью-Йорк",
+          "timezone": "America/New_York"
+        },
+        "springfield_il": {
+          "display_name": "Спрингфилд, Иллинойс",
+          "timezone": "America/Chicago"
+        },
+        "springfield_ma": {
+          "display_name": "Спрингфилд, Массачусетс",
+          "timezone": "America/New_York"
+        },
+        "santa_cruz_bo": {
+          "display_name": "Санта-Крус-де-ла-Сьерра, Боливия",
+          "country": "BO",
+          "timezone": "America/La_Paz"
+        },
+        "santa_cruz_es": {
+          "display_name": "Санта-Крус-де-Тенерифе, Испания",
+          "country": "ES",
+          "timezone": "Atlantic/Canary"
+        },
+        "polar_fixture": {
+          "display_name": "Синтетическая полярная станция",
+          "country": "AQ",
+          "timezone": "Antarctica/McMurdo"
+        }
+      },
+      "weather_fixture": {
+        "source": "synthetic_open_meteo_shape",
+        "result_id": "home-20261111",
+        "fetched_at": "2026-11-11T22:59:30Z",
+        "current": {
+          "temperature_c": 22,
+          "relative_humidity_percent": 65,
+          "wind_speed_kmh": 18,
+          "weather_code": 2
+        },
+        "daily": [
+          {
+            "date": "2026-11-11",
+            "temperature_min_c": 18,
+            "temperature_max_c": 25,
+            "precipitation_probability_percent": 20,
+            "precipitation_sum_mm": 0.0,
+            "wind_speed_kmh": 18,
+            "wind_gust_kmh": 27
+          },
+          {
+            "date": "2026-11-12",
+            "temperature_min_c": 19,
+            "temperature_max_c": 26,
+            "precipitation_probability_percent": 27,
+            "precipitation_sum_mm": 0.7,
+            "wind_speed_kmh": 19,
+            "wind_gust_kmh": 28
+          },
+          {
+            "date": "2026-11-13",
+            "temperature_min_c": 20,
+            "temperature_max_c": 27,
+            "precipitation_probability_percent": 34,
+            "precipitation_sum_mm": 1.4,
+            "wind_speed_kmh": 20,
+            "wind_gust_kmh": 29
+          },
+          {
+            "date": "2026-11-14",
+            "temperature_min_c": 21,
+            "temperature_max_c": 28,
+            "precipitation_probability_percent": 41,
+            "precipitation_sum_mm": 2.1,
+            "wind_speed_kmh": 21,
+            "wind_gust_kmh": 30
+          },
+          {
+            "date": "2026-11-15",
+            "temperature_min_c": 18,
+            "temperature_max_c": 29,
+            "precipitation_probability_percent": 48,
+            "precipitation_sum_mm": 2.8,
+            "wind_speed_kmh": 22,
+            "wind_gust_kmh": 31
+          },
+          {
+            "date": "2026-11-16",
+            "temperature_min_c": 19,
+            "temperature_max_c": 25,
+            "precipitation_probability_percent": 55,
+            "precipitation_sum_mm": 3.5,
+            "wind_speed_kmh": 23,
+            "wind_gust_kmh": 32
+          },
+          {
+            "date": "2026-11-17",
+            "temperature_min_c": 20,
+            "temperature_max_c": 26,
+            "precipitation_probability_percent": 62,
+            "precipitation_sum_mm": 4.2,
+            "wind_speed_kmh": 24,
+            "wind_gust_kmh": 33
+          },
+          {
+            "date": "2026-11-18",
+            "temperature_min_c": 21,
+            "temperature_max_c": 27,
+            "precipitation_probability_percent": 69,
+            "precipitation_sum_mm": 4.9,
+            "wind_speed_kmh": 25,
+            "wind_gust_kmh": 34
+          },
+          {
+            "date": "2026-11-19",
+            "temperature_min_c": 18,
+            "temperature_max_c": 28,
+            "precipitation_probability_percent": 76,
+            "precipitation_sum_mm": 5.6,
+            "wind_speed_kmh": 26,
+            "wind_gust_kmh": 35
+          },
+          {
+            "date": "2026-11-20",
+            "temperature_min_c": 19,
+            "temperature_max_c": 29,
+            "precipitation_probability_percent": 83,
+            "precipitation_sum_mm": 6.3,
+            "wind_speed_kmh": 27,
+            "wind_gust_kmh": 36
+          },
+          {
+            "date": "2026-11-21",
+            "temperature_min_c": 20,
+            "temperature_max_c": 25,
+            "precipitation_probability_percent": 90,
+            "precipitation_sum_mm": 7.0,
+            "wind_speed_kmh": 28,
+            "wind_gust_kmh": 37
+          },
+          {
+            "date": "2026-11-22",
+            "temperature_min_c": 21,
+            "temperature_max_c": 26,
+            "precipitation_probability_percent": 97,
+            "precipitation_sum_mm": 7.7,
+            "wind_speed_kmh": 29,
+            "wind_gust_kmh": 38
+          },
+          {
+            "date": "2026-11-23",
+            "temperature_min_c": 18,
+            "temperature_max_c": 27,
+            "precipitation_probability_percent": 4,
+            "precipitation_sum_mm": 8.4,
+            "wind_speed_kmh": 30,
+            "wind_gust_kmh": 39
+          },
+          {
+            "date": "2026-11-24",
+            "temperature_min_c": 19,
+            "temperature_max_c": 28,
+            "precipitation_probability_percent": 11,
+            "precipitation_sum_mm": 9.1,
+            "wind_speed_kmh": 31,
+            "wind_gust_kmh": 40
+          },
+          {
+            "date": "2026-11-25",
+            "temperature_min_c": 20,
+            "temperature_max_c": 29,
+            "precipitation_probability_percent": 18,
+            "precipitation_sum_mm": 9.8,
+            "wind_speed_kmh": 32,
+            "wind_gust_kmh": 41
+          },
+          {
+            "date": "2026-11-26",
+            "temperature_min_c": 21,
+            "temperature_max_c": 25,
+            "precipitation_probability_percent": 25,
+            "precipitation_sum_mm": 10.5,
+            "wind_speed_kmh": 33,
+            "wind_gust_kmh": 42
+          }
+        ]
+      },
+      "capabilities": {
+        "timer_basic": true,
+        "timer_named": false,
+        "timer_pause": false,
+        "timer_extend": false,
+        "alarm": false,
+        "reminder": false,
+        "calendar": false,
+        "music": false,
+        "smart_home": false,
+        "marine_weather": false
+      },
+      "active_timer_ids": [],
+      "timers": [],
+      "provider_requests": 0,
+      "notes": [
+        "given_overrides задаёт условия конкретного кейса; рекурсивно объединяется с fixture, массивы заменяются.",
+        "Все time-shift cases содержат новый weather_fixture.fetched_at и нужные daily dates. Для иной явно запрошенной зоны генератор тестового адаптера делает date slice по timezone места.",
+        "capabilities=true в отдельном кейсе означает будущий fake adapter, не факт готовности реализации.",
+        "role/device/profile events должны быть воспроизведены adapter, а не добавлены в prompt как слова пользователя.",
+        "weather_override содержит явные данные конкретной проверки и накладывается на выбранный weather response.",
+        "Счётчики provider_requests относятся только к запросам погодного источника; geocoder считается отдельно."
+      ],
+      "weather_responses_by_place": {
+        "home": {
+          "source": "synthetic_open_meteo_shape",
+          "result_id": "home-20261111",
+          "fetched_at": "2026-11-11T22:59:30Z",
+          "current": {
+            "temperature_c": 22,
+            "relative_humidity_percent": 65,
+            "wind_speed_kmh": 18,
+            "weather_code": 2
+          },
+          "daily": [
+            {
+              "date": "2026-11-11",
+              "temperature_min_c": 18,
+              "temperature_max_c": 25,
+              "precipitation_probability_percent": 20,
+              "precipitation_sum_mm": 0.0,
+              "wind_speed_kmh": 18,
+              "wind_gust_kmh": 27
+            },
+            {
+              "date": "2026-11-12",
+              "temperature_min_c": 19,
+              "temperature_max_c": 26,
+              "precipitation_probability_percent": 27,
+              "precipitation_sum_mm": 0.7,
+              "wind_speed_kmh": 19,
+              "wind_gust_kmh": 28
+            },
+            {
+              "date": "2026-11-13",
+              "temperature_min_c": 20,
+              "temperature_max_c": 27,
+              "precipitation_probability_percent": 34,
+              "precipitation_sum_mm": 1.4,
+              "wind_speed_kmh": 20,
+              "wind_gust_kmh": 29
+            },
+            {
+              "date": "2026-11-14",
+              "temperature_min_c": 21,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 41,
+              "precipitation_sum_mm": 2.1,
+              "wind_speed_kmh": 21,
+              "wind_gust_kmh": 30
+            },
+            {
+              "date": "2026-11-15",
+              "temperature_min_c": 18,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 48,
+              "precipitation_sum_mm": 2.8,
+              "wind_speed_kmh": 22,
+              "wind_gust_kmh": 31
+            },
+            {
+              "date": "2026-11-16",
+              "temperature_min_c": 19,
+              "temperature_max_c": 25,
+              "precipitation_probability_percent": 55,
+              "precipitation_sum_mm": 3.5,
+              "wind_speed_kmh": 23,
+              "wind_gust_kmh": 32
+            },
+            {
+              "date": "2026-11-17",
+              "temperature_min_c": 20,
+              "temperature_max_c": 26,
+              "precipitation_probability_percent": 62,
+              "precipitation_sum_mm": 4.2,
+              "wind_speed_kmh": 24,
+              "wind_gust_kmh": 33
+            },
+            {
+              "date": "2026-11-18",
+              "temperature_min_c": 21,
+              "temperature_max_c": 27,
+              "precipitation_probability_percent": 69,
+              "precipitation_sum_mm": 4.9,
+              "wind_speed_kmh": 25,
+              "wind_gust_kmh": 34
+            },
+            {
+              "date": "2026-11-19",
+              "temperature_min_c": 18,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 76,
+              "precipitation_sum_mm": 5.6,
+              "wind_speed_kmh": 26,
+              "wind_gust_kmh": 35
+            },
+            {
+              "date": "2026-11-20",
+              "temperature_min_c": 19,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 83,
+              "precipitation_sum_mm": 6.3,
+              "wind_speed_kmh": 27,
+              "wind_gust_kmh": 36
+            },
+            {
+              "date": "2026-11-21",
+              "temperature_min_c": 20,
+              "temperature_max_c": 25,
+              "precipitation_probability_percent": 90,
+              "precipitation_sum_mm": 7.0,
+              "wind_speed_kmh": 28,
+              "wind_gust_kmh": 37
+            },
+            {
+              "date": "2026-11-22",
+              "temperature_min_c": 21,
+              "temperature_max_c": 26,
+              "precipitation_probability_percent": 97,
+              "precipitation_sum_mm": 7.7,
+              "wind_speed_kmh": 29,
+              "wind_gust_kmh": 38
+            },
+            {
+              "date": "2026-11-23",
+              "temperature_min_c": 18,
+              "temperature_max_c": 27,
+              "precipitation_probability_percent": 4,
+              "precipitation_sum_mm": 8.4,
+              "wind_speed_kmh": 30,
+              "wind_gust_kmh": 39
+            },
+            {
+              "date": "2026-11-24",
+              "temperature_min_c": 19,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 11,
+              "precipitation_sum_mm": 9.1,
+              "wind_speed_kmh": 31,
+              "wind_gust_kmh": 40
+            },
+            {
+              "date": "2026-11-25",
+              "temperature_min_c": 20,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 18,
+              "precipitation_sum_mm": 9.8,
+              "wind_speed_kmh": 32,
+              "wind_gust_kmh": 41
+            },
+            {
+              "date": "2026-11-26",
+              "temperature_min_c": 21,
+              "temperature_max_c": 25,
+              "precipitation_probability_percent": 25,
+              "precipitation_sum_mm": 10.5,
+              "wind_speed_kmh": 33,
+              "wind_gust_kmh": 42
+            }
+          ]
+        },
+        "rio": {
+          "source": "synthetic_open_meteo_shape",
+          "result_id": "rio-20261111",
+          "fetched_at": "2026-11-11T22:59:30Z",
+          "current": {
+            "temperature_c": 25,
+            "relative_humidity_percent": 65,
+            "wind_speed_kmh": 18,
+            "weather_code": 2
+          },
+          "daily": [
+            {
+              "date": "2026-11-11",
+              "temperature_min_c": 21,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 20,
+              "precipitation_sum_mm": 0.0,
+              "wind_speed_kmh": 18,
+              "wind_gust_kmh": 27
+            },
+            {
+              "date": "2026-11-12",
+              "temperature_min_c": 22,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 27,
+              "precipitation_sum_mm": 0.7,
+              "wind_speed_kmh": 19,
+              "wind_gust_kmh": 28
+            },
+            {
+              "date": "2026-11-13",
+              "temperature_min_c": 23,
+              "temperature_max_c": 30,
+              "precipitation_probability_percent": 34,
+              "precipitation_sum_mm": 1.4,
+              "wind_speed_kmh": 20,
+              "wind_gust_kmh": 29
+            },
+            {
+              "date": "2026-11-14",
+              "temperature_min_c": 24,
+              "temperature_max_c": 31,
+              "precipitation_probability_percent": 41,
+              "precipitation_sum_mm": 2.1,
+              "wind_speed_kmh": 21,
+              "wind_gust_kmh": 30
+            },
+            {
+              "date": "2026-11-15",
+              "temperature_min_c": 21,
+              "temperature_max_c": 32,
+              "precipitation_probability_percent": 48,
+              "precipitation_sum_mm": 2.8,
+              "wind_speed_kmh": 22,
+              "wind_gust_kmh": 31
+            },
+            {
+              "date": "2026-11-16",
+              "temperature_min_c": 22,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 55,
+              "precipitation_sum_mm": 3.5,
+              "wind_speed_kmh": 23,
+              "wind_gust_kmh": 32
+            },
+            {
+              "date": "2026-11-17",
+              "temperature_min_c": 23,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 62,
+              "precipitation_sum_mm": 4.2,
+              "wind_speed_kmh": 24,
+              "wind_gust_kmh": 33
+            },
+            {
+              "date": "2026-11-18",
+              "temperature_min_c": 24,
+              "temperature_max_c": 30,
+              "precipitation_probability_percent": 69,
+              "precipitation_sum_mm": 4.9,
+              "wind_speed_kmh": 25,
+              "wind_gust_kmh": 34
+            },
+            {
+              "date": "2026-11-19",
+              "temperature_min_c": 21,
+              "temperature_max_c": 31,
+              "precipitation_probability_percent": 76,
+              "precipitation_sum_mm": 5.6,
+              "wind_speed_kmh": 26,
+              "wind_gust_kmh": 35
+            },
+            {
+              "date": "2026-11-20",
+              "temperature_min_c": 22,
+              "temperature_max_c": 32,
+              "precipitation_probability_percent": 83,
+              "precipitation_sum_mm": 6.3,
+              "wind_speed_kmh": 27,
+              "wind_gust_kmh": 36
+            },
+            {
+              "date": "2026-11-21",
+              "temperature_min_c": 23,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 90,
+              "precipitation_sum_mm": 7.0,
+              "wind_speed_kmh": 28,
+              "wind_gust_kmh": 37
+            },
+            {
+              "date": "2026-11-22",
+              "temperature_min_c": 24,
+              "temperature_max_c": 29,
+              "precipitation_probability_percent": 97,
+              "precipitation_sum_mm": 7.7,
+              "wind_speed_kmh": 29,
+              "wind_gust_kmh": 38
+            },
+            {
+              "date": "2026-11-23",
+              "temperature_min_c": 21,
+              "temperature_max_c": 30,
+              "precipitation_probability_percent": 4,
+              "precipitation_sum_mm": 8.4,
+              "wind_speed_kmh": 30,
+              "wind_gust_kmh": 39
+            },
+            {
+              "date": "2026-11-24",
+              "temperature_min_c": 22,
+              "temperature_max_c": 31,
+              "precipitation_probability_percent": 11,
+              "precipitation_sum_mm": 9.1,
+              "wind_speed_kmh": 31,
+              "wind_gust_kmh": 40
+            },
+            {
+              "date": "2026-11-25",
+              "temperature_min_c": 23,
+              "temperature_max_c": 32,
+              "precipitation_probability_percent": 18,
+              "precipitation_sum_mm": 9.8,
+              "wind_speed_kmh": 32,
+              "wind_gust_kmh": 41
+            },
+            {
+              "date": "2026-11-26",
+              "temperature_min_c": 24,
+              "temperature_max_c": 28,
+              "precipitation_probability_percent": 25,
+              "precipitation_sum_mm": 10.5,
+              "wind_speed_kmh": 33,
+              "wind_gust_kmh": 42
+            }
+          ]
+        },
+        "moscow": {
+          "source": "synthetic_open_meteo_shape",
+          "result_id": "moscow-20261111",
+          "fetched_at": "2026-11-11T22:59:30Z",
+          "current": {
+            "temperature_c": 12,
+            "relative_humidity_percent": 65,
+            "wind_speed_kmh": 18,
+            "weather_code": 2
+          },
+          "daily": [
+            {
+              "date": "2026-11-12",
+              "temperature_min_c": 8,
+              "temperature_max_c": 15,
+              "precipitation_probability_percent": 20,
+              "precipitation_sum_mm": 0.0,
+              "wind_speed_kmh": 18,
+              "wind_gust_kmh": 27
+            },
+            {
+              "date": "2026-11-13",
+              "temperature_min_c": 9,
+              "temperature_max_c": 16,
+              "precipitation_probability_percent": 27,
+              "precipitation_sum_mm": 0.7,
+              "wind_speed_kmh": 19,
+              "wind_gust_kmh": 28
+            },
+            {
+              "date": "2026-11-14",
+              "temperature_min_c": 10,
+              "temperature_max_c": 17,
+              "precipitation_probability_percent": 34,
+              "precipitation_sum_mm": 1.4,
+              "wind_speed_kmh": 20,
+              "wind_gust_kmh": 29
+            },
+            {
+              "date": "2026-11-15",
+              "temperature_min_c": 11,
+              "temperature_max_c": 18,
+              "precipitation_probability_percent": 41,
+              "precipitation_sum_mm": 2.1,
+              "wind_speed_kmh": 21,
+              "wind_gust_kmh": 30
+            },
+            {
+              "date": "2026-11-16",
+              "temperature_min_c": 8,
+              "temperature_max_c": 19,
+              "precipitation_probability_percent": 48,
+              "precipitation_sum_mm": 2.8,
+              "wind_speed_kmh": 22,
+              "wind_gust_kmh": 31
+            },
+            {
+              "date": "2026-11-17",
+              "temperature_min_c": 9,
+              "temperature_max_c": 15,
+              "precipitation_probability_percent": 55,
+              "precipitation_sum_mm": 3.5,
+              "wind_speed_kmh": 23,
+              "wind_gust_kmh": 32
+            },
+            {
+              "date": "2026-11-18",
+              "temperature_min_c": 10,
+              "temperature_max_c": 16,
+              "precipitation_probability_percent": 62,
+              "precipitation_sum_mm": 4.2,
+              "wind_speed_kmh": 24,
+              "wind_gust_kmh": 33
+            },
+            {
+              "date": "2026-11-19",
+              "temperature_min_c": 11,
+              "temperature_max_c": 17,
+              "precipitation_probability_percent": 69,
+              "precipitation_sum_mm": 4.9,
+              "wind_speed_kmh": 25,
+              "wind_gust_kmh": 34
+            },
+            {
+              "date": "2026-11-20",
+              "temperature_min_c": 8,
+              "temperature_max_c": 18,
+              "precipitation_probability_percent": 76,
+              "precipitation_sum_mm": 5.6,
+              "wind_speed_kmh": 26,
+              "wind_gust_kmh": 35
+            },
+            {
+              "date": "2026-11-21",
+              "temperature_min_c": 9,
+              "temperature_max_c": 19,
+              "precipitation_probability_percent": 83,
+              "precipitation_sum_mm": 6.3,
+              "wind_speed_kmh": 27,
+              "wind_gust_kmh": 36
+            },
+            {
+              "date": "2026-11-22",
+              "temperature_min_c": 10,
+              "temperature_max_c": 15,
+              "precipitation_probability_percent": 90,
+              "precipitation_sum_mm": 7.0,
+              "wind_speed_kmh": 28,
+              "wind_gust_kmh": 37
+            },
+            {
+              "date": "2026-11-23",
+              "temperature_min_c": 11,
+              "temperature_max_c": 16,
+              "precipitation_probability_percent": 97,
+              "precipitation_sum_mm": 7.7,
+              "wind_speed_kmh": 29,
+              "wind_gust_kmh": 38
+            },
+            {
+              "date": "2026-11-24",
+              "temperature_min_c": 8,
+              "temperature_max_c": 17,
+              "precipitation_probability_percent": 4,
+              "precipitation_sum_mm": 8.4,
+              "wind_speed_kmh": 30,
+              "wind_gust_kmh": 39
+            },
+            {
+              "date": "2026-11-25",
+              "temperature_min_c": 9,
+              "temperature_max_c": 18,
+              "precipitation_probability_percent": 11,
+              "precipitation_sum_mm": 9.1,
+              "wind_speed_kmh": 31,
+              "wind_gust_kmh": 40
+            },
+            {
+              "date": "2026-11-26",
+              "temperature_min_c": 10,
+              "temperature_max_c": 19,
+              "precipitation_probability_percent": 18,
+              "precipitation_sum_mm": 9.8,
+              "wind_speed_kmh": 32,
+              "wind_gust_kmh": 41
+            },
+            {
+              "date": "2026-11-27",
+              "temperature_min_c": 11,
+              "temperature_max_c": 15,
+              "precipitation_probability_percent": 25,
+              "precipitation_sum_mm": 10.5,
+              "wind_speed_kmh": 33,
+              "wind_gust_kmh": 42
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

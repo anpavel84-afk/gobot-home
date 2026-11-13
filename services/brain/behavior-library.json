@@ -1,0 +1,4220 @@
+{
+  "schema_version": 1,
+  "kind": "reviewed_behavior_projection_not_runtime_grants",
+  "not_a_capability_grant": true,
+  "source": "docs/behavior-library-20261111/scenario-library.json",
+  "rules": [
+    {
+      "id": "base.truth",
+      "domain": "general",
+      "instruction": "Luna не исполняет инструменты. Подтверждай действие только по результату Brain; цитаты, обсуждение и отрицания не являются командой."
+    },
+    {
+      "id": "base.scope",
+      "domain": "general",
+      "instruction": "Соблюдай текущие права, scope и лимиты; не вызывай другие модели и не повторяй действия автоматически. Каталог не даёт доступ."
+    },
+    {
+      "id": "weather.1",
+      "domain": "weather",
+      "instruction": "Погоду сообщать только из результата Brain с местом, датой и единицами. Нет свежих данных — назвать ограничение, не придумывать значения."
+    },
+    {
+      "id": "weather.2",
+      "domain": "weather",
+      "instruction": "Разовый другой город не меняет дом. Продолжение меняет лишь названные дату/место/показатель; отсутствующие значения не превращать в нули."
+    },
+    {
+      "id": "timers.1",
+      "domain": "timers",
+      "instruction": "Создание, остаток и отмена таймера подтверждаются результатом Brain. Название, пауза и продление доступны лишь с соответствующим исполнителем."
+    },
+    {
+      "id": "timers.2",
+      "domain": "timers",
+      "instruction": "Уточнять только недостающий срок или неоднозначный таймер. End не удаляет сохранённые таймеры; истечение не доказывает услышанный сигнал."
+    },
+    {
+      "id": "smart_home.1",
+      "domain": "smart_home",
+      "instruction": "Без зарегистрированного исполнителя и разрешённого устройства не обещать свет, дверь или температуру. Сообщить, что команда не отправлена."
+    },
+    {
+      "id": "smart_home.2",
+      "domain": "smart_home",
+      "instruction": "Неоднозначный объект уточнить. Частичный или неизвестный исход не считать успехом; обсуждение, отрицание и цитата не являются командой."
+    },
+    {
+      "id": "connected_services.1",
+      "domain": "connected_services",
+      "instruction": "Музыка, сообщения, календарь и свежие сведения требуют исполнителя или источника. Без него не объявлять воспроизведение, отправку или актуальную проверку."
+    },
+    {
+      "id": "connected_services.2",
+      "domain": "connected_services",
+      "instruction": "Совет не равен действию; обсуждение команды не запускает сервис. Старшая модель сама по себе не создаёт подключения."
+    },
+    {
+      "id": "private_and_scheduled.1",
+      "domain": "private_and_scheduled",
+      "instruction": "Напоминания, будильники и календарь требуют реального сохранения и доставки. Без исполнителя не обещать событие или сигнал."
+    },
+    {
+      "id": "private_and_scheduled.2",
+      "domain": "private_and_scheduled",
+      "instruction": "Голосовой профиль и PIN устройства не открывают частный архив говорящего. Гостевой контекст остаётся RAM-only; каталог не даёт прав."
+    },
+    {
+      "id": "language.1",
+      "domain": "language",
+      "instruction": "Сохранить смысл, отрицания, имена и язык; дать перевод или исправленную фразу. Перевод команды не исполняет её."
+    },
+    {
+      "id": "language.2",
+      "domain": "language",
+      "instruction": "В языковой практике задавать одну реплику и ждать ответ. Текст не доказывает правильное произношение; подготовленный текст не отправлять."
+    },
+    {
+      "id": "learning.1",
+      "domain": "learning",
+      "instruction": "В упражнении дать один вопрос и дождаться попытки без преждевременного решения. Подсказка и готовое решение — разные шаги."
+    },
+    {
+      "id": "learning.2",
+      "domain": "learning",
+      "instruction": "Объяснять на понятном примере, сохраняя условие. Состояние упражнения относится только к текущему допустимому разговору."
+    },
+    {
+      "id": "science.1",
+      "domain": "science",
+      "instruction": "Кратко объяснить явление, отличая аналогию от буквального факта. Не подменять неизвестное уверенной догадкой."
+    },
+    {
+      "id": "science.2",
+      "domain": "science",
+      "instruction": "Текущие фазы, расписания и измерения требуют свежего источника; общее знание не является проверкой сегодняшних данных."
+    },
+    {
+      "id": "cooking.1",
+      "domain": "cooking",
+      "instruction": "Дать конкретный рецепт с названными условиями. Если вид продукта меняет способ, уточнить его; не выдумывать содержимое холодильника."
+    },
+    {
+      "id": "cooking.2",
+      "domain": "cooking",
+      "instruction": "Описание готовки не включает плиту и не создаёт таймер. Неизвестные грибы не считать съедобными; бытовая химия не пищевая добавка."
+    },
+    {
+      "id": "gardening.1",
+      "domain": "gardening",
+      "instruction": "Совет зависит от культуры, почвы, света и воды. Для точного плана уточнить отсутствующее; не переносить чужой участок или профиль."
+    },
+    {
+      "id": "gardening.2",
+      "domain": "gardening",
+      "instruction": "Признак растения не равен диагнозу. Не назначать универсальную дозу удобрений или полива; совет не включает реальное устройство."
+    },
+    {
+      "id": "home_advice.1",
+      "domain": "home_advice",
+      "instruction": "Предложить бытовые шаги с учётом материала и инструкции. Не утверждать, что уборка, закупка или настройка выполнены."
+    },
+    {
+      "id": "home_advice.2",
+      "domain": "home_advice",
+      "instruction": "Местные правила и инструкция конкретного прибора требуют источника или предоставленного текста; не притворяться, что они проверены."
+    },
+    {
+      "id": "technical_explanations.1",
+      "domain": "technical_explanations",
+      "instruction": "Дать понятное техническое объяснение, отделяя общий принцип от свойств конкретной версии или устройства."
+    },
+    {
+      "id": "technical_explanations.2",
+      "domain": "technical_explanations",
+      "instruction": "Не выдумывать проверку кода, сервера, лога или теста. Команда в примере не выполняется; нет shell из голоса."
+    },
+    {
+      "id": "writing.1",
+      "domain": "writing",
+      "instruction": "Подготовить текст заданного смысла, стиля и длины. Не добавлять неизвестные факты, адресатов или обещания."
+    },
+    {
+      "id": "writing.2",
+      "domain": "writing",
+      "instruction": "Черновик не отправлен и не опубликован. При исправлении сохранить факты и изменять только запрошенную часть."
+    },
+    {
+      "id": "planning.1",
+      "domain": "planning",
+      "instruction": "Предложить план с явными предположениями и шагами; неизвестные даты, ресурсы и доступы не выдумывать."
+    },
+    {
+      "id": "planning.2",
+      "domain": "planning",
+      "instruction": "План не создаёт события, бронирования и напоминания. Различать предложение и подтверждённый результат исполнителя."
+    },
+    {
+      "id": "games.1",
+      "domain": "games",
+      "instruction": "Правила объяснить коротко; в интерактивной игре один ход за раз и ожидание пользователя."
+    },
+    {
+      "id": "games.2",
+      "domain": "games",
+      "instruction": "Не объявлять ответ или результат участника до его хода. Состояние игры только в допустимой текущей сессии."
+    },
+    {
+      "id": "visuals.1",
+      "domain": "visuals",
+      "instruction": "Показ изображения подтверждается реальным доступным asset и действующим visual pipeline. Подпись темы не означает доставленное фото."
+    },
+    {
+      "id": "visuals.2",
+      "domain": "visuals",
+      "instruction": "Без декодированного медиа остаётся speaking face. Отсутствующая картинка не мешает полезному ответу и не даёт согласия на платную генерацию."
+    },
+    {
+      "id": "experts.1",
+      "domain": "experts",
+      "instruction": "Режим разговора A и одно экспертное задание — разные операции. Подробнее не означает согласие на CLI; admission и grant проверяет Brain."
+    },
+    {
+      "id": "experts.2",
+      "domain": "experts",
+      "instruction": "Принятое задание ещё не завершено. Без настоящего результата не выдумывать вывод эксперта; не запускать скрытую старшую модель."
+    },
+    {
+      "id": "device_settings.1",
+      "domain": "device_settings",
+      "instruction": "Изменение настройки выполняется только проверенным обработчиком с действующими правами устройства. Поддержка зависит от фактического режима и provider."
+    },
+    {
+      "id": "device_settings.2",
+      "domain": "device_settings",
+      "instruction": "Подтвердить изменение только после результата. Значение в каталоге или макете не является текущей настройкой."
+    },
+    {
+      "id": "local_utilities.1",
+      "domain": "local_utilities",
+      "instruction": "Счёт, конверсия и местные операции используют проверенные слоты и результат Brain; сохранить единицы и заданную точность."
+    },
+    {
+      "id": "local_utilities.2",
+      "domain": "local_utilities",
+      "instruction": "Не путать расчёт с актуальным курсом валют или внешним измерением; для них нужны отдельные данные."
+    },
+    {
+      "id": "time_and_control.1",
+      "domain": "time_and_control",
+      "instruction": "Часы и даты использовать из результата с нужной временной зоной. Не выдавать время сервера за время неизвестного города."
+    },
+    {
+      "id": "time_and_control.2",
+      "domain": "time_and_control",
+      "instruction": "Stop сохраняет семантику End и не удаляет таймеры. Отказ относится к pending-предложению; смена режима не создаёт новую платную сессию сама по себе."
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "timers-01",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Поставь таймер на пять минут",
+        "Засеки пять минут",
+        "Через пять минут дай сигнал"
+      ]
+    },
+    {
+      "id": "timers-02",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Можешь засечь таймер на десять секунд?",
+        "Отсчитай десять секунд",
+        "Сигнал через десять секунд"
+      ]
+    },
+    {
+      "id": "timers-03",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Засечь таймер",
+        "Поставь мне таймер",
+        "Засеки время таймером"
+      ]
+    },
+    {
+      "id": "timers-04",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Засеки полторы минуты",
+        "Таймер на девяносто секунд",
+        "Через полторы минуты подай сигнал"
+      ]
+    },
+    {
+      "id": "timers-05",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Засеки две минуты и тридцать секунд",
+        "Таймер на две с половиной минуты",
+        "Через сто пятьдесят секунд дай сигнал"
+      ]
+    },
+    {
+      "id": "timers-06",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Таймер на полчаса",
+        "Засеки тридцать минут",
+        "Дай сигнал через половину часа"
+      ]
+    },
+    {
+      "id": "timers-07",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Поставь таймер на четверть часа",
+        "Засеки пятнадцать минут",
+        "Через четверть часа подай сигнал"
+      ]
+    },
+    {
+      "id": "timers-08",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Запусти таймер на одну секунду",
+        "Отсчитай одну секунду",
+        "Дай сигнал через секунду"
+      ]
+    },
+    {
+      "id": "timers-09",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Поставь таймер на двадцать пять минут",
+        "Засеки двадцать пять минут",
+        "Через двадцать пять минут нужен сигнал"
+      ]
+    },
+    {
+      "id": "timers-10",
+      "domain": "timers",
+      "target_intent": "timer_remaining",
+      "utterances": [
+        "Сколько осталось на таймере?",
+        "Через сколько прозвенит таймер?",
+        "Сколько ещё ждать сигнала?"
+      ]
+    },
+    {
+      "id": "timers-11",
+      "domain": "timers",
+      "target_intent": "timer_remaining",
+      "utterances": [
+        "Покажи мои таймеры",
+        "Какие таймеры сейчас запущены?",
+        "Перечисли активные таймеры"
+      ]
+    },
+    {
+      "id": "timers-12",
+      "domain": "timers",
+      "target_intent": "timer_remaining",
+      "utterances": [
+        "Когда сработает таймер?",
+        "Во сколько будет сигнал таймера?",
+        "Назови время окончания отсчёта"
+      ]
+    },
+    {
+      "id": "timers-13",
+      "domain": "timers",
+      "target_intent": "timer_remaining",
+      "utterances": [
+        "Есть активный таймер?",
+        "Таймер сейчас идёт?",
+        "У меня что-нибудь отсчитывается?"
+      ]
+    },
+    {
+      "id": "timers-14",
+      "domain": "timers",
+      "target_intent": "timer_cancel",
+      "utterances": [
+        "Отмени таймер",
+        "Убери этот таймер",
+        "Больше не нужен таймер"
+      ]
+    },
+    {
+      "id": "timers-15",
+      "domain": "timers",
+      "target_intent": "timer_cancel",
+      "utterances": [
+        "Отмени все таймеры",
+        "Убери все запущенные таймеры",
+        "Останови все отсчёты на этом устройстве"
+      ]
+    },
+    {
+      "id": "timers-16",
+      "domain": "timers",
+      "target_intent": "timer_cancel",
+      "utterances": [
+        "Останови первый таймер",
+        "Убери первый из названных таймеров",
+        "Первый таймер больше не нужен"
+      ]
+    },
+    {
+      "id": "timers-17",
+      "domain": "timers",
+      "target_intent": "timer_cancel",
+      "utterances": [
+        "Останови второй таймер",
+        "Убери второй из названных таймеров",
+        "Второй таймер больше не нужен"
+      ]
+    },
+    {
+      "id": "timers-18",
+      "domain": "timers",
+      "target_intent": "timer_cancel",
+      "utterances": [
+        "Выключи таймер",
+        "Убери сигнал таймера",
+        "Таймер звонит, выключи его"
+      ]
+    },
+    {
+      "id": "timers-19",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Отсчитай минуту",
+        "Засеки шестьдесят секунд",
+        "Подай сигнал через одну минуту"
+      ]
+    },
+    {
+      "id": "timers-20",
+      "domain": "timers",
+      "target_intent": "timer_start",
+      "utterances": [
+        "Поставить таймер на 1,5 минуты",
+        "Таймер на одну целую пять десятых минуты",
+        "Отсчитай 90 секунд"
+      ]
+    },
+    {
+      "id": "weather-01",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая погода?",
+        "Что сейчас за погода у нас?",
+        "Расскажи про погоду дома"
+      ]
+    },
+    {
+      "id": "weather-02",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Посмотри погоду",
+        "Глянь, что у нас с погодой",
+        "Расскажи, какая сейчас погода"
+      ]
+    },
+    {
+      "id": "weather-03",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая погода завтра?",
+        "Что обещают на завтра у нас?",
+        "Завтра какая будет погода"
+      ]
+    },
+    {
+      "id": "weather-04",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая погода послезавтра?",
+        "Что будет с погодой через два дня?",
+        "Расскажи прогноз на послезавтра"
+      ]
+    },
+    {
+      "id": "weather-05",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Покажи прогноз на неделю",
+        "Как изменится погода в ближайшие семь дней?",
+        "Дай недельный прогноз"
+      ]
+    },
+    {
+      "id": "weather-06",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Покажи погоду на две недели",
+        "Какая погода будет ближайшие четырнадцать дней?",
+        "Дай прогноз на 14 дней"
+      ]
+    },
+    {
+      "id": "weather-07",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Погода на 16 дней",
+        "Дай прогноз на шестнадцать дней",
+        "Что обещают на ближайшие 16 суток"
+      ]
+    },
+    {
+      "id": "weather-08",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Будет ли дождь завтра?",
+        "Завтра у нас дождливо?",
+        "Осадки на завтра ожидаются?"
+      ]
+    },
+    {
+      "id": "weather-09",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Нужен ли зонт завтра?",
+        "Стоит завтра взять зонт?",
+        "На завтра зонт пригодится?"
+      ]
+    },
+    {
+      "id": "weather-10",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая температура завтра?",
+        "Насколько тепло будет завтра?",
+        "Сколько градусов завтра обещают?"
+      ]
+    },
+    {
+      "id": "weather-11",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какой ветер завтра?",
+        "Завтра сильный ветер?",
+        "Как будет дуть завтра?"
+      ]
+    },
+    {
+      "id": "weather-12",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Покажи прогноз на выходных",
+        "Что с погодой в эти выходные?",
+        "Какой прогноз на субботу и воскресенье?"
+      ]
+    },
+    {
+      "id": "weather-13",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Погода в субботу",
+        "Что обещают на ближайшую субботу?",
+        "Какая погода будет в субботу у нас?"
+      ]
+    },
+    {
+      "id": "weather-14",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая погода сегодня?",
+        "Что с погодой на сегодня?",
+        "Расскажи сегодняшний прогноз"
+      ]
+    },
+    {
+      "id": "weather-15",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Какая погода сейчас?",
+        "Какая погода за окном прямо сейчас?",
+        "Что с погодой в эту минуту?"
+      ]
+    },
+    {
+      "id": "weather-16",
+      "domain": "weather",
+      "target_intent": "weather.configure",
+      "utterances": [
+        "Настрой погоду",
+        "Хочу выбрать город для погоды",
+        "Измени основное место прогноза"
+      ]
+    },
+    {
+      "id": "weather-17",
+      "domain": "weather",
+      "target_intent": "weather.configuration.read",
+      "utterances": [
+        "Какой город выбран для погоды?",
+        "Где ты смотришь погоду по умолчанию?",
+        "Для какого города у нас прогноз?"
+      ]
+    },
+    {
+      "id": "weather-18",
+      "domain": "weather",
+      "target_intent": "weather.configuration.disable",
+      "utterances": [
+        "Выключи погоду",
+        "Отключи погодный модуль",
+        "Убери включённый прогноз погоды"
+      ]
+    },
+    {
+      "id": "weather-19",
+      "domain": "weather",
+      "target_intent": "weather.query",
+      "utterances": [
+        "Покажи погоду на месяц",
+        "Дай прогноз на тридцать дней",
+        "Какая погода будет весь ближайший месяц?"
+      ]
+    },
+    {
+      "id": "weather-20",
+      "domain": "weather",
+      "target_intent": "weather.source.request",
+      "utterances": [
+        "Покажи погоду с weather.com",
+        "Возьми прогноз именно с Weather.com",
+        "Переключи погоду на Weather.com"
+      ]
+    },
+    {
+      "id": "local_utilities-01",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 5 км в м",
+        "Сколько метров в пяти километрах?",
+        "Пять километров вырази в метрах"
+      ]
+    },
+    {
+      "id": "local_utilities-02",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 30 см в мм",
+        "Тридцать сантиметров — сколько миллиметров?",
+        "Вырази 30 см в миллиметрах"
+      ]
+    },
+    {
+      "id": "local_utilities-03",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 1000 г в кг",
+        "Тысяча граммов — сколько килограммов?",
+        "Вырази 1000 граммов в килограммах"
+      ]
+    },
+    {
+      "id": "local_utilities-04",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 2 фунтов в кг",
+        "Сколько килограммов в двух фунтах?",
+        "Два фунта вырази в килограммах"
+      ]
+    },
+    {
+      "id": "local_utilities-05",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 3 л в мл",
+        "Три литра — сколько миллилитров?",
+        "Вырази объём 3 л в миллилитрах"
+      ]
+    },
+    {
+      "id": "local_utilities-06",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 2 м3 в литров",
+        "Сколько литров в двух кубометрах?",
+        "Два кубических метра переведи в литры"
+      ]
+    },
+    {
+      "id": "local_utilities-07",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 2 гектаров в м2",
+        "Два гектара — сколько квадратных метров?",
+        "Вырази площадь двух гектаров в квадратных метрах"
+      ]
+    },
+    {
+      "id": "local_utilities-08",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 3 часов в минут",
+        "Три часа — сколько минут?",
+        "Вырази три часа в минутах"
+      ]
+    },
+    {
+      "id": "local_utilities-09",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 2 дней в секунд",
+        "Двое суток — сколько секунд?",
+        "Пересчитай сорок восемь часов в секунды"
+      ]
+    },
+    {
+      "id": "local_utilities-10",
+      "domain": "local_utilities",
+      "target_intent": "utility_convert",
+      "utterances": [
+        "Переведи 2 гигабайт в мегабайт",
+        "Сколько мегабайт в двух гигабайтах?",
+        "Два GB переведи в MB"
+      ]
+    },
+    {
+      "id": "local_utilities-11",
+      "domain": "local_utilities",
+      "target_intent": "utility_percent",
+      "utterances": [
+        "Сколько будет 15 процентов от 240",
+        "Найди пятнадцать процентов от двухсот сорока",
+        "Чему равны 15% от 240?"
+      ]
+    },
+    {
+      "id": "local_utilities-12",
+      "domain": "local_utilities",
+      "target_intent": "utility_temperature",
+      "utterances": [
+        "Переведи 32 градусов фаренгейта в цельсий",
+        "32 °F — сколько по Цельсию?",
+        "Тридцать два по Фаренгейту переведи в Цельсий"
+      ]
+    },
+    {
+      "id": "local_utilities-13",
+      "domain": "local_utilities",
+      "target_intent": "utility_date_diff",
+      "utterances": [
+        "Сколько дней между 2026-01-01 и 2026-12-31",
+        "Сколько суток от первого января до тридцать первого декабря 2026?",
+        "Найди разницу между 2026-01-01 и 2026-12-31"
+      ]
+    },
+    {
+      "id": "local_utilities-14",
+      "domain": "local_utilities",
+      "target_intent": "utility_weekday",
+      "utterances": [
+        "Какой день недели 2026-11-11",
+        "На какой день недели приходится 11 ноября 2026?",
+        "Что за день недели 2026-11-11?"
+      ]
+    },
+    {
+      "id": "local_utilities-15",
+      "domain": "local_utilities",
+      "target_intent": "utility_leap",
+      "utterances": [
+        "2028 год високосный?",
+        "В 2028 году будет 366 дней?",
+        "Проверь, високосный ли 2028 год"
+      ]
+    },
+    {
+      "id": "local_utilities-16",
+      "domain": "local_utilities",
+      "target_intent": "utility_month_days",
+      "utterances": [
+        "Сколько дней в 2 месяце 2028 года",
+        "Сколько дней в феврале 2028?",
+        "Назови число дней февраля в 2028 году"
+      ]
+    },
+    {
+      "id": "local_utilities-17",
+      "domain": "local_utilities",
+      "target_intent": "utility_coin",
+      "utterances": [
+        "Подбрось монетку",
+        "Выбери орёл или решка",
+        "Кинь монетку за меня"
+      ]
+    },
+    {
+      "id": "local_utilities-18",
+      "domain": "local_utilities",
+      "target_intent": "utility_dice",
+      "utterances": [
+        "Брось кубик",
+        "Кинь обычный шестигранный кубик",
+        "Какое число выпадет на кубике?"
+      ]
+    },
+    {
+      "id": "local_utilities-19",
+      "domain": "local_utilities",
+      "target_intent": "utility_random",
+      "utterances": [
+        "Выбери случайное число от 1 до 100",
+        "Выбери число между одним и ста включительно",
+        "Назови случайное целое от 1 до 100"
+      ]
+    },
+    {
+      "id": "local_utilities-20",
+      "domain": "local_utilities",
+      "target_intent": "utility_text",
+      "utterances": [
+        "Посчитай слова: один два три",
+        "Сколько слов в «один два три»?",
+        "Подсчитай слова в тексте: один два три"
+      ]
+    },
+    {
+      "id": "device_settings-01",
+      "domain": "device_settings",
+      "target_intent": "device.volume.set",
+      "utterances": [
+        "Громкость 40 процентов",
+        "Установи звук на сорок процентов",
+        "Сделай громкость 40%"
+      ]
+    },
+    {
+      "id": "device_settings-02",
+      "domain": "device_settings",
+      "target_intent": "device.volume.set",
+      "utterances": [
+        "Громкость 0 процентов",
+        "Убери громкость в ноль",
+        "Сделай звук беззвучным"
+      ]
+    },
+    {
+      "id": "device_settings-03",
+      "domain": "device_settings",
+      "target_intent": "device.volume.set",
+      "utterances": [
+        "Громкость 100 процентов",
+        "Поставь максимальную громкость",
+        "Сделай звук на сто процентов"
+      ]
+    },
+    {
+      "id": "device_settings-04",
+      "domain": "device_settings",
+      "target_intent": "device.voice.set",
+      "utterances": [
+        "Выбери голос marin",
+        "Хочу голос marin",
+        "Переключи озвучку на marin"
+      ]
+    },
+    {
+      "id": "device_settings-05",
+      "domain": "device_settings",
+      "target_intent": "device.voice.set",
+      "utterances": [
+        "Выбери голос cedar",
+        "Хочу голос cedar",
+        "Переключи озвучку на cedar"
+      ]
+    },
+    {
+      "id": "device_settings-06",
+      "domain": "device_settings",
+      "target_intent": "device.openings.set",
+      "utterances": [
+        "Выключи вступления",
+        "Убери вводные фразы перед ответами",
+        "Больше не начинай с заготовленного вступления"
+      ]
+    },
+    {
+      "id": "device_settings-07",
+      "domain": "device_settings",
+      "target_intent": "device.openings.set",
+      "utterances": [
+        "Включи вступления",
+        "Верни вступительные фразы",
+        "Используй короткое вступление перед ответом"
+      ]
+    },
+    {
+      "id": "device_settings-08",
+      "domain": "device_settings",
+      "target_intent": "device.continued_conversation.set",
+      "utterances": [
+        "Включи продолжение разговора",
+        "Оставляй разговор открытым после ответа",
+        "Хочу задавать следующий вопрос без нового старта"
+      ]
+    },
+    {
+      "id": "device_settings-09",
+      "domain": "device_settings",
+      "target_intent": "device.continued_conversation.set",
+      "utterances": [
+        "Выключи продолжение разговора",
+        "Не жди продолжения после ответа",
+        "Заканчивай диалог после ответа"
+      ]
+    },
+    {
+      "id": "device_settings-10",
+      "domain": "device_settings",
+      "target_intent": "device.visuals.auto.set",
+      "utterances": [
+        "Включи иллюстрации",
+        "Показывай картинки к ответам",
+        "Добавляй визуальное сопровождение"
+      ]
+    },
+    {
+      "id": "device_settings-11",
+      "domain": "device_settings",
+      "target_intent": "device.visuals.auto.set",
+      "utterances": [
+        "Выключи иллюстрации",
+        "Отвечай без автоматических картинок",
+        "Убери картинки, которые появляются сами"
+      ]
+    },
+    {
+      "id": "device_settings-12",
+      "domain": "device_settings",
+      "target_intent": "device.visuals.level.set",
+      "utterances": [
+        "Выбери минимальный визуальный режим",
+        "Сделай оформление спокойнее",
+        "Используй минимум визуального сопровождения"
+      ]
+    },
+    {
+      "id": "device_settings-13",
+      "domain": "device_settings",
+      "target_intent": "device.visuals.level.set",
+      "utterances": [
+        "Выбери сбалансированный визуальный режим",
+        "Верни среднее количество визуальных элементов",
+        "Сделай визуальное сопровождение умеренным"
+      ]
+    },
+    {
+      "id": "device_settings-14",
+      "domain": "device_settings",
+      "target_intent": "device.visuals.level.set",
+      "utterances": [
+        "Выбери насыщенный визуальный режим",
+        "Добавь больше визуального сопровождения",
+        "Показывай насыщенное оформление"
+      ]
+    },
+    {
+      "id": "device_settings-15",
+      "domain": "device_settings",
+      "target_intent": "device.response_preference.set",
+      "utterances": [
+        "Включи быстрый режим",
+        "Отвечай в быстром режиме",
+        "Переключись на быстрые ответы"
+      ]
+    },
+    {
+      "id": "device_settings-16",
+      "domain": "device_settings",
+      "target_intent": "device.response_preference.set",
+      "utterances": [
+        "Включи автоматический режим",
+        "Выбирай обычный автоматический режим",
+        "Поставь автоматический выбор режима"
+      ]
+    },
+    {
+      "id": "device_settings-17",
+      "domain": "device_settings",
+      "target_intent": "device.response_preference.set",
+      "utterances": [
+        "Включи подробный режим",
+        "Давай более подробные ответы",
+        "Пиши и говори подробнее"
+      ]
+    },
+    {
+      "id": "device_settings-18",
+      "domain": "device_settings",
+      "target_intent": "device.face.configure",
+      "utterances": [
+        "Настрой лицо",
+        "Хочу поменять лицо на экране",
+        "Открой варианты выражения лица"
+      ]
+    },
+    {
+      "id": "device_settings-19",
+      "domain": "device_settings",
+      "target_intent": "device.settings.describe",
+      "utterances": [
+        "Какие настройки ты можешь менять?",
+        "Что здесь можно настроить голосом?",
+        "Какие параметры ты умеешь менять сейчас?"
+      ]
+    },
+    {
+      "id": "device_settings-20",
+      "domain": "device_settings",
+      "target_intent": "weather.configure",
+      "utterances": [
+        "Подключи погоду",
+        "Включи прогноз погоды дома",
+        "Давай подключим погодный прогноз"
+      ]
+    },
+    {
+      "id": "time_and_control-01",
+      "domain": "time_and_control",
+      "target_intent": "clock_time",
+      "utterances": [
+        "Сколько времени?",
+        "Скажи время сейчас",
+        "Сколько сейчас на часах?"
+      ]
+    },
+    {
+      "id": "time_and_control-02",
+      "domain": "time_and_control",
+      "target_intent": "clock_time",
+      "utterances": [
+        "Который час?",
+        "Подскажи точное время",
+        "Какое время показывают часы?"
+      ]
+    },
+    {
+      "id": "time_and_control-03",
+      "domain": "time_and_control",
+      "target_intent": "clock_time",
+      "utterances": [
+        "Какое сейчас время?",
+        "Назови время на данный момент",
+        "Сколько времени прямо сейчас?"
+      ]
+    },
+    {
+      "id": "time_and_control-04",
+      "domain": "time_and_control",
+      "target_intent": "clock_time",
+      "utterances": [
+        "Назови текущее время",
+        "Скажи текущие часы и минуты",
+        "Озвучь время сейчас"
+      ]
+    },
+    {
+      "id": "time_and_control-05",
+      "domain": "time_and_control",
+      "target_intent": "clock_date",
+      "utterances": [
+        "Какое сегодня число?",
+        "Назови число сегодня",
+        "Какой сегодня день месяца?"
+      ]
+    },
+    {
+      "id": "time_and_control-06",
+      "domain": "time_and_control",
+      "target_intent": "clock_date",
+      "utterances": [
+        "Какая сегодня дата?",
+        "Какую дату сегодня пишем?",
+        "Назови дату на сегодня"
+      ]
+    },
+    {
+      "id": "time_and_control-07",
+      "domain": "time_and_control",
+      "target_intent": "clock_weekday",
+      "utterances": [
+        "Какой сегодня день недели?",
+        "Сегодня какой день недели?",
+        "Как называется сегодняшний день недели?"
+      ]
+    },
+    {
+      "id": "time_and_control-08",
+      "domain": "time_and_control",
+      "target_intent": "clock_date",
+      "utterances": [
+        "Назови сегодняшнюю дату",
+        "Скажи день, месяц и год сегодня",
+        "Озвучь полную сегодняшнюю дату"
+      ]
+    },
+    {
+      "id": "time_and_control-09",
+      "domain": "time_and_control",
+      "target_intent": "conversation.stop",
+      "utterances": [
+        "Стоп",
+        "Замолчи",
+        "Остановись"
+      ]
+    },
+    {
+      "id": "time_and_control-10",
+      "domain": "time_and_control",
+      "target_intent": "conversation.end",
+      "utterances": [
+        "Заверши разговор",
+        "На этом закончим",
+        "Закрой наш разговор"
+      ]
+    },
+    {
+      "id": "time_and_control-11",
+      "domain": "time_and_control",
+      "target_intent": "conversation.decline",
+      "utterances": [
+        "Нет, спасибо",
+        "Не нужно, спасибо",
+        "Нет, не надо"
+      ]
+    },
+    {
+      "id": "time_and_control-12",
+      "domain": "time_and_control",
+      "target_intent": "conversation.mode.set",
+      "utterances": [
+        "Экспертный режим",
+        "Переключись в экспертный режим",
+        "Хочу говорить в экспертном режиме"
+      ]
+    },
+    {
+      "id": "time_and_control-13",
+      "domain": "time_and_control",
+      "target_intent": "conversation.detail",
+      "utterances": [
+        "Давай разберём подробно",
+        "Объясни это более подробно",
+        "Расскажи подробнее, как это работает"
+      ]
+    },
+    {
+      "id": "time_and_control-14",
+      "domain": "time_and_control",
+      "target_intent": "conversation.mode.set",
+      "utterances": [
+        "Давай перейдём в экспертный режим A",
+        "Перейди в режим A для эксперта",
+        "Давай включим экспертный A"
+      ]
+    },
+    {
+      "id": "time_and_control-15",
+      "domain": "time_and_control",
+      "target_intent": "conversation.mode.set",
+      "utterances": [
+        "Живой разговор",
+        "Переключись на живой разговор",
+        "Хочу обычный голосовой разговор"
+      ]
+    },
+    {
+      "id": "time_and_control-16",
+      "domain": "time_and_control",
+      "target_intent": "conversation.mode.set",
+      "utterances": [
+        "Вернись в обычный режим",
+        "Выключи экспертный режим",
+        "Давай снова в обычный разговор"
+      ]
+    },
+    {
+      "id": "time_and_control-17",
+      "domain": "time_and_control",
+      "target_intent": "utility_text",
+      "utterances": [
+        "Сделай заглавными: привет",
+        "Напиши слово привет большими буквами",
+        "Переведи «привет» в верхний регистр"
+      ]
+    },
+    {
+      "id": "time_and_control-18",
+      "domain": "time_and_control",
+      "target_intent": "utility_text",
+      "utterances": [
+        "Сделай строчными: ПРИВЕТ",
+        "Напиши ПРИВЕТ маленькими буквами",
+        "Переведи «ПРИВЕТ» в нижний регистр"
+      ]
+    },
+    {
+      "id": "time_and_control-19",
+      "domain": "time_and_control",
+      "target_intent": "utility_text",
+      "utterances": [
+        "Переверни текст: кот",
+        "Разверни буквы слова кот",
+        "Напиши «кот» в обратном порядке"
+      ]
+    },
+    {
+      "id": "time_and_control-20",
+      "domain": "time_and_control",
+      "target_intent": "utility_text",
+      "utterances": [
+        "Посчитай символы: привет",
+        "Сколько символов в слове привет?",
+        "Посчитай буквы в «привет»"
+      ]
+    },
+    {
+      "id": "language-01",
+      "domain": "language",
+      "target_intent": "language.translate_greeting",
+      "utterances": [
+        "Переведи привет на английский",
+        "Как сказать «привет» по-английски?",
+        "Мне нужен английский вариант слова «привет»"
+      ]
+    },
+    {
+      "id": "language-02",
+      "domain": "language",
+      "target_intent": "language.explain_say_tell",
+      "utterances": [
+        "Объясни разницу между say и tell",
+        "Когда использовать say, а когда tell?",
+        "Почему говорят tell me, но say something?"
+      ]
+    },
+    {
+      "id": "language-03",
+      "domain": "language",
+      "target_intent": "language.polite_coffee_request",
+      "utterances": [
+        "Как вежливо попросить кофе по-португальски?",
+        "Как заказать кофе по-португальски вежливо?",
+        "Что сказать в бразильском кафе, если хочу кофе?"
+      ]
+    },
+    {
+      "id": "language-04",
+      "domain": "language",
+      "target_intent": "language.correct_russian_phrase",
+      "utterances": [
+        "Исправь фразу: я хотеть чай",
+        "Как правильно сказать «я хотеть чай»?",
+        "Поправь грамматику: «я хотеть чай»"
+      ]
+    },
+    {
+      "id": "language-05",
+      "domain": "language",
+      "target_intent": "language.synonym",
+      "utterances": [
+        "Дай синоним слова красивый",
+        "Каким словом заменить «красивый»?",
+        "Подбери синоним к слову «красивый»"
+      ]
+    },
+    {
+      "id": "language-06",
+      "domain": "language",
+      "target_intent": "language.antonym",
+      "utterances": [
+        "Дай антоним слова горячий",
+        "Какое слово противоположно слову «горячий»?",
+        "Назови антоним к «горячий»"
+      ]
+    },
+    {
+      "id": "language-07",
+      "domain": "language",
+      "target_intent": "language.define_empathy",
+      "utterances": [
+        "Объясни слово эмпатия",
+        "Что значит эмпатия простыми словами?",
+        "Объясни мне слово «эмпатия»"
+      ]
+    },
+    {
+      "id": "language-08",
+      "domain": "language",
+      "target_intent": "language.morpheme_analysis",
+      "utterances": [
+        "Разбери слово подснежник по составу",
+        "Какие части в слове «подснежник»?",
+        "Раздели «подснежник» на приставку, корень и окончание"
+      ]
+    },
+    {
+      "id": "language-09",
+      "domain": "language",
+      "target_intent": "language.conditional_punctuation",
+      "utterances": [
+        "Где ставить запятую в если то?",
+        "Ставится ли запятая перед «то» после «если»?",
+        "Покажи пунктуацию в конструкции «если ..., то ...»"
+      ]
+    },
+    {
+      "id": "language-10",
+      "domain": "language",
+      "target_intent": "language.explain_address_forms",
+      "utterances": [
+        "Объясни разницу между ты и вы иностранцу",
+        "Как объяснить иностранцу, когда говорить «ты» и «вы»?",
+        "В чём разница русского «ты» и «вы»?"
+      ]
+    },
+    {
+      "id": "language-11",
+      "domain": "language",
+      "target_intent": "language.pronounce_thanks",
+      "utterances": [
+        "Как произнести thanks?",
+        "Научи произнести английское thanks",
+        "Как правильно сказать вслух слово thanks?"
+      ]
+    },
+    {
+      "id": "language-12",
+      "domain": "language",
+      "target_intent": "language.tense_mnemonic",
+      "utterances": [
+        "Придумай мнемонику для английских времён",
+        "Как запомнить времена английского с помощью образа?",
+        "Придумай подсказку для Simple, Continuous и Perfect"
+      ]
+    },
+    {
+      "id": "language-13",
+      "domain": "language",
+      "target_intent": "language.spanish_introduction_practice",
+      "utterances": [
+        "Потренируй со мной испанское знакомство",
+        "Давай разыграем знакомство на испанском",
+        "Поговори со мной по-испански как при первой встрече"
+      ]
+    },
+    {
+      "id": "language-14",
+      "domain": "language",
+      "target_intent": "language.explain_obrigado",
+      "utterances": [
+        "Объясни португальское obrigado",
+        "Почему по-португальски говорят obrigado или obrigada?",
+        "Что означает obrigado и кто так говорит?"
+      ]
+    },
+    {
+      "id": "language-15",
+      "domain": "language",
+      "target_intent": "language.explain_house_home",
+      "utterances": [
+        "Сравни английские house и home",
+        "Когда дом переводится house, а когда home?",
+        "Чем английское home отличается от house?"
+      ]
+    },
+    {
+      "id": "language-16",
+      "domain": "language",
+      "target_intent": "language.apology_variants",
+      "utterances": [
+        "Напиши три варианта извинения",
+        "Подбери три способа извиниться",
+        "Мне нужны три разные фразы с извинением"
+      ]
+    },
+    {
+      "id": "language-17",
+      "domain": "language",
+      "target_intent": "language.business_rephrase",
+      "utterances": [
+        "Перефразируй в деловом стиле: я не успею",
+        "Скажи деловым языком «я не успею»",
+        "Как профессионально написать, что не укладываюсь в срок?"
+      ]
+    },
+    {
+      "id": "language-18",
+      "domain": "language",
+      "target_intent": "language.explain_proverb",
+      "utterances": [
+        "Объясни пословицу тише едешь дальше будешь",
+        "Что значит «тише едешь — дальше будешь»?",
+        "Объясни пословицу про тихую езду и дальнюю дорогу"
+      ]
+    },
+    {
+      "id": "language-19",
+      "domain": "language",
+      "target_intent": "language.generate_rhymes",
+      "utterances": [
+        "Придумай пять рифм к слову дом",
+        "Подбери пять рифм к слову «дом»",
+        "Какие пять слов рифмуются с «дом»?"
+      ]
+    },
+    {
+      "id": "language-20",
+      "domain": "language",
+      "target_intent": "language.correct_their_theyre",
+      "utterances": [
+        "Проверь фразу: their going home",
+        "Верно ли написано their going home?",
+        "Поправь английское предложение «their going home»"
+      ]
+    },
+    {
+      "id": "learning-01",
+      "domain": "learning",
+      "target_intent": "learning.explain_fractions",
+      "utterances": [
+        "Объясни дроби ребёнку",
+        "Объясни ребёнку, что означает одна четверть",
+        "Как просто рассказать о числителе и знаменателе?"
+      ]
+    },
+    {
+      "id": "learning-02",
+      "domain": "learning",
+      "target_intent": "learning.multiplication_practice",
+      "utterances": [
+        "Помоги выучить таблицу умножения на семь",
+        "Потренируй со мной таблицу на семь",
+        "Давай выучим умножение на 7"
+      ]
+    },
+    {
+      "id": "learning-03",
+      "domain": "learning",
+      "target_intent": "learning.percentage_exercise",
+      "utterances": [
+        "Придумай упражнение на проценты",
+        "Дай простую задачку про проценты",
+        "Хочу потренироваться считать скидку"
+      ]
+    },
+    {
+      "id": "learning-04",
+      "domain": "learning",
+      "target_intent": "learning.explain_pythagoras",
+      "utterances": [
+        "Объясни теорему Пифагора без доказательства",
+        "Расскажи теорему Пифагора простыми словами без доказательства",
+        "Как связаны стороны прямоугольного треугольника?"
+      ]
+    },
+    {
+      "id": "learning-05",
+      "domain": "learning",
+      "target_intent": "learning.vocabulary_learning",
+      "utterances": [
+        "Как запоминать иностранные слова?",
+        "Как учить слова, чтобы они оставались в памяти?",
+        "Предложи простой способ запоминать иностранную лексику"
+      ]
+    },
+    {
+      "id": "learning-06",
+      "domain": "learning",
+      "target_intent": "learning.plan_geometry",
+      "utterances": [
+        "Составь план изучения геометрии",
+        "С чего начать изучение геометрии?",
+        "Помоги составить маршрут по геометрии"
+      ]
+    },
+    {
+      "id": "learning-07",
+      "domain": "learning",
+      "target_intent": "learning.logic_exercise",
+      "utterances": [
+        "Дай упражнение на логику",
+        "Дай небольшую задачу на логику",
+        "Хочу решить простой логический вопрос"
+      ]
+    },
+    {
+      "id": "learning-08",
+      "domain": "learning",
+      "target_intent": "learning.history_question",
+      "utterances": [
+        "Задай мне вопрос по истории",
+        "Проверь меня одним историческим вопросом",
+        "Спроси что-нибудь по истории"
+      ]
+    },
+    {
+      "id": "learning-09",
+      "domain": "learning",
+      "target_intent": "learning.explain_mass_weight",
+      "utterances": [
+        "Объясни разницу между массой и весом",
+        "Почему массу и вес считают разными величинами?",
+        "Чем килограммы массы отличаются от веса?"
+      ]
+    },
+    {
+      "id": "learning-10",
+      "domain": "learning",
+      "target_intent": "learning.note_taking",
+      "utterances": [
+        "Как вести конспект?",
+        "Как записывать лекцию, чтобы потом понять записи?",
+        "Предложи удобный способ вести конспект"
+      ]
+    },
+    {
+      "id": "learning-11",
+      "domain": "learning",
+      "target_intent": "learning.read_staff",
+      "utterances": [
+        "Научи читать нотный стан",
+        "Объясни, как читать ноты на пяти линейках",
+        "Научи ориентироваться на нотном стане"
+      ]
+    },
+    {
+      "id": "learning-12",
+      "domain": "learning",
+      "target_intent": "learning.decimal_fractions",
+      "utterances": [
+        "Объясни десятичные дроби",
+        "Что означает цифра после запятой в дроби?",
+        "Объясни числа вроде 0,3 и 0,25"
+      ]
+    },
+    {
+      "id": "learning-13",
+      "domain": "learning",
+      "target_intent": "learning.probability_exercise",
+      "utterances": [
+        "Дай задачу на вероятность для новичка",
+        "Дай простую задачу на вероятность",
+        "Хочу попробовать посчитать шанс на кубике"
+      ]
+    },
+    {
+      "id": "learning-14",
+      "domain": "learning",
+      "target_intent": "learning.magnet_experiment",
+      "utterances": [
+        "Как устроить домашний опыт с магнитом?",
+        "Как показать дома, что притягивает магнит?",
+        "Придумай безопасный опыт с обычным магнитом"
+      ]
+    },
+    {
+      "id": "learning-15",
+      "domain": "learning",
+      "target_intent": "learning.water_quiz",
+      "utterances": [
+        "Составь короткий учебный квиз о воде",
+        "Задай мне несколько учебных вопросов про воду",
+        "Устрой небольшой тест о воде по одному вопросу"
+      ]
+    },
+    {
+      "id": "learning-16",
+      "domain": "learning",
+      "target_intent": "learning.negative_numbers",
+      "utterances": [
+        "Объясни отрицательные числа",
+        "Для чего нужны числа меньше нуля?",
+        "Объясни, что означает минус перед числом"
+      ]
+    },
+    {
+      "id": "learning-17",
+      "domain": "learning",
+      "target_intent": "learning.long_division_practice",
+      "utterances": [
+        "Помоги разобраться с делением в столбик",
+        "Научи меня делить столбиком",
+        "Разберём вместе простой пример деления в столбик?"
+      ]
+    },
+    {
+      "id": "learning-18",
+      "domain": "learning",
+      "target_intent": "learning.touch_typing",
+      "utterances": [
+        "Как научиться печатать вслепую?",
+        "Как начать печатать, не глядя на клавиатуру?",
+        "Дай план тренировки слепого набора"
+      ]
+    },
+    {
+      "id": "learning-19",
+      "domain": "learning",
+      "target_intent": "learning.memory_game",
+      "utterances": [
+        "Придумай тренировку памяти без медсоветов",
+        "Предложи простое упражнение на запоминание",
+        "Дай игру для памяти без лечебных рекомендаций"
+      ]
+    },
+    {
+      "id": "learning-20",
+      "domain": "learning",
+      "target_intent": "learning.right_hand_screw",
+      "utterances": [
+        "Объясни правило буравчика",
+        "Как понять правило правого винта?",
+        "Объясни правило буравчика для тока"
+      ]
+    },
+    {
+      "id": "science-01",
+      "domain": "science",
+      "target_intent": "science.atom",
+      "utterances": [
+        "Что такое атом?",
+        "Из чего состоит атом?",
+        "Объясни атом простыми словами"
+      ]
+    },
+    {
+      "id": "science-02",
+      "domain": "science",
+      "target_intent": "science.blue_sky",
+      "utterances": [
+        "Почему небо голубое?",
+        "Откуда у неба голубой цвет?",
+        "Почему днём небо выглядит синим?"
+      ]
+    },
+    {
+      "id": "science-03",
+      "domain": "science",
+      "target_intent": "science.spiders_insects",
+      "utterances": [
+        "Чем пауки отличаются от насекомых?",
+        "Почему паук не считается насекомым?",
+        "Как отличить паука от насекомого?"
+      ]
+    },
+    {
+      "id": "science-04",
+      "domain": "science",
+      "target_intent": "science.lunar_crater",
+      "utterances": [
+        "Что такое лунный кратер?",
+        "Откуда на Луне круглые впадины?",
+        "Что называют кратером на Луне?"
+      ]
+    },
+    {
+      "id": "science-05",
+      "domain": "science",
+      "target_intent": "science.heart_structure",
+      "utterances": [
+        "Как устроено человеческое сердце?",
+        "Объясни устройство сердца без медицинских советов",
+        "Как сердце перекачивает кровь?"
+      ]
+    },
+    {
+      "id": "science-06",
+      "domain": "science",
+      "target_intent": "science.black_hole",
+      "utterances": [
+        "Что такое чёрная дыра?",
+        "Что означает чёрная дыра в космосе?",
+        "Как объяснить чёрную дыру простыми словами?"
+      ]
+    },
+    {
+      "id": "science-07",
+      "domain": "science",
+      "target_intent": "science.moon_phases",
+      "utterances": [
+        "Почему Луна меняет форму?",
+        "Почему Луна то круглая, то серпом?",
+        "Откуда берутся фазы Луны?"
+      ]
+    },
+    {
+      "id": "science-08",
+      "domain": "science",
+      "target_intent": "science.photosynthesis",
+      "utterances": [
+        "Как работает фотосинтез?",
+        "Как растения используют солнечный свет?",
+        "Объясни фотосинтез коротко"
+      ]
+    },
+    {
+      "id": "science-09",
+      "domain": "science",
+      "target_intent": "science.floating_ice",
+      "utterances": [
+        "Почему лёд плавает?",
+        "Почему кубик льда не тонет?",
+        "Отчего лёд плавает в стакане?"
+      ]
+    },
+    {
+      "id": "science-10",
+      "domain": "science",
+      "target_intent": "science.resistance",
+      "utterances": [
+        "Что такое электрическое сопротивление?",
+        "Что значит сопротивление проводника?",
+        "Почему ток проходит через материалы по-разному?"
+      ]
+    },
+    {
+      "id": "science-11",
+      "domain": "science",
+      "target_intent": "science.energy_conservation",
+      "utterances": [
+        "Объясни закон сохранения энергии",
+        "Почему говорят, что энергия не исчезает?",
+        "Объясни закон сохранения энергии простым примером"
+      ]
+    },
+    {
+      "id": "science-12",
+      "domain": "science",
+      "target_intent": "science.bacteria_viruses",
+      "utterances": [
+        "Чем бактерии отличаются от вирусов?",
+        "Чем вирус отличается от бактерии?",
+        "Почему бактерия и вирус — не одно и то же?"
+      ]
+    },
+    {
+      "id": "science-13",
+      "domain": "science",
+      "target_intent": "science.rainbow",
+      "utterances": [
+        "Как появляется радуга?",
+        "Почему после дождя появляется радуга?",
+        "Откуда берутся цвета в радуге?"
+      ]
+    },
+    {
+      "id": "science-14",
+      "domain": "science",
+      "target_intent": "science.ecosystem",
+      "utterances": [
+        "Что такое экосистема?",
+        "Что входит в экосистему?",
+        "Объясни экосистему на примере пруда"
+      ]
+    },
+    {
+      "id": "science-15",
+      "domain": "science",
+      "target_intent": "science.compass",
+      "utterances": [
+        "Как работает компас?",
+        "Почему стрелка компаса поворачивается на север?",
+        "Объясни принцип магнитного компаса"
+      ]
+    },
+    {
+      "id": "science-16",
+      "domain": "science",
+      "target_intent": "science.tides",
+      "utterances": [
+        "Почему возникают приливы?",
+        "Откуда берутся приливы и отливы?",
+        "Почему уровень моря периодически меняется?"
+      ]
+    },
+    {
+      "id": "science-17",
+      "domain": "science",
+      "target_intent": "science.tectonic_plate",
+      "utterances": [
+        "Что такое геологическая плита?",
+        "Что такое тектоническая плита?",
+        "На какие плиты разделена поверхность Земли?"
+      ]
+    },
+    {
+      "id": "science-18",
+      "domain": "science",
+      "target_intent": "science.thermal_expansion",
+      "utterances": [
+        "Почему металл расширяется при нагревании?",
+        "Почему нагретый металл становится длиннее?",
+        "Объясни расширение металла при нагреве"
+      ]
+    },
+    {
+      "id": "science-19",
+      "domain": "science",
+      "target_intent": "science.lens",
+      "utterances": [
+        "Как работает линза?",
+        "Как стеклянная линза меняет изображение?",
+        "Почему линза собирает или рассеивает свет?"
+      ]
+    },
+    {
+      "id": "science-20",
+      "domain": "science",
+      "target_intent": "science.speed_acceleration",
+      "utterances": [
+        "Чем скорость отличается от ускорения?",
+        "Чем разгон отличается от скорости?",
+        "Что описывает ускорение, если скорость уже известна?"
+      ]
+    },
+    {
+      "id": "cooking-01",
+      "domain": "cooking",
+      "target_intent": "cooking.cook_rice",
+      "utterances": [
+        "Как сварить рис?",
+        "Как приготовить рис в кастрюле?",
+        "Подскажи способ сварить рис без рисоварки"
+      ]
+    },
+    {
+      "id": "cooking-02",
+      "domain": "cooking",
+      "target_intent": "cooking.baking_powder_substitution",
+      "utterances": [
+        "Чем заменить разрыхлитель?",
+        "Что взять вместо разрыхлителя для теста?",
+        "Разрыхлителя нет, чем его заменить?"
+      ]
+    },
+    {
+      "id": "cooking-03",
+      "domain": "cooking",
+      "target_intent": "cooking.basic_omelette",
+      "utterances": [
+        "Как приготовить омлет?",
+        "Как сделать обычный омлет на сковороде?",
+        "Подскажи базовый рецепт омлета"
+      ]
+    },
+    {
+      "id": "cooking-04",
+      "domain": "cooking",
+      "target_intent": "cooking.reduce_spiciness",
+      "utterances": [
+        "Как уменьшить остроту супа?",
+        "Суп слишком острый, как сделать мягче?",
+        "Чем уменьшить жгучесть супа?"
+      ]
+    },
+    {
+      "id": "cooking-05",
+      "domain": "cooking",
+      "target_intent": "cooking.rice_bean_dinner",
+      "utterances": [
+        "Предложи ужин из риса и фасоли",
+        "Что приготовить вечером из фасоли и риса?",
+        "Придумай блюдо с рисом и фасолью"
+      ]
+    },
+    {
+      "id": "cooking-06",
+      "domain": "cooking",
+      "target_intent": "cooking.pancake_batter",
+      "utterances": [
+        "Как сделать тесто для блинов?",
+        "Как замесить тесто на тонкие блины?",
+        "Дай простой состав теста для блинов"
+      ]
+    },
+    {
+      "id": "cooking-07",
+      "domain": "cooking",
+      "target_intent": "cooking.stewing_boiling",
+      "utterances": [
+        "Чем отличается тушение от варки?",
+        "В чём разница варить и тушить?",
+        "Почему тушение не то же, что варка?"
+      ]
+    },
+    {
+      "id": "cooking-08",
+      "domain": "cooking",
+      "target_intent": "cooking.cut_onion",
+      "utterances": [
+        "Как нарезать лук безопаснее?",
+        "Как резать лук, чтобы пальцы были в безопасности?",
+        "Подскажи безопасный приём нарезки лука"
+      ]
+    },
+    {
+      "id": "cooking-09",
+      "domain": "cooking",
+      "target_intent": "cooking.steam_vegetables",
+      "utterances": [
+        "Как приготовить овощи на пару?",
+        "Как приготовить овощи в паровой корзине?",
+        "Объясни готовку овощей на пару"
+      ]
+    },
+    {
+      "id": "cooking-10",
+      "domain": "cooking",
+      "target_intent": "cooking.vegetarian_breakfast",
+      "utterances": [
+        "Предложи вегетарианский завтрак",
+        "Что приготовить утром без мяса?",
+        "Предложи один простой вегетарианский завтрак"
+      ]
+    },
+    {
+      "id": "cooking-11",
+      "domain": "cooking",
+      "target_intent": "cooking.soak_legumes",
+      "utterances": [
+        "Объясни зачем замачивать бобовые",
+        "Для чего фасоль заранее оставляют в воде?",
+        "Что даёт замачивание сухих бобовых?"
+      ]
+    },
+    {
+      "id": "cooking-12",
+      "domain": "cooking",
+      "target_intent": "cooking.saute_mushrooms",
+      "utterances": [
+        "Как обжарить грибы?",
+        "Как подрумянить грибы на сковороде?",
+        "Почему грибы тушатся, а не жарятся, и как их обжарить?"
+      ]
+    },
+    {
+      "id": "cooking-13",
+      "domain": "cooking",
+      "target_intent": "cooking.no_mayo_salad",
+      "utterances": [
+        "Придумай салат без майонеза",
+        "Придумай салат с лёгкой заправкой без майонеза",
+        "Какой салат сделать без майонезной заправки?"
+      ]
+    },
+    {
+      "id": "cooking-14",
+      "domain": "cooking",
+      "target_intent": "cooking.fix_oversalting",
+      "utterances": [
+        "Как исправить пересоленное блюдо?",
+        "Что сделать, если еды получилось слишком солёной?",
+        "Можно ли спасти пересоленное блюдо?"
+      ]
+    },
+    {
+      "id": "cooking-15",
+      "domain": "cooking",
+      "target_intent": "cooking.lemonade",
+      "utterances": [
+        "Как сделать домашний лимонад?",
+        "Как сделать простой лимонад из лимона?",
+        "Подскажи домашний лимонад без газировки"
+      ]
+    },
+    {
+      "id": "cooking-16",
+      "domain": "cooking",
+      "target_intent": "cooking.dairy_free_recipe",
+      "utterances": [
+        "Предложи рецепт без молочных продуктов",
+        "Предложи простой рецепт без молока и сыра",
+        "Что можно приготовить без любых молочных ингредиентов?"
+      ]
+    },
+    {
+      "id": "cooking-17",
+      "domain": "cooking",
+      "target_intent": "cooking.store_spices",
+      "utterances": [
+        "Как хранить сухие специи?",
+        "Где держать специи, чтобы аромат сохранялся?",
+        "Как правильно хранить баночки с сухими специями?"
+      ]
+    },
+    {
+      "id": "cooking-18",
+      "domain": "cooking",
+      "target_intent": "cooking.explain_saute_base",
+      "utterances": [
+        "Что такое пассеровка?",
+        "Что такое пассеровать овощи?",
+        "Чем отличается пассеровка от сильного обжаривания?"
+      ]
+    },
+    {
+      "id": "cooking-19",
+      "domain": "cooking",
+      "target_intent": "cooking.baked_potato_filling",
+      "utterances": [
+        "Предложи начинку для печёного картофеля",
+        "Чем наполнить запечённую картошку?",
+        "Предложи начинку для картофеля из духовки"
+      ]
+    },
+    {
+      "id": "cooking-20",
+      "domain": "cooking",
+      "target_intent": "cooking.pumpkin_spices",
+      "utterances": [
+        "Как подобрать специи к тыкве?",
+        "Какие приправы подходят к тыкве?",
+        "Чем приправить тыкву для сладкого и солёного блюда?"
+      ]
+    },
+    {
+      "id": "gardening-01",
+      "domain": "gardening",
+      "target_intent": "gardening.explain_mulch",
+      "utterances": [
+        "Что такое мульчирование?",
+        "Зачем покрывают почву мульчей?",
+        "Что значит замульчировать грядку?"
+      ]
+    },
+    {
+      "id": "gardening-02",
+      "domain": "gardening",
+      "target_intent": "gardening.choose_seedling_pot",
+      "utterances": [
+        "Как выбрать горшок для рассады?",
+        "В какую ёмкость посадить рассаду?",
+        "На что смотреть при выборе стаканчика для сеянца?"
+      ]
+    },
+    {
+      "id": "gardening-03",
+      "domain": "gardening",
+      "target_intent": "gardening.compost_humus",
+      "utterances": [
+        "Объясни разницу между компостом и перегноем",
+        "Чем компост отличается от перегноя?",
+        "Это одно и то же — перегной и компост?"
+      ]
+    },
+    {
+      "id": "gardening-04",
+      "domain": "gardening",
+      "target_intent": "gardening.drainage",
+      "utterances": [
+        "Зачем нужен дренаж?",
+        "Почему корням нужен дренаж?",
+        "Что делает дренаж в горшке?"
+      ]
+    },
+    {
+      "id": "gardening-05",
+      "domain": "gardening",
+      "target_intent": "gardening.compacted_soil_signs",
+      "utterances": [
+        "Как понять что грунт слишком плотный?",
+        "Как заметить, что земля слишком слежалась?",
+        "По каким признакам грунт плохо пропускает воздух?"
+      ]
+    },
+    {
+      "id": "gardening-06",
+      "domain": "gardening",
+      "target_intent": "gardening.root_basil_cutting",
+      "utterances": [
+        "Как укоренить черенок базилика?",
+        "Как получить корни у веточки базилика?",
+        "Можно ли укоренить базилик в воде?"
+      ]
+    },
+    {
+      "id": "gardening-07",
+      "domain": "gardening",
+      "target_intent": "gardening.crop_rotation",
+      "utterances": [
+        "Что такое севооборот?",
+        "Зачем чередовать культуры на грядке?",
+        "Что означает севооборот на огороде?"
+      ]
+    },
+    {
+      "id": "gardening-08",
+      "domain": "gardening",
+      "target_intent": "gardening.small_garden_plan",
+      "utterances": [
+        "Предложи план маленького огорода",
+        "Помоги спланировать небольшой огород",
+        "Как разместить грядки на маленьком участке?"
+      ]
+    },
+    {
+      "id": "gardening-09",
+      "domain": "gardening",
+      "target_intent": "gardening.determinate_tomato",
+      "utterances": [
+        "Чем отличаются детерминантные томаты?",
+        "Что значит детерминантный сорт помидора?",
+        "Чем ограниченные в росте томаты отличаются от высокорослых?"
+      ]
+    },
+    {
+      "id": "gardening-10",
+      "domain": "gardening",
+      "target_intent": "gardening.seedling_substrate",
+      "utterances": [
+        "Как подготовить почвенную смесь для рассады?",
+        "Из чего сделать грунт для сеянцев?",
+        "Какая почвенная смесь нужна рассаде?"
+      ]
+    },
+    {
+      "id": "gardening-11",
+      "domain": "gardening",
+      "target_intent": "gardening.pinching",
+      "utterances": [
+        "Для чего прищипывают растение?",
+        "Для чего удаляют верхушку растения?",
+        "Что даёт прищипка побега?"
+      ]
+    },
+    {
+      "id": "gardening-12",
+      "domain": "gardening",
+      "target_intent": "gardening.drip_irrigation_plan",
+      "utterances": [
+        "Как устроить капельный полив?",
+        "Как собрать простой капельный полив?",
+        "Что нужно для полива растений по капле?"
+      ]
+    },
+    {
+      "id": "gardening-13",
+      "domain": "gardening",
+      "target_intent": "gardening.indoor_mint",
+      "utterances": [
+        "Как ухаживать за домашней мятой?",
+        "Как ухаживать за мятой на подоконнике?",
+        "Что нужно комнатной мяте для роста?"
+      ]
+    },
+    {
+      "id": "gardening-14",
+      "domain": "gardening",
+      "target_intent": "gardening.overwatering_signs",
+      "utterances": [
+        "Объясни признаки перелива растения",
+        "Как понять, что растение переливают?",
+        "Какие симптомы бывают от слишком частого полива?"
+      ]
+    },
+    {
+      "id": "gardening-15",
+      "domain": "gardening",
+      "target_intent": "gardening.explain_pricking_out",
+      "utterances": [
+        "Что такое пикировка?",
+        "Зачем рассаду пикируют?",
+        "Объясни пикировку сеянцев"
+      ]
+    },
+    {
+      "id": "gardening-16",
+      "domain": "gardening",
+      "target_intent": "gardening.microgreens",
+      "utterances": [
+        "Как выращивать микрозелень?",
+        "Как вырастить микрозелень на подоконнике?",
+        "Подскажи простой способ посева микрозелени"
+      ]
+    },
+    {
+      "id": "gardening-17",
+      "domain": "gardening",
+      "target_intent": "gardening.tie_tomato",
+      "utterances": [
+        "Как подвязать томат?",
+        "Как закрепить помидорный куст на опоре?",
+        "Чем и как подвязать стебель томата?"
+      ]
+    },
+    {
+      "id": "gardening-18",
+      "domain": "gardening",
+      "target_intent": "gardening.shade_partial_shade",
+      "utterances": [
+        "Чем отличается тень от полутени?",
+        "Чем отличается полутень от полной тени?",
+        "Как понять, что место считается полутенью?"
+      ]
+    },
+    {
+      "id": "gardening-19",
+      "domain": "gardening",
+      "target_intent": "gardening.save_bean_seed",
+      "utterances": [
+        "Как собирать семена фасоли?",
+        "Как оставить свою фасоль на семена?",
+        "Когда собирать фасоль для следующего посева?"
+      ]
+    },
+    {
+      "id": "gardening-20",
+      "domain": "gardening",
+      "target_intent": "gardening.reduce_soil_evaporation",
+      "utterances": [
+        "Как уменьшить испарение воды из почвы?",
+        "Как дольше сохранить влагу в грядке?",
+        "Что уменьшает потерю воды из земли?"
+      ]
+    },
+    {
+      "id": "home_advice-01",
+      "domain": "home_advice",
+      "target_intent": "home_advice.fridge_odour",
+      "utterances": [
+        "Как убрать запах из холодильника без смешивания химии?",
+        "Как убрать неприятный запах из холодильника без химических смесей?",
+        "Подскажи простой способ вымыть холодильник от запаха"
+      ]
+    },
+    {
+      "id": "home_advice-02",
+      "domain": "home_advice",
+      "target_intent": "home_advice.tool_storage",
+      "utterances": [
+        "Как организовать хранение инструментов?",
+        "Как разложить домашние инструменты, чтобы быстро находить?",
+        "Предложи понятную систему хранения инструментов"
+      ]
+    },
+    {
+      "id": "home_advice-03",
+      "domain": "home_advice",
+      "target_intent": "home_advice.room_cleaning_plan",
+      "utterances": [
+        "Составь план уборки одной комнаты",
+        "С чего начать уборку одной комнаты?",
+        "Дай последовательность, чтобы убрать комнату"
+      ]
+    },
+    {
+      "id": "home_advice-04",
+      "domain": "home_advice",
+      "target_intent": "home_advice.save_water",
+      "utterances": [
+        "Как экономить воду дома?",
+        "Как тратить меньше воды дома?",
+        "Какие привычки помогают беречь воду?"
+      ]
+    },
+    {
+      "id": "home_advice-05",
+      "domain": "home_advice",
+      "target_intent": "home_advice.waste_sorting",
+      "utterances": [
+        "Как сортировать домашний мусор по общим принципам?",
+        "Как в общих чертах разделять мусор дома?",
+        "Объясни домашнюю сортировку без привязки к городу"
+      ]
+    },
+    {
+      "id": "home_advice-06",
+      "domain": "home_advice",
+      "target_intent": "home_advice.desk_location",
+      "utterances": [
+        "Как выбрать место для рабочего стола?",
+        "Где лучше поставить стол для работы?",
+        "Как выбрать расположение рабочего места в комнате?"
+      ]
+    },
+    {
+      "id": "home_advice-07",
+      "domain": "home_advice",
+      "target_intent": "home_advice.pack_dishes",
+      "utterances": [
+        "Как аккуратно упаковать посуду для переезда?",
+        "Как упаковать тарелки и чашки при переезде?",
+        "Подскажи, как защитить посуду в коробках"
+      ]
+    },
+    {
+      "id": "home_advice-08",
+      "domain": "home_advice",
+      "target_intent": "home_advice.box_labels",
+      "utterances": [
+        "Предложи систему маркировки коробок",
+        "Как подписывать коробки, чтобы их легко находить?",
+        "Придумай систему этикеток для хранения вещей"
+      ]
+    },
+    {
+      "id": "home_advice-09",
+      "domain": "home_advice",
+      "target_intent": "home_advice.wooden_board_care",
+      "utterances": [
+        "Как ухаживать за деревянной разделочной доской?",
+        "Как мыть и сушить деревянную разделочную доску?",
+        "Что делать, чтобы деревянная кухонная доска служила дольше?"
+      ]
+    },
+    {
+      "id": "home_advice-10",
+      "domain": "home_advice",
+      "target_intent": "home_advice.ventilate_without_draft",
+      "utterances": [
+        "Как проветривать комнату без сквозняка?",
+        "Как освежить воздух, чтобы не дуло через всю комнату?",
+        "Можно ли проветрить комнату без встречного потока?"
+      ]
+    },
+    {
+      "id": "home_advice-11",
+      "domain": "home_advice",
+      "target_intent": "home_advice.reduce_noise",
+      "utterances": [
+        "Как уменьшить бытовой шум без ремонта?",
+        "Как сделать комнату тише, не перестраивая стены?",
+        "Что можно сделать с бытовым шумом без ремонта?"
+      ]
+    },
+    {
+      "id": "home_advice-12",
+      "domain": "home_advice",
+      "target_intent": "home_advice.organise_first_aid_storage",
+      "utterances": [
+        "Как разложить аптечку без советов о лечении?",
+        "Как рассортировать домашнюю аптечку без обсуждения лечения?",
+        "Помоги навести порядок в лекарствах и перевязочных вещах"
+      ]
+    },
+    {
+      "id": "home_advice-13",
+      "domain": "home_advice",
+      "target_intent": "home_advice.organise_cables",
+      "utterances": [
+        "Как организовать кабели на столе?",
+        "Как аккуратно уложить провода возле компьютера?",
+        "Предложи порядок для кабелей на столе"
+      ]
+    },
+    {
+      "id": "home_advice-14",
+      "domain": "home_advice",
+      "target_intent": "home_advice.defrost_fridge_model",
+      "utterances": [
+        "Как бережно разморозить холодильник по инструкции производителя?",
+        "Как правильно разморозить мой холодильник по инструкции?",
+        "Подскажи бережную разморозку с учётом рекомендаций производителя"
+      ]
+    },
+    {
+      "id": "home_advice-15",
+      "domain": "home_advice",
+      "target_intent": "home_advice.cleaning_supplies_list",
+      "utterances": [
+        "Составь список вещей для уборки",
+        "Что подготовить перед уборкой квартиры?",
+        "Составь базовый перечень принадлежностей для уборки"
+      ]
+    },
+    {
+      "id": "home_advice-16",
+      "domain": "home_advice",
+      "target_intent": "home_advice.clean_strainer",
+      "utterances": [
+        "Как очистить ситечко от сухих остатков?",
+        "Как снять засохшие частицы с кухонного ситечка?",
+        "Чем очистить сетку ситечка от сухих остатков еды?"
+      ]
+    },
+    {
+      "id": "home_advice-17",
+      "domain": "home_advice",
+      "target_intent": "home_advice.shoe_storage",
+      "utterances": [
+        "Как организовать полку для обуви?",
+        "Как удобно разместить обувь в прихожей?",
+        "Предложи систему для обувной полки"
+      ]
+    },
+    {
+      "id": "home_advice-18",
+      "domain": "home_advice",
+      "target_intent": "home_advice.prepare_guest_room",
+      "utterances": [
+        "Как подготовить гостевую комнату?",
+        "Что проверить перед приездом гостей на ночь?",
+        "Как сделать гостевую комнату удобной?"
+      ]
+    },
+    {
+      "id": "home_advice-19",
+      "domain": "home_advice",
+      "target_intent": "home_advice.reading_light",
+      "utterances": [
+        "Как создать спокойное освещение для чтения?",
+        "Как настроить мягкий свет, чтобы читать?",
+        "Предложи спокойное освещение для книги"
+      ]
+    },
+    {
+      "id": "home_advice-20",
+      "domain": "home_advice",
+      "target_intent": "home_advice.track_household_supplies",
+      "utterances": [
+        "Как не забывать о бытовых расходниках?",
+        "Как следить, чтобы дома не заканчивались мелочи?",
+        "Помоги придумать систему запаса расходных материалов"
+      ]
+    },
+    {
+      "id": "technical_explanations-01",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.dns",
+      "utterances": [
+        "Объясни что такое DNS",
+        "Зачем нужен DNS в интернете?",
+        "Объясни, как имя сайта связано с IP-адресом"
+      ]
+    },
+    {
+      "id": "technical_explanations-02",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.wifi_bluetooth",
+      "utterances": [
+        "Чем Wi-Fi отличается от Bluetooth?",
+        "Почему Bluetooth и Wi-Fi нужны для разных задач?",
+        "В чём разница двух беспроводных связей — Wi-Fi и Bluetooth?"
+      ]
+    },
+    {
+      "id": "technical_explanations-03",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.http",
+      "utterances": [
+        "Что такое HTTP?",
+        "Что означает HTTP в адресе сайта?",
+        "Как браузер общается с сервером по HTTP?"
+      ]
+    },
+    {
+      "id": "technical_explanations-04",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.task_queue",
+      "utterances": [
+        "Как работает очередь задач?",
+        "Зачем программе очередь задач?",
+        "Как работает очередь с исполнителями?"
+      ]
+    },
+    {
+      "id": "technical_explanations-05",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.backups",
+      "utterances": [
+        "Зачем нужны резервные копии?",
+        "Почему одной рабочей копии файлов мало?",
+        "Что дают резервные копии данных?"
+      ]
+    },
+    {
+      "id": "technical_explanations-06",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.sqlite",
+      "utterances": [
+        "Объясни что такое SQLite",
+        "Объясни SQLite без сложных терминов",
+        "Для чего используют базу SQLite?"
+      ]
+    },
+    {
+      "id": "technical_explanations-07",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.database_transaction",
+      "utterances": [
+        "Что такое транзакция базы данных?",
+        "Что значит выполнить операции одной транзакцией?",
+        "Зачем базе данных транзакции?"
+      ]
+    },
+    {
+      "id": "technical_explanations-08",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.thread_process",
+      "utterances": [
+        "Чем поток отличается от процесса?",
+        "Чем несколько потоков отличаются от нескольких процессов?",
+        "Объясни разницу thread и process"
+      ]
+    },
+    {
+      "id": "technical_explanations-09",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.cache",
+      "utterances": [
+        "Что такое кэш?",
+        "Зачем приложению кэш?",
+        "Объясни кэш на простом примере"
+      ]
+    },
+    {
+      "id": "technical_explanations-10",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.webrtc",
+      "utterances": [
+        "Объясни принцип WebRTC",
+        "Как WebRTC передаёт голос в браузере?",
+        "Объясни, что делает WebRTC"
+      ]
+    },
+    {
+      "id": "technical_explanations-11",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.tls",
+      "utterances": [
+        "Что такое TLS?",
+        "Зачем сайту TLS?",
+        "Что даёт защищённое соединение TLS?"
+      ]
+    },
+    {
+      "id": "technical_explanations-12",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.idempotency",
+      "utterances": [
+        "Зачем нужна идемпотентность?",
+        "Почему повтор запроса не должен создавать дубль?",
+        "Объясни идемпотентное действие на примере"
+      ]
+    },
+    {
+      "id": "technical_explanations-13",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.timeout",
+      "utterances": [
+        "Что означает ошибка тайм-аута?",
+        "Что произошло, если запрос завершился по тайм-ауту?",
+        "Ошибка timeout означает, что действие не выполнилось?"
+      ]
+    },
+    {
+      "id": "technical_explanations-14",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.json_csv",
+      "utterances": [
+        "Чем JSON отличается от CSV?",
+        "Когда использовать JSON, а когда CSV?",
+        "Чем отличаются форматы JSON и CSV?"
+      ]
+    },
+    {
+      "id": "technical_explanations-15",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.temperature_sensor",
+      "utterances": [
+        "Как устроен простой датчик температуры?",
+        "По какому принципу работает простой термодатчик?",
+        "Как температура превращается в электрическое измерение?"
+      ]
+    },
+    {
+      "id": "technical_explanations-16",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.pwm",
+      "utterances": [
+        "Что такое PWM?",
+        "Что означает PWM?",
+        "Как ШИМ управляет яркостью?"
+      ]
+    },
+    {
+      "id": "technical_explanations-17",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.dc_ac",
+      "utterances": [
+        "Объясни разницу между постоянным и переменным током",
+        "Почему ток называют постоянным или переменным?",
+        "В чём разница DC и AC?"
+      ]
+    },
+    {
+      "id": "technical_explanations-18",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.checksum",
+      "utterances": [
+        "Что такое контрольная сумма?",
+        "Зачем файлу контрольная сумма?",
+        "Как сумма помогает проверить, что данные не изменились?"
+      ]
+    },
+    {
+      "id": "technical_explanations-19",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.automated_tests",
+      "utterances": [
+        "Зачем нужны автоматические тесты?",
+        "Зачем писать тесты для программы?",
+        "Что дают автоматические проверки кода?"
+      ]
+    },
+    {
+      "id": "technical_explanations-20",
+      "domain": "technical_explanations",
+      "target_intent": "technical_explanations.concurrency_limit",
+      "utterances": [
+        "Что такое ограничение параллельности?",
+        "Что значит выполнять не больше трёх задач одновременно?",
+        "Зачем ограничивают число параллельных запросов?"
+      ]
+    },
+    {
+      "id": "writing-01",
+      "domain": "writing",
+      "target_intent": "proposed.writing.1",
+      "utterances": [
+        "Придумай заголовок для заметки о саде",
+        "Как озаглавить заметку про сад?",
+        "Дай название небольшому тексту о садовых делах"
+      ]
+    },
+    {
+      "id": "writing-02",
+      "domain": "writing",
+      "target_intent": "proposed.writing.2",
+      "utterances": [
+        "Напиши короткое приглашение на ужин",
+        "Позови друзей на ужин коротким сообщением",
+        "Составь пару тёплых фраз, чтобы пригласить на ужин"
+      ]
+    },
+    {
+      "id": "writing-03",
+      "domain": "writing",
+      "target_intent": "proposed.writing.3",
+      "utterances": [
+        "Сократи текст: встреча состоится завтра утром",
+        "Скажи короче: встреча состоится завтра утром",
+        "Убери лишние слова из фразы «встреча состоится завтра утром»"
+      ]
+    },
+    {
+      "id": "writing-04",
+      "domain": "writing",
+      "target_intent": "proposed.writing.4",
+      "utterances": [
+        "Сделай письмо дружелюбнее: пришлите документ",
+        "Смягчи сообщение «пришлите документ»",
+        "Как теплее попросить: пришлите документ?"
+      ]
+    },
+    {
+      "id": "writing-05",
+      "domain": "writing",
+      "target_intent": "proposed.writing.5",
+      "utterances": [
+        "Придумай три названия для домашнего проекта",
+        "Предложи три имени нашему домашнему проекту",
+        "Как назвать этот проект дома? Нужно три варианта"
+      ]
+    },
+    {
+      "id": "writing-06",
+      "domain": "writing",
+      "target_intent": "proposed.writing.6",
+      "utterances": [
+        "Напиши поздравление с днём рождения",
+        "Сочини небольшое поздравление на день рождения",
+        "Что написать человеку в день рождения?"
+      ]
+    },
+    {
+      "id": "writing-07",
+      "domain": "writing",
+      "target_intent": "proposed.writing.7",
+      "utterances": [
+        "Предложи структуру небольшого отчёта",
+        "Какие разделы включить в небольшой отчёт?",
+        "Дай простой каркас отчёта на пару страниц"
+      ]
+    },
+    {
+      "id": "writing-08",
+      "domain": "writing",
+      "target_intent": "proposed.writing.8",
+      "utterances": [
+        "Составь черновик благодарности соседу",
+        "Помоги написать соседу спасибо",
+        "Составь тёплый текст благодарности для соседа"
+      ]
+    },
+    {
+      "id": "writing-09",
+      "domain": "writing",
+      "target_intent": "proposed.writing.9",
+      "utterances": [
+        "Сделай короткое описание домашней библиотеки",
+        "Опиши небольшую библиотеку дома",
+        "Нужна короткая подпись про нашу домашнюю библиотеку"
+      ]
+    },
+    {
+      "id": "writing-10",
+      "domain": "writing",
+      "target_intent": "proposed.writing.10",
+      "utterances": [
+        "Придумай начало рассказа о роботе",
+        "Начни рассказ, где главный герой робот",
+        "Придумай первую сцену истории про маленького робота"
+      ]
+    },
+    {
+      "id": "writing-11",
+      "domain": "writing",
+      "target_intent": "proposed.writing.11",
+      "utterances": [
+        "Перепиши фразу без канцелярита: осуществить выполнение",
+        "Замени «осуществить выполнение» простыми словами",
+        "Как сказать по-человечески «осуществить выполнение»?"
+      ]
+    },
+    {
+      "id": "writing-12",
+      "domain": "writing",
+      "target_intent": "proposed.writing.12",
+      "utterances": [
+        "Напиши шуточную подпись к фото кота",
+        "Придумай смешную подпись к снимку с котом",
+        "Как забавно подписать фотографию котика?"
+      ]
+    },
+    {
+      "id": "writing-13",
+      "domain": "writing",
+      "target_intent": "proposed.writing.13",
+      "utterances": [
+        "Предложи слоган домашней мастерской",
+        "Нужен девиз для мастерской дома",
+        "Придумай короткую фразу о нашей домашней мастерской"
+      ]
+    },
+    {
+      "id": "writing-14",
+      "domain": "writing",
+      "target_intent": "proposed.writing.14",
+      "utterances": [
+        "Составь план выступления о космосе",
+        "Как построить короткий рассказ о космосе перед людьми?",
+        "Дай последовательность пунктов для выступления про космос"
+      ]
+    },
+    {
+      "id": "writing-15",
+      "domain": "writing",
+      "target_intent": "proposed.writing.15",
+      "utterances": [
+        "Напиши короткую загадку о Луне",
+        "Сочини маленькую загадку, ответом на которую будет Луна",
+        "Придумай пару строк для загадки про Луну"
+      ]
+    },
+    {
+      "id": "writing-16",
+      "domain": "writing",
+      "target_intent": "proposed.writing.16",
+      "utterances": [
+        "Придумай диалог двух садовников",
+        "Сочини короткий разговор двух людей в саду",
+        "Придумай несколько реплик между двумя садовниками"
+      ]
+    },
+    {
+      "id": "writing-17",
+      "domain": "writing",
+      "target_intent": "proposed.writing.17",
+      "utterances": [
+        "Объясни как сделать текст яснее",
+        "Как писать понятнее и без лишних слов?",
+        "Какие приёмы помогают сделать текст ясным?"
+      ]
+    },
+    {
+      "id": "writing-18",
+      "domain": "writing",
+      "target_intent": "proposed.writing.18",
+      "utterances": [
+        "Предложи вежливый отказ от приглашения",
+        "Как тактично отказаться прийти в гости?",
+        "Составь мягкий ответ, что не смогу принять приглашение"
+      ]
+    },
+    {
+      "id": "writing-19",
+      "domain": "writing",
+      "target_intent": "proposed.writing.19",
+      "utterances": [
+        "Напиши короткую открытку другу",
+        "Придумай пару тёплых строк для открытки приятелю",
+        "Что коротко написать другу на открытке?"
+      ]
+    },
+    {
+      "id": "writing-20",
+      "domain": "writing",
+      "target_intent": "proposed.writing.20",
+      "utterances": [
+        "Придумай название для овощной грядки",
+        "Как забавно назвать нашу грядку с овощами?",
+        "Придумай имя небольшому огороду на одной грядке"
+      ]
+    },
+    {
+      "id": "games-01",
+      "domain": "games",
+      "target_intent": "proposed.games.1",
+      "utterances": [
+        "Загадай загадку",
+        "Задай мне загадку",
+        "Хочу отгадать что-нибудь"
+      ]
+    },
+    {
+      "id": "games-02",
+      "domain": "games",
+      "target_intent": "proposed.games.2",
+      "utterances": [
+        "Давай играть в города",
+        "Поиграем в названия городов?",
+        "Называй город, а я продолжу на последнюю букву"
+      ]
+    },
+    {
+      "id": "games-03",
+      "domain": "games",
+      "target_intent": "proposed.games.3",
+      "utterances": [
+        "Проведи словесный квиз о космосе",
+        "Проверь мои знания космоса устно",
+        "Давай небольшую викторину про космос без экрана"
+      ]
+    },
+    {
+      "id": "games-04",
+      "domain": "games",
+      "target_intent": "proposed.games.4",
+      "utterances": [
+        "Придумай игру без экрана для двоих",
+        "Чем двоим заняться словесно без телефона?",
+        "Предложи простую игру на двоих, где не нужен экран"
+      ]
+    },
+    {
+      "id": "games-05",
+      "domain": "games",
+      "target_intent": "proposed.games.5",
+      "utterances": [
+        "Задай вопрос с тремя вариантами ответа",
+        "Задай тестовый вопрос и три ответа на выбор",
+        "Дай один вопрос с вариантами А, Б и В"
+      ]
+    },
+    {
+      "id": "games-06",
+      "domain": "games",
+      "target_intent": "proposed.games.6",
+      "utterances": [
+        "Давай играть в двадцать вопросов",
+        "Давай угадывать предмет за двадцать вопросов",
+        "Загадай что-нибудь, я буду спрашивать да или нет"
+      ]
+    },
+    {
+      "id": "games-07",
+      "domain": "games",
+      "target_intent": "proposed.games.7",
+      "utterances": [
+        "Придумай логическую загадку для взрослого",
+        "Дай задачу на логику посложнее",
+        "Хочу взрослую логическую загадку"
+      ]
+    },
+    {
+      "id": "games-08",
+      "domain": "games",
+      "target_intent": "proposed.games.8",
+      "utterances": [
+        "Загадай животное и дай подсказку",
+        "Загадай зверя и скажи одну примету",
+        "Давай я угадаю животное по твоей подсказке"
+      ]
+    },
+    {
+      "id": "games-09",
+      "domain": "games",
+      "target_intent": "proposed.games.9",
+      "utterances": [
+        "Предложи игру для поездки",
+        "Во что поиграть пассажирам в поездке?",
+        "Дай идею дорожной игры без реквизита"
+      ]
+    },
+    {
+      "id": "games-10",
+      "domain": "games",
+      "target_intent": "proposed.games.10",
+      "utterances": [
+        "Составь короткую викторину о растениях",
+        "Проведи короткий опрос про растения",
+        "Дай маленькую ботаническую викторину"
+      ]
+    },
+    {
+      "id": "games-11",
+      "domain": "games",
+      "target_intent": "proposed.games.11",
+      "utterances": [
+        "Давай придумывать историю по очереди",
+        "Сочиним рассказ по одному предложению?",
+        "Давай продолжать друг за другом одну историю"
+      ]
+    },
+    {
+      "id": "games-12",
+      "domain": "games",
+      "target_intent": "proposed.games.12",
+      "utterances": [
+        "Назови слово на последнюю букву слова робот",
+        "Продолжи цепочку после слова робот",
+        "Какое слово начинается с последней буквы слова «робот»?"
+      ]
+    },
+    {
+      "id": "games-13",
+      "domain": "games",
+      "target_intent": "proposed.games.13",
+      "utterances": [
+        "Придумай шараду",
+        "Загадай слово, сложенное из частей",
+        "Придумай мне короткую шараду"
+      ]
+    },
+    {
+      "id": "games-14",
+      "domain": "games",
+      "target_intent": "proposed.games.14",
+      "utterances": [
+        "Предложи игру на внимание",
+        "Как потренировать внимание в игре?",
+        "Предложи простое упражнение-игру на внимательность"
+      ]
+    },
+    {
+      "id": "games-15",
+      "domain": "games",
+      "target_intent": "proposed.games.15",
+      "utterances": [
+        "Составь загадку со словами море и ветер",
+        "Придумай загадку, где есть море и ветер",
+        "Загадай что-нибудь с подсказками про ветер и море"
+      ]
+    },
+    {
+      "id": "games-16",
+      "domain": "games",
+      "target_intent": "proposed.games.16",
+      "utterances": [
+        "Давай играть в ассоциации",
+        "Называй слово, а я скажу ассоциацию",
+        "Поиграем в цепочку связанных слов"
+      ]
+    },
+    {
+      "id": "games-17",
+      "domain": "games",
+      "target_intent": "proposed.games.17",
+      "utterances": [
+        "Придумай домашний квест из трёх подсказок",
+        "Сочини квест дома с тремя загадками-переходами",
+        "Дай сценарий поиска из трёх простых домашних подсказок"
+      ]
+    },
+    {
+      "id": "games-18",
+      "domain": "games",
+      "target_intent": "proposed.games.18",
+      "utterances": [
+        "Задай шуточный вопрос",
+        "Спроси что-нибудь забавное",
+        "Дай смешной вопрос для настроения"
+      ]
+    },
+    {
+      "id": "games-19",
+      "domain": "games",
+      "target_intent": "proposed.games.19",
+      "utterances": [
+        "Предложи игру на запоминание слов",
+        "Во что сыграть, чтобы запоминать цепочку слов?",
+        "Предложи словесную игру на память"
+      ]
+    },
+    {
+      "id": "games-20",
+      "domain": "games",
+      "target_intent": "proposed.games.20",
+      "utterances": [
+        "Объясни правила шахматной рокировки",
+        "Когда в шахматах разрешено рокироваться?",
+        "Объясни, как король и ладья делают рокировку"
+      ]
+    },
+    {
+      "id": "planning-01",
+      "domain": "planning",
+      "target_intent": "proposed.planning.1",
+      "utterances": [
+        "Составь черновой план выходного дня",
+        "Предложи, как провести свободный день",
+        "Набросай спокойный распорядок на выходной"
+      ]
+    },
+    {
+      "id": "planning-02",
+      "domain": "planning",
+      "target_intent": "proposed.planning.2",
+      "utterances": [
+        "Помоги разбить уборку на короткие этапы",
+        "Разбей домашнюю уборку на маленькие шаги",
+        "Как убираться понемногу, чтобы не устать?"
+      ]
+    },
+    {
+      "id": "planning-03",
+      "domain": "planning",
+      "target_intent": "proposed.planning.3",
+      "utterances": [
+        "Предложи список вещей для пикника",
+        "Что взять с собой на пикник?",
+        "Набросай список для отдыха с едой на природе"
+      ]
+    },
+    {
+      "id": "planning-04",
+      "domain": "planning",
+      "target_intent": "proposed.planning.4",
+      "utterances": [
+        "Составь план подготовки к гостям",
+        "Как подготовить дом к приходу гостей?",
+        "Помоги разложить приготовления к гостям по шагам"
+      ]
+    },
+    {
+      "id": "planning-05",
+      "domain": "planning",
+      "target_intent": "proposed.planning.5",
+      "utterances": [
+        "Помоги расставить приоритеты: почта уборка прогулка",
+        "Что сначала: почта, уборка или прогулка?",
+        "Расставь по очереди разбор почты, прогулку и уборку"
+      ]
+    },
+    {
+      "id": "planning-06",
+      "domain": "planning",
+      "target_intent": "proposed.planning.6",
+      "utterances": [
+        "Сделай чеклист сборов в поездку",
+        "Что проверить перед сборами в дорогу?",
+        "Дай список основных вещей для путешествия"
+      ]
+    },
+    {
+      "id": "planning-07",
+      "domain": "planning",
+      "target_intent": "proposed.planning.7",
+      "utterances": [
+        "Предложи план изучения новой темы",
+        "Как начать осваивать новую тему?",
+        "Составь простой учебный маршрут для незнакомого предмета"
+      ]
+    },
+    {
+      "id": "planning-08",
+      "domain": "planning",
+      "target_intent": "proposed.planning.8",
+      "utterances": [
+        "Как разбить большой проект на задачи?",
+        "Как превратить большой проект в понятные шаги?",
+        "Помоги понять, с чего дробить большую задачу"
+      ]
+    },
+    {
+      "id": "planning-09",
+      "domain": "planning",
+      "target_intent": "proposed.planning.9",
+      "utterances": [
+        "Составь черновой список покупок для супа",
+        "Что купить для простого супа?",
+        "Набросай покупки для овощного супа"
+      ]
+    },
+    {
+      "id": "planning-10",
+      "domain": "planning",
+      "target_intent": "proposed.planning.10",
+      "utterances": [
+        "Предложи план семейной настольной игры",
+        "Как организовать семейную игру за столом?",
+        "Помоги спланировать вечер с настолкой для семьи"
+      ]
+    },
+    {
+      "id": "planning-11",
+      "domain": "planning",
+      "target_intent": "proposed.planning.11",
+      "utterances": [
+        "Составь план ухода за комнатными растениями",
+        "Как составить план заботы о растениях дома?",
+        "Нужен простой порядок проверки домашних цветов"
+      ]
+    },
+    {
+      "id": "planning-12",
+      "domain": "planning",
+      "target_intent": "proposed.planning.12",
+      "utterances": [
+        "Как подготовиться к переезду?",
+        "С чего начать организацию переезда?",
+        "Разложи подготовку к смене жилья по шагам"
+      ]
+    },
+    {
+      "id": "planning-13",
+      "domain": "planning",
+      "target_intent": "proposed.planning.13",
+      "utterances": [
+        "Предложи структуру семейного совещания",
+        "Как спокойно обсудить семейные дела?",
+        "Дай повестку короткого семейного разговора о планах"
+      ]
+    },
+    {
+      "id": "planning-14",
+      "domain": "planning",
+      "target_intent": "proposed.planning.14",
+      "utterances": [
+        "Составь план сортировки фотографий",
+        "Как навести порядок в фотоархиве?",
+        "Предложи этапы разбора большого количества фотографий"
+      ]
+    },
+    {
+      "id": "planning-15",
+      "domain": "planning",
+      "target_intent": "proposed.planning.15",
+      "utterances": [
+        "Помоги придумать вечер без экрана",
+        "Чем заняться вечером без телефона и телевизора?",
+        "Предложи несколько домашних занятий без дисплея"
+      ]
+    },
+    {
+      "id": "planning-16",
+      "domain": "planning",
+      "target_intent": "proposed.planning.16",
+      "utterances": [
+        "Составь шаблон еженедельного обзора дел",
+        "Как раз в неделю подводить итоги дел?",
+        "Дай короткий шаблон еженедельной ревизии задач"
+      ]
+    },
+    {
+      "id": "planning-17",
+      "domain": "planning",
+      "target_intent": "proposed.planning.17",
+      "utterances": [
+        "Предложи список тем для семейного разговора",
+        "О чём поговорить всей семьёй?",
+        "Предложи спокойные вопросы для беседы дома"
+      ]
+    },
+    {
+      "id": "planning-18",
+      "domain": "planning",
+      "target_intent": "proposed.planning.18",
+      "utterances": [
+        "Составь план организации рабочего места",
+        "Как по шагам привести рабочий стол в порядок?",
+        "Помоги спланировать удобное место для работы"
+      ]
+    },
+    {
+      "id": "planning-19",
+      "domain": "planning",
+      "target_intent": "proposed.planning.19",
+      "utterances": [
+        "Помоги подготовить вопросы мастеру по ремонту",
+        "Что спросить у мастера перед ремонтом?",
+        "Помоги подготовиться к разговору с ремонтником"
+      ]
+    },
+    {
+      "id": "planning-20",
+      "domain": "planning",
+      "target_intent": "proposed.planning.20",
+      "utterances": [
+        "Сделай чеклист перед отключением воды",
+        "Что сделать дома, пока ещё не отключили воду?",
+        "Дай список проверки перед перерывом водоснабжения"
+      ]
+    },
+    {
+      "id": "visuals-01",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи орла",
+        "Найди картинку с орлом",
+        "Хочу посмотреть, как выглядит орёл"
+      ]
+    },
+    {
+      "id": "visuals-02",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи кратер Луны",
+        "Покажи фотографию кратера на Луне",
+        "Как выглядит лунный кратер?"
+      ]
+    },
+    {
+      "id": "visuals-03",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи паука",
+        "Найди фото паука",
+        "Хочу увидеть паука поближе"
+      ]
+    },
+    {
+      "id": "visuals-04",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Как выглядит помидор бычье сердце?",
+        "Покажи плод томата сорта Бычье сердце",
+        "Хочу увидеть именно помидор Бычье сердце"
+      ]
+    },
+    {
+      "id": "visuals-05",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи муравья",
+        "Покажи крупно муравья",
+        "Найди изображение муравья"
+      ]
+    },
+    {
+      "id": "visuals-06",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи Луну",
+        "Покажи фотографию Луны",
+        "Хочу посмотреть на Луну"
+      ]
+    },
+    {
+      "id": "visuals-07",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.illustration",
+      "utterances": [
+        "Покажи сердце человека",
+        "Покажи, как устроено человеческое сердце",
+        "Нужна наглядная картинка сердца человека"
+      ]
+    },
+    {
+      "id": "visuals-08",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи вулкан",
+        "Найди фотографию вулкана",
+        "Хочу увидеть, как выглядит вулкан"
+      ]
+    },
+    {
+      "id": "visuals-09",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи ракету",
+        "Покажи ракету для полётов в космос",
+        "Найди фото космической ракеты"
+      ]
+    },
+    {
+      "id": "visuals-10",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи лабрадора",
+        "Покажи собаку породы лабрадор",
+        "Как выглядит лабрадор?"
+      ]
+    },
+    {
+      "id": "visuals-11",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи ретривера",
+        "Найди картинку ретривера",
+        "Хочу посмотреть на собаку-ретривера"
+      ]
+    },
+    {
+      "id": "visuals-12",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи белый гриб",
+        "Найди фотографию белого гриба",
+        "Как выглядит белый гриб на картинке?"
+      ]
+    },
+    {
+      "id": "visuals-13",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи томатное растение",
+        "Покажи помидоры на растущем кусте",
+        "Как выглядит всё растение томата?"
+      ]
+    },
+    {
+      "id": "visuals-14",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.diagram",
+      "utterances": [
+        "Покажи схему солнечного затмения",
+        "Нарисуй расположение тел при солнечном затмении",
+        "Покажи на схеме, как Луна закрывает Солнце"
+      ]
+    },
+    {
+      "id": "visuals-15",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.diagram",
+      "utterances": [
+        "Покажи схему Земля Луна",
+        "Покажи схематично Землю и орбиту Луны",
+        "Нарисуй простую схему движения Луны вокруг Земли"
+      ]
+    },
+    {
+      "id": "visuals-16",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.diagram",
+      "utterances": [
+        "Покажи схему вулкана",
+        "Покажи устройство вулкана в разрезе",
+        "Нарисуй простую схему кратера и жерла вулкана"
+      ]
+    },
+    {
+      "id": "visuals-17",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи морскую черепаху",
+        "Найди фото черепахи, которая живёт в море",
+        "Покажи именно морскую черепаху"
+      ]
+    },
+    {
+      "id": "visuals-18",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.photo",
+      "utterances": [
+        "Покажи коралловый риф",
+        "Покажи подводный коралловый риф",
+        "Найди фотографию рифа с кораллами"
+      ]
+    },
+    {
+      "id": "visuals-19",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.illustration",
+      "utterances": [
+        "Покажи иллюстрацию вымышленной планеты",
+        "Покажи придуманную планету в художественном стиле",
+        "Нужна фантастическая картинка несуществующей планеты"
+      ]
+    },
+    {
+      "id": "visuals-20",
+      "domain": "visuals",
+      "target_intent": "proposed.visual.generated_illustration",
+      "utterances": [
+        "Сгенерируй иллюстрацию орла",
+        "Создай новую рисованную картинку орла",
+        "Нарисуй орла с помощью генерации"
+      ]
+    },
+    {
+      "id": "experts-01",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Sol: сравни очередь и стек",
+        "Поручи Sol объяснить отличие очереди от стека",
+        "Пусть Sol сравнит структуры queue и stack"
+      ]
+    },
+    {
+      "id": "experts-02",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Astra: оцени два варианта структуры программы",
+        "Пусть Astra оценит обе предложенные структуры программы",
+        "Передай Astra сравнение двух архитектур программы"
+      ]
+    },
+    {
+      "id": "experts-03",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Передай Argon: разберись в плане теплицы",
+        "Пусть Argon подробно оценит план теплицы",
+        "Отдай Argon на разбор схему теплицы, которую мы обсудили"
+      ]
+    },
+    {
+      "id": "experts-04",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Подключи Sol для глубокого анализа",
+        "Дай текущую задачу Sol на подробную проверку",
+        "Хочу глубокий разбор этой темы от Sol"
+      ]
+    },
+    {
+      "id": "experts-05",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Sol High: проверь аргументы",
+        "Пусть Sol с высоким усилием проверит эти доводы",
+        "Передай аргументы профилю Sol High"
+      ]
+    },
+    {
+      "id": "experts-06",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Astra Medium: найди слабые места плана",
+        "Попроси Astra в среднем режиме раскритиковать план",
+        "Дай Astra Medium найти недостатки этого плана"
+      ]
+    },
+    {
+      "id": "experts-07",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Нужен более глубокий разбор",
+        "Можешь подключить подробный анализ этого вопроса?",
+        "Тут хотелось бы разобраться глубже"
+      ]
+    },
+    {
+      "id": "experts-08",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Подключи более сильную модель",
+        "Можно дать эту задачу более мощному эксперту?",
+        "Попроси старшую модель проверить текущий ответ"
+      ]
+    },
+    {
+      "id": "experts-09",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Проверь расчёт у Sol",
+        "Передай Sol этот расчёт для независимой проверки",
+        "Пусть Sol проверит числа в нашем расчёте"
+      ]
+    },
+    {
+      "id": "experts-10",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Попроси Argon проанализировать ограничения",
+        "Пусть Argon оценит ограничения нашей задачи",
+        "Передай Argon список ограничений на анализ"
+      ]
+    },
+    {
+      "id": "experts-11",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Astra про компромиссы архитектуры",
+        "Поручи Astra разобрать плюсы и минусы архитектуры",
+        "Хочу оценку компромиссов этого решения от Astra"
+      ]
+    },
+    {
+      "id": "experts-12",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Попроси Sol сравнить два предложенных решения",
+        "Пусть Sol сопоставит оба решения из разговора",
+        "Отдай Sol сравнение наших двух вариантов"
+      ]
+    },
+    {
+      "id": "experts-13",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Подключи Argon для подробного разбора",
+        "Дай текущий вопрос Argon на детальный разбор",
+        "Пусть Argon глубже разберёт эту тему"
+      ]
+    },
+    {
+      "id": "experts-14",
+      "domain": "experts",
+      "target_intent": "proposed.expert.status",
+      "utterances": [
+        "Ты ещё работаешь?",
+        "Как продвигается разбор?",
+        "Эксперт уже закончил или ещё думает?"
+      ]
+    },
+    {
+      "id": "experts-15",
+      "domain": "experts",
+      "target_intent": "proposed.expert.cancel",
+      "utterances": [
+        "Отмени эксперта",
+        "Останови экспертную задачу",
+        "Прерви работу подключённого эксперта"
+      ]
+    },
+    {
+      "id": "experts-16",
+      "domain": "experts",
+      "target_intent": "proposed.expert.cancel",
+      "utterances": [
+        "Отмени разбор",
+        "Прекрати этот подробный анализ",
+        "Разбор больше не нужен, останови его"
+      ]
+    },
+    {
+      "id": "experts-17",
+      "domain": "experts",
+      "target_intent": "proposed.expert.decline",
+      "utterances": [
+        "Не надо эксперта",
+        "Не подключай сильную модель",
+        "Обойдёмся без экспертного разбора"
+      ]
+    },
+    {
+      "id": "experts-18",
+      "domain": "experts",
+      "target_intent": "proposed.expert.show_result",
+      "utterances": [
+        "Покажи полный результат эксперта",
+        "Открой весь ответ эксперта",
+        "Покажи подробный текст завершённого разбора"
+      ]
+    },
+    {
+      "id": "experts-19",
+      "domain": "experts",
+      "target_intent": "proposed.expert.request",
+      "utterances": [
+        "Спроси Sol Extra High",
+        "Попроси профиль Sol Extra High разобрать текущую задачу",
+        "Нужен именно Sol с усилием Extra High"
+      ]
+    },
+    {
+      "id": "experts-20",
+      "domain": "experts",
+      "target_intent": "proposed.expert.compare_results",
+      "utterances": [
+        "Сравни мнения двух экспертов",
+        "Сопоставь выводы двух экспертов",
+        "Чем отличаются ответы обоих экспертов?"
+      ]
+    },
+    {
+      "id": "smart_home-01",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.light.on",
+      "utterances": [
+        "Включи свет в гостиной",
+        "Зажги лампы в гостиной",
+        "Сделай в гостиной светло"
+      ]
+    },
+    {
+      "id": "smart_home-02",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.light.off",
+      "utterances": [
+        "Выключи свет на кухне",
+        "Погаси свет на кухне",
+        "Отключи кухонные лампы"
+      ]
+    },
+    {
+      "id": "smart_home-03",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.light.temperature",
+      "utterances": [
+        "Сделай свет теплее",
+        "Переключи лампу на более тёплый оттенок",
+        "Пусть свет станет желтее"
+      ]
+    },
+    {
+      "id": "smart_home-04",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.light.brightness",
+      "utterances": [
+        "Уменьши яркость лампы",
+        "Приглуши лампу",
+        "Сделай лампу менее яркой"
+      ]
+    },
+    {
+      "id": "smart_home-05",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.thermostat.set",
+      "utterances": [
+        "Установи термостат на 23 градуса",
+        "Поставь на термостате двадцать три",
+        "Установи целевую температуру термостата в 23 градуса"
+      ]
+    },
+    {
+      "id": "smart_home-06",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.cover.open",
+      "utterances": [
+        "Открой шторы",
+        "Раздвинь шторы",
+        "Раскрой шторы на окне"
+      ]
+    },
+    {
+      "id": "smart_home-07",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.cover.close",
+      "utterances": [
+        "Закрой шторы",
+        "Задвинь шторы",
+        "Задвинь занавески на окнах"
+      ]
+    },
+    {
+      "id": "smart_home-08",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.plug.on",
+      "utterances": [
+        "Включи розетку у окна",
+        "Подай питание на розетку рядом с окном",
+        "Включи умную розетку возле окна"
+      ]
+    },
+    {
+      "id": "smart_home-09",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.fan.off",
+      "utterances": [
+        "Выключи вентилятор",
+        "Останови вентилятор",
+        "Отключи вентилятор в комнате"
+      ]
+    },
+    {
+      "id": "smart_home-10",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.camera.view",
+      "utterances": [
+        "Покажи камеру у двери",
+        "Покажи видео с дверной камеры",
+        "Открой изображение камеры у входа"
+      ]
+    },
+    {
+      "id": "smart_home-11",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.lock.close",
+      "utterances": [
+        "Закрой умный замок",
+        "Запри умный замок",
+        "Заблокируй входной замок"
+      ]
+    },
+    {
+      "id": "smart_home-12",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.lock.open",
+      "utterances": [
+        "Открой дверь",
+        "Отопри входную дверь",
+        "Разблокируй замок у входа"
+      ]
+    },
+    {
+      "id": "smart_home-13",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.vacuum.start",
+      "utterances": [
+        "Запусти робот-пылесос",
+        "Отправь робот-пылесос убираться",
+        "Начни уборку роботом"
+      ]
+    },
+    {
+      "id": "smart_home-14",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.vacuum.dock",
+      "utterances": [
+        "Отправь пылесос на базу",
+        "Верни робот-пылесос на зарядку",
+        "Пусть пылесос едет к док-станции"
+      ]
+    },
+    {
+      "id": "smart_home-15",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.leak.read",
+      "utterances": [
+        "Проверь датчик протечки",
+        "Есть ли сигнал воды от датчика протечки?",
+        "Что сейчас показывает сенсор протечки?"
+      ]
+    },
+    {
+      "id": "smart_home-16",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.humidity.read",
+      "utterances": [
+        "Проверь влажность в спальне",
+        "Сколько сейчас влажности в спальне?",
+        "Покажи показания датчика влажности спальни"
+      ]
+    },
+    {
+      "id": "smart_home-17",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.air_quality.read",
+      "utterances": [
+        "Проверь качество воздуха",
+        "Что показывает датчик воздуха?",
+        "Проверь воздух в комнате"
+      ]
+    },
+    {
+      "id": "smart_home-18",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.ac.on",
+      "utterances": [
+        "Включи кондиционер",
+        "Запусти кондиционер",
+        "Подай команду включения кондиционеру"
+      ]
+    },
+    {
+      "id": "smart_home-19",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.scene.run",
+      "utterances": [
+        "Запусти сценарий я дома",
+        "Активируй домашнюю сцену «Я дома»",
+        "Запусти сохранённый режим возвращения домой"
+      ]
+    },
+    {
+      "id": "smart_home-20",
+      "domain": "smart_home",
+      "target_intent": "proposed.home.all.off",
+      "utterances": [
+        "Выключи все устройства умного дома",
+        "Отключи весь умный дом",
+        "Погаси и выключи всё подключённое дома"
+      ]
+    },
+    {
+      "id": "connected_services-01",
+      "domain": "connected_services",
+      "target_intent": "proposed.media.music.play_favorites",
+      "utterances": [
+        "Включи любимую музыку",
+        "Поставь музыку, которую я обычно слушаю",
+        "Включи мои любимые треки"
+      ]
+    },
+    {
+      "id": "connected_services-02",
+      "domain": "connected_services",
+      "target_intent": "proposed.media.radio.play",
+      "utterances": [
+        "Включи радио",
+        "Поставь радиостанцию",
+        "Хочу послушать радио"
+      ]
+    },
+    {
+      "id": "connected_services-03",
+      "domain": "connected_services",
+      "target_intent": "proposed.media.music.pause",
+      "utterances": [
+        "Поставь песню на паузу",
+        "Приостанови текущий трек",
+        "Останови музыку на паузе"
+      ]
+    },
+    {
+      "id": "connected_services-04",
+      "domain": "connected_services",
+      "target_intent": "proposed.media.music.next",
+      "utterances": [
+        "Включи следующую песню",
+        "Пропусти эту песню",
+        "Давай следующую композицию"
+      ]
+    },
+    {
+      "id": "connected_services-05",
+      "domain": "connected_services",
+      "target_intent": "proposed.media.tv.play",
+      "utterances": [
+        "Покажи фильм на телевизоре",
+        "Запусти кино на телевизоре",
+        "Хочу посмотреть фильм на ТВ"
+      ]
+    },
+    {
+      "id": "connected_services-06",
+      "domain": "connected_services",
+      "target_intent": "proposed.information.news.current",
+      "utterances": [
+        "Прочитай свежие новости",
+        "Расскажи, что нового сегодня",
+        "Прочитай последние новости"
+      ]
+    },
+    {
+      "id": "connected_services-07",
+      "domain": "connected_services",
+      "target_intent": "proposed.information.fx.current",
+      "utterances": [
+        "Узнай курс доллара",
+        "Сколько сейчас стоит доллар?",
+        "Назови текущий долларовый курс"
+      ]
+    },
+    {
+      "id": "connected_services-08",
+      "domain": "connected_services",
+      "target_intent": "proposed.travel.flight.lookup",
+      "utterances": [
+        "Проверь ближайший рейс",
+        "Когда ближайший самолёт по моему маршруту?",
+        "Проверь следующий доступный рейс"
+      ]
+    },
+    {
+      "id": "connected_services-09",
+      "domain": "connected_services",
+      "target_intent": "proposed.information.launches.spacex",
+      "utterances": [
+        "Покажи ближайшие запуски SpaceX",
+        "Когда следующий запуск SpaceX?",
+        "Покажи ближайшие старты ракет SpaceX"
+      ]
+    },
+    {
+      "id": "connected_services-10",
+      "domain": "connected_services",
+      "target_intent": "proposed.travel.taxi.order",
+      "utterances": [
+        "Закажи такси",
+        "Вызови мне машину",
+        "Оформи поездку на такси"
+      ]
+    },
+    {
+      "id": "connected_services-11",
+      "domain": "connected_services",
+      "target_intent": "proposed.shopping.grocery.order",
+      "utterances": [
+        "Закажи продукты",
+        "Оформи доставку еды из магазина",
+        "Купи и закажи продукты на дом"
+      ]
+    },
+    {
+      "id": "connected_services-12",
+      "domain": "connected_services",
+      "target_intent": "proposed.shopping.delivery.status",
+      "utterances": [
+        "Проверь статус доставки",
+        "Где сейчас мой заказ?",
+        "Посмотри, как едет посылка"
+      ]
+    },
+    {
+      "id": "connected_services-13",
+      "domain": "connected_services",
+      "target_intent": "proposed.communication.call",
+      "utterances": [
+        "Позвони другу",
+        "Соедини меня с другом по телефону",
+        "Набери моего приятеля"
+      ]
+    },
+    {
+      "id": "connected_services-14",
+      "domain": "connected_services",
+      "target_intent": "proposed.communication.message",
+      "utterances": [
+        "Отправь сообщение маме",
+        "Напиши сообщение моей маме",
+        "Передай маме текст сообщения"
+      ]
+    },
+    {
+      "id": "connected_services-15",
+      "domain": "connected_services",
+      "target_intent": "proposed.device.phone.find",
+      "utterances": [
+        "Найди мой телефон",
+        "Помоги найти мой смартфон",
+        "Заставь мой телефон зазвонить"
+      ]
+    },
+    {
+      "id": "connected_services-16",
+      "domain": "connected_services",
+      "target_intent": "proposed.travel.route.plan",
+      "utterances": [
+        "Проложи маршрут до аэропорта",
+        "Как проехать отсюда в аэропорт?",
+        "Построй дорогу до аэропорта"
+      ]
+    },
+    {
+      "id": "connected_services-17",
+      "domain": "connected_services",
+      "target_intent": "proposed.travel.traffic.current",
+      "utterances": [
+        "Проверь пробки",
+        "Что сейчас с движением на дорогах?",
+        "Посмотри загруженность моего маршрута"
+      ]
+    },
+    {
+      "id": "connected_services-18",
+      "domain": "connected_services",
+      "target_intent": "proposed.travel.bus.schedule",
+      "utterances": [
+        "Узнай расписание автобуса",
+        "Когда будет следующий автобус?",
+        "Посмотри время ближайшего автобуса"
+      ]
+    },
+    {
+      "id": "connected_services-19",
+      "domain": "connected_services",
+      "target_intent": "proposed.communication.email.read",
+      "utterances": [
+        "Прочитай почту",
+        "Расскажи, что пришло мне на email",
+        "Открой и прочитай мои письма"
+      ]
+    },
+    {
+      "id": "connected_services-20",
+      "domain": "connected_services",
+      "target_intent": "proposed.calendar.event.create",
+      "utterances": [
+        "Создай встречу в моём календаре",
+        "Добавь встречу в мой календарь",
+        "Запиши новое событие в расписание"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-01",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.reminder.create",
+      "utterances": [
+        "Напомни завтра полить цветы",
+        "Завтра напомни мне про полив цветов",
+        "Не дай завтра забыть полить растения"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-02",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.alarm.create",
+      "utterances": [
+        "Поставь будильник на семь утра",
+        "Разбуди меня в семь утра",
+        "Заведи утренний будильник на7:00"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-03",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.reminder.recurrence.set",
+      "utterances": [
+        "Повторяй напоминание каждый понедельник",
+        "Напоминай об этом по понедельникам",
+        "Сделай это напоминание еженедельным в понедельник"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-04",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.shopping.list.persist",
+      "utterances": [
+        "Добавь молоко в постоянный список покупок",
+        "Сохрани молоко в моих покупках",
+        "Запиши молоко в сохраняемый список покупок"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-05",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.memory.private_notes.read",
+      "utterances": [
+        "Прочитай мои личные заметки",
+        "Что записано в моих приватных заметках?",
+        "Покажи мои личные записи"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-06",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.memory.private_history.read",
+      "utterances": [
+        "Вернись к нашей личной беседе неделю назад",
+        "Напомни, что мы лично обсуждали на прошлой неделе",
+        "Открой нашу приватную беседу семидневной давности"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-07",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.memory.sensitive_identifier.store",
+      "utterances": [
+        "Запомни мой паспорт",
+        "Сохрани мои паспортные сведения",
+        "Запомни номер моего паспорта"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-08",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.memory.child_private.read",
+      "utterances": [
+        "Прочитай личную память ребёнка",
+        "Покажи личные воспоминания из профиля ребёнка",
+        "Прочитай, что ребёнок сохранил в своей памяти"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-09",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.identity.pin.change",
+      "utterances": [
+        "Измени PIN профиля голосом",
+        "Поменяй код доступа моего профиля",
+        "Хочу продиктовать новый PIN для профиля"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-10",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.identity.voice.identify_unenrolled",
+      "utterances": [
+        "Узнай меня по голосу без образцов",
+        "Определи, кто я, хотя голос ещё не записывали",
+        "Узнай меня по первому голосу без регистрации"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-11",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.identity.voice.authorize",
+      "utterances": [
+        "Подтверди мою личность только голосом",
+        "Считай мой голос достаточным для входа",
+        "Открой личный доступ только по звучанию моего голоса"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-12",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.activation.wake_word",
+      "utterances": [
+        "Разбуди меня словом ГоБот в браузерном standby",
+        "Слушай слово «ГоБот», пока браузер ждёт",
+        "Активируйся по имени из режима ожидания"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-13",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.communication.emergency.call",
+      "utterances": [
+        "Позвони в экстренную службу",
+        "Срочно вызови экстренную помощь",
+        "Набери экстренную службу"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-14",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.payment.transfer",
+      "utterances": [
+        "Переведи деньги",
+        "Отправь деньги другому человеку",
+        "Сделай банковский перевод"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-15",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.travel.ticket.purchase",
+      "utterances": [
+        "Купи билет",
+        "Оформи и оплати билет",
+        "Оформи покупку билета"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-16",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.home.irrigation.schedule",
+      "utterances": [
+        "Полей грядки автоматически утром",
+        "Настрой автоматический полив на утро",
+        "Пусть грядки польются утром сами"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-17",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.media.music.schedule",
+      "utterances": [
+        "Включай музыку по будням в семь",
+        "Запускай музыку в семь каждый рабочий день",
+        "Поставь музыку на семь с понедельника по пятницу"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-18",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.recording.household.permanent",
+      "utterances": [
+        "Сохрани домашнюю аудиозапись постоянно",
+        "Записывай домашний звук и сохраняй навсегда",
+        "Хочу непрерывный архив всех разговоров дома"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-19",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.privacy.foreign_messages.read",
+      "utterances": [
+        "Покажи чужую переписку",
+        "Открой сообщения другого человека",
+        "Покажи не мою личную переписку"
+      ]
+    },
+    {
+      "id": "private_and_scheduled-20",
+      "domain": "private_and_scheduled",
+      "target_intent": "proposed.host.system_files.modify",
+      "utterances": [
+        "Измени системные файлы компьютера",
+        "Исправь системные настройки через файлы",
+        "Измени файлы операционной системы"
+      ]
+    }
+  ]
+}

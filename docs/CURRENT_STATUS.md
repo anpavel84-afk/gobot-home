@@ -1,6 +1,39 @@
 # GoBot Home — единый паспорт фактического состояния
 
-Обновлён 12 ноября 2026 года (UTC). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
+## Night Train v1 — действующий web preview
+
+**[Открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next)** ·
+[Утренний отчёт, evidence и откат](night-train-v1/MORNING_REPORT_TEMPLATE.md).
+Branch `codex/hybrid-web-vnext` поверх71dcb18; recovery032e4ea/B сохранены.
+Brain runtime **4beb530ffed6c40adab0541aac030e4688bcea2b**, web source **168faae**.
+W0–W8 доведены до integrated web candidate: contracts/реестр поверх Quick Intents,
+deterministic preflight/operation IDs, scoped context, SQLite timers, Open-Meteo,
+voice library100/100 и RAM narrator/Web Audio. Owner-only flag не даёт новых quotas.
+Платные STT/TTS/B только вручную с прежним admission, checkbox OFF.
+
+**Финальный полный pytest:2379 passed/18 skipped/1 xfailed/118 subtests,260.48s.**
+Предшествующие73 и559 targeted PASS.150 authored semantic cases,34 API/security/media regressions;
+независимый Gemini/holdout NOT_RUN. Chromium390×844 S3 fixture + production HTTPS,
+без TLS bypass/overflow/JS errors; paid boundary calls=[]. Private smoke: clock,
+реальный прогноз завтра→суббота PASS, old/new pages200, Host/authority attacks denied.
+Null в16-м дне Open-Meteo больше не ломает полный прогноз ближайшего дня.
+
+WAL/config/source/web backups; два guarded idle-only Brain+web restart (deployment
+и real-source fix); остальные services/LiveKit/плата не перезапускались. Financial
+rows/policies совпали с backup. Flag rollback проверен: preview403, old device200.
+C:221 confirmed seconds/$0.1841667 estimate; orphan final=false/reserve60s/$0.05
+сохранён, это не предел неизвестного счёта. Recovery использован, не продлён.
+Hardware B отдельный8×60s/$1 пакет OFF, не deployed. Master неизменён, PR draft.
+
+Candidate0.4.4-night-contract собран отдельно:2711488bytes,34% partition free,
+SHA fe624dc9f020c4be738d05bb458cf800dcc16990a3ee4d1e8a5a2c3282b0d141.
+[Hardware contract](../firmware/spotpear/vnext/CONTRACT.md), НЕ установлен.
+Installed0.4.3/NVS/KWS/audio сохранены. C text handover BLOCKED; manual paid voice,
+iPhone/Spotpear acoustic acceptance NOT_RUN. WEB_READY не означает PASS всех модулей.
+Быстрый откат: `.venv/Scripts/python.exe scripts/night_preview.py disable`.
+Ниже исторические этапы; текущий раздел и утренний отчёт приоритетны.
+
+Обновлён 13 ноября 2026 года (UTC; 12 ноября на PLAN). Аппаратная ветка PLAN — `codex/spotpear-bringup-plan` от `bffaa24`.
 Этот файл описывает **реализованный код, проверки и ограничения**. Требования
 остаются в [единой целевой спецификации](GOBOT_HOME_TARGET_SYSTEM.md).
 Описание задуманной функции не означает её готовности.
@@ -8,6 +41,152 @@
 ## Актуальный обзор на момент остановки разработки
 
 ### Последующее ограниченное поручение: Controlled Voice A/B
+
+#### Применение C recovery и один ручной тест Owner
+
+Актуальное состояние заменяет подготовительный статус ниже. В runtime Brain
+развёрнут **`e623dde0821af18dac1067782470efd5d01bdbde`**: восстановление из
+`032e4ea` и исправление отображения неизвестного резерва после UTC rollover.
+Сравнение с прежним runtime `59e1280` подтвердило изоляцию изменений в
+`live.py`, `live_api.py`, `live_budget.py` и новом `live_recovery.py`.
+Модель GPT-Live 1, marin, media path и firmware **0.4.3** сохранены.
+
+Перед применением подтверждены idle Brain/B/C/gateway. Остановлен только
+аппаратный gateway; loopback-проверки подтвердили отсутствие старой LiveKit
+комнаты и активной Brain-сессии. WAL-aware backups Live/Owner SQLite сохранены;
+затем записаны `orphaned_unconfirmed` и Owner approval на **один** ручной запуск,
+до **60 секунд**, окно **45 минут** (до 02:20:32 UTC / 23:20:32 São Paulo).
+Перезапущен Brain worker под существующим supervisor и тот же аппаратный gateway.
+Phone gateway, Bridge, Voice, Images и LiveKit не перезапускались.
+
+Бесплатная проверка readiness после применения: C enabled, blocking_previous=0,
+approval uses=0, старые calls/Owner attempts полностью совпадают с backup.
+Новых provider calls от разработчика не было.
+
+**Затем Owner выполнил разрешённую ручную пробу.** По его сообщению, прозвучали
+погода на сегодня и завтра, удержание завершило разговор. Ledger подтверждает
+ровно одну новую сессию и terminal usage **51 секунда**, **$0.0425** по действующему
+оценочному тарифу. В серверном отчёте две реплики, final_usage_confirmed=true,
+причина закрытия `session_time_limit`; отдельное срабатывание hold Stop этим
+отчётом не доказано. Перебивание также не принято: Owner не смог отличить его от
+последовательного вопроса. Индикация готовности к следующей реплике недостаточно
+понятна; фиксируем дефект, без изменения прошивки/голосового тракта в этой итерации.
+
+Все исходные записи четырёх предыдущих calls и Owner attempts полностью сохранены
+по значениям строк. Теперь подтверждены **221 секунда / $0.184167**, отдельно
+остались **15 observed seconds, final=false, резерв 60 секунд / $0.05** старой
+сессии. Резерв не является верхней границей неизвестного провайдерского счёта.
+Пакет 50 содержит 5 попыток, но recovery allowance **1/1 использован**: новых C
+запусков сейчас нет, enabled=false ожидаем. Оставшиеся 45 попыток общего пакета
+не являются автоматическим расширением согласованного допуска восстановления.
+
+Приватные backup/rollback и до/после evidence:
+`data/hardware/gobot-v1/recovery/deployment-20261113T013529Z/`, плюс WAL backups
+в соседнем каталоге команды recovery. Возврат: в idle остановить gateway,
+восстановить три исходных Live-модуля из deployment backup (`59e1280`),
+перезапустить только Brain и gateway. **SQLite/Owner policy не откатывать**:
+append-only recovery и новая подтверждённая трата должны остаться. Старый код
+снова блокирует неподтверждённую сессию; это безопасный, но ограниченный rollback.
+
+#### Независимая бесплатная подготовка аппаратного B
+
+В исходниках подготовлены `board_realtime.py`, `board_realtime_api.py`,
+`spotpear_realtime.py`, `spotpear_half_duplex.py` и опциональная ветка
+`realtime_b` существующего gateway. Используются прежние NativeSession/Brain,
+identity, инструменты, visuals и общий journal. Второго Brain/Family DB нет.
+Конструктор NativeSession manager допускает общий journal без второго writer;
+voice lease запрещает одновременные B/C одной колонки. Неподтверждённые расходы
+C не участвуют в admission B; собственные B hangups при этом блокируют B.
+
+B фиксирован: **gpt-realtime-2.1-mini / marin**, отдельный ledger и binding платы,
+**8×60 с, максимум 8×512 output tokens/сессию**, gpt-transcribe, общий оценочный
+допуск $1. Нет CLI/Luna/ImageGen, заимствования phone binding, смены модели или
+автоматических платных retries. Резерв оценки выводится из persistent попыток;
+transcription оплачивается отдельно и не объявляется включённой в подтверждённую
+response cost. Абсолютный предел invoice не гарантируется.
+
+Полудуплекс: Listening → Thinking → Speaking → Listening. Микрофон в Thinking/
+Speaking потребляется, но в модель идёт тишина; накопленное эхо не проигрывается
+следующему вопросу. Возврат к Listening требует generation end, provider output
+drain, пустых relay-очередей, свежего device playback ACK после последнего пакета
+и echo guard. Затем подтверждается effective VAD config (create_response=false,
+interrupt_response=false). Codec flush не закрывает encoder между ответами.
+Stop использует **существующее удержание** на 0.4.3; короткий случайный tap во
+время ответа по-прежнему защищён. Новый жест без прошивки не обещается.
+
+Бесплатные проверки: 25 passed с опциональным loopback LiveKit, включая четыре
+прогона двух реальных **локальных** aiortc peers: диалог, отмена, потеря control,
+нет device ACK. Это синтетический звук/эмуляция ACK, не физическая приёмка B.
+Исправлена обнаруженная в таком прогоне ошибка: повторяющиеся idle heartbeats
+бесконечно продлевали echo guard. Проверены также binding/guest ACL, budget,
+дедупликация, запрет раннего followup и отсутствие второго journal writer.
+Общая регрессия после этих изменений: **2154 passed, 18 skipped, 1 xfailed,
+118 subtests passed** (208.42 секунды). Опциональные local LiveKit проверки выше
+выполнены отдельно; skip не выдан за аппаратный успех.
+
+**B не развёрнут и не подключён к production FastAPI** (его status route — 404).
+Нужны отдельная приёмка source diff, opt-in подключение router к текущему Brain,
+контролируемое включение board-only policy и ручное переключение idle gateway.
+Полная реальная B-сессия и физический playback ACK ещё не проверены. B allowance
+в рабочей среде не расходован; платные автоматические проверки не запускались.
+
+#### Подготовительный checkpoint 032e4ea: административное восстановление C
+
+Ниже сохранено состояние подготовки, **до применения**, описанного выше.
+Это уточнение заменяет требование бессрочно ждать provider ACK из исторической
+контрольной точки ниже. Отсутствие `session.closed` остаётся финансовой
+неопределённостью, но может быть отдельно согласовано владельцем.
+
+В исходниках подготовлены `live_recovery.py` и локальная команда
+`scripts/voice_ab_recovery.py`: append-only события `orphaned_unconfirmed`,
+отдельный Owner risk ACK, ограниченное число новых запусков, срок до 24 часов.
+Новые таблицы находятся в существующем Live usage SQLite; исходные calls,
+`final=false`, observed usage и Owner reservations не переписываются.
+Допуск расходуется атомарно вместе с новой Live reservation, действует только
+для прежнего device/client/profile epoch и не расширяет исходный бюджет.
+Смена привязки Owner делает согласование недействительным.
+
+Операторская процедура (подготовлена, **не выполнена на рабочем C**):
+
+1. В согласованное окно остановить аппаратный gateway. Скрипт сам не останавливает
+   сервисы; при доступном listener отказывается продолжать. Убедиться, что разговор
+   не активен: два authenticated loopback Brain status checks.
+2. Проверить отсутствие только старой комнаты `gobot-<application session ID>`
+   через loopback LiveKit RoomService. По умолчанию команда только проверяет.
+   `--apply` может удалить именно эту старую комнату и повторно проверить отсутствие;
+   никакого OpenAI attach/retry/new session при этом нет.
+3. Перед изменением SQLite сохранить WAL-aware backups Live и Owner usage.
+   Записать `orphaned_unconfirmed`, не называя это provider-confirmed close.
+4. Только после явного согласия Owner на неизвестный прежний расход применить
+   `--accept-unknown-provider-cost --max-new-sessions 1 --hours 24` вместе с
+   `--apply --session <приватный application ID>`. Без этого ключа новых запусков
+   не разрешается. Команда предназначена локальному администратору, не голосу/LLM.
+5. После отдельной приёмки развернуть проверенный код, восстановить gateway и
+   начинать новую беседу только вручную. Создаются новые application/provider
+   session и conversation scope; старые provider history/actions не переносятся.
+   Подтверждённое впоследствии terminal usage может штатно закрыть старую запись,
+   не удаляя историю административных решений.
+
+Остаточный финансовый риск: окончательная длительность старой provider session
+неизвестна; резерв 60 секунд и последнее observation 15 секунд не ограничивают
+провайдерский счёт. Локальное освобождение ресурсов прекращает наш медиатракт,
+но не доказывает прекращение тарификации у OpenAI. Новый ограниченный допуск
+не погашает эту неопределённость. Owner risk ACK ещё **не применён**.
+
+Приватный offline support packet сохранён в
+`data/hardware/gobot-v1/support/20261113T011308575725Z/`; исходные ID, UTC journal
+bounds, usage и manifest находятся только на PLAN. Project ID, request ID и
+точное время прежней 503-попытки не были сохранены и отмечены отсутствующими;
+новых запросов ради их восстановления нет. Обращение не отправлено.
+
+Новая реализация проверена: **53 passed** (`test_live_recovery`,
+`test_voice_ab_recovery`, `test_live`, `test_live_native_tools`,
+`test_live_control_diagnostics`), только mocks/локальные временные SQLite,
+включая 503, отсутствие ACK, scope/expiry/Owner checks, конкурентный admission,
+WAL backup, exact-room cleanup и новый разговор без старых operations.
+`git diff --check` пройден, help административной команды проверен. **Не развёрнуто**:
+эталонный C и установленная 0.4.3 не изменены, B hardware adapter ещё не готов,
+платных бесед и пятиминутных разрешений в этом проходе нет.
 
 #### Контрольная точка C: неподтверждённое закрытие
 
@@ -293,11 +472,6 @@ UI 0.2.0 установлен и загрузился с сохранённым�
 
 [Сопоставление восьми сцен с атласом](../firmware/spotpear/touch-preview.png) · [Версия и хеши](../firmware/spotpear/touch_release.json) · [Аппаратная приёмка](../firmware/spotpear/acceptance.json) · [Процедура прошивки и отката](../firmware/README.md).
 
-Обновлён 11 ноября 2026 года. Рабочая ветка — `master`.
-Этот файл описывает **реализованный код, проверки и ограничения**. Требования
-остаются в [единой целевой спецификации](GOBOT_HOME_TARGET_SYSTEM.md).
-Описание задуманной функции не означает её готовности.
-
 ## 1. Где находится проект и как им пользоваться
 
 * Репозиторий: [anpavel84-afk/gobot-home](https://github.com/anpavel84-afk/gobot-home).
@@ -305,10 +479,13 @@ UI 0.2.0 установлен и загрузился с сохранённым�
 * Панель: приватный Tailscale HTTPS, порт 18786; экран устройства — `/device`.
 * Профиль дисплея: круг 240×240, конфигурируемый. Это браузерный прототип.
 * Сохранённый legacy baseline — `a71b71e987efdfe01884e34de10712782c0e36ac`.
-  C↔A с графическим языком, домашними диалогами и журналом опубликован и запущен на `94d329665abece10c3829f2fb491b59cabbb5fd7`;
-  прежние A/B/C и Luna сохранены.
-  Последнее исправление домашних диалогов — §39; журнал отладки и погодные ошибки — §40 ниже.
-  B остаётся Realtime Mini/baseline.
+  C↔A, графический комплект, домашние диалоги и журнал сохранены.
+  Код бытового расширения — `7649463e3b82b73b47c040ef56293cdb6ee41b4f` в локальном Git на PLAN;
+  состояние push — не выполнялся в этом этапе; коммиты сохранены на PLAN. Фактический runtime — `7649463e3b82b73b47c040ef56293cdb6ee41b4f`,
+  проверен 2026-11-12T01:40:54.584825+00:00; развёртывание — завершено; startup pin проверен через authenticated Brain status, 14 исходников совпадают с code commit.
+  Текущее расширение и его проверки — §41; журнал отладки — §40.
+  Прежний подтверждённый runtime до этого этапа — `94d329665abece10c3829f2fb491b59cabbb5fd7`.
+  B остаётся прежним Realtime Mini; A использует существующий legacy-путь.
   Исторические проверки стабилизации — раздел 10.
 
 ## 2. Карта legacy-пути запроса (native candidate — раздел 15)
@@ -345,8 +522,8 @@ flowchart LR
 | AUTO / FAST | Antigravity Flash Low; автоматического дорогого fallback нет | [routing.py](../services/brain/gobot/routing.py), [antigravity.py](../services/brain/gobot/antigravity.py) | Реальные ограниченные CLI-пробы выполнены |
 | REASONING / ручной выбор | Flash Medium; Argon и Codex доступны явно | [routing.py](../services/brain/gobot/routing.py), [live_agents.py](../services/brain/gobot/live_agents.py) | Пригодность к любым сложным задачам не доказана |
 | Оценка качества | Раздельные сложность, фактическая неопределённость, последствия и проверка | [quality.py](../services/brain/gobot/quality.py) | Детерминированные правила; не точные вероятности |
-| Быстрые команды | Каталог 30 сценариев; 13 отмечены реализованными, остальные требуют интеграций/прав | [quick-intents.json](../services/brain/quick-intents.json), [quick_intents.py](../services/brain/gobot/quick_intents.py), [local_tools.py](../services/brain/gobot/local_tools.py) | 228 синтетических формулировок; не исследование живой речи |
-| Завершение беседы | «Нет, спасибо» локально завершает активный сеанс без CLI/TTS; новое прослушивание не включается | [conversation_control.py](../services/brain/gobot/conversation_control.py), [device.js](../services/phone/dist/device.js) | Автоматические тесты; новый iPhone-прогон отсутствует |
+| Быстрые команды | Существующие Quick Intents, source-backed погода, scoped таймеры и bounded unavailable-маршруты для неподключённых действий | [quick-intents.json](../services/brain/quick-intents.json), [quick_intents.py](../services/brain/gobot/quick_intents.py), [local_tools.py](../services/brain/gobot/local_tools.py) | Текущее покрытие — §41; количество и readiness labels inventory не равны работающим интеграциям или акустической приёмке |
+| Завершение и отказ от уточнения | При актуальном pending «нет, спасибо» отклоняет его, сохраняя разговор. Без pending действуют точные правила завершения. End/«стоп» не удаляет сохранённые таймеры; кнопка остановки речи сохраняет микрофон и сессию | [conversation_control.py](../services/brain/gobot/conversation_control.py), [live.py](../services/brain/gobot/live.py), [live.js](../services/phone/dist/live.js), [brain.py](../services/brain/gobot/brain.py) | Проверки текущего этапа — §41; Stop/ACK unit evidence не доказывает natural barge-in или iPhone-акустику |
 | STT | OpenAI основной; Whisper только вручную | [stt.py](../services/brain/gobot/stt.py), [audio.py](../services/brain/gobot/audio.py), [capture.js](../services/phone/dist/capture.js) | Русские короткие фразы/домашний шум требуют дальнейшей проверки |
 | TTS | OpenAI, выбранный голос; PCM streaming; необязательный лимит символов после форматтера | [audio.py](../services/brain/gobot/audio.py), [pipeline.py](../services/brain/gobot/pipeline.py) | Реальные пробы и клиентские события; не акустическая лаборатория |
 | Speech Formatter | Отдельный speech_text; Markdown, дубли имён, числа, даты, падежи, словарь | [speech_formatter.py](../services/brain/gobot/speech_formatter.py) | Правила не дают полной гарантии русской морфологии |
@@ -2292,7 +2469,8 @@ Image20/day, Live60min/day и общий estimate$10/day прежние. Supervi
 Новая paid Live-сессия ради проверки не создавалась. Для реальной iPhone-приёмки:
 обновить `/device`, начать разговор, сказать «поставь таймер на десять секунд»,
 проверить timer widget/срабатывание, затем «посмотри погоду» — источник Open-Meteo
-и погодная карточка. При ненастроенном другом устройстве проверить пошаговый мастер.
+и погодная карточка. Пошаговый мастер проверяется явной командой «настрой погоду»;
+read-only запрос без настроенного дома после §41 уточняет город для разового ответа.
 Это оставшаяся физическая/акустическая приёмка, а не уже выполненный тест.
 Откат к предыдущему коду7b4e7ee возможен управляемым выпуском после idle guard;
 согласия, usage ledgers и актуальные пользовательские настройки не откатываются.
@@ -2542,10 +2720,12 @@ provider gpt-live-1/openai:gpt-live-1. Не включали постоянну�
 session.input и пакет Luna. Это два установленных дефекта маршрута/контекста;
 дословное поведение provider в старой беседе не реконструируется как факт.
 
-**Исправлено:** weather-only нормализация вводных; связанные дата/место/свойство
-в RAM текущей погодной темы. Последний weather request хранит только тип/offset/
-days/weekday, не произвольный prompt и не личную историю. «Там же» после завтра
-не превращает запрос в текущую погоду. Другой инструмент/тема гасит эллипсис.
+**Исправлено в выпуске этого раздела:** weather-only нормализация вводных и
+связанные дата/место/свойство в RAM текущей погодной темы. Тогда weather request
+хранил только тип/offset/days/weekday; в §41 контракт расширен safe place ref,
+metric, timezone и каноническими датами. Произвольный prompt и личная история
+туда не входят. «Там же» после завтра не превращает запрос в текущую погоду.
+Другой инструмент/тема гасит эллипсис.
 SettingsTools продолжает использовать сохранённое место соответствующего
 DeviceStore scope; informational queries не меняют его. Никакой guessed GPS.
 
@@ -2594,8 +2774,9 @@ root/device/A/B/C/atlas/assets200, frozen A unchanged, unconfirmedLive0.
 Приёмка владельцем: обновить страницу, начать новую C-беседу, спросить «какая
 погода», затем «хорошо, какая погода завтра», «а ветер», «там же, где и сегодня».
 Ожидается тот же сохранённый город, запрошенное завтра и source-backed карточка;
-повторный запрос города не требуется. Если место действительно не настроено,
-остаётся существующий Setup. Фактическая GPS-позиция телефона не заявлена.
+повторный запрос города не требуется. В версии этого раздела отсутствие места
+вело в Setup; после §41 обычный запрос спрашивает город для разового ответа,
+а Setup остаётся отдельной явной настройкой. GPS-позиция телефона не заявлена.
 Это server/fixture+real free source acceptance, не новая акустическая приёмка.
 Откат последнего погодного уточнения: code3627e43 после idle; до домашних
 правил —04d8999; текущие ledger/согласия/семейные данные не восстанавливать
@@ -2660,5 +2841,162 @@ UI проверен production DOM fixture, физический iPhone посл
 `debug_journal_enabled`/`debug_journal_retention_days` до старта старого strict
 validator (не только выставить false). Остальные поля/usage/семейную БД не
 откатывать. Шифрованный журнал не является источником памяти старого engine.
+
+## 41. Бытовое поведение: временная погода, уточнения и проверяемые действия
+
+Этап начат от source snapshot `fcbfeaa5271bf0fb9e1e2488faea5003ded9166b`;
+прежний running code — `94d329665abece10c3829f2fb491b59cabbb5fd7`.
+Итоговый код: `7649463e3b82b73b47c040ef56293cdb6ee41b4f`, локальный Git на PLAN.
+Push: не выполнялся в этом этапе; коммиты сохранены на PLAN. Развёртывание: завершено; startup pin проверен через authenticated Brain status, 14 исходников совпадают с code commit; фактически запущен
+`7649463e3b82b73b47c040ef56293cdb6ee41b4f`, проверен 2026-11-12T01:40:54.584825+00:00.
+
+[Пакет поведения](behavior-library-20261111/README.md) содержит 400 расширенных
+исходных сценариев и 120 диалоговых цепочек. Это спецификация с синтетическими
+fixtures. Количество карточек не означает количество работающих интеграций
+или прошедших runtime-проверок. Степени проверки и blockers приведены ниже.
+
+### Погода: разовый город и сохраняемое домашнее место
+
+Разовый запрос другого города отделён от home setup. Без указанного города
+используется настроенный дом; GPS/IP не угадываются. Если home отсутствует,
+инструмент задаёт один вопрос о городе для текущего ответа. Следующая реплика
+продолжает исходный запрос с его датой. Несколько геокандидатов требуют выбора
+номера или однозначного региона. Read-only запрос не записывает новый home;
+явная настройка сохраняет owner permission, подтверждение города, проверку
+источника и readback перед сообщением об успехе.
+
+Временное место и pending находятся в bounded RAM с device/principal,
+conversation, client и profile epoch scope: pending — 120 секунд, место —
+600 секунд. Координаты остаются на сервере; компактный контекст содержит
+label/query/opaque ref, дату, timezone и metric. Разрешённое место переиспользуется
+без нового геокодирования на каждом продолжении. Смена темы/профиля и закрытие
+очищают соответствующее состояние; чужой scope не принимает opaque ref.
+
+«А завтра?», «а ветер?», «а дождь будет?», «а в Рио?» и «нет, в пятницу»
+уточняют активную задачу; «дома» возвращает configured home. Фактический результат
+канонизирует `evidence.weather_request`, speech и weather card. Порывы, влажность,
+количество осадков и UV используются только при наличии проверенного поля.
+Даты вычисляются в IANA timezone места: в fixture 2026-11-11T23:00Z «завтра»
+для Сан-Паулу — 12 ноября, для Москвы — 13 ноября. Сохранены Open-Meteo daily
+до 16 местных календарных дат, cache/quota/source validation, конкретные
+source-error reasons и no retry. После await current/forecast проверяется
+актуальность turn; отменённый результат не публикуется. Полная грамматика
+абсолютных дат, hourly/history, Weather.com и сравнение двух городов не заявлены.
+
+Код: [weather_queries.py](../services/brain/gobot/weather_queries.py),
+[settings_tools.py](../services/brain/gobot/settings_tools.py),
+[weather.py](../services/brain/gobot/weather.py),
+[presentation.py](../services/brain/gobot/presentation.py).
+
+### Таймеры, pending и compact library
+
+SQLite-таймеры сохранены. Отсутствующая длительность уточняется; «таймер на пять»
+спрашивает единицу, а «минут» использует одну scoped pending quantity. Pending
+погашается после исполнения. «Отмени второй» привязано к фактически показанному
+серверному списку по ближайшему срабатыванию: snapshot имеет TTL и client/
+conversation/epoch binding. После смены темы или истечения срока нужно новое
+уточнение; сохранённые таймеры при этом не удаляются. Result ID инструмента
+совпадает с ID его карточки, когда она есть; abstained/unavailable не являются
+успехом действия. Имена, пауза, продление и перезапуск не добавлены. Напоминания
+и абсолютные будильники требуют scheduler/delivery; `due` не доказывает услышанный
+сигнал при закрытом или приостановленном Safari.
+
+Исходный `assistant-skills.json` и IDs сохранены. Companion
+[behavior-library.json](../services/brain/behavior-library.json) валидируется
+против inventory. Selector выбирает короткие правила, максимум четыре/1200
+символов; Luna получает до 1000 символов/четырёх правил, Live startup — до
+900 символов/трёх базовых правил. Полные карточки, fixtures и ответы не кладутся
+в prompt. Выбранные инструкции входят в фактический input-token count Luna;
+лимиты 2048 input /512 output, reasoning=none, tools=[], concurrency1 и no retry
+сохранены. Каталог не предоставляет capabilities или ACL.
+
+Полные bounded грамматики распознают неподключённые музыку, умный дом,
+календарные/отложенные действия и расширенные таймеры. Registry проверяет
+серверный callable; один флаг readiness из каталога/браузера не считается
+исполнителем. Зарегистрированный handler ещё должен пройти routing/slots/ACL.
+Цитаты, отрицания и обсуждение не исполняются. Новых внешних adapters нет.
+
+Код: [quick_intents.py](../services/brain/gobot/quick_intents.py),
+[local_tools.py](../services/brain/gobot/local_tools.py),
+[behavior_library.py](../services/brain/gobot/behavior_library.py),
+[skill_catalogue.py](../services/brain/gobot/skill_catalogue.py),
+[live_backend.py](../services/brain/gobot/live_backend.py).
+
+### C lifecycle, Stop/ACK и граница A
+
+C остаётся `gpt-live-1`/client delegation с утверждённым `gpt-6-luna`;
+A использует прежний STT/CLI/SpeechFormatter/TTS, B не заменён. Native transcript
+и delegation идут через общий executor/operation claim. Input-end/actual-answer
+gate, реальные delegation IDs и защита от позднего/исправленного ввода сохранены.
+При актуальном pending «нет, спасибо» отклоняет предложение и сохраняет разговор;
+без pending действуют прежние точные правила завершения. Отказ от активной погоды
+очищает только задачу, а дата без активной темы вызывает уточнение домена.
+End/«стоп» и idle после playback сохраняют закрытие/reset в C без новой активации;
+unknown Live close не выдаётся за разрешение начать A.
+
+В [live.js](../services/phone/dist/live.js) исправлена гонка остановки речи:
+поздний `playback_cleared` ACK больше не сбрасывает признак новой входной реплики,
+появившейся после локального Stop. Повторный ACK сохраняет mute/detach старого
+потока и не отправляет команду обратно серверу; явный новый Stop обновляет границу
+остановки. После новой реплики и предусмотренного тихого интервала воспроизведение
+может возобновиться. [live_browser.cjs](../tests/live_browser.cjs) исполняет
+production client с fake media/network и проверяет именно этот порядок событий,
+Stop без End, открытый микрофон, отсутствие echo command и единичное закрытие.
+Это unit evidence; natural barge-in, фактическое переформулирование ответа и
+iPhone-акустика остаются отдельными проверками. C002 этим тестом не закрывается.
+
+В unified A исправлены settings/timer/weather_query pending namespaces:
+исходный bound owner/client, общий timer scope, pending ID и epoch сохраняются.
+Отказ гасит выбранное ожидание. Реальный ASGI→Brain/SQLite fixture проверяет
+quantity/unit, ordinal snapshot, decline и scope isolation при запрещённых
+provider/CLI. Он не является новым legacy speech E2E и не доказывает полную
+parity погодной эллипсии C↔A. Native C остаётся guest/RAM-only; device consent,
+PIN и voice match не открывают личный архив. «Подробнее» не разрешает платный CLI.
+
+Код: [live.py](../services/brain/gobot/live.py),
+[brain.py](../services/brain/gobot/brain.py),
+[conversation_control.py](../services/brain/gobot/conversation_control.py).
+
+### Проверки, evidence и блокирующие зависимости
+
+Adapter вызывает настоящие LiveManager/Brain/SettingsTools/WeatherClient/
+LocalTools и SQLite; внешние Live/Luna/HTTP ответы синтетические. Observer читает
+реальные события, результаты и записи; `case.expected` служит для сравнения,
+а не ответом исполнителя. Отдельные scope, parser, source-validation и client
+unit tests не следует суммировать как независимые выполненные сценарии каталога.
+
+| Проверка текущего implementation commit | Итог | Evidence |
+| --- | --- | --- |
+| Package validation | 520 записей и JSON Schema валидны; исходные 400 IDs сохранены; 17 файлов исходного manifest совпали по SHA-256 | [VALIDATION.json](behavior-library-20261111/VALIDATION.json), [manifest.json](behavior-library-20261111/manifest.json) |
+| Выбранные P0 dialogue contracts | **52 passed / 0 failed / 3 skipped / 1 xfailed из 56** | [runtime-coverage.json](behavior-library-20261111/runtime-coverage.json), [runtime-traces.json](behavior-library-20261111/runtime-traces.json) |
+| Affected suites и Stop/ACK client unit | В том же полном прогоне: 28 weather-context, 24 behavior-library, 6 unified-A scope, 6 runtime regression; 54 acceptance tests passed включают 52 P0 и 2 cross-scope проверки. Production Live JS Stop/ACK fixture passed | [test_household_runtime.py](../tests/test_household_runtime.py), [test_household_legacy_scope.py](../tests/test_household_legacy_scope.py), [test_weather_query_context.py](../tests/test_weather_query_context.py), [test_behavior_library.py](../tests/test_behavior_library.py); это подмножества полного gate, не дополнительные независимые сценарии; [live_browser.cjs](../tests/live_browser.cjs) |
+| Полная регрессия после последней правки | **2078 passed / 0 failed / 3 skipped / 1 xfailed; 118 subtests passed; 208.89 s** | [runtime-coverage.json](behavior-library-20261111/runtime-coverage.json), source/JUnit SHA-256; исходный XML: `run/behavior-worktree/run/household-release.xml` |
+| Runtime, HTTP и сохранение состояния | 14 source hashes/loaded pin, 4 loopback health и 19 HTTPS routes проверены; served Live/unified JS совпали; frozen A, policy bytes, profile rows и usage/backend ledgers без изменений | [runtime-check.json](behavior-library-20261111/runtime-check.json) |
+| Новый provider / browser / iPhone / hardware | Новые provider, настоящий браузер с audio и iPhone/ESP32 проверки: not_run. Production JS выполнялся в Node с fake media/network; Canvas — offline Skia. Это не новая акустическая приёмка | Только отдельное evidence этого этапа; иначе not_run |
+
+Исторические реальные source/Live/Luna canaries из §§37–40 относятся к прежним
+версиям и не дают `provider_verified` новому commit. `specified`, `implemented`,
+`offline_pass`, `provider_verified`, `browser_verified`, `iphone_acoustic_verified`
+и `hardware_verified` учитываются отдельно. Ни один gate ниже не означает,
+что все 520 описаний прошли или что все их интеграции доступны.
+
+| Case | Причина и граница проверки | Статус |
+| --- | --- | --- |
+| W018 | Исполнителя сравнения двух мест нет; реальный `comparison_not_implemented` проверяется без source/home effects | `blocked:not_implemented`; positive contract остаётся xfail, честный отказ не превращается в положительный pass |
+| W069 | Нет интегрированного native C private-weather antecedent, предполагаемого сценарием | `blocked:not_implemented`; fixture grant не заменяет production authorization; обычная epoch/client isolation проверяется отдельно |
+| C004 | Нет персональной calendar integration/pending в native C, требуемых исходным состоянием | `blocked:not_implemented`; общий scope reset не является полным private-calendar acceptance |
+| C002 | Server transcript и Stop/ACK unit не доказывают естественное перебивание, остановку фактического playback и переформулирование | `blocked:client_evidence_required`; нужен соответствующий клиентский playback/voice trace |
+
+Новые проверки: [test_household_behavior_acceptance.py](../tests/test_household_behavior_acceptance.py),
+[household_acceptance_adapter.py](../tests/household_acceptance_adapter.py),
+[test_household_runtime.py](../tests/test_household_runtime.py),
+[test_household_legacy_scope.py](../tests/test_household_legacy_scope.py),
+[test_weather_query_context.py](../tests/test_weather_query_context.py),
+[test_behavior_library.py](../tests/test_behavior_library.py).
+
+Backup/idle и deployment evidence: `data/backups/before-unified-20261111T223119` (SQLite online backup с WAL, integrity_check=ok); перед остановкой шесть activity/finalization counters равны 0. Перезапуск выполнен canonical manage.py/web.py; [runtime-check.json](behavior-library-20261111/runtime-check.json).
+Сверка private policy, profile rows, ledger и frozen A bytes:
+policy bytes, device-profile rows и шесть accounting/profile databases сравнены без экспорта содержимого; совпали. Frozen A assets совпали с прежним manifest. [state-preservation.json](behavior-library-20261111/state-preservation.json). Подтверждённые новые платные вызовы этого этапа:
+**0**; внешние IO в тестах синтетические, после deployment usage/backend ledgers совпали с предшествующим снимком. Старые разрешения/счётчики не обнуляются.
 
 </details>

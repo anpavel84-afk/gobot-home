@@ -22,8 +22,11 @@ EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','e
 
 def explicit_expert_request(text):
     """Only a diagnostic intent signal; never authority or a replacement task."""
-    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',text,re.I)
-                and re.search(r'переда\w*|адрес\w*|отправ\w*|спроси|спрашивай|подключ\w*|делегир\w*|обрат\w*|пусть.*(?:провер|разбер)',text,re.I))
+    value=' '.join(text.casefold().strip().split())
+    value=re.sub(r'^(?:(?:гобот|го бот|пожалуйста|а)[, ]+)+','',value)
+    value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|давай)[, ]+','',value)
+    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
+                and re.match(r'^(?:передай|передать|адресуй|адресовать|отправь|отправить|спроси|спрашивай|подключи|подключить|делегируй|делегировать|обратись|обратиться|попроси|попросить|пусть)\b',value))
 
 def profile_in_text(text):
     if re.search(r'\b(?:argon|аргон)\b',text,re.I):return 'ARGON_DEEP'

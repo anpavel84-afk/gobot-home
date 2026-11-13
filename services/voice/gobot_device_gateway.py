@@ -233,11 +233,13 @@ class Gateway:
                                     'audio_params': {'format': 'opus', 'sample_rate': 24000, 'channels': 1, 'frame_duration': 60}})
                         if self.config['mode']=='duplex_test':
                             await send({'type':'gobot_access','allowed':True,'reason':None,'continuous':True})
-                        elif self.config['mode'] == 'live_c':
+                        elif self.config['mode'] in {'live_c','realtime_b'}:
                             async with self.client_factory(trust_env=False,timeout=3) as client:
-                                status = await client.get(self.config['brain_url']+'/api/v1/live/status',
+                                endpoint='/api/v1/voice-ab/b/status' if self.config['mode']=='realtime_b' else '/api/v1/live/status'
+                                status = await client.get(self.config['brain_url']+endpoint,
                                     headers=self.auth, params={'binding':self.config['device_id']})
-                                allowed = status.is_success and status.json().get('enabled') is True and self.config.get('hardware_live_consent') is True
+                                consent='hardware_realtime_consent' if self.config['mode']=='realtime_b' else 'hardware_live_consent'
+                                allowed = status.is_success and status.json().get('enabled') is True and self.config.get(consent) is True
                             reason = status.json().get('admission_reason') if status.is_success else 'hardware_voice_unavailable'
                             await send({'type':'gobot_access','allowed':allowed,'reason':None if allowed else reason,
                                         'skin':self.config.get('skin','classic'),'idle_clock':bool(self.config.get('idle_clock',False)), 'continuous':self.config.get('continuous_live') is True})
@@ -257,10 +259,10 @@ class Gateway:
                     elif kind == 'listen' and obj.get('state') == 'start' and state == 'ready':
                         if obj.get('mode') != 'auto':
                             raise ValueError('only_wake_auto_turn_supported')
-                        decoder = OpusInput(MAX_TURN_SECONDS if self.config.get("continuous_live") and self.config["mode"] in {"live_c","duplex_test"} else 26); state = 'capture'
+                        decoder = OpusInput(MAX_TURN_SECONDS if self.config.get("continuous_live") and self.config["mode"] in {"live_c","realtime_b","duplex_test"} else 26); state = 'capture'
                         self.stats['captures'] += 1
                         self.save_stats()
-                        if self.config['mode'] in {'live_c','duplex_test'}:
+                        if self.config['mode'] in {'live_c','realtime_b','duplex_test'}:
                             from spotpear_live import StreamingSpeech
                             async with self.client_factory(trust_env=False,timeout=3) as client:
                                 legacy=await self.active_legacy_flow(client) if self.config['mode']=='live_c' else None
@@ -286,6 +288,7 @@ class Gateway:
                             self.stats['playback_started'] += 1
                             self.save_stats()
                         stream.playing=obj['playing']
+                        stream.activity_at=asyncio.get_running_loop().time()
                         if obj.get("input_active") is True:stream.last_signal=asyncio.get_running_loop().time()
                     elif state=='blocked' and kind=='listen':
                         await asyncio.sleep(.2)
@@ -365,6 +368,13 @@ class Gateway:
                             await self.send_audio(ws, packet)
                     for packet in encoder.finish(): await self.send_audio(ws, packet)
                     await send({'type': 'tts', 'state': 'stop'})
+                elif self.config['mode']=='realtime_b':
+                    from spotpear_live import StreamingSpeech
+                    from spotpear_realtime import realtime_turn
+                    if not isinstance(wav,StreamingSpeech):raise ValueError('hardware_b_requires_stream')
+                    async with self.client_factory(trust_env=False,timeout=httpx.Timeout(35,connect=3)) as client:
+                        await realtime_turn(client,self.config,self.auth,wav,turn_id,send,
+                            lambda packet:self.send_audio(ws,packet),OpusOutput())
                 elif self.config['mode'] == 'live_c':
                     if self.config.get('hardware_live_consent') is not True:
                         raise PermissionError('hardware_live_permission_required')
@@ -388,7 +398,7 @@ class Gateway:
                 self.legacy_turn = None
                 self.stats['completed'] += 1
                 self.save_stats()
-                if self.config.get("continuous_live") and self.config["mode"]=="live_c":
+                if self.config.get("continuous_live") and self.config["mode"] in {"live_c","realtime_b"}:
                     deadline=asyncio.get_running_loop().time()+3
                     while wav.playing and asyncio.get_running_loop().time()<deadline:await asyncio.sleep(.05)
                     await ws.close(1000,"Conversation complete")
@@ -506,11 +516,11 @@ async def main():
     if not approved_lan or config['port']!=18789 or config.get('url') != f'wss://{bind}:18789/xiaozhi/v1/':
         raise ValueError('unreviewed_listen_address')
     if config['brain_url']!='http://127.0.0.1:18781':raise ValueError('brain_must_be_loopback')
-    if config['mode'] not in {'hardware_test','legacy_a','live_c','duplex_test'}:
+    if config['mode'] not in {'hardware_test','legacy_a','live_c','realtime_b','duplex_test'}:
         raise ValueError('explicit_hardware_mode_required')
     token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' else ''
     if config.get("continuous_live"):
-        if config["mode"] not in {"live_c","duplex_test"}:raise ValueError("continuous_live_requires_mode_c")
+        if config["mode"] not in {"live_c","realtime_b","duplex_test"}:raise ValueError("continuous_live_requires_native_mode")
         config["livekit_settings"]=json.loads((PRIVATE/"livekit/private.json").read_text())
     gateway=Gateway(config,token)
     tls=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); tls.minimum_version=ssl.TLSVersion.TLSv1_2

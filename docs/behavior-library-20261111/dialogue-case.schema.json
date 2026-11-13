@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:gobot:dialogue-case:v1",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "title",
+    "priority",
+    "fixture",
+    "given_overrides",
+    "turns",
+    "expected",
+    "expected_behavior",
+    "response_variants",
+    "forbidden",
+    "capability_status",
+    "assertion_mode",
+    "execution_evidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[WTSXC][0-9]{3}$"
+    },
+    "category": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "fixture": {
+      "type": "string"
+    },
+    "given_overrides": {
+      "type": "object"
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "event"
+        ],
+        "properties": {
+          "event": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "expected": {
+      "type": "object",
+      "minProperties": 1
+    },
+    "expected_behavior": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "response_variants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "forbidden": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "capability_status": {
+      "enum": [
+        "baseline_declared_unverified",
+        "requires_extension",
+        "not_connected",
+        "policy_restricted"
+      ]
+    },
+    "assertion_mode": {
+      "const": "structured_subset_plus_human_semantic_review"
+    },
+    "execution_evidence": {
+      "type": "object",
+      "required": [
+        "offline",
+        "provider",
+        "acoustic"
+      ],
+      "properties": {
+        "offline": {
+          "const": "not_run"
+        },
+        "provider": {
+          "const": "not_run"
+        },
+        "acoustic": {
+          "const": "not_run"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

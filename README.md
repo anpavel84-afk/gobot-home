@@ -1,8 +1,16 @@
 # GoBot Home
 
+> **Night Train web preview:** [открыть /device-next](https://plan.tailffc57c.ts.net:18786/device-next), Tailscale/Owner.
+> [Утренний отчёт: результаты, ограничения и откат](docs/night-train-v1/MORNING_REPORT_TEMPLATE.md).
+> Brain runtime4beb530, web168faae; прежние страницы и firmware0.4.3 сохранены.
+> Пауза ниже — исторический снимок; новое разрешение ограничено web-first пакетом.
+
 > **Разработка приостановлена владельцем 12 ноября 2026.**
 > [Актуальный обзор: устройство, стек, выполненные работы, тесты и ограничения](docs/CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки).
-> На Spotpear установлен **0.4.3-dev-media-ready**, Brain runtime **59e1280**, gateway **live_c**.
+> На Spotpear установлен **0.4.3-dev-media-ready**, Brain runtime **e623dde**, gateway **live_c**.
+> Ограниченное Owner-поручение: C recovery применено; один ручной тест прошёл,
+> 51 секунда usage подтверждена. Этот допуск использован, неизвестный старый резерв сохранён.
+> Аппаратный B подготовлен и проверен бесплатно на локальных peers, ещё не развёрнут.
 > Human barge-in после последнего исправления и wake «ГоБот» ещё не приняты.
 > Аппаратные изменения — в draft [PR #1](https://github.com/anpavel84-afk/gobot-home/pull/1), не merged в master.
 

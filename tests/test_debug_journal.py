@@ -164,7 +164,9 @@ def test_live_journal_survives_close_and_records_actual_weather_failure_and_reco
 
 def test_invalid_weather_is_evicted_then_next_user_request_fetches_fresh():
     async def run():
-        client,calls,_=forecast_source(lambda d:d['temperature_2m_max'].__setitem__(0,None))
+        # The requested window is tomorrow (offset=1). Missing data in another
+        # day must not poison a complete tomorrow; selected missing data must.
+        client,calls,_=forecast_source(lambda d:d['temperature_2m_max'].__setitem__(1,None))
         place=WeatherPreferences(enabled=True,location_name='Synthetic',latitude=0,longitude=0)
         with pytest.raises(WeatherError,match='weather_invalid_data'):await client.forecast(place,offset=1,days=1)
         assert len(calls)==1 and not client.cache

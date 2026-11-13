@@ -1,5 +1,14 @@
 # GoBot Home boundaries
 
+OWNER DIRECT Night Train v1 supersedes the pause within docs/night-train-v1:
+implement W0-W8 web-first /device-next, one integration writer, same Brain;
+preserve recovery/B, /device, /demo2, existing transport and firmware 0.4.3.
+No automatic paid provider calls, quota changes, flash/OTA/NVS/wake enable.
+Safe owner-only private HTTPS web preview deployment is authorized after free
+checks, backups, no active sessions, and rollback. Master stays unchanged;
+PR draft. Independent Gemini review only if existing authorized read-only
+execution is available; otherwise documented self-review, no new provider.
+
 OWNER DIRECT 2026-11-12: development is paused. The current authorized work is
 documentation/GitHub status consolidation only. Do not resume implementation,
 training, firmware deployment or developer model trials until the owner resumes.
@@ -10,6 +19,16 @@ Separate B consent: 8 manual gpt-realtime-2.1-mini sessions up to 60 seconds,
 8 responses/session up to 512 output tokens, existing gpt-transcribe input
 transcription, $1 estimated server allowance; no CLI/Luna/Image/retries.
 Do not charge B to the existing C grant or change phone identity/policy globally.
+Subsequent OWNER DIRECT permits source-only C administrative recovery: preserve
+pending usage, verify local cleanup, append orphaned_unconfirmed and require a
+separate explicit Owner risk approval for bounded new sessions. No fabricated
+provider ACK, ledger reset, automatic paid trial or unaccepted C deployment.
+Subsequent OWNER DIRECT accepts 032e4ea and permits controlled C recovery
+deployment with rollback checks: this board only, one owner-manual <=60s start,
+short expiry, preserve unknown-cost reserve. No firmware/media-path change.
+That one recovered manual session is now used (51 provider-confirmed seconds).
+Do not renew its administrative admission automatically. B source/free local
+peer preparation remains authorized; B deployment/paid conversations not done.
 Do not infer a request to stop the deployed services or revoke existing manual
 testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
 
