@@ -10,13 +10,16 @@ from gobot.secrets_store import _dpapi
 from sample_retention import paths,cleanup
 from parity import fingerprint
 
-def evaluate(ident,model):
+def evaluate(ident,model,encrypted_model=False):
     p,meta=paths(ident);metadata=json.loads(meta.read_text())
     if time.time()>=metadata['expires_at']:cleanup(ident);raise ValueError('Sample expired')
     assert fingerprint()==(98,1987024791)
-    model_sha=hashlib.sha256(model.read_bytes()).hexdigest()
+    if encrypted_model:
+        model_bytes=_dpapi(p.with_name(ident+'-personal-model.dpapi').read_bytes(),decrypt=True)
+    else:model_bytes=model.read_bytes()
+    model_sha=hashlib.sha256(model_bytes).hexdigest()
     evidence_path=model.parent/'stream-report.json'
-    evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() else {}
+    evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() and not encrypted_model else {}
     if evidence and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
     cutoff=int(evidence.get('cutoff',250))
     raw=bytearray(_dpapi(p.read_bytes(),decrypt=True))
@@ -30,9 +33,11 @@ def evaluate(ident,model):
             r=front.process_samples(samples[offset:offset+160].tobytes())
             assert r.samples_read==160
             if r.features:rows.append(r.features)
-        runtime=Interpreter(model_path=str(model),experimental_op_resolver_type=OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+        runtime=Interpreter(model_content=model_bytes,experimental_op_resolver_type=OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
         runtime.allocate_tensors();inp=runtime.get_input_details()[0];out=runtime.get_output_details()[0]
         assert inp['shape'].tolist()==[1,3,40]
+        assert inp['dtype']==np.int8 and out['dtype']==np.uint8
+        assert inp['quantization'][1]==-128 and np.isclose(inp['quantization'][0],26/255,atol=1e-6)
         scale,zero=inp['quantization'];q=np.clip(np.rint(np.array(rows)/scale)+zero,-128,127).astype(np.int8)
         probabilities=[]
         for i in range(0,len(q)-2,3):
@@ -55,7 +60,7 @@ def evaluate(ident,model):
             'clipped_fraction':float(np.mean(np.abs(samples.astype(np.int32))>=32760)),
             'rms_quantiles':np.percentile(rms,[10,50,90]).round(2).tolist(),
             'human_labels_verified':False,'true_positive_count':None,'false_positive_count':None}
-        (p.parent/(ident+'-evaluation.json')).write_text(json.dumps(report,indent=2))
+        (p.parent/(ident+'-'+model_sha[:12]+'-evaluation.json')).write_text(json.dumps(report,indent=2))
         print(json.dumps(report))
     finally:
         raw[:]=bytes(len(raw))
@@ -63,4 +68,4 @@ def evaluate(ident,model):
         if 'q' in locals():q.fill(0)
 
 if __name__=='__main__':
-    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));v=a.parse_args();evaluate(v.sample_id,v.model)
+    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model)

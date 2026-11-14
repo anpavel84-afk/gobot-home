@@ -1,5 +1,11 @@
 # GoBot Home boundaries
 
+The ONE local wake sample consent below was CONSUMED on 2026-11-14:49.92s,
+Owner-confirmed pronunciation protocol, DPAPI on PLAN, no cloud transfer.
+The encrypted personal model shares raw-sample deletion within24h. No additional
+recording consent is implied; a proposed35s hard-negative/control sample is
+pending a separate Owner answer. No recorder remains armed; B restored.
+
 OWNER resumed the complete local Russian GoBot wake-to-question product on
 2026-11-13; touch is fallback, not the target interaction. Continue local wake
 implementation/quality checks without admitting an unqualified detector to paid

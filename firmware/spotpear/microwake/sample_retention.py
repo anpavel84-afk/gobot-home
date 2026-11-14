@@ -16,6 +16,9 @@ def cleanup(ident,now=None):
     data=json.loads(meta.read_text());now=time.time() if now is None else now
     if now<float(data['expires_at']):return False
     p.unlink(missing_ok=True)
+    derived=p.with_name(ident+'-personal-model.dpapi')
+    if derived.is_symlink():raise ValueError('Unsafe derived model path')
+    derived.unlink(missing_ok=True)
     meta.write_text(json.dumps({'expires_at':data['expires_at'],'deleted_at':now,'deleted':True}))
     return True
 

@@ -11,7 +11,8 @@ def test_sample_path_rejects_arbitrary_files(ident):
 def test_expiry_removes_only_the_one_sample(tmp_path,monkeypatch):
     monkeypatch.setattr(mod,'ROOT',tmp_path);monkeypatch.setattr(mod,'DIRECTORY',tmp_path/'samples');mod.DIRECTORY.mkdir()
     p,meta=mod.paths('a'*32);p.write_bytes(b'opaque-fixture');meta.write_text(json.dumps({'expires_at':200}))
+    derived=p.with_name('a'*32+'-personal-model.dpapi');derived.write_bytes(b'derived-fixture')
     other=mod.DIRECTORY/'leave-alone';other.write_bytes(b'other')
     assert not mod.cleanup('a'*32,199) and p.exists()
-    assert mod.cleanup('a'*32,201) and not p.exists() and other.exists()
+    assert mod.cleanup('a'*32,201) and not p.exists() and not derived.exists() and other.exists()
     assert json.loads(meta.read_text())['deleted'] is True

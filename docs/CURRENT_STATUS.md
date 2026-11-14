@@ -1,5 +1,52 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## First consented human wake sample received and analysed — 2026-11-14
+
+Owner was present, initiated the one authorized local sample by touch and
+confirmed following the pronunciation/phrase instructions.49.92s captured via
+authenticated board TLS/fake backend, encrypted Windows DPAPI on PLAN. Exact-file
+deletion was registered before capture at23h; encrypted personal model now shares
+that deadline. Normal B restored in finally; no raw speech/features/derived model
+sent to build host, GitHub, cloud STT or memory. No paid API/CLI call or flash.
+Original B admission remains exhausted; firmware0.4.5/Brain8661454 unchanged.
+
+Local native frontend parity98/1987024791 PASS. Signal sufficient, clipping below
+0.001%. Baseline streaming detector emitted9 events over the sample,model6 emitted5,
+model7 emitted4. These are event counts, NOT independently verified human recall:
+they include misses/possible false events and the protocol is not time-labelled.
+Existing offline Whisper small was used only on PLAN for approximate timing;
+its recognition is explicitly a hypothesis and no spoken text was published.
+
+Implemented a bounded PLAN-only full microWakeWord neural fine-tune: existing
+existing synthetic-only model3 weights hash verified,8 isolated owner utterances used for gradient
+updates,2 isolated utterances and question phrases excluded. Energy-based timing
+is approximate; repeated evaluation means this is NOT an unbiased final test.
+Private project Python3.13/TensorFlow2.21 runtime,2 CPU threads,12 fixed epochs.
+Two profiles evaluated, including balanced replay of18 licensed synthetic positives
+and174 Denis/Dmitri negative clips plus ordinary owner speech32..44s. Temporary
+exports removed; personal TFLite stays DPAPI-encrypted and is NOT installed or
+uploaded. A head-only adjustment was rejected before these full neural pilots.
+
+The latest local model responds around the10 isolated wake utterances and the
+question phrases, but retains extra events. Its synthetic Dmitri regression
+(87 clips/189.93s, now INCLUDED in training, not held-out) still reports2 false
+events:the public phrases "какой бот" and "погода". A cutoff-only calibration
+still leaves1 false event even at255. Do NOT mark it accepted or enable paid
+wake routing. Real background observation/human30-call acceptance remain missing.
+No further uncontrolled training loop is running. Numeric per-sample reports
+remain private, no human timing traces/voice-derived hashes in this publication.
+
+11 product-gate/retention/path checks PASS, including deletion of the raw encrypted
+sample AND the encrypted personal model. Recorder now supports explicit15..60s
+duration for a future separately consented sample; the ONE prior sample consent
+is consumed. A targeted35s hard-negative/control sample would require new consent;
+no second recording is armed or captured automatically. Next technical step is
+real confusable speech and fresh evaluation, not another touch-only product claim.
+Deletion trigger refreshed to one minute after the23h expiry to avoid an early
+one-shot task returning before a fractional-second deadline; still within the
+original24h consent. No expiry renewal. Local dependency lock is retained under
+firmware/spotpear/microwake/requirements-plan-local.txt. No active training remains.
+
 ## Voice-first product resumed — local wake remains NOT_ACCEPTED
 
 Owner explicitly resumed completion of the real "GoBot + question" interaction;

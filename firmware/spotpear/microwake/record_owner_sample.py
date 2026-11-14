@@ -11,19 +11,21 @@ import httpx
 from sample_retention import paths
 
 def deletion_task(ident,expires):
+    paths(ident) # Validate the exact Owner-private sample target.
     executable=str(ROOT/'.venv/Scripts/python.exe');script=str(Path(__file__).with_name('sample_retention.py'))
     assert "'" not in executable+script
     command=("$a=New-ScheduledTaskAction -Execute '"+executable+"' -Argument '\""+script+'\" '+ident+"';"
-        "$t=New-ScheduledTaskTrigger -Once -At ([DateTimeOffset]::FromUnixTimeSeconds("+str(int(expires))+").LocalDateTime);"
+        "$t=New-ScheduledTaskTrigger -Once -At ([DateTimeOffset]::FromUnixTimeSeconds("+str(int(expires)+60)+").LocalDateTime);"
         "$s=New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries;"
-        "Register-ScheduledTask -TaskName 'GoBot-WakeSample-"+ident+"' -Action $a -Trigger $t -Settings $s -Description 'Delete one Owner-consented GoBot wake sample' -ErrorAction Stop | Out-Null")
+        "Register-ScheduledTask -TaskName 'GoBot-WakeSample-"+ident+"' -Action $a -Trigger $t -Settings $s -Description 'Delete one Owner-consented GoBot wake sample' -Force -ErrorAction Stop | Out-Null")
     result=subprocess.run(['powershell','-NoProfile','-NonInteractive','-Command',command],capture_output=True,timeout=20)
     if result.returncode:raise RuntimeError('Automatic sample deletion task could not be registered; no recording started')
 
-async def run(ident):
+async def run(ident,seconds=50):
+    if not 15<=seconds<=60:raise ValueError('Recording duration outside consentable bound')
     target,metadata=paths(ident);target.parent.mkdir(parents=True,exist_ok=True)
     expires=json.loads(metadata.read_text())['expires_at']
-    metadata.write_text(json.dumps({'expires_at':expires,'raw_seconds_limit':50,'consent':'Owner explicit local sample','cloud_transfer':False}))
+    metadata.write_text(json.dumps({'expires_at':expires,'raw_seconds_limit':seconds,'consent':'Owner explicit local sample','cloud_transfer':False}))
     config=json.loads((PRIVATE/'gateway.json').read_text());config={**config,'mode':'duplex_test'}
     complete=asyncio.Event();claimed=False
     class Recorder(Gateway):
@@ -33,12 +35,12 @@ async def run(ident):
             claimed=True;pcm=bytearray()
             try:
                 await send({'type':'gobot_media_ready'})
-                print('LOCAL_RECORDING_STARTED duration_limit=50 no_cloud=1',flush=True)
+                print(f'LOCAL_RECORDING_STARTED duration_limit={seconds} no_cloud=1',flush=True)
                 started=asyncio.get_running_loop().time()
-                while asyncio.get_running_loop().time()-started<50:
+                while asyncio.get_running_loop().time()-started<seconds:
                     frame=await capture.recv()
                     pcm.extend(frame.to_ndarray().astype('<i2',copy=False).tobytes())
-                    if len(pcm)>=16000*2*50:break
+                    if len(pcm)>=16000*2*seconds:break
                 with io.BytesIO() as memory:
                     with wave.open(memory,'wb') as out:
                         out.setnchannels(1);out.setsampwidth(2);out.setframerate(16000);out.writeframes(pcm)
@@ -61,11 +63,13 @@ async def run(ident):
             await asyncio.sleep(.1)
 
 if __name__=='__main__':
+    import argparse
+    parser=argparse.ArgumentParser();parser.add_argument('--seconds',type=int,choices=range(15,61),default=50);args=parser.parse_args()
     ident=uuid.uuid4().hex
     # Retention registration precedes taking the production listener.
     target,metadata=paths(ident);target.parent.mkdir(parents=True,exist_ok=True)
     metadata.write_text(json.dumps({'expires_at':time.time()+23*3600}))
     deletion_task(ident,time.time()+23*3600)
     stop_owned()
-    try:asyncio.run(run(ident))
+    try:asyncio.run(run(ident,args.seconds))
     finally:restore()
