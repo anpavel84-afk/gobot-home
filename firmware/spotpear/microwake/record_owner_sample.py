@@ -1,4 +1,7 @@
-"""One explicitly consented <=60s sample. PLAN-only DPAPI, timed deletion, no APIs."""
+"""POST-AFE/Opus diagnostic ONLY; not exact microphone input for local KWS.
+
+Requires separate explicit consent. Prefer the lossless pre-AFE USB collector.
+"""
 import asyncio,io,json,os,ssl,subprocess,sys,time,uuid,wave
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
@@ -25,7 +28,7 @@ async def run(ident,seconds=50):
     if not 15<=seconds<=60:raise ValueError('Recording duration outside consentable bound')
     target,metadata=paths(ident);target.parent.mkdir(parents=True,exist_ok=True)
     expires=json.loads(metadata.read_text())['expires_at']
-    metadata.write_text(json.dumps({'expires_at':expires,'raw_seconds_limit':seconds,'consent':'Owner explicit local sample','cloud_transfer':False}))
+    metadata.write_text(json.dumps({'expires_at':expires,'raw_seconds_limit':seconds,'consent':'Owner explicit local sample','cloud_transfer':False,'capture_domain':'post_afe_opus'}))
     config=json.loads((PRIVATE/'gateway.json').read_text());config={**config,'mode':'duplex_test'}
     complete=asyncio.Event();claimed=False
     class Recorder(Gateway):
@@ -64,7 +67,9 @@ async def run(ident,seconds=50):
 
 if __name__=='__main__':
     import argparse
-    parser=argparse.ArgumentParser();parser.add_argument('--seconds',type=int,choices=range(15,61),default=50);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--seconds',type=int,choices=range(15,61),default=50)
+    parser.add_argument('--processed-audio-diagnostic',action='store_true');args=parser.parse_args()
+    if not args.processed_audio_diagnostic:parser.error('This path captures post-AFE/Opus, unsuitable for KWS training')
     ident=uuid.uuid4().hex
     # Retention registration precedes taking the production listener.
     target,metadata=paths(ident);target.parent.mkdir(parents=True,exist_ok=True)

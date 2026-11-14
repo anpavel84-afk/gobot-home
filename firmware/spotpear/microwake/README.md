@@ -1,5 +1,30 @@
 # Локальное «ГоБот» на Spotpear
 
+### Input-domain correction — 2026-11-14
+
+The two consented samples (49.92s and35.0s) are POST-AFE/Opus conversation audio.
+The second ends with FOUR wake controls per Owner correction. Idle KWS gets
+pre-AFE PCM, so prior pilot counts/adaptation below are NOT device acceptance.
+Training stopped. Both consents consumed, original DPAPI/deletion deadlines kept.
+`fine_tune_local.py` and product admission now require pre-AFE provenance.
+
+`prepare_raw_capture.py` patches a COPY of installed0.4.5, never flashes. It adds
+one explicit USB-arm/physical-tap capture at the existing16k mono pre-AFE tap.
+Fixed PSRAM bound, zero-on-stop/expiry, no provider/network stream, no second I2S.
+Full microphone/Opus path remains unchanged outside this diagnostic. Export is
+lossless PCM with session nonce, chunk sequence and CRC32,20s timeout; host rejects
+incomplete/corrupt/oversized recordings. `record_raw_usb.py` registers deletion
+before arm and encrypts only the complete WAV on PLAN. Installation and a NEW
+recording require scoped authorization. Owner approved installation and ONE NEW
+<=50s sample; installed app/boot verified and the one-use USB collector prepared.
+Candidate0.4.6-dev-raw-wake-1 built offline,2722208 bytes; exact app/model hashes
+and separate physical-acceptance flags are in raw-capture-build.json. Installed,
+NVS/boot/OTA/inactive/assets verified unchanged. Human wake acceptance NOT_DONE.
+
+Free checks PASS: C++ capture state/bounds/expiry/zeroization/input-gap test;
+21 Python framing/retention/admission tests including corruption/replay/overflow.
+These are not physical USB/microphone or human wake acceptance.
+
 ### 2026-11-14: real sample / local-only adaptation checkpoint
 
 Owner initiated49.92s recording and confirmed the requested pronunciation sequence.

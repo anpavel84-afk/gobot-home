@@ -24,13 +24,19 @@ def test_failed_model_remains_diagnostic_and_preserves_current_baseline(tmp_path
 @pytest.mark.parametrize('passed,human_ok,ambient_ok',[(False,True,True),(True,False,True),(True,True,False)])
 def test_no_routing_without_exact_quality_and_human_evidence(tmp_path,passed,human_ok,ambient_ok):
     root,model,sha=fixture(tmp_path,passed)
-    human=tmp_path/'human.json';human.write_text(json.dumps({'human_labels_verified':human_ok,'positive_trials':30,'true_positive_count':30,'false_positive_count':0,'negative_observation_seconds':7200,'model_sha256':sha}))
+    human=tmp_path/'human.json';human.write_text(json.dumps({'capture_domain':'mono_pcm16_pre_afe','human_labels_verified':human_ok,'positive_trials':30,'true_positive_count':30,'false_positive_count':0,'negative_observation_seconds':7200,'model_sha256':sha}))
     if not ambient_ok:(model/'ambient.json').write_text(json.dumps({'seconds':1800,'false_events':0,'model_sha256':'another-model'}))
     with pytest.raises(ValueError):mod.prepare(root,model,True,human)
     assert '0.4.5' in (root/'CMakeLists.txt').read_text()
 
 def test_matching_passing_evidence_can_enable_the_existing_wake_path(tmp_path):
     root,model,sha=fixture(tmp_path,True)
-    human=tmp_path/'human.json';human.write_text(json.dumps({'human_labels_verified':True,'positive_trials':30,'true_positive_count':29,'false_positive_count':0,'negative_observation_seconds':7200,'model_sha256':sha}))
+    human=tmp_path/'human.json';human.write_text(json.dumps({'capture_domain':'mono_pcm16_pre_afe','human_labels_verified':True,'positive_trials':30,'true_positive_count':29,'false_positive_count':0,'negative_observation_seconds':7200,'model_sha256':sha}))
     mod.prepare(root,model,True,human)
     assert '#define GOBOT_WAKE_ROUTE 1' in (root/'main/gobot_mww_config.h').read_text()
+
+@pytest.mark.parametrize('domain',[None,'post_afe_opus'])
+def test_processed_or_unknown_audio_cannot_admit_wake(tmp_path,domain):
+    root,model,sha=fixture(tmp_path,True)
+    human=tmp_path/'human.json';human.write_text(json.dumps({'capture_domain':domain,'human_labels_verified':True,'positive_trials':30,'true_positive_count':30,'false_positive_count':0,'negative_observation_seconds':7200,'model_sha256':sha}))
+    with pytest.raises(ValueError):mod.prepare(root,model,True,human)

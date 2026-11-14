@@ -10,12 +10,14 @@ from gobot.secrets_store import _dpapi
 from sample_retention import paths,cleanup
 from parity import fingerprint
 
-def evaluate(ident,model,encrypted_model=False):
+def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
     p,meta=paths(ident);metadata=json.loads(meta.read_text())
     if time.time()>=metadata['expires_at']:cleanup(ident);raise ValueError('Sample expired')
     assert fingerprint()==(98,1987024791)
     if encrypted_model:
-        model_bytes=_dpapi(p.with_name(ident+'-personal-model.dpapi').read_bytes(),decrypt=True)
+        source,source_meta=paths(model_sample_id or ident)
+        if time.time()>=json.loads(source_meta.read_text())['expires_at']:raise ValueError('Personal model expired')
+        model_bytes=_dpapi(source.with_name((model_sample_id or ident)+'-personal-model.dpapi').read_bytes(),decrypt=True)
     else:model_bytes=model.read_bytes()
     model_sha=hashlib.sha256(model_bytes).hexdigest()
     evidence_path=model.parent/'stream-report.json'
@@ -53,7 +55,9 @@ def evaluate(ident,model,encrypted_model=False):
         for frame in active:
             if not segments or frame-segments[-1][1]>20:segments.append([int(frame),int(frame)])
             else:segments[-1][1]=int(frame)
+        domain=metadata.get('capture_domain','post_afe_opus')
         report={'seconds':len(samples)/16000,'local_only':True,'frontend_parity':1987024791,
+            'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
             'event_seconds':[round(i*.03+.05,2) for i in events],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
             'peak_score':max(probabilities,default=0),'cutoff':cutoff,'model_sha256':model_sha,
@@ -68,4 +72,4 @@ def evaluate(ident,model,encrypted_model=False):
         if 'q' in locals():q.fill(0)
 
 if __name__=='__main__':
-    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model)
+    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');a.add_argument('--personal-model-sample');v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model or bool(v.personal_model_sample),v.personal_model_sample)
