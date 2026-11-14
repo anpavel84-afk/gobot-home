@@ -14,8 +14,9 @@ from microwakeword.utils import to_streaming_inference
 from gobot.secrets_store import _dpapi
 from sample_retention import paths
 from train import features,window,BATCH,FRAMES,STRIDE
+from calibration_plan import validate
 
-def main(ident,balanced_replay=False):
+def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=False):
     path,metadata=paths(ident)
     evidence=json.loads(metadata.read_text())
     if time.time()>=evidence['expires_at']:raise ValueError('Sample expired')
@@ -29,16 +30,13 @@ def main(ident,balanced_replay=False):
             assert (w.getframerate(),w.getnchannels(),w.getsampwidth())==(16000,1,2)
             pcm=np.frombuffer(w.readframes(w.getnframes()),'<i2').copy()
         assert 32*16000<=len(pcm)<=60*16000
-        # Owner confirmed the requested sequence; energy timing is a hypothesis,
-        # not a claim of independently labelled acoustic acceptance.
-        energy=pcm[:19*16000//320*320].reshape(-1,320).astype(float)
-        rms=np.sqrt((energy**2).mean(axis=1));peaks=[]
-        for at in np.argsort(rms)[::-1]:
-            if all(abs(int(at)-p)>=45 for p in peaks):peaks.append(int(at))
-            if len(peaks)==10:break
-        peaks=np.sort(peaks)*.02
+        # Explicit private review instead of selecting loud peaks (which could
+        # silently label a question/negative as the wake word).
+        plan=json.loads(path.with_name(ident+'-labels.json').read_text())
+        positives,negatives=validate(plan,len(pcm)/16000)
         train_ids=[i for i in range(10) if i not in {4,9}]
-        clips=[pcm[max(0,int((peaks[i]-.28)*16000)):int((peaks[i]+.34)*16000)].copy() for i in train_ids]
+        clips=[pcm[int(positives[i][0]*16000):int(positives[i][1]*16000)].copy() for i in train_ids]
+        negative_clips=[pcm[int(a*16000):int(b*16000)].copy() for a,b in negatives]
         negative_paths=sorted((ROOT/'data/hardware/gobot-v1/kws/denis').glob('negative*.pcm'))
         # The pinned older PLAN corpus has29 negative phrases x3 speeds.
         # This is a calibration pilot, not the full198-clip acceptance corpus.
@@ -51,14 +49,19 @@ def main(ident,balanced_replay=False):
             synthetic_positive=[p for speaker in ('denis','dmitri') for p in sorted((ROOT/f'data/hardware/gobot-v1/kws/{speaker}').glob('positive*.pcm'))]
             assert len(synthetic_positive)==18
         rng=np.random.default_rng(20261114);samples=[];labels=[]
+        if continuous_replay:
+            from continuous_replay import windows
+            continuous_features=features(pcm)
+            stream_pos,stream_neg=windows(continuous_features,positives,negatives,rng,frames=FRAMES)
         for i in range(512):
             samples.append(window(clips[i%len(clips)],rng,True));labels.append(1.)
-            at=rng.integers(32*16000,43*16000)
-            samples.append(window(pcm[at:at+16000],rng,False));labels.append(0.)
+            samples.append(window(negative_clips[i%len(negative_clips)],rng,False));labels.append(0.)
             samples.append(window(np.fromfile(negative_paths[i%len(negative_paths)],'<i2'),rng,False));labels.append(0.)
             if balanced_replay:
                 samples.append(window(np.fromfile(synthetic_positive[i%len(synthetic_positive)],'<i2'),rng,True));labels.append(1.)
                 samples.append(window(np.fromfile(negative_paths[(i*7+13)%len(negative_paths)],'<i2'),rng,False));labels.append(0.)
+            if continuous_replay:
+                samples.extend([stream_pos[i],stream_neg[i]]);labels.extend([1.,0.])
         x=np.stack(samples);y=np.asarray(labels,np.float32);samples.clear()
         tf.keras.utils.set_random_seed(20261114);tf.config.experimental.enable_op_determinism()
         flags=SimpleNamespace(pointwise_filters='24,24,24',repeat_in_block='1,1,1',mixconv_kernel_sizes='[3],[5],[7]',
@@ -69,8 +72,16 @@ def main(ident,balanced_replay=False):
         net.load_weights(weights);net.compile(optimizer=tf.keras.optimizers.Adam(.0002),loss='binary_crossentropy')
         # Fixed12 epochs, no search/early stopping on held-out owner questions.
         for epoch in range(12):
+            net.reset_metrics()
             for batch in rng.permutation(len(x)).reshape(-1,BATCH):net.train_on_batch(x[batch],y[batch])
-            print(json.dumps({'local_epoch':epoch+1,'epochs':12}),flush=True)
+            print(json.dumps({'local_epoch':epoch+1,'epochs':12,'loss':float(np.asarray(net.metrics[0].result()))}),flush=True)
+        predictions=np.concatenate([np.asarray(net(x[i:i+BATCH],training=False)).reshape(-1) for i in range(0,len(x),BATCH)])
+        train_diagnostic={'training_only':True,'positive_mean':float(predictions[y==1].mean()),
+            'negative_mean':float(predictions[y==0].mean()),'binary_accuracy':float(((predictions>=.5)==y).mean())}
+        print(json.dumps({'training_inference_diagnostic':train_diagnostic}),flush=True)
+        if audit_conversion:
+            from conversion_audit import offline_probes
+            nonstream=offline_probes(net,pcm,plan,features)
         streamed=to_streaming_inference(net,dict(spectrogram_length=FRAMES,features_length=FRAMES,stride=STRIDE),mode=Modes.STREAM_INTERNAL_STATE_INFERENCE)
         assert tuple(streamed.input_shape)==(1,3,40)
         parent=ROOT/'data/hardware/gobot-v1/wake-human';parent.mkdir(exist_ok=True)
@@ -78,6 +89,7 @@ def main(ident,balanced_replay=False):
             export=tf.keras.export.ExportArchive();export.track(streamed)
             export.add_endpoint('serve',streamed.call,input_signature=[tf.TensorSpec((1,3,40),tf.float32)])
             export.write_out(directory)
+            float_blob=tf.lite.TFLiteConverter.from_saved_model(directory).convert() if audit_conversion else None
             converter=tf.lite.TFLiteConverter.from_saved_model(directory)
             converter.optimizations=[tf.lite.Optimize.DEFAULT];converter.target_spec.supported_ops=[tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
             converter._experimental_variable_quantization=True;converter.inference_input_type=tf.int8;converter.inference_output_type=tf.uint8
@@ -86,12 +98,20 @@ def main(ident,balanced_replay=False):
                 for sample in c:
                     for block in sample.reshape(-1,3,40):yield [block[np.newaxis]]
             converter.representative_dataset=calibrate;blob=converter.convert()
+        if audit_conversion:
+            from conversion_audit import audit
+            diagnostic=audit(tf,float_blob,blob,pcm,plan,features)
+            for probe,baseline in zip(diagnostic['probes'],nonstream):probe.update(baseline)
+            path.with_name(ident+'-conversion-audit.json').write_text(json.dumps(diagnostic,indent=2))
         path.with_name(ident+'-personal-model.dpapi').write_bytes(_dpapi(blob))
         report={'kind':'local_existing_microWakeWord_neural_adaptation','epochs':12,'seed':20261114,
             'training_utterances':8,'heldout_isolated_indices':[4,9],'question_phrases_used_for_training':False,
-            'negative_training_source':'owner ordinary speech32..44s plus existing licensed '+('Denis/Dmitri' if balanced_replay else 'Denis')+' negatives',
+            'capture_domain':'mono_pcm16_pre_afe','label_source':'explicit private timing hypotheses; NOT independent acceptance',
+            'negative_training_source':'reviewed owner confusable intervals plus existing licensed '+('Denis/Dmitri' if balanced_replay else 'Denis')+' negatives',
             'synthetic_negative_clips':len(negative_paths),
             'balanced_synthetic_replay':balanced_replay,'synthetic_positive_clips':len(synthetic_positive),
+            'continuous_frontend_replay':continuous_replay,
+            'training_inference_diagnostic':train_diagnostic,
             'model_sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob),'human_labels_verified':False,
             'product_accepted':False,'installed':False,'raw_or_features_exported':False,'retention_same_as_sample':True}
         path.with_name(ident+'-neural-pilot.json').write_text(json.dumps(report,indent=2));print(json.dumps(report),flush=True)
@@ -101,6 +121,11 @@ def main(ident,balanced_replay=False):
         if x is not None:x.fill(0)
         if 'clips' in locals():
             for c in clips:c.fill(0)
+        if 'negative_clips' in locals():
+            for c in negative_clips:c.fill(0)
+        if 'continuous_features' in locals():continuous_features.fill(0)
+        if 'stream_pos' in locals():
+            for c in stream_pos+stream_neg:c.fill(0)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');args=parser.parse_args();main(args.sample_id,args.balanced_replay)
+    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');parser.add_argument('--audit-conversion',action='store_true');parser.add_argument('--continuous-replay',action='store_true');args=parser.parse_args();main(args.sample_id,args.balanced_replay,args.audit_conversion,args.continuous_replay)

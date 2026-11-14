@@ -1,5 +1,53 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Exact pre-AFE human sample received — 2026-11-14
+
+Owner reported readiness, initiated a physical touch and confirmed completion.
+The installed0.4.6 captured the FULL50.0s mono16k PCM before AFE/Opus. USB nonce,
+sequence, byte-count and chunk/final CRC passed; encrypted WAV on PLAN only,
+deletion task verified before arm, original23h expiry unchanged. Touch counter
+increased once without increasing Brain activations. Collector closed, board
+idle/upload0, Wi-Fi/enrollment/volume100 preserved. The NEW50s consent is consumed;
+no automatic repeat or further capture is armed. Two older processed-audio
+samples keep their original deletion deadlines. No raw/features/personal weights
+sent to the build host, GitHub, cloud STT or memory;0 paid calls.
+
+Installed synthetic-only model emits0 events on this exact sample at cutoff250.
+Signal clipping is about1.45%; do not assume it is solely an acoustic/model fault
+or silently change the working conversation mic gain (source default30dB).
+Local-only Whisper timing remains a hypothesis, not independent labels. Private
+explicit interval plans replace loudest-peak auto-labelling;8 utterances used,
+fixed2 isolated holdouts and all question phrases excluded from training.
+Fixed12-epoch/2-thread calibration profiles and instrumented reproductions are
+under investigation. Candidate weights remain encrypted with the SAME deletion
+deadline and are NOT installed. Product wake remains NOT_ACCEPTED/OFF.
+
+Bounded checkpoint: two feature-replay profiles and a complete-negative-block
+correction, each12 fixed epochs, plus instrumented deterministic reproductions;
+no grid/automatic retry loop. Explicit continuous negative coverage removes the
+observed events from the reviewed confusable/quiet block in this reused sample,
+but the final unlabelled utterance still triggers. Owner does not recall a final
+wake call, so that event is NOT credited as a confirmed positive and the unknown
+tail is excluded from training. Cold artificial-zero padding is explicitly tagged
+in conversion probes; it must not be called natural room silence.
+
+Offline/nonstream, floating streaming and INT8 streaming peaks agree closely on
+the examined probes; no decisive conversion defect was demonstrated. This is not
+complete numerical/runtime equivalence. Latest candidate still FAILS:3 events on
+87 Dmitri synthetic negatives/189.93s (training regression);15/15 positives but69
+false events on198 Elena negatives over616.89s (pre-existing synthetic regression,
+not human acceptance). Retain failed checks, do not install or open wake sessions,
+do not repair acceptance by threshold selection. No training remains active.
+Next work is broader original-corpus replay/hard-negative data and independent
+validation; another human recording is not requested at this checkpoint.
+
+31 free framing/retention/provenance/calibration/continuous-window checks PASS,
+in addition to the prior native C++ capture test. Holdout/negative crossover is
+rejected. Offline vs streaming and float vs INT8 diagnostics distinguish training
+failures from conversion failures; small reused clips are NOT an acoustic recall
+or false-wake rate. Brain8661454/gateway/financial ledgers unchanged, B allowance
+not renewed. No further firmware flash in this recording checkpoint.
+
 ## Wake input-domain audit supersedes sample claims below — 2026-11-14
 
 Second authorized sample received:35.0s, Owner explicitly corrected the final

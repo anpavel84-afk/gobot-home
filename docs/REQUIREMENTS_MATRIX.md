@@ -1,5 +1,14 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-14 exact-input capture (supersedes armed-window rows)
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| Pre-AFE USB capture | FULL50s, physical tap + Owner completion; sequence/CRC/length verified; DPAPI + deletion task | One new consent consumed; no further recording armed |
+| Wake model | Installed model0 events on exact sample; local calibration failed:3 events/87 training negatives;15/15 positives but69 events/198 Elena negatives | Learned models NOT installed; synthetic metrics are not human acceptance; no training active |
+| Diagnostic integrity |31 focused checks PASS; fixed holdout, no negative overlap; float/INT8/offline/streaming audit | Reused calibration is not independent acoustic validation |
+| Product isolation |0.4.6 idle/upload0; Brain8661454/ledgers unchanged;0 paid calls | B grant not renewed; wake-to-Brain OFF |
+
 ## 2026-11-14 wake evidence correction (supersedes older rows)
 
 | Requirement | Actual evidence | Gap |
