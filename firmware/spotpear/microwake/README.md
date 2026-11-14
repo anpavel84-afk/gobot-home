@@ -17,6 +17,10 @@ incomplete/corrupt/oversized recordings. `record_raw_usb.py` registers deletion
 before arm and encrypts only the complete WAV on PLAN. Installation and a NEW
 recording require scoped authorization. Owner approved installation and ONE NEW
 <=50s sample; installed app/boot verified and the one-use USB collector prepared.
+Its first armed window expired with physical touch counter0, no STARTED and no
+audio file. Collector cancelled, idle/upload0 verified; NEW consent is unused,
+wait for Owner presence before re-arm. USB arm/cancel console control passed;
+lossless physical PCM transfer remains unverified.
 Candidate0.4.6-dev-raw-wake-1 built offline,2722208 bytes; exact app/model hashes
 and separate physical-acceptance flags are in raw-capture-build.json. Installed,
 NVS/boot/OTA/inactive/assets verified unchanged. Human wake acceptance NOT_DONE.

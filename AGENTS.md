@@ -5,6 +5,9 @@ the enrolled Spotpear, with identity/backup/NVS/rollback checks, AND ONE NEW
 <=50s pre-AFE USB recording. Physical touch only after separate instruction;
 PLAN-only DPAPI, delete within24h, no cloud/paid APIs. No wake-route enablement
 or renewed voice budget. Keep original two sample expiry deadlines unchanged.
+First raw USB armed window expired WITHOUT touch or audio; this NEW recording
+consent remains unused. Collector cancelled, board idle/upload0. Re-arm only
+after Owner reports presence; do not imply that a third recording exists.
 
 Both Owner local recording consents on 2026-11-14 are CONSUMED:49.92s and35.0s.
 Owner corrected the second protocol: FOUR final wake calls, not three. Both

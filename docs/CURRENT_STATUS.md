@@ -18,8 +18,11 @@ truncation or duration overflow fail closed. Capture RAM expires and is zeroed;
 USB export has a20s bound. Host accepts only complete PCM, encrypts with DPAPI
 and registers deletion before arm. No generic UART audio log or standby upload.
 Existing touch/Brain path and wake admission OFF are retained. Candidate now
-INSTALLED under separate Owner consent; one newly authorized50s USB sample is
-prepared for physical touch. Source/gate/USB checks run without paid calls.
+INSTALLED under separate Owner consent. The first new50s USB armed window
+expired WITHOUT physical touch (board counter0), STARTED event or audio file;
+collector cancelled and idle/upload0 verified. That NEW one-sample consent is
+unused; wait for Owner presence before re-arming. Source/gate/USB checks run
+without paid calls.
 Training and wake admission now reject unknown/post-AFE input-domain evidence.
 Candidate0.4.6-dev-raw-wake-1 BUILT in pinned offline IDF container:2722208 bytes,
 SHA256 bcd36192abc7583f770f641400a28235740d6656403dce6ef8a0f85a0240c41b.
@@ -32,7 +35,8 @@ Installed firmware now0.4.6-dev-raw-wake-1, app-only write/readback verified;
 fresh full16MiB private backup saved, NVS logical configuration/boot/OTA metadata/
 inactive slot/assets unchanged, no RF recalibration. USB boot status confirms
 wifi=1,enrolled=1,muted=0,phase=0,upload=0,volume100,parity1987024791,routed=0.
-Physical LCD/touch/complete raw recording still need observation. Brain8661454
+USB arm acknowledgement and post-cancel console/status work with the shared
+driver. Physical LCD/touch/complete raw recording still need observation. Brain8661454
 unchanged; no quota renewal or paid provider trial. Exact rollback: guarded
 `firmware/spotpear_bringup.py raw-wake-rollback` writes only retained0.4.5 app,
 with identity/fresh backup/current image/non-app-region checks. Wake-to-Brain
