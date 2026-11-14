@@ -10,7 +10,8 @@ from train import features, STRIDE, SEED
 
 def traces(model, corpus, seed):
     rng = np.random.default_rng(seed)
-    interpreter = tf.lite.Interpreter(model_path=str(model), num_threads=1,
+    source={'model_content':model} if isinstance(model,bytes) else {'model_path':str(model)}
+    interpreter = tf.lite.Interpreter(**source, num_threads=1,
         experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
     interpreter.allocate_tensors()
     inp, out = interpreter.get_input_details()[0], interpreter.get_output_details()[0]

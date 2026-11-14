@@ -25,30 +25,42 @@ def main(port,seconds,consent,protocol):
     expiry=time.time()+23*3600
     meta.write_text(json.dumps({'expires_at':expiry,'capture_domain':'mono_pcm16_pre_afe',
         'raw_seconds_limit':seconds,'protocol':protocol,'consent':'Owner explicit NEW raw USB sample','cloud_transfer':False}))
+    def status(event,**extra):
+        data=json.loads(meta.read_text());data.update({'capture_state':event,'state_at':time.time(),**extra})
+        meta.write_text(json.dumps(data)) # Numeric/control events only, no speech or PCM.
     deletion_task(nonce,expiry) # BEFORE arm, failure leaves no active recorder.
     device=serial.Serial();device.port=port;device.baudrate=115200;device.timeout=.2
-    device.dtr=False;device.rts=False;device.open()
+    device.dtr=False;device.rts=False;started=False
     try:
+        device.open()
         device.reset_input_buffer();device.write(f'GOBOT_RAW_ARM {nonce} {seconds}\n'.encode())
-        deadline=time.monotonic()+160;pending=bytearray();started=False
+        deadline=time.monotonic()+160;pending=bytearray()
         while not decoder.done:
             if time.monotonic()>deadline:raise TimeoutError('Bounded USB capture expired')
             pending.extend(device.read(4096))
             if len(pending)>32768:raise ValueError('Oversized USB line')
             while b'\n' in pending:
                 line,_,rest=pending.partition(b'\n');pending=bytearray(rest);line=line.strip()
-                if line==f'GOBOT_RAW_ARMED {nonce} {seconds}'.encode():print('RAW_USB_ARMED physical_touch_required=1 no_cloud=1',flush=True)
+                if line==f'GOBOT_RAW_ARMED {nonce} {seconds}'.encode():
+                    status('armed',physical_start_ack=False)
+                    print('RAW_USB_ARMED physical_touch_required=1 no_cloud=1',flush=True)
                 if line==f'GOBOT_RAW_STARTED {nonce}'.encode():
-                    started=True;print('RAW_USB_STARTED',flush=True)
+                    started=True;status('recording',physical_start_ack=True)
+                    print('RAW_USB_STARTED',flush=True)
                 decoder.line(line)
         if not started:raise ValueError('Physical start not acknowledged')
         with io.BytesIO() as memory:
             with wave.open(memory,'wb') as out:
                 out.setnchannels(1);out.setsampwidth(2);out.setframerate(16000);out.writeframes(decoder.pcm)
             target.write_bytes(_dpapi(memory.getvalue()))
+        status('complete_crc_verified',recorded_seconds=seconds)
         print(json.dumps({'sample_id':nonce,'seconds':seconds,'encrypted':True,'capture_domain':'mono_pcm16_pre_afe'}))
+    except Exception as error:
+        status('capture_failed' if started else 'ended_without_start',error_type=type(error).__name__,received_pcm_bytes=len(decoder.pcm))
+        raise
     finally:
-        try:device.write(b'GOBOT_RAW_CANCEL\n')
+        try:
+            if device.is_open:device.write(b'GOBOT_RAW_CANCEL\n')
         finally:device.close();decoder.clear()
 
 if __name__=='__main__':

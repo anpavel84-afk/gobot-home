@@ -1,5 +1,33 @@
 # Локальное «ГоБот» на Spotpear
 
+### Exact-input capture confirmed — 2026-11-14
+
+Owner physically started and confirmed the FULL50s pre-AFE/Opus-free recording.
+USB sequence/CRC/length passed, encrypted on PLAN, deletion task verified; no raw
+audio/features/personal weights uploaded. Recorder closed, board idle/upload0.
+New consent consumed; do not re-arm. Earlier expired-window statements below
+are historical. Installed synthetic-only model emits0 events at cutoff250.
+
+Calibration now requires explicit private, provisional timing intervals, fixed
+two-utterance holdout and non-overlapping reviewed negatives. No loudest-peak
+labelling. Optional continuous frontend replay retains real filter history in
+training windows; offline/streaming and float/INT8 probes compare the same trained
+weights. Personal model stays encrypted and shares raw sample deletion. Calibration
+scores are NOT independent human acceptance; no learned model installed or wake
+route enabled.31 focused free Python checks PASS, native C++ capture test retained.
+
+Latest bounded calibration still FAILS. Two replay profiles plus complete-negative
+interval correction (fixed12 epochs each) and diagnostic reproductions, no endless
+search. Latest candidate:3 events on87 Dmitri synthetic negatives/189.93s (included
+in training);15/15 positive clips but69 events on198 Elena negatives/616.89s.
+These are synthetic regression metrics, NOT a human false-wake rate. The unknown
+last utterance in the50s sample remains unlabelled/excluded, not counted positive.
+No learned model installed; no training left running. Failed evidence retained.
+Conversion audit compares nonstream/float-stream/INT8 peaks and tags artificial
+zero padding explicitly; it does not establish full framewise equivalence.
+Collector journals arm/start/completion/error classes privately without raw UART
+logs, PCM or speech text. Original sample/model expiry is never extended.
+
 ### Input-domain correction — 2026-11-14
 
 The two consented samples (49.92s and35.0s) are POST-AFE/Opus conversation audio.
