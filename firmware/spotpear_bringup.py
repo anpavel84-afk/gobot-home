@@ -55,7 +55,7 @@ def verify_nvs_config(before,after):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -154,7 +154,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback"):
+        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback"):
             report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
             previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
             new=PRIVATE/"touch/gobot-voice-status.bin"
@@ -166,6 +166,14 @@ def main():
                 new=PRIVATE/"touch/gobot-fast-start.bin"
                 previous=PRIVATE/"touch/gobot-voice-status.bin"
                 require(report['version']=='0.4.5-dev-fast-start-1' and report['sha256']=='c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764','Unexpected fast-start candidate')
+            elif opts.action.startswith('raw-wake'):
+                previous_report=json.loads((ROOT/"firmware/spotpear/voice_status/FAST_START_MANIFEST.json").read_text())
+                previous_report={'app_bytes':previous_report['bytes'],'app_sha256':previous_report['sha256']}
+                raw=json.loads((ROOT/"firmware/spotpear/microwake/raw-capture-build.json").read_text())
+                require(raw['version']=='0.4.6-dev-raw-wake-1' and raw['app_sha256']=='bcd36192abc7583f770f641400a28235740d6656403dce6ef8a0f85a0240c41b' and raw['wake_route'] is False,'Unexpected raw diagnostic candidate')
+                report={'bytes':raw['app_bytes'],'sha256':raw['app_sha256']}
+                new=PRIVATE/"touch/gobot-raw-wake.bin"
+                previous=PRIVATE/"touch/gobot-fast-start.bin"
             else:
                 require(report["version"]=="0.4.4-dev-voice-status-1" and report["sha256"]=="ed6aff97a300169cc53852022a5ff6b08fb448d82bec4934182513e007b54866", "Unapproved UI candidate")
             require(new.stat().st_size==report["bytes"]<=0x3f0000 and digest(new.read_bytes())==report["sha256"],"UI image mismatch")

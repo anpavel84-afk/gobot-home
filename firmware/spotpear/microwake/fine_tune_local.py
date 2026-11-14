@@ -17,7 +17,12 @@ from train import features,window,BATCH,FRAMES,STRIDE
 
 def main(ident,balanced_replay=False):
     path,metadata=paths(ident)
-    if time.time()>=json.loads(metadata.read_text())['expires_at']:raise ValueError('Sample expired')
+    evidence=json.loads(metadata.read_text())
+    if time.time()>=evidence['expires_at']:raise ValueError('Sample expired')
+    if evidence.get('capture_domain')!='mono_pcm16_pre_afe':
+        raise ValueError('Wake adaptation requires exact pre-AFE PCM, not conversation AFE/Opus audio')
+    if evidence.get('protocol')!='wake10_questions':
+        raise ValueError('This calibration script requires the labelled wake10_questions protocol')
     raw=bytearray(_dpapi(path.read_bytes(),decrypt=True));pcm=None;x=None
     try:
         with wave.open(io.BytesIO(raw),'rb') as w:

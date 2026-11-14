@@ -1,10 +1,24 @@
 # GoBot Home boundaries
 
+OWNER approved on 2026-11-14 installation of prepared0.4.6-dev-raw-wake-1 on
+the enrolled Spotpear, with identity/backup/NVS/rollback checks, AND ONE NEW
+<=50s pre-AFE USB recording. Physical touch only after separate instruction;
+PLAN-only DPAPI, delete within24h, no cloud/paid APIs. No wake-route enablement
+or renewed voice budget. Keep original two sample expiry deadlines unchanged.
+
+Both Owner local recording consents on 2026-11-14 are CONSUMED:49.92s and35.0s.
+Owner corrected the second protocol: FOUR final wake calls, not three. Both
+samples are post-AFE/Opus conversation audio, NOT exact pre-AFE KWS input.
+Do not use them as device wake acceptance or continue adapting them as raw KWS.
+DPAPI/deletion deadlines stay unchanged; no cloud/paid calls, automatic repeats,
+expense renewal or wake admission. No recorder is armed. Prepare a lossless
+pre-AFE USB diagnostic on a COPY; installation/NEW recording need scoped consent.
+
 The ONE local wake sample consent below was CONSUMED on 2026-11-14:49.92s,
 Owner-confirmed pronunciation protocol, DPAPI on PLAN, no cloud transfer.
 The encrypted personal model shares raw-sample deletion within24h. No additional
-recording consent is implied; a proposed35s hard-negative/control sample is
-pending a separate Owner answer. No recorder remains armed; B restored.
+recording consent is implied; the separately approved35s sample above is also
+consumed. No recorder remains armed; B restored.
 
 OWNER resumed the complete local Russian GoBot wake-to-question product on
 2026-11-13; touch is fallback, not the target interaction. Continue local wake

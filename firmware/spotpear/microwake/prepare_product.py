@@ -17,6 +17,7 @@ def prepare(root,model_dir,voice_route=False,human_report=None):
         ambient=json.loads((model_dir/'ambient.json').read_text())
         human=json.loads(human_report.read_text()) if human_report else {}
         if not (report['candidate_passed'] and ambient['seconds']>=1800 and ambient['false_events']==0 and ambient.get('model_sha256')==report['sha256']
+            and human.get('capture_domain')=='mono_pcm16_pre_afe'
             and human.get('human_labels_verified') is True and human.get('positive_trials',0)>=30
             and human.get('true_positive_count',0)>=.9*human['positive_trials'] and human.get('false_positive_count')==0
             and human.get('negative_observation_seconds',0)>=7200

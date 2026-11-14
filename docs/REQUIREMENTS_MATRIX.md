@@ -1,5 +1,14 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-14 wake evidence correction (supersedes older rows)
+
+| Requirement | Actual evidence | Gap |
+|---|---|---|
+| Owner samples |49.92s +35.0s received; second has FOUR final controls; DPAPI/original deletion deadlines | Both post-AFE/Opus, not exact idle KWS PCM; consents consumed |
+| Model quality | Old pilot scores/adaptation explicitly invalid for device acceptance; training stopped | Fresh exact-input labelled evaluation, false-wake observation required |
+| Correct capture | Default-OFF USB pre-AFE PCM0.4.6 INSTALLED/app+boot verified;21 Python checks + C++ capture PASS; bounded RAM, physical tap, CRC/sequence, DPAPI collector | New50s capture separately consented/prepared; physical completion pending |
+| Safety | Product gate rejects post-AFE/unknown provenance; wake route OFF; NVS/boot/OTA/inactive/assets preserved | Voice-first product NOT_ACCEPTED; Brain8661454 unchanged; guarded rollback to0.4.5 |
+
 ## First physical A response / UI feedback
 
 | Requirement | Actual evidence | Remaining gap |
