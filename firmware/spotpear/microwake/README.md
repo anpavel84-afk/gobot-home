@@ -1,5 +1,29 @@
 # Локальное «ГоБот» на Spotpear
 
+### 2026-11-14: real sample / local-only adaptation checkpoint
+
+Owner initiated49.92s recording and confirmed the requested pronunciation sequence.
+It is DPAPI-encrypted on PLAN only; exact-file deletion at23h was registered before
+recording. Raw sound/features and personal weights were not sent to the build host
+or published. Normal B restored; installed0.4.5 unchanged, wake route still OFF.
+
+Existing local Whisper was used for approximate timing only, with no external STT
+or published speech. The three prior models emitted9/5/4 events respectively;
+event counts are not verified recall. `fine_tune_local.py` runs a fixed12-epoch,
+2-CPU-thread existing microWakeWord adaptation from verified synthetic-only weights.
+8 isolated examples participate in gradients;2 isolated examples and question
+phrases do not. Timing is energy-inferred and repeatedly evaluated: this pilot is
+not independent human acceptance. Optional balanced replay uses18 existing licensed
+Denis/Dmitri positives and174 negative clips. Personal TFLite is DPAPI-protected
+and deleted by the SAME sample expiry task; temporary exports are removed.
+
+The local model retains extra detections:2 events on87 synthetic Dmitri negatives
+over189.93s (training regression, NOT held-out), including "погода" / "какой бот".
+Cutoff255 still leaves a false event. No product admission, new flash or paid call.
+Further recording requires separate consent: the first ONE-sample permission is
+now consumed. No second sample is armed. No speaker identification or private
+memory permission is inferred from the recording or personalized keyword model.
+
 Диагностическая установка сохраняет экран, касание и аппаратный gateway версии 0.2.3. Никаких моделей или ключей облака для поиска слова не требуется. Во время диагностики модель считает совпадения, показывает «Слышу ГоБот» и оставляет сетевую сессию закрытой. Рабочий путь для прошедшей приёмку модели вызывает `StartGoBotTurn("wake")`. При открытии канала ограниченный буфер в PSRAM вмещает первые 1,5 секунды после детекции. До детекции обрабатывается один поток штатного ES8311. PCM ожидания в буфер передачи не попадает.
 
 ## Сборка и происхождение
