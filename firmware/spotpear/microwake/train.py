@@ -12,6 +12,7 @@ from pymicro_features import MicroFrontend
 from microwakeword.mixednet import model
 from microwakeword.layers.modes import Modes
 from microwakeword.utils import to_streaming_inference
+from augmentation import fit_positive
 
 SEED = 7611
 FRAMES = 75
@@ -48,8 +49,10 @@ def window(clip, rng, positive):
     if clip is not None:
         sample = channel(clip, rng)
         if len(sample) > total:
-            start = len(sample) - total if positive else rng.integers(0, len(sample)-total+1)
-            sample = sample[start:start+total]
+            if positive:sample=fit_positive(sample,total)
+            else:
+                start=rng.integers(0,len(sample)-total+1)
+                sample=sample[start:start+total]
         gap = total - len(sample)
         left = rng.integers(max(0,gap-4000), gap+1)
         noise[left:left+len(sample)] += sample

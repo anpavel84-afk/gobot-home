@@ -1,5 +1,27 @@
 # Локальное «ГоБот» на Spotpear
 
+### Corrective pipeline checkpoint — 2026-11-14
+
+Fixed positive-word front cropping in `train.window`: oversized positive
+augmentations are time-fitted rather than losing initial phonemes. Private audit
+found428/512 affected examples under75 frames;120-frame context and40-call warmup
+are supported. Complete original replay is60 positive/792 negative clips across
+Denis/espeak-ru/Anna/Aleksandr, with manifest/SHA checks; Dmitri/Elena stay excluded.
+`validate_local_candidate.py` performs fixed-cutoff250 streaming tests on both
+reference speakers and the encrypted pre-AFE sample; no model/audio exported.
+The versioned split can train the middle question prefix while retaining outer
+questions and isolated4/9 as holdouts. Do not repeat the older all-questions-excluded
+claim for split2. Human timings are provisional and repeatedly inspected.
+
+All new profiles remain experimental/failed. No universal recall or accepted wake
+is claimed. Immutable encrypted candidate copies are covered by the SAME expiry
+task; candidate reports/IDs stay private. Public-only `prepare_private_template.py`
+builds an unqualified0.4.7 template with64KiB slot and12s transition buffer.
+`private_image.py` substitutes a model locally in RAM, verifies fixed segment
+layout/checksum/SHA and rejects ambiguous slots. The real template patch passed
+esptool image parsing, not hardware inference. No private weights on build host,
+no new flash/paid call and no route enablement. Installed0.4.6 remains.
+
 ### Exact-input capture confirmed — 2026-11-14
 
 Owner physically started and confirmed the FULL50s pre-AFE/Opus-free recording.

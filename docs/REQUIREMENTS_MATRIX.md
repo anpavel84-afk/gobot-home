@@ -1,5 +1,15 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-14 corrective wake source (not release acceptance)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Whole activation word | Front-crop bug fixed;428/512 prior positive augmentations exceeded window;120-frame context | Corrected candidates still fail general voice validation |
+| Data integrity/split | Original60/792 PCM hashes verified; Dmitri/Elena excluded; split2 trains only middle question prefix | Reused/provisional human intervals are not independent trials |
+| One-phrase capture |0.4.7 PUBLIC template built;1s prefix/12s bounded transition buffer | Not installed; no physical learned-model handoff proof |
+| Personal weight privacy | PLAN-RAM fixed-slot patch checked with ESP segment/checksum/SHA + esptool; immutable DPAPI candidates share expiry | No private model exported or flashed |
+| Voice result | Three recorded question episodes detected by corrected profiles | Best pooled profile still2 Elena negative events and low Dmitri recall; wake remains unaccepted/OFF |
+
 ## 2026-11-14 exact-input capture (supersedes armed-window rows)
 
 | Requirement | Actual evidence | Remaining gap |

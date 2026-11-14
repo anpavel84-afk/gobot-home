@@ -20,6 +20,15 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         model_bytes=_dpapi(source.with_name((model_sample_id or ident)+'-personal-model.dpapi').read_bytes(),decrypt=True)
     else:model_bytes=model.read_bytes()
     model_sha=hashlib.sha256(model_bytes).hexdigest()
+    context_frames=75
+    if encrypted_model:
+        report_path=source.with_name((model_sample_id or ident)+'-candidate-'+model_sha+'.json')
+        if not report_path.exists():report_path=source.with_name((model_sample_id or ident)+'-neural-pilot.json')
+        if report_path.exists():
+            model_metadata=json.loads(report_path.read_text())
+            if model_metadata.get('model_sha256')!=model_sha:raise ValueError('Encrypted candidate/report mismatch')
+            context_frames=int(model_metadata.get('context_frames',75))
+    warmup=max(25,(context_frames+2)//3)
     evidence_path=model.parent/'stream-report.json'
     evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() and not encrypted_model else {}
     if evidence and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
@@ -48,7 +57,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         scores=np.convolve(probabilities,np.ones(3)/3,mode='full')[:len(probabilities)]
         events=[]
         for i in np.flatnonzero(scores>=cutoff):
-            if i>=25 and (not events or i-events[-1]>=50):events.append(int(i))
+            if i>=warmup-1 and (not events or i-events[-1]>=50):events.append(int(i))
         windows=samples[:len(samples)//320*320].reshape(-1,320).astype(np.float64)
         rms=np.sqrt(np.mean(windows**2,axis=1));threshold=max(100,float(np.percentile(rms,15))*3)
         active=np.flatnonzero(rms>=threshold);segments=[]
@@ -58,6 +67,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         domain=metadata.get('capture_domain','post_afe_opus')
         report={'seconds':len(samples)/16000,'local_only':True,'frontend_parity':1987024791,
             'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
+            'context_frames':context_frames,'warmup_invocations':warmup,
             'event_seconds':[round(i*.03+.05,2) for i in events],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
             'peak_score':max(probabilities,default=0),'cutoff':cutoff,'model_sha256':model_sha,

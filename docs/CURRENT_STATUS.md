@@ -1,5 +1,45 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Wake correction in progress — 2026-11-14, source checkpoint
+
+Owner explicitly requested completion of local «ГоБот, вопрос» using the existing
+recording. Installed firmware0.4.6 and Brain8661454 remain unchanged, no new
+recording, paid API, quota renewal or wake admission. Existing raw/model expiry
+deadlines are preserved. All human analysis/training/weights remain on PLAN.
+
+Confirmed training bug: positive augmentation cropped the START of long/slowed
+words. On512 deterministic owner-positive augmentations,428 exceeded the old
+75-frame window; up to771ms could be discarded. `augmentation.fit_positive`
+now retains both word boundaries and time-fits oversized examples. Context120
+is supported with40-invocation warmup in evaluation and prepared firmware.
+Original4-voice replay now verifies every PCM hash:60 positives/792 negatives,
+excluding Dmitri/Elena. Earlier87/174-clip replay was the reduced legacy corpus.
+
+Private split revision2 explicitly trains only the middle question's wake prefix;
+outer2 questions and isolated indices4/9 remain excluded. This is disclosed, NOT
+the older claim that all3 questions are untouched. Numeric/provisional labels
+remain private and are not independent human acceptance. Current corrected
+models detect all3 question episodes in the existing recording, but synthetic
+speaker quality remains inadequate: best tested pooled120 profile has0 events
+on198 Dmitri negatives and2 on198 Elena negatives, with only3/15 and10/15
+positive detections respectively. Other bounded profiles, including wider40-channel
+temporal-head CNN, robust replay and a frozen encoder, remain failed candidates.
+No threshold-only acceptance, template/linear replacement or failed-test removal.
+One fixed hard-negative/frozen-normalization40-epoch profile is being evaluated;
+not a paid service or unattended unbounded search.
+
+Public-only0.4.7-dev-word-candidate-1 template BUILT in pinned offline IDF:
+2767440 bytes, SHA2562f5d09559fdf2bc1c94f6ac3d35006c6701c1cc5938e13313dedf76e17b11a03.
+It contains the original PUBLIC model padded to64KiB, never personal weights.
+New runtime source preserves1s rolling prefix +12s transition buffer and cancels
+overflow. Private weight substitution is performed ONLY in PLAN RAM; real ESP
+image segment layout, XOR checksum and appended SHA256 verified independently
+with esptool. The test private image was zeroed, not stored/flashed. This is not
+actual S3 inference of learned weights, physical wake, or real Brain acceptance.
+Wake route remains OFF.47 focused free tests passed at this checkpoint.
+Encrypted immutable candidates now share the original sample expiry/cleanup;
+no more retraining merely to recover an overwritten model.
+
 ## Exact pre-AFE human sample received — 2026-11-14
 
 Owner reported readiness, initiated a physical touch and confirmed completion.
