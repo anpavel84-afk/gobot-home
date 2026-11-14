@@ -10,6 +10,10 @@ from pymicro_features import MicroFrontend
 def run(model, negative_dir, minutes=30):
     report=json.loads((model/"stream-report.json").read_text())
     cutoff=report["cutoff"]
+    window=int(report.get('window',3));warmup=int(report.get('warmup',25))
+    if not 1<=window<=32 or warmup<window:raise ValueError('Invalid native decision policy')
+    model_hash=hashlib.sha256((model/'gobot.tflite').read_bytes()).hexdigest()
+    if report['sha256']!=model_hash:raise ValueError('Model/report mismatch')
     it=tf.lite.Interpreter(model_path=str(model/"gobot.tflite"), num_threads=1,
         experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
     it.allocate_tensors()
@@ -20,7 +24,7 @@ def run(model, negative_dir, minutes=30):
     clips=[np.fromfile(p,"<i2") for p in sorted(negative_dir.glob("negative-*.pcm"))]
     total=minutes*60*16000
     cursor=0
-    smooth=[0,0,0]
+    smooth=[0]*window
     predictions=events=0
     unlocked=0
     features=[]
@@ -40,15 +44,15 @@ def run(model, negative_dir, minutes=30):
             q=np.clip(np.rint(np.array(features,np.float32)/scale)+zero,-128,127).astype(np.int8)
             it.set_tensor(inp["index"],q[None])
             it.invoke()
-            smooth[predictions%3]=int(it.get_tensor(out["index"])[0,0])
+            smooth[predictions%window]=int(it.get_tensor(out["index"])[0,0])
             predictions+=1
-            if cursor>=unlocked and sum(smooth)>=3*cutoff:
+            if predictions>=warmup and cursor>=unlocked and sum(smooth)>=window*cutoff:
                 events+=1
                 unlocked=cursor+24000
             features.clear()
     result=dict(kind="synthetic confusables with generated hum, silence and noise",seconds=cursor/16000,
                 false_events=events,false_per_hour=events*3600/(cursor/16000),real_household_seconds=0,
-                model_sha256=hashlib.sha256((model/'gobot.tflite').read_bytes()).hexdigest())
+                model_sha256=model_hash,window=window,warmup=warmup,cutoff=cutoff)
     (model/"ambient.json").write_text(json.dumps(result,indent=2))
     print(result)
 if __name__=="__main__":

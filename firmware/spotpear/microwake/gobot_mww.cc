@@ -1,6 +1,13 @@
 #include "gobot_mww.h"
 #include "gobot_mww_config.h"
 #include "wake_question_buffer.h"
+#include "probability_window.h"
+#ifndef GOBOT_WAKE_WINDOW
+#define GOBOT_WAKE_WINDOW 3
+#endif
+#ifndef GOBOT_WAKE_WARMUP
+#define GOBOT_WAKE_WARMUP 25
+#endif
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -22,11 +29,13 @@ tflite::MicroInterpreter* interpreter = nullptr;
 tflite::MicroResourceVariables* vars = nullptr;
 std::atomic<int> state{0};
 std::atomic<unsigned> frames{}, invocations{}, peak{}, max_us{}, hits{}, misses{}, clips{}, levels{}, drops{}, pauses{}, errors{};
-unsigned step{}, position{}, history[3]{}, warm{};
+unsigned step{};
+gobot::ProbabilityWindow<GOBOT_WAKE_WINDOW> decision(GOBOT_WAKE_CUTOFF,GOBOT_WAKE_WARMUP);
 constexpr size_t capacity = 192000; // 12 seconds incl. 1s local prefix, 16kHz mono.
 int16_t* tail = nullptr;
 gobot::WakeQuestionBuffer question;
 std::atomic<bool> overflow{};
+std::atomic<bool> warmed{};
 unsigned parity_hash{};
 bool initialize() {
     FrontendConfig c{};
@@ -80,7 +89,8 @@ bool initialize() {
     if(input->type!=kTfLiteInt8 || input->dims->size!=3 || input->dims->data[0]!=1 ||
        input->dims->data[1]!=3 || input->dims->data[2]!=40 || output->type!=kTfLiteUInt8 ||
        output->bytes!=1 || input->params.zero_point!=-128 ||
-       std::abs(input->params.scale-26.f/255.f)>.00001f) return false;
+       std::abs(input->params.scale-26.f/255.f)>.00001f || output->params.zero_point!=0 ||
+       std::abs(output->params.scale-1.f/256.f)>.0000001f) return false;
     interpreter=&runtime;
     ESP_LOGI("mww","GOBOT_MWW_MEMORY used=%u arena=%u heap=%u psram=%u",unsigned(runtime.arena_used_bytes()),
              unsigned(arena_size),unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
@@ -89,13 +99,13 @@ bool initialize() {
 }
 }
 void reset() {
+    warmed=false;
     if(interpreter) {
         FrontendReset(&front);
         if(interpreter->Reset()!=kTfLiteOk || vars->ResetAll()!=kTfLiteOk) state=-1;
     }
     question.Clear();
-    step=position=warm=0;
-    std::fill(std::begin(history),std::end(history),0u);
+    step=0;decision.Reset();
 }
 bool feed(const int16_t* mono,size_t count) {
     if(state==0) state=initialize()?1:-1;
@@ -128,9 +138,9 @@ bool feed(const int16_t* mono,size_t count) {
         if(interpreter->Invoke()!=kTfLiteOk) {state=-1;++errors;break;}
         auto prob=interpreter->output(0)->data.uint8[0];
         peak=std::max(peak.load(),unsigned(prob));
-        history[position++%3]=prob;
         ++invocations;
-        if(++warm>=25 && history[0]+history[1]+history[2]>=3*GOBOT_WAKE_CUTOFF) {
+        const bool detected_word=decision.Push(prob);warmed=decision.Warm();
+        if(detected_word) {
             ++hits;detected=true;break;
         }
     }
@@ -152,4 +162,5 @@ void report() {
 void miss(){++misses;}
 void suspended(){++pauses;}
 bool qualified(){return GOBOT_WAKE_ROUTE;}
+bool ready(){return state.load()==1 && warmed.load();}
 }

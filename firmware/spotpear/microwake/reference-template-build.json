@@ -1,0 +1,25 @@
+{
+  "version": "0.4.8-dev-reference-local-1",
+  "app_sha256": "4f11084e86794a6aab78b929c82d381d8e46044d53adf3a904ee04e756139457",
+  "app_bytes": 2838576,
+  "idf": "v6.0.1",
+  "build_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "contains_personal_weights": false,
+  "contains_qualified_model": false,
+  "model_slot_bytes": 131072,
+  "placeholder_sha256": "1e26ad59e1a9a5773b0310fc03d5b689dfa575b7f1521aa63e9299239b27e2e4",
+  "cutoff": 231,
+  "window": 10,
+  "warmup": 68,
+  "arena_bytes": 524288,
+  "wake_route": false,
+  "flashed": false,
+  "esptool_image_validation": true,
+  "source_sha256": {
+    "prepare_private_template.py": "ffe6937768e2bd5ac8c3c71438ff5b5ad0ef370a21ac4eb779d9f42a2a38fabf",
+    "gobot_mww.cc": "4c8a50a40d744ddfc786e73f01291c254ea8545875fa0c8aa5c4ae5346a4de9e",
+    "gobot_mww.h": "6b76ff3b16307c1705e428ee215047a31fd6b2b4a62917ccaef92c52cd36b423",
+    "probability_window.h": "e5201455765f159415f8f31855b3343ba3ef336a827466ea539229a0881ee0da",
+    "wake_question_buffer.h": "1d1082ad91783dbd4a303987c69d38026ab2ac7143018e26a337a5274d1c442c"
+  }
+}

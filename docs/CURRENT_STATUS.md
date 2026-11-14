@@ -1,5 +1,34 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Full reference correction — 2026-11-14, in progress
+
+Installed0.4.6 and Brain8661454 are unchanged. The bounded hard-negative compact
+profile completed and failed validation; it is no longer training. No new audio
+capture, paid call, quota renewal or wake routing has occurred.
+
+Public-only full MixedNet training now uses64x4 blocks,204 feature frames and
+50,000 augmented windows from60 positive/792 negative synthetic seeds, NOT50,000
+independently synthesized utterances. Train Denis/Dmitri/espeak-ru/Anna, validation
+Aleksandr, test Elena; Dmitri is NOT held out for this new split. Human audio and
+personal weights never leave PLAN. The initial pooled run failed validation and
+revealed a checkpoint bug: an untrained initialization could win against all
+trained checkpoints. Its export is rejected. Selection now requires a finite
+trained checkpoint, retains last weights, and reports the actual selected step.
+Two regression tests cover initialization/NaN rejection. A single bounded CPU
+run with the upstream temporal head (pooled=false) is currently in progress;
+no acceptance is inferred from training loss or file creation.
+
+Prepared0.4.8 reference runtime supports10-score smoothing,68-invocation warmup,
+SplitV and bounded larger PSRAM arena/variable storage. It reports local-scan
+readiness accurately and shows a wake prompt only when genuinely qualified and
+warmed. The prepared image contains only a PUBLIC placeholder and is not flashed.
+One-second prefix and12-second bounded startup buffer remain; overflow cancels.
+52 focused free Python tests passed; native probability-window test passed.
+
+A separate finite wake-test budget implementation is source-only and disabled;
+no runtime mount/admission was enabled, no old ledger reset or grant reused.
+Original sample/personal-model deletion deadlines remain unchanged.
+
 ## Wake correction in progress — 2026-11-14, source checkpoint
 
 Owner explicitly requested completion of local «ГоБот, вопрос» using the existing

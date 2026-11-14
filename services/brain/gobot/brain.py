@@ -409,6 +409,9 @@ def create_app(settings=None):
             from .board_trial import TrialRealtime
             board_realtime=TrialRealtime(realtime,board_root.parent/'voice-ab-b-extended')
         elif board_mount.get('profile','original')=='original':board_realtime=BoardRealtime(realtime,board_root)
+        elif board_mount.get('profile')=='wake_owner_test':
+            from .board_wake_test import WakeTestRealtime
+            board_realtime=WakeTestRealtime(realtime,board_root.parent/'voice-ab-b-wake')
         else:raise ValueError('unknown_board_budget_profile')
     @asynccontextmanager
     async def lifespan(app):

@@ -1,5 +1,26 @@
 # Локальное «ГоБот» на Spotpear
 
+### Full reference / finite CPU correction — 2026-11-14
+
+`train_reference.py` runs a public-synthetic-only64x4 MixedNet/204-frame profile.
+50,000 means augmented feature windows from60 positive/792 negative seed clips,
+not50,000 unique TTS utterances. Split2 trains Denis/Dmitri/espeak-ru/Anna;
+Aleksandr validates, Elena tests. Do not call Dmitri held out for this profile.
+The rejected pooled run exposed an initialization-selection bug. Export now
+requires a trained finite checkpoint, preserves last weights and reports selection.
+The upstream default temporal head is retained (pooled=false). The active bounded
+run uses2CPU threads,4GiB memory and30min maximum, no paid/model service/network.
+`validate_reference.py` checks fixed10-score/cutoff231/warmup68 streaming behavior,
+manifest hashes and split isolation; ambient.py now honors the SAME smoothing and
+warmup instead of silently reverting to legacy3-score inference.
+
+`reference-template-build.json` identifies the successfully built PUBLIC0.4.8
+placeholder template: ESP32-S3 image/checksum/hash checked,131072-byte model slot,
+512KiB arena, SplitV, truthful local-scan/warmup status. NOT a qualified model,
+NOT flashed. The existing physical board remains0.4.6, touch intact; USB port
+currently enumerates but Windows returns device-not-functioning on open. Owner
+was asked to reconnect. No recording is armed and no paid test was started.
+
 ### Corrective pipeline checkpoint — 2026-11-14
 
 Fixed positive-word front cropping in `train.window`: oversized positive

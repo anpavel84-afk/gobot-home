@@ -32,7 +32,13 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
     evidence_path=model.parent/'stream-report.json'
     evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() and not encrypted_model else {}
     if evidence and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
-    cutoff=int(evidence.get('cutoff',250))
+    if not encrypted_model and (model.parent/'model.json').exists():
+        model_metadata=json.loads((model.parent/'model.json').read_text())
+        if model_metadata.get('sha256')!=model_sha:raise ValueError('Public model metadata mismatch')
+        context_frames=int(model_metadata.get('context_frames',75));warmup=max(25,(context_frames+2)//3)
+        evidence={**model_metadata,**evidence}
+    cutoff=int(evidence.get('cutoff',250));window=int(evidence.get('window',3))
+    if window not in (3,10) or not 1<=cutoff<=255:raise ValueError('Unsupported inference policy')
     raw=bytearray(_dpapi(p.read_bytes(),decrypt=True))
     try:
         with wave.open(io.BytesIO(raw),'rb') as wav:
@@ -54,7 +60,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         for i in range(0,len(q)-2,3):
             runtime.set_tensor(inp['index'],q[None,i:i+3]);runtime.invoke()
             probabilities.append(int(runtime.get_tensor(out['index'])[0,0]))
-        scores=np.convolve(probabilities,np.ones(3)/3,mode='full')[:len(probabilities)]
+        scores=np.convolve(probabilities,np.ones(window)/window,mode='full')[:len(probabilities)]
         events=[]
         for i in np.flatnonzero(scores>=cutoff):
             if i>=warmup-1 and (not events or i-events[-1]>=50):events.append(int(i))
@@ -67,7 +73,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         domain=metadata.get('capture_domain','post_afe_opus')
         report={'seconds':len(samples)/16000,'local_only':True,'frontend_parity':1987024791,
             'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
-            'context_frames':context_frames,'warmup_invocations':warmup,
+            'context_frames':context_frames,'warmup_invocations':warmup,'probability_window':window,
             'event_seconds':[round(i*.03+.05,2) for i in events],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
             'peak_score':max(probabilities,default=0),'cutoff':cutoff,'model_sha256':model_sha,
