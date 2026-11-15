@@ -12,17 +12,18 @@ from microwakeword.mixednet import model
 from microwakeword.layers.modes import Modes
 from microwakeword.utils import to_streaming_inference
 from gobot.secrets_store import _dpapi
-from sample_retention import paths,candidate_path
+from sample_retention import paths,candidate_path,cleanup
 from train import features,window,BATCH,FRAMES,STRIDE
 from calibration_plan import validate
 
-def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=False,original_replay=None,negative_weight=1.,context_frames=75,temporal_head=False,base_profile='model3',epochs=12,robust_replay=False,freeze_encoder=False,freeze_norm=False,hard_replay=False,coarticulation=False,adapt_last_block=False):
+def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=False,original_replay=None,negative_weight=1.,context_frames=75,temporal_head=False,base_profile='model3',epochs=12,robust_replay=False,freeze_encoder=False,freeze_norm=False,hard_replay=False,coarticulation=False,adapt_last_block=False,mined_manifest=None):
     global FRAMES
     if not 1<=negative_weight<=8:raise ValueError('Unbounded negative-loss weight')
     if context_frames not in (75,120,150,204):raise ValueError('Unsupported bounded context')
     if epochs not in (12,40) or base_profile not in ('model3','model7','reference','expanded','variant'):raise ValueError('Unsupported bounded training profile')
     if base_profile in ('reference','expanded','variant') and (context_frames!=204 or not original_replay or not temporal_head):raise ValueError('Reference requires exact temporal architecture and replay split')
     if adapt_last_block and (not freeze_encoder or base_profile!='variant'):raise ValueError('Last-block adaptation requires the fixed public variant encoder')
+    if mined_manifest and not (base_profile=='variant' and hard_replay and original_replay and adapt_last_block):raise ValueError('Mined negatives require the fixed full private adaptation profile')
     import train as training
     FRAMES=training.FRAMES=context_frames
     training.POSITIVE_TAIL_SAMPLES=9600 if base_profile in ('reference','expanded','variant') else 4000
@@ -78,6 +79,13 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             if not original_replay:raise ValueError('Hard replay requires verified original corpus')
             from original_replay import hard_negatives
             hard_paths=hard_negatives(original_replay,replay_speakers)
+        mined_count=0
+        if mined_manifest:
+            expected=path.with_name(ident+'-mined-public-negatives.json')
+            if Path(mined_manifest).resolve()!=expected.resolve():raise ValueError('Negative selection must belong to this private source')
+            from original_replay import mined_negatives
+            extra=mined_negatives(original_replay,mined_manifest,ident,evidence['expires_at'],negative_paths)
+            hard_paths=extra+hard_paths;mined_count=len(extra)
         count=1024 if original_replay else 512
         rng=np.random.default_rng(20261114);samples=[];labels=[]
         if continuous_replay:
@@ -165,6 +173,7 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
         streamed=to_streaming_inference(net,dict(spectrogram_length=FRAMES,features_length=FRAMES,stride=STRIDE),mode=Modes.STREAM_INTERNAL_STATE_INFERENCE)
         assert tuple(streamed.input_shape)==(1,3,40)
         parent=ROOT/'data/hardware/gobot-v1/wake-human';parent.mkdir(exist_ok=True)
+        if time.time()>=evidence['expires_at']:cleanup(ident);raise ValueError('Source expired before private export')
         with tempfile.TemporaryDirectory(prefix='model-export-',dir=parent) as directory:
             export=tf.keras.export.ExportArchive();export.track(streamed)
             export.add_endpoint('serve',streamed.call,input_signature=[tf.TensorSpec((1,3,40),tf.float32)])
@@ -183,12 +192,13 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             diagnostic=audit(tf,float_blob,blob,pcm,plan,features)
             for probe,baseline in zip(diagnostic['probes'],nonstream):probe.update(baseline)
             path.with_name(ident+'-conversion-audit.json').write_text(json.dumps(diagnostic,indent=2))
+        if time.time()>=evidence['expires_at']:cleanup(ident);raise ValueError('Source expired during private export')
         model_sha=hashlib.sha256(blob).hexdigest();sealed=_dpapi(blob)
         immutable=candidate_path(ident,model_sha)
         if not immutable.exists():immutable.write_bytes(sealed)
         path.with_name(ident+'-personal-model.dpapi').write_bytes(sealed)
         report={'kind':'local_existing_microWakeWord_neural_adaptation','epochs':epochs,'seed':20261114,'base_profile':base_profile,'robust_spectral_replay':robust_replay,'frozen_pretrained_encoder':freeze_encoder and not adapt_last_block,'lower_encoder_frozen':freeze_encoder,'frozen_batch_norm':freeze_norm,'hard_negative_clips':len(hard_paths),
-            'training_utterances':len(clips),'heldout_isolated_indices':[4,9],
+            'training_utterances':len(clips),'heldout_isolated_indices':[4,9],'teacher_mined_public_negative_clips':mined_count,
             'question_phrases_used_for_training':bool(plan.get('training_question_prefixes')),
             'training_question_indices':plan.get('training_question_indices',[]),'heldout_question_indices':plan.get('heldout_question_indices',[0,1,2]),
             'capture_domain':'mono_pcm16_pre_afe','label_source':'explicit private timing hypotheses; NOT independent acceptance',
@@ -224,4 +234,4 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             for c in stream_pos+stream_neg:c.fill(0)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');parser.add_argument('--audit-conversion',action='store_true');parser.add_argument('--continuous-replay',action='store_true');parser.add_argument('--original-replay',type=Path);parser.add_argument('--negative-weight',type=float,default=1.);parser.add_argument('--context-frames',type=int,choices=[75,120,150,204],default=75);parser.add_argument('--temporal-head',action='store_true');parser.add_argument('--base-profile',choices=['model3','model7','reference','expanded','variant'],default='model3');parser.add_argument('--epochs',type=int,choices=[12,40],default=12);parser.add_argument('--robust-replay',action='store_true');parser.add_argument('--freeze-encoder',action='store_true');parser.add_argument('--freeze-norm',action='store_true');parser.add_argument('--hard-replay',action='store_true');parser.add_argument('--coarticulation',action='store_true');parser.add_argument('--adapt-last-block',action='store_true');args=parser.parse_args();main(args.sample_id,args.balanced_replay,args.audit_conversion,args.continuous_replay,args.original_replay,args.negative_weight,args.context_frames,args.temporal_head,args.base_profile,args.epochs,args.robust_replay,args.freeze_encoder,args.freeze_norm,args.hard_replay,args.coarticulation,args.adapt_last_block)
+    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');parser.add_argument('--audit-conversion',action='store_true');parser.add_argument('--continuous-replay',action='store_true');parser.add_argument('--original-replay',type=Path);parser.add_argument('--negative-weight',type=float,default=1.);parser.add_argument('--context-frames',type=int,choices=[75,120,150,204],default=75);parser.add_argument('--temporal-head',action='store_true');parser.add_argument('--base-profile',choices=['model3','model7','reference','expanded','variant'],default='model3');parser.add_argument('--epochs',type=int,choices=[12,40],default=12);parser.add_argument('--robust-replay',action='store_true');parser.add_argument('--freeze-encoder',action='store_true');parser.add_argument('--freeze-norm',action='store_true');parser.add_argument('--hard-replay',action='store_true');parser.add_argument('--coarticulation',action='store_true');parser.add_argument('--adapt-last-block',action='store_true');parser.add_argument('--mined-manifest',type=Path);args=parser.parse_args();main(args.sample_id,args.balanced_replay,args.audit_conversion,args.continuous_replay,args.original_replay,args.negative_weight,args.context_frames,args.temporal_head,args.base_profile,args.epochs,args.robust_replay,args.freeze_encoder,args.freeze_norm,args.hard_replay,args.coarticulation,args.adapt_last_block,args.mined_manifest)

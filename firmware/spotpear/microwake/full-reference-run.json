@@ -1,0 +1,32 @@
+{
+  "schema": "gobot-public-full-reference-run-v1",
+  "observed_utc": "2026-11-15T17:17:19Z",
+  "status": "running_generation",
+  "unit": "gobot-wake-full-reference-20261115.service",
+  "source_clips_target": {
+    "positive": 50000,
+    "negative": 10000
+  },
+  "source_clips_observed": 900,
+  "augmented_windows_target": 100000,
+  "steps_target": 10000,
+  "paid_calls": 0,
+  "human_data_uploaded": false,
+  "firmware_changed": false,
+  "accepted": false,
+  "limits": {
+    "cpu_cores": 2,
+    "ram_gib": 4,
+    "whole_job_seconds": 43200,
+    "generation_seconds": 21600,
+    "generated_bytes": 12884901888,
+    "network": false,
+    "automatic_retries": 0,
+    "automatic_flash": false
+  },
+  "source_sha256": {
+    "full_corpus.py": "ebdf55de760d6ab97e0bcd0c4faac33ae5c57e626f83d8b18a0be2ec23f7c020",
+    "train_reference.py": "0cbaeab1781d32c7c3780c3d8c3e4071b1cbd8b4dbb993960f8bc92f5dc04ce7",
+    "full_reference_job.sh": "e970fe65188edf4b085376355d3f2e93b575b2d9cd439c61d98af60fd6ca53a6"
+  }
+}

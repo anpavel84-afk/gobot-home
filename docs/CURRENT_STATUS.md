@@ -1,5 +1,50 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Wake correction and full-scale offline training — 2026-11-15
+
+Physical board remains **0.4.11-dev-ref-parity-1**. Fresh USB status confirms
+Wi-Fi/enrollment, idle, local wake scanner running, wake_words=0, upload=0.
+No flash, recording, Brain deployment, paid call or admission renewal this stage.
+Human no-touch wake is still **NOT_ACCEPTED**; touch remains the fallback.
+
+Completed one bounded PLAN-only correction using the old encrypted sample and
+128 mined public TRAIN negatives. Fresh30s field questions stayed held out.
+Native-reference held-out result did NOT improve: Aleksandr11/15 positives,
+19 false events/198 negatives; Elena12/15,21 false events/198. Prior private
+baseline was11/15,20 and12/15,13. Candidate REJECTED, never flashed or uploaded.
+A complete-word DTW guard experiment also failed separation (0 leave-one-TRAIN-
+voice-out recall at its no-false-event cutoff on128 synthetic negatives); it is
+not integrated into firmware. These are synthetic events, not household rates.
+
+Reference review identified an important scale gap: tens of thousands of
+augmented feature windows from a few hundred original clips are NOT the
+reference's50,000 synthesized source recordings. Implemented a full public-only
+corpus generator:50,000 positive and10,000 negative PCM clips across the existing
+five TRAIN voices; both stress patterns, prosody variation, confusables/partials.
+No new paid TTS, external API, voice download or Owner data on the build server.
+Actual per-voice audio uniqueness is recorded; these are still only five synthetic
+voices, not50,000 independent speakers. Held-out Aleksandr/Elena remain excluded.
+
+One bounded job `gobot-wake-full-reference-20261115.service` is RUNNING on the
+existing build server. At17:17:19Z:900/60,000 source clips generated; model not
+trained/exported yet. No result or acceptance is implied by this snapshot.
+Network namespace disabled, CPU<=2 cores, RAM<=4GiB, nice10, whole-job<=12h;
+generation<=6h/12GiB and>=1GiB free disk. No retry or automatic installation.
+After generation:100,000 augmented windows (all50,000 positive sources exactly
+once; negative sources cycled), lazy PCM loading, full MixedNet10000 steps,
+reference positive/negative weights1.5/1, fixed cutoff231/window10 and native-
+reference held-out evaluation. Outputs stay isolated from earlier runs.
+
+93 focused free tests passed; retention test rerun9/9 after adding deletion of
+the private mined-selection artifact at the unchanged original sample deadline.
+No new consent, source expiry extension or use of new field questions for training.
+All3 B starts remain spent; C unknown-final reserve/ledger unchanged.
+Brain runtime stays9c317bca47b78f91854cd0a209a446bf574ca53b. A safe firmware update
+awaits a qualified PUBLIC model, native fixture/build and hardware checks.
+Stop the free job with `systemctl stop gobot-wake-full-reference-20261115.service`;
+this does not change installed firmware or financial ledgers.
+
+
 ## New field sample received and analysed — 2026-11-15
 
 Owner separately approved ONE NEW <=30s raw field-failure sample and confirmed
