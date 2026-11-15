@@ -1,3 +1,5 @@
+LATEST2026-11-15 Owner says wake WITHOUT TOUCH FAILS. Local trial CANCEL acknowledged; no rearm.2 B starts spent,1 manual remains, expiry unchanged.0 pending hangups. Multiple playback responses do NOT establish wake acceptance. See newest CURRENT_STATUS.
+
 OWNER on2026-11-15 explicitly APPROVED3 manual board B sessions x60s,8 responses x512tokens,marin,gpt-transcribe,$1 estimate/24h; no CLI/Luna/Image/retries. USB restored. Wake-test scope enabled/mounted after WAL-aware backups; runtime9c317bca47b78f91854cd0a209a446bf574ca53b deployed idle. Board0.4.9 unmuted and ARM acknowledged3 attempts/600s. Do NOT rearm/refill or spend automatically. Await Owner physical question. Acoustic acceptance remains pending; old ledgers/C reserve untouched. Earlier PENDING/UNARMED notes below are historical.
 
 Current hardware checkpoint: PUBLIC0.4.9-dev-owner-wake-test-1 installed and

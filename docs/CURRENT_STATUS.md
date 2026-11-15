@@ -1,5 +1,26 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Owner acoustic result — 2026-11-15: wake acceptance FAILED
+
+Owner explicitly reports: wake without touching does not work. Do NOT count the
+successful subsequent voice dialogue as wake acceptance. USB CANCEL acknowledged;
+local trial now inactive,test_left0,upload0,local scan running. No automatic rearm.
+During the window model hits rose1->2 and one local trial claim was consumed.
+Activation counter rose1->3; that counter includes ALL sources, not only touch,
+so it cannot independently identify the successful conversation's trigger.
+
+B ledger contains2 starts: first ended followup_timeout with no accepted input or
+response; second delivered multiple responses with playback ACKs and followup
+rearming, then closed observed_token_limit.0 pending hangups,0 active sessions,
+1 manual start remains under the approved original24h expiry. Response estimate
+$0.02600972 excludes separately billed transcription and is NOT a final invoice.
+No paid retry was initiated by developer. Do not reset/refund uncertain usage.
+
+Model recall and/or wake-to-question handoff remain unresolved; current telemetry
+does not prove which one caused this field failure. Firmware stays0.4.9, production
+wake OFF; touch remains usable. No new audio recording consent or capture.
+
+
 ## Live Owner wake trial — 2026-11-15
 
 Owner explicitly approved3 manual B sessions x60s,8 responses x512 output tokens,
