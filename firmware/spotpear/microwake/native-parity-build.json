@@ -1,0 +1,19 @@
+{
+  "version": "0.4.10-dev-native-parity-1",
+  "app_bytes": 3036304,
+  "app_sha256": "e191f3ed5d4724c853f35b55897839ee47c22ba74f4016fc1e11c8528a367c59",
+  "template_sha256": "60c9d59daebbc44b679008447853c27e6ce4b6bc8ae9b4d333fd279a38ef0acd",
+  "model_sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+  "public_synthetic_only": true,
+  "contains_personal_weights": false,
+  "production_qualified": false,
+  "trial_compiled": false,
+  "fixture_invocations": 1625,
+  "fixture_header_sha256": "150fe6270e5a723b8960a257fe0ed0f079da1aa99659ad307b342e7671cb2e91",
+  "native_tolerance": 3,
+  "flashed": false,
+  "native_result": null,
+  "paid_calls": 0,
+  "previous_sha256": "579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199",
+  "previous_bytes": 2839312
+}

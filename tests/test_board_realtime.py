@@ -34,6 +34,26 @@ def test_preparation_disabled_and_never_rewrites_existing_policy(tmp_path,settin
         finally:await b.shutdown();await original.shutdown()
     asyncio.run(run())
 
+
+def test_disabled_and_exhausted_are_distinct_without_provider_calls(tmp_path,settings):
+    import httpx
+    from fastapi import FastAPI
+    from gobot.board_realtime_api import attach_board_realtime
+    original,b,p,path=prepared(tmp_path,settings)
+    app=FastAPI();attach_board_realtime(app,b,lambda:None)
+    async def run():
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as client:
+                status=(await client.get('/api/v1/voice-ab/b/status')).json()
+                assert status['admission_reason']=='board_budget_inactive'
+                enable(path)
+                for i in range(8):b.budget.reserve_session('reserved-'+str(i),True,'board')
+                status=(await client.get('/api/v1/voice-ab/b/status')).json()
+                assert not status['enabled'] and status['sessions_remaining']==0
+                assert status['admission_reason']=='board_session_limit' and not p.creations
+        finally:await b.shutdown();await original.shutdown()
+    asyncio.run(run())
+
 def test_board_forecast_read_does_not_require_or_enable_settings_writes(tmp_path,settings):
     import json
     from gobot.settings_tools import SettingsResult

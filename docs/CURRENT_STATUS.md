@@ -1,5 +1,29 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Local recheck and native parity candidate — 2026-11-15
+
+Owner confirmed zero visible wake responses in the free no-touch recheck.50s
+numeric-only USB trace: detector continuously processed audio, no errors/drops,
+hits stayed4; no capture/upload/provider session. Acoustic acceptance FAILED.
+All3 manual B starts are now spent; third ended user_stop after9993.32ms, no
+response.0 pending hangups/active; response estimate remains$0.02600972 excluding
+transcription. No grant/ledger reset or new paid calls.
+
+Prepared0.4.10-dev-native-parity-1, not yet installed at this source checkpoint.
+It compares1625 fixed PUBLIC synthetic INT8 inputs with host outputs, reports
+max delta/different outputs, rejects parity error>3 and resets state afterwards.
+Bounded diagnostic yields to watchdog; no personal data, production wake or
+Owner trial compiled. Existing touch/audio/Brain retained. It does NOT establish
+microphone accuracy. App e191f3ed5d4724c853f35b55897839ee47c22ba74f4016fc1e11c8528a367c59,
+3036304 bytes, pinned IDF build and image integrity verified.32 focused free
+checks passed. Guarded app-only install/rollback actions prepared.
+
+Also corrected source-level refusal diagnostics: B inactive and exhausted reasons
+are distinct, firmware accepts64-character reasons and no longer labels all
+refusals Live. Brain fix is NOT deployed; runtime still9c317bc. Firmware parity
+candidate has the neutral denial text. Physical native parity result PENDING.
+
+
 ## Owner acoustic result — 2026-11-15: wake acceptance FAILED
 
 Owner explicitly reports: wake without touching does not work. Do NOT count the
