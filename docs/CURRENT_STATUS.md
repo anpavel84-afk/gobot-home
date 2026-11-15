@@ -1,5 +1,38 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Latest checkpoint — 2026-11-15: hardware computation verified; wake NOT_ACCEPTED
+
+Installed0.4.11-dev-ref-parity-1 remains unchanged. Native/reference outputs match
+1625/1625 EXACTLY; detector scans locally, no standby upload, production/Owner
+wake routing OFF. Touch/UI/audio code retained; no new physical UI/touch acceptance
+claimed. Neutral conversation-denial message installed; short B refusal codes
+are source-only, Brain runtime9c317bc unchanged. All3 B starts spent,0 active/
+pending hangups; no new developer paid call or quota reset. C reserve preserved.
+
+Two finite public CPU training runs completed and were REJECTED (not flashed):
+word-end anchored model05f85f1f:73/75 and64/75 held-out positives,68/78 negative
+events on498 negatives per voice; one corrective run with967 TRAIN-only hard
+windows produced02ecb34a:26/75 and42/75,1/5 negative events. Fixed cutoff231,
+window10,host BUILTIN_REF. These are synthetic mixed streams, not household rates.
+See word-anchor-results.json. No threshold sweep, automatic search, training or
+capture left running. No raw/derived personal data left PLAN.94 focused free
+checks passed; no additional model installed merely to show progress.
+
+Exhaustive quantization probe: native integer conversion and host float32/64
+conversion agree for all65536 frontend uint16 values. Desktop-vs-reference kernel
+differences do NOT explain the stored-recording result: all3 question episodes
+remain detected using reference kernels, including after120s repeated background.
+This narrows the investigation but does not prove live microphone equivalence.
+
+Owner was asked for ONE NEW <=30s explicit raw USB field-failure sample, DPAPI/
+PLAN-only, deletion within24h, no cloud/API. Consent and readiness are PENDING;
+no collector/arm/task/sample created. Earlier recording consents remain consumed,
+original expiry deadlines unchanged. Collector protocol field_failed_wake_recheck
+is prepared with30s cap and pre-arm consent checks. New data is requested because
+stored replay succeeds where the current live no-touch trial fails; no guaranteed
+acoustic fix is claimed. Paid trial remains disabled by exhausted allowance.
+
+
 ## Installed0.4.11 — native reference parity EXACT, wake still unaccepted
 
 Spotpear now physically runs0.4.11-dev-ref-parity-1, app2695a0b436e9db3e04e8f67fa1b2718a34232e4c4531f965c2e5dc137df7cbe5,

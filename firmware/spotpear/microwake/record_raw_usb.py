@@ -11,6 +11,7 @@ ROOT=Path(__file__).resolve().parents[3]
 
 def main(port,seconds,consent,protocol):
     if not consent:raise ValueError('A fresh recording consent is required; old samples are consumed')
+    if protocol=='field_failed_wake_recheck' and seconds>30:raise ValueError('Field recheck is limited to30 seconds')
     sys.path.append(str(ROOT/'data/hardware/venv/Lib/site-packages'))
     import serial
     from serial.tools.list_ports import comports
@@ -65,5 +66,5 @@ def main(port,seconds,consent,protocol):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('--port',required=True);p.add_argument('--seconds',type=int,choices=range(15,61),required=True)
-    p.add_argument('--protocol',choices=['wake10_questions','hard_negatives_4_wakes'],required=True)
+    p.add_argument('--protocol',choices=['wake10_questions','hard_negatives_4_wakes','field_failed_wake_recheck'],required=True)
     p.add_argument('--new-recording-consent',action='store_true');a=p.parse_args();main(a.port,a.seconds,a.new_recording_consent,a.protocol)

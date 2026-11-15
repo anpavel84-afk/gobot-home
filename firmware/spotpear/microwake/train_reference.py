@@ -106,7 +106,7 @@ def select_checkpoint(history):
 def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False):
     global TRAIN,TAIL_SAMPLES,WORD_ANCHORED
     WORD_ANCHORED=word_anchored
-    if word_anchored and (not expanded or cache or reuse_public or hard_replay):raise ValueError('Word anchoring requires fresh expanded windows and unchanged negatives')
+    if word_anchored and (not expanded or cache or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
     if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600

@@ -1,3 +1,5 @@
+LATEST2026-11-15: board0.4.11 exact native reference parity PASS; human wake NOT_ACCEPTED. Two public word-end training runs FINISHED/REJECTED, no jobs remain. ALL3 B starts spent; no renewal. NEW <=30s raw field recording consent ASKED/PENDING, no collector/arm/sample/task created. Original sample expiry unchanged.94 free tests pass; do not claim readiness or start paid calls. See latest CURRENT_STATUS.
+
 LATEST2026-11-15 board0.4.11-dev-ref-parity-1 installed, exact1625-output native reference parity PASS0 delta. PUBLIC model unchanged, production and Owner trial OFF. Human wake FAILED; no new paid/recording allowance. ALL3 B starts spent. One bounded public word-end-anchored CPU training job running; no repeats, preserve original sample expiry. Earlier0.4.10 delta17 was desktop-vs-reference backend difference, NOT proven ESP bug. See CURRENT_STATUS.
 
 LATEST2026-11-15 Owner says wake WITHOUT TOUCH FAILS. Local trial CANCEL acknowledged; no rearm.2 B starts spent,1 manual remains, expiry unchanged.0 pending hangups. Multiple playback responses do NOT establish wake acceptance. See newest CURRENT_STATUS.
