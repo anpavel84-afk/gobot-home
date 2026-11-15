@@ -1,5 +1,15 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Current hardware — 0.4.9 Owner trial unarmed
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| Installed firmware | Public0.4.9 USB/app readback + boot verified; NVS/boot/OTA/inactive/assets preserved | Physical human wake/touch/LCD reacceptance pending |
+| Native runtime | State1,parity1987024791,12858 frames,0 drop/error; local scan1,upload0 | Counters do not establish human recall or household false-wake rate |
+| Whole question |2s pre-roll +12s bound; existing3 recorded question episodes detected | Single-name activation unreliable; universal acoustic criteria FAILED |
+| Safe Owner trial | Local UNARMED3 attempts/600s; production routeOFF; duplicate-arm guard | New3x60s B grant pending; server policy DISABLED/unmounted |
+| Privacy/cost | Public-data weights only on board; personal data/model expiry unchanged;0 paid calls | Real Brain conversation requires Owner manual acceptance |
+
 ## 2026-11-14 native full-model diagnostic (current hardware)
 
 | Requirement | Evidence | Remaining gap |

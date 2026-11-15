@@ -1,0 +1,213 @@
+{
+  "model": {
+    "sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+    "bytes": 60912,
+    "context_frames": 204,
+    "window": 10,
+    "cutoff": 231,
+    "input_quantization": [
+      0.10196078568696976,
+      -128
+    ],
+    "output_quantization": [
+      0.00390625,
+      0
+    ],
+    "ops": [
+      "ASSIGN_VARIABLE",
+      "CALL_ONCE",
+      "CONCATENATION",
+      "CONV_2D",
+      "DELEGATE",
+      "DEPTHWISE_CONV_2D",
+      "FULLY_CONNECTED",
+      "LOGISTIC",
+      "QUANTIZE",
+      "READ_VARIABLE",
+      "RESHAPE",
+      "SPLIT_V",
+      "STRIDED_SLICE",
+      "VAR_HANDLE"
+    ],
+    "human_training": false,
+    "cpu_only": true,
+    "elapsed_train_s": 65.91997898509726
+  },
+  "config": {
+    "architecture": "upstream MixedNet full Russian reference",
+    "training_speakers": [
+      "denis",
+      "dmitri",
+      "espeak-ru",
+      "anna",
+      "irina"
+    ],
+    "validation_speakers": [
+      "aleksandr"
+    ],
+    "test_speakers": [
+      "elena"
+    ],
+    "human_training": false,
+    "seed": 20261114,
+    "steps": 1000,
+    "augmented_windows": 8192,
+    "context_frames": 204,
+    "batch_size": 128,
+    "cpu_threads": 2,
+    "positive_front_crop": false,
+    "public_tts_positive_seeds": 375,
+    "public_tts_negative_seeds": 2490,
+    "reference_cutoff": 231,
+    "window": 10,
+    "split_revision": 4,
+    "reference_source": "interkelstar/microwakeword-trainer@8fdbadc3b969a8c1993108c0d655910440dfb762",
+    "pooled": false,
+    "checkpoint_selection": "finite trained validation BCE only",
+    "background_only_negative_fraction": 0.15,
+    "tail_samples": 9600,
+    "expanded_utterance_corpus": true,
+    "positive_weight": 1.0,
+    "negative_weight": 4.0,
+    "wake_variants_source": "wake_variants.VARIANTS",
+    "corpus_manifest_sha256": {
+      "denis": "b1a7e0e4e44f9df35f2bc539b495f0e52bb148cbc51540b2994d8639bf05082c",
+      "dmitri": "e9f1b7aa56592772a8891e8f00e9fcf98f8602491c3c513efc46998412e0ad9a",
+      "espeak-ru": "632a654462d21306e71c2a517020e09f6f1e881fe36bd559e5a2b6ee7c9dae35",
+      "anna": "b37d55b5463b3d67c94015ec61d75b13f398e13e580538ea9a41b4985b4b63a4",
+      "irina": "370f1f47a5564eb08ecb0ed0496d4572d6db0bbcf5d8d2d93f790767226a53ee",
+      "aleksandr": "438ad0840b56bd4e137e0f9a2dccf3b0edf29fac83eca33f6882b793bb89b140",
+      "elena": "fd2e2fcc4309427a91df08b86f71d6b15b057759723b9a0fc2330f4222db2711"
+    },
+    "extra_hard_negative_windows": 698,
+    "hard_replay_sha256": "8429790342260352d572ccc2870c1d4099b57dd393fd8c316976585d12067035",
+    "initial_public_weights_sha256": "73a6ceeca599bbdf59223ff3438fed274f71774d1389a61a69a187b04e0bdc2b",
+    "specaugment_max_frames_bins": 2,
+    "specaugment_mask_count": 1
+  },
+  "selection": {
+    "selected": {
+      "step": 1000,
+      "validation_bce": 0.4778047204017639
+    },
+    "initial": {
+      "step": 0,
+      "validation_bce": 0.4525492489337921
+    },
+    "accepted": false
+  },
+  "history": [
+    {
+      "step": 0,
+      "validation_bce": 0.4525492489337921
+    },
+    {
+      "step": 1000,
+      "validation_bce": 0.4778047204017639
+    }
+  ],
+  "stream-report": {
+    "sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+    "window": 10,
+    "cutoff": 231,
+    "warmup": 68,
+    "validation": {
+      "aleksandr": {
+        "tp": 46,
+        "positive": 75,
+        "false_events": 2,
+        "negative": 498,
+        "stream_seconds": 2698.915,
+        "mistakes": [
+          "positive-16-85.pcm",
+          "positive-7-85.pcm",
+          "positive-10-115.pcm",
+          "positive-21-100.pcm",
+          "positive-20-115.pcm",
+          "positive-6-85.pcm",
+          "positive-5-115.pcm",
+          "positive-22-100.pcm",
+          "positive-20-85.pcm",
+          "positive-23-85.pcm",
+          "positive-11-85.pcm",
+          "positive-18-85.pcm",
+          "positive-24-85.pcm",
+          "positive-22-85.pcm",
+          "positive-8-85.pcm",
+          "positive-1-85.pcm",
+          "positive-3-85.pcm",
+          "negative-38-100.pcm",
+          "positive-19-85.pcm",
+          "positive-0-115.pcm",
+          "positive-9-85.pcm",
+          "positive-20-100.pcm",
+          "positive-23-100.pcm",
+          "positive-12-85.pcm",
+          "positive-10-85.pcm",
+          "positive-15-115.pcm",
+          "positive-21-85.pcm",
+          "positive-17-85.pcm",
+          "positive-2-85.pcm",
+          "positive-13-85.pcm",
+          "negative-70-115.pcm"
+        ]
+      }
+    },
+    "test": {
+      "elena": {
+        "tp": 57,
+        "positive": 75,
+        "false_events": 5,
+        "negative": 498,
+        "stream_seconds": 2311.1575,
+        "mistakes": [
+          "negative-31-100.pcm",
+          "negative-62-100.pcm",
+          "positive-0-85.pcm",
+          "negative-110-85.pcm",
+          "negative-150-85.pcm",
+          "positive-10-115.pcm",
+          "positive-20-115.pcm",
+          "positive-3-115.pcm",
+          "positive-5-115.pcm",
+          "positive-20-85.pcm",
+          "positive-23-85.pcm",
+          "positive-15-85.pcm",
+          "negative-90-85.pcm",
+          "positive-24-85.pcm",
+          "positive-22-85.pcm",
+          "positive-19-115.pcm",
+          "positive-0-115.pcm",
+          "positive-5-85.pcm",
+          "positive-9-85.pcm",
+          "positive-10-85.pcm",
+          "positive-0-100.pcm",
+          "positive-15-115.pcm",
+          "positive-21-85.pcm"
+        ]
+      }
+    },
+    "human_trials": 0,
+    "installed": false,
+    "product_accepted": false,
+    "paid_calls": 0,
+    "candidate_passed": false
+  },
+  "ambient": {
+    "kind": "synthetic confusables with generated hum, silence and noise",
+    "seconds": 1800.0,
+    "false_events": 3,
+    "false_per_hour": 6.0,
+    "real_household_seconds": 0,
+    "model_sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+    "window": 10,
+    "warmup": 68,
+    "cutoff": 231
+  },
+  "status": "EXPERIMENTAL_NOT_UNIVERSALLY_ACCEPTED",
+  "production_qualified": false,
+  "installed_as": "0.4.9-dev-owner-wake-test-1",
+  "trial_armed": false,
+  "paid_calls": 0,
+  "human_live_trial": false
+}

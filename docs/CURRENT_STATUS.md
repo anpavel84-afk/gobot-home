@@ -1,5 +1,33 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Current board checkpoint — 0.4.9 installed, Owner trial unarmed
+
+Spotpear physically runs0.4.9-dev-owner-wake-test-1, public app SHA256
+579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199.
+Guarded USB write/readback and boot version verified. Factory/recovery backups,
+NVS configuration, boot/OTA metadata, inactive slot and assets preserved; no RF
+record changed this time. Full model initializes: parity1987024791,12858 feature
+frames/4286 invocations, max observed feed6570us,0 underruns/drops/errors. This
+numeric snapshot is not human acoustic acceptance or a household false-wake rate.
+Board confirms Wi-Fi1,enrolled1,idle,local scan1,upload0,production route0,
+owner_test0,test_left0. Cancel console command acknowledged; no arm was sent.
+
+The new firmware contains2s local pre-roll, the existing12s startup bound and
+an explicitly UNARMED3-attempt/600s trial. Same interface/touch/audio/Brain retained;
+physical human wake, new touch/LCD reacceptance and a real voice answer are still
+UNVERIFIED. Public candidate detects the3 complete question phrases in the
+existing recording; separate name-only activation remains unreliable. It is not
+an accepted universal wake model. Personally calibrated models stay on PLAN and
+expire with the sample; none was flashed/published/exported. No new recording.
+
+Owner's additional3x60s B allowance is pending. New policy/ledger remains DISABLED,
+not mounted,0 starts; original8 starts remain spent. Brain runtime stays8661454,
+phone A/B/C and C unknown-final reserve unchanged.0 paid developer calls.67 focused
+free Python checks and native C++ trial-window checks passed. No training or
+capture job is left running. The prepared firmware rollback returns0.4.8; then
+reference-local-rollback can restore0.4.6. These rollback paths were prepared,
+not physically exercised in this checkpoint.
+
 ## Controlled question-in-one-phrase candidate — 2026-11-14
 
 PUBLIC0.4.9-dev-owner-wake-test-1 is BUILT and ESP image-verified, not yet flashed:

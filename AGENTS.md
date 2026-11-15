@@ -1,3 +1,11 @@
+Current hardware checkpoint: PUBLIC0.4.9-dev-owner-wake-test-1 installed and
+readback/boot verified. Production wake OFF; bounded3-attempt/600s Owner trial
+UNARMED. No arm, recording, paid call or Brain deployment occurred. New3x60s B
+allowance requested and PENDING; policy DISABLED/unmounted, old8 starts spent.
+Do not enable/spend without Owner answer. Public question-in-one-phrase candidate
+is NOT universal/name-only accepted. Personal audio/weights stay PLAN-only with
+original expiry. Firmware rollback to0.4.8 prepared. CURRENT_STATUS is factual.
+
 OWNER continued complete local wake implementation on2026-11-14 using the existing
 recording. Guarded PUBLIC diagnostic0.4.8-dev-reference-local-1 is now installed:
 full64x4 INT8 runtime/parity/error counters verified, NVS/boot/inactive/assets

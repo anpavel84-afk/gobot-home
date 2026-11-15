@@ -1,5 +1,28 @@
 # Локальное «ГоБот» на Spotpear
 
+### Current physical checkpoint: 0.4.9, unarmed Owner trial
+
+`owner-wake-build.json` records the PUBLIC0.4.9 app actually USB-installed and
+readback/boot verified. Full native INT8 model/front-end works (parity1987024791,
+0 drop/error in the bounded snapshot); NVS/boot/inactive/assets retained.2s local
+prefix and12s startup buffer preserve a question while the connection starts.
+No personal model/audio was sent to the build host or put on the board.
+
+Production qualification remains OFF. `GOBOT_WAKE_TEST_ARM` is an exact local USB
+operator action: at most3 claims/600 seconds, initially unarmed. It is NOT a
+financial permission; server device/profile/budget checks remain mandatory.
+`GOBOT_WAKE_TEST_CANCEL` stops further test activations without pretending that
+an active provider session was closed. Replaying arm cannot refill attempts.
+The additional3x60s B grant is pending, policy DISABLED/unmounted; no paid call.
+Do not arm automatically or substitute another engine. Same Brain/phones remain.
+
+Candidate supports the3 whole-question episodes in the existing recording but
+fails universal/name-only acoustic acceptance. Keep that limitation visible;
+unit/build/native counters are not human voice acceptance. Models calibrated on
+Owner audio are still private/temporary, not installed. Native trial-window test
+and67 focused free Python checks pass. Rollback is guarded owner-wake-public-rollback
+to0.4.8, then reference-local-rollback to0.4.6; not exercised after this install.
+
 ### Full reference / finite CPU correction — 2026-11-14
 
 `train_reference.py` runs a public-synthetic-only64x4 MixedNet/204-frame profile.
