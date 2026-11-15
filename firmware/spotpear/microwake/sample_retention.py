@@ -29,6 +29,9 @@ def cleanup(ident,now=None):
     for candidate in p.parent.glob(ident+'-candidate-*.dpapi'):
         match=re.fullmatch(re.escape(ident)+r'-candidate-([a-f0-9]{64})\.dpapi',candidate.name)
         if match:candidate_path(ident,match[1]).unlink(missing_ok=True)
+    selection=p.with_name(ident+'-mined-public-negatives.json')
+    if selection.is_symlink():raise ValueError('Unsafe private negative-selection path')
+    selection.unlink(missing_ok=True)
     meta.write_text(json.dumps({'expires_at':data['expires_at'],'deleted_at':now,'deleted':True}))
     return True
 

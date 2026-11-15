@@ -1,5 +1,28 @@
 # Локальное «ГоБот» на Spotpear
 
+### Full waveform reference run —2026-11-15 (RUNNING, not accepted)
+
+`full_corpus.py` extends the existing offline corpus tools to50k positive and10k
+negative *source waveforms*. It journals SHA-verified PCM, deterministic synthesis
+plans and per-voice uniqueness; stochastic TTS regeneration after resume is not
+claimed bitwise reproducible. Existing audio is never silently overwritten.
+`full_reference_job.sh STAGE CODE full-reference-YYYYMMDD` composes generation,
+held-out voice copy, full fresh MixedNet training and BUILTIN_REF evaluation.
+Run only with the external resource/network caps documented in CURRENT_STATUS.
+`train_reference.py --expanded --word-anchored --full-corpus --windows 100000
+--steps 10000` uses lazy PCM loading and sees every positive source once during
+feature generation. Source clips and augmented windows are separately counted.
+No personal data, paid API, threshold sweep, retry, admission or flash occurs.
+
+`mine_local_negatives.py` is PLAN-only private-teacher correction; its first
+candidate FAILED held-out false-event checks. Selection and private weights
+expire with their original sample, not with training completion.
+`word_guard.py/.cc` are a REJECTED complete-word experiment, never a runtime
+component. Do not add it to firmware or describe it as a working detector.
+See `full-reference-run.json` for the observed job state and source hashes.
+Earlier checkpoint prose below is historical.
+
+
 ### Current physical checkpoint:0.4.11 — NOT_ACCEPTED wake
 
 `native-reference-build.json` identifies the installed/readback/boot-verified app.

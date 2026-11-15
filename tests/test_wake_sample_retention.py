@@ -15,9 +15,12 @@ def test_expiry_removes_only_the_one_sample(tmp_path,monkeypatch):
     other=mod.DIRECTORY/'leave-alone';other.write_bytes(b'other')
     candidate=mod.candidate_path('a'*32,'b'*64);candidate.write_bytes(b'encrypted-candidate')
     other_candidate=mod.candidate_path('c'*32,'d'*64);other_candidate.write_bytes(b'other-owner')
+    selection=p.with_name('a'*32+'-mined-public-negatives.json');selection.write_text('{}')
     assert not mod.cleanup('a'*32,199) and p.exists()
+    assert selection.exists()
     assert mod.cleanup('a'*32,201) and not p.exists() and not derived.exists() and other.exists()
     assert not candidate.exists() and other_candidate.exists()
+    assert not selection.exists()
     assert json.loads(meta.read_text())['deleted'] is True
 
 @pytest.mark.parametrize('sha',['../escape','b'*63,'B'*64])

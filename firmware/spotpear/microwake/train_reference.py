@@ -28,7 +28,7 @@ TEST=('elena',)
 TAIL_SAMPLES=3200
 WORD_ANCHORED=False
 
-def files(root,speakers,expected_counts=(198,15),keyword_only=False):
+def files(root,speakers,expected_counts=(198,15),keyword_only=False,lazy=False):
     groups={0:[],1:[]}
     for speaker in speakers:
         directory=root/speaker
@@ -42,10 +42,10 @@ def files(root,speakers,expected_counts=(198,15),keyword_only=False):
             if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=item['sha256']:raise ValueError('Synthetic PCM hash mismatch')
             seen.add(name);counts[label]+=1
             if not (keyword_only and label==1 and ',' in item.get('text','')):
-                groups[label].append(np.fromfile(path,'<i2'))
+                groups[label].append(path if lazy else np.fromfile(path,'<i2'))
                 if label:kept_positive+=1
         if counts!={0:expected_counts[0],1:expected_counts[1]}:raise ValueError('Incomplete public speaker')
-        if keyword_only and kept_positive!=15:raise ValueError('Unexpected isolated-name inventory')
+        if keyword_only and kept_positive!=(expected_counts[1] if lazy else 15):raise ValueError('Unexpected isolated-name inventory')
     return groups
 
 def features(pcm):
@@ -86,13 +86,30 @@ def window(clip,rng,positive,following=None):
     warm=rng.normal(0,floor,int(rng.integers(50,250))*160)
     return features(np.clip(np.concatenate([warm,background]),-32768,32767))[-FRAMES:]
 
-def prepare(groups,path,count,seed):
+def source_schedule(groups,count,rng):
+    """Cycle shuffled source clips; full run sees every positive exactly once."""
+    schedule={}
+    for label in (0,1):
+        required=count//2;size=len(groups[label])
+        if not size:raise ValueError('Empty source group')
+        schedule[label]=np.concatenate([rng.permutation(size) for _ in range((required+size-1)//size)])[:required]
+    return schedule
+
+
+def load_clip(value):
+    return np.fromfile(value,'<i2') if isinstance(value,Path) else value
+
+
+def prepare(groups,path,count,seed,complete_source_coverage=False):
     rng=np.random.default_rng(seed);x=np.lib.format.open_memmap(path,mode='w+',dtype=np.float16,shape=(count,FRAMES,40))
     y=np.arange(count,dtype=np.int32)%2;rng.shuffle(y)
+    schedule=source_schedule(groups,count,rng) if complete_source_coverage else None;used={0:0,1:0}
     for i,label in enumerate(y):
-        candidates=groups[int(label)];clip=candidates[int(rng.integers(len(candidates)))]
+        candidates=groups[int(label)]
+        index=int(schedule[int(label)][used[int(label)]]) if schedule is not None else int(rng.integers(len(candidates)))
+        used[int(label)]+=1;clip=load_clip(candidates[index])
         if not label and rng.random()<.15:clip=None
-        following=groups[0][int(rng.integers(len(groups[0])))] if WORD_ANCHORED and label and rng.random()<.75 else None
+        following=load_clip(groups[0][int(rng.integers(len(groups[0])))]) if WORD_ANCHORED and label and rng.random()<.75 else None
         x[i]=window(clip,rng,bool(label),following)
         if (i+1)%2048==0:print(json.dumps({'prepared_windows':i+1,'total':count}),flush=True)
     x.flush();return x,y.astype(np.float32)
@@ -103,15 +120,16 @@ def select_checkpoint(history):
     if not trained:raise ValueError('No finite trained checkpoint')
     return min(trained,key=lambda row:row['validation_bce'])
 
-def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False):
+def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False,full_corpus=False):
     global TRAIN,TAIL_SAMPLES,WORD_ANCHORED
     WORD_ANCHORED=word_anchored
+    if full_corpus and (not expanded or not word_anchored or steps!=10000 or count!=100000 or cache or reuse_public or initial_weights or hard_replay):raise ValueError('Full corpus requires fresh bounded reference training')
     if word_anchored and (not expanded or cache or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
     if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
         if reuse_public or cache:raise ValueError('Expanded profile requires fresh windows')
-    if steps not in (1000,10000) or count not in (8192,50000):raise ValueError('Unsupported bounded reference profile')
+    if steps not in (1000,10000) or count not in ((100000,) if full_corpus else (8192,50000)):raise ValueError('Unsupported bounded reference profile')
     if set(TRAIN)&set(VALIDATION+TEST) or set(VALIDATION)&set(TEST):raise ValueError('Speaker leakage')
     out.mkdir(parents=True,exist_ok=True);tf.keras.utils.set_random_seed(SEED);tf.config.experimental.enable_op_determinism()
     config={'architecture':'upstream MixedNet full Russian reference','training_speakers':TRAIN,'validation_speakers':VALIDATION,'test_speakers':TEST,
@@ -129,6 +147,10 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
             config.update(split_revision=4,wake_variants_source=provenance['wake_variants_source'])
     config['corpus_manifest_sha256']={speaker:hashlib.sha256((corpus/speaker/'manifest.json').read_bytes()).hexdigest() for speaker in (*TRAIN,*VALIDATION,*TEST)}
     if word_anchored:config.update(split_revision=5,word_end_anchored=True,public_tts_positive_seeds=75,following_speech_probability=.75)
+    if full_corpus:
+        completed=json.loads((corpus/'complete.json').read_text())
+        if provenance.get('schema')!='gobot-full-tts-v1' or provenance.get('positive_total')!=50000 or provenance.get('negative_total')!=10000 or completed.get('clips')!=60000 or completed.get('ready_for_feature_extraction') is not True:raise ValueError('Full waveform corpus incomplete')
+        config.update(split_revision=6,full_waveform_corpus=True,public_tts_positive_seeds=50000,public_tts_negative_seeds=10000,positive_weight=1.5,negative_weight=1.,positive_source_coverage='every source once before augmentation',raw_clips_lazy_loaded=True)
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
         cached_config=json.loads((cache/'config.json').read_text())
@@ -157,7 +179,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         config['background_only_negative_fraction']=.15*extra_count/count
         (out/'config.json').write_text(json.dumps(config,indent=2))
         del original,extra
-    else:x,y=prepare(files(corpus,TRAIN,(498,75) if expanded else (198,15),keyword_only=word_anchored),out/'train-features.npy',count,SEED)
+    else:x,y=prepare(files(corpus,TRAIN,(2000,10000) if full_corpus else (498,75) if expanded else (198,15),keyword_only=word_anchored,lazy=full_corpus),out/'train-features.npy',count,SEED,complete_source_coverage=full_corpus)
     if hard_replay:
         manifest=json.loads(hard_replay.with_suffix('.json').read_text())
         if not expanded or manifest.get('synthetic_only') is not True or manifest['training_speakers']!=list(TRAIN) or set(manifest['excluded_speakers'])!=set(VALIDATION+TEST) or hashlib.sha256(hard_replay.read_bytes()).hexdigest()!=manifest['sha256']:raise ValueError('Hard-replay provenance mismatch')
@@ -187,7 +209,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
             for _ in range(1 if initial_weights else 2):
                 width=int(rng.integers(0,3 if initial_weights else 6));at=int(rng.integers(0,FRAMES-max(1,width)+1));sample[at:at+width]=0
                 width=int(rng.integers(0,3 if initial_weights else 6));at=int(rng.integers(0,40-max(1,width)+1));sample[:,at:at+width]=0
-        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,1. if expanded else 1.5,4. if hard_replay else 2. if expanded else 1.).astype(np.float32))
+        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,config.get('positive_weight',1.5),config.get('negative_weight',1.)).astype(np.float32))
         if (step+1)%100==0:print(json.dumps({'step':step+1,'steps':steps,'loss':float(loss),'elapsed_s':round(time.monotonic()-started,1)}),flush=True)
         if (step+1)%1000==0 or step+1==steps:
             metric=validation_bce()
@@ -216,4 +238,4 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     (out/'model.json').write_text(json.dumps(details,indent=2));print(json.dumps(details),flush=True)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);p.add_argument('--word-anchored',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay,a.word_anchored)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);p.add_argument('--word-anchored',action='store_true');p.add_argument('--full-corpus',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay,a.word_anchored,a.full_corpus)

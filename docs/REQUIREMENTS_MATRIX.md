@@ -1,5 +1,18 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Current wake continuation — 2026-11-15
+
+| Requirement | Actual result | Remaining acceptance |
+|---|---|---|
+| Physical firmware |0.4.11 unchanged; USB idle/scan1/upload0 verified | No qualified replacement yet |
+| Private correction | One bounded correction evaluated/rejected; new field questions held out | False events remain unacceptable; no flash |
+| Full reference training | Offline50k positive/10k negative source-clip job running, bounded CPU/RAM/time, network disabled | Corpus completion, training, fixed-policy native-reference validation |
+| Test provenance |93 focused free tests; synthetic/Owner/physical results separated | Live wake,30 human activations/background false-wake trial not passed |
+| Privacy/finances | Recording consents consumed; original deletion deadlines;3 B starts spent; C reserve intact | No new paid hardware allowance |
+
+Earlier checkpoint rows below are historical.
+
+
 ## Latest hardware checkpoint — 0.4.11, wake NOT_ACCEPTED
 
 | Requirement | Verified evidence | Gap |
