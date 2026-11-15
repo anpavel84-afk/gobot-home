@@ -6,6 +6,9 @@ VARIANTS = (
     {'id':'ru_second_separated','text':'Го бо́т.','stress':'second'},
     {'id':'go_diphthong','text':'Гоу бо́т.','stress':'second'},
 )
+# Explicit Owner-approved alternate pronunciation; same GoBot activation intent.
+# Kept separate so existing synthesized plans remain immutable/resumable.
+GABOT_VARIANTS=('Га́бот.','Габо́т.')
 ONE_PHRASE_SUFFIXES = ('какая погода завтра?','поставь таймер на минуту.',
     'расскажи короткий факт о Луне.','помоги разобраться в сложном вопросе.',
     'проверь последние новости тестовой компании.')

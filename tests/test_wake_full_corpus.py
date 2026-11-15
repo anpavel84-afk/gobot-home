@@ -1,5 +1,6 @@
 """Public-only full-scale plan, complete coverage, lazy loading and split guards."""
 import ast
+import json
 from pathlib import Path
 import numpy as np
 import pytest
@@ -57,3 +58,30 @@ def test_full_profile_cannot_reuse_pilot_or_private_weights():
     namespace=extract('train_reference.py',['main'],{})
     with pytest.raises(ValueError,match='fresh bounded'):
         namespace['main'](None,None,full_corpus=True,expanded=True,word_anchored=True,count=100000,initial_weights=Path('private.weights.h5'))
+
+
+def test_short_audible_negative_is_padded_without_changing_speech():
+    normalize=extract('full_corpus.py',['normalize_clip'],{'np':np})['normalize_clip']
+    raw=np.full(3160,7000,dtype='<i2');result=normalize(raw,'negative')
+    assert len(result)==3200 and np.array_equal(result[:3160],raw) and not result[3160:].any()
+    for invalid,label in [(raw,'positive'),(np.zeros(4000,dtype='<i2'),'negative'),(raw[:1000],'negative')]:
+        with pytest.raises(ValueError):normalize(invalid,label)
+
+
+def test_gabot_aliases_are_balanced_and_heldout_voices_excluded():
+    namespace=extract('alias_corpus.py',['alias_plan'],{'np':np,'SPEAKERS':('denis','dmitri','espeak-ru','anna','irina'),
+        'GABOT_VARIANTS':('Га́бот.','Габо́т.')})
+    plan=namespace['alias_plan'];rows=plan('denis')
+    assert rows==plan('denis') and len(rows)==200
+    assert len({r['file'] for r in rows})==200
+    assert {word:sum(r['text']==word for r in rows) for word in namespace['GABOT_VARIANTS']}=={'Га́бот.':100,'Габо́т.':100}
+    assert len(plan('elena',heldout=True))==20
+    with pytest.raises(ValueError):plan('elena')
+    with pytest.raises(ValueError):plan('denis',heldout=True)
+
+
+def test_alias_model_cannot_skip_alias_acceptance(tmp_path):
+    (tmp_path/'config.json').write_text(json.dumps({'alias_positive_total':1000}))
+    evaluate=extract('validate_reference.py',['main'],{'json':json})['main']
+    with pytest.raises(ValueError,match='held-out alias'):
+        evaluate(tmp_path,tmp_path,'native_reference')

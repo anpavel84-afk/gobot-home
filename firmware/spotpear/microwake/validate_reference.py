@@ -11,8 +11,9 @@ from evaluate import traces,score
 from train_reference import files
 
 
-def main(corpus,output,kernel='desktop_optimized'):
+def main(corpus,output,kernel='desktop_optimized',alias_validation=None):
     config=json.loads((output/'config.json').read_text())
+    if config.get('alias_positive_total') and not alias_validation:raise ValueError('Alias-trained model requires held-out alias evaluation')
     metadata=json.loads((output/'model.json').read_text())
     selected=json.loads((output/'selection.json').read_text())
     if selected['selected']['step']<=0:raise ValueError('Untrained checkpoint')
@@ -29,6 +30,15 @@ def main(corpus,output,kernel='desktop_optimized'):
             result[category][speaker]=metric
             print(json.dumps({'split':category,'speaker':speaker,**{k:v for k,v in metric.items() if k!='mistakes'}}),flush=True)
     metrics=[value for group in ('validation','test') for value in result[group].values()]
+    if alias_validation:
+        provenance=json.loads((alias_validation/'provenance.json').read_text())
+        if provenance.get('evaluation_only') is not True or provenance.get('synthetic_only') is not True or set(provenance['speakers'])!=validation|test or set(provenance['excluded_training_speakers'])!=train:raise ValueError('Alias validation split mismatch')
+        result['alias_validation']={}
+        for speaker in sorted(validation|test):
+            files(alias_validation,(speaker,),(0,20))
+            metric=score(traces(output/'gobot.tflite',alias_validation/speaker,20261115,kernel=kernel),231,window=10,warmup=68)
+            result['alias_validation'][speaker]=metric;metrics.append(metric)
+            print(json.dumps({'alias_heldout':speaker,**{k:v for k,v in metric.items() if k!='mistakes'}}),flush=True)
     result['candidate_passed']=all(item['tp']>=.9*item['positive'] and item['false_events']==0 for item in metrics)
     name='stream-reference-report.json' if kernel=='native_reference' else 'stream-report.json'
     (output/name).write_text(json.dumps(result,indent=2))
@@ -36,4 +46,5 @@ def main(corpus,output,kernel='desktop_optimized'):
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('corpus',type=Path);parser.add_argument('output',type=Path);parser.add_argument('--kernel',choices=['desktop_optimized','native_reference'],default='desktop_optimized')
-    args=parser.parse_args();main(args.corpus,args.output,args.kernel)
+    parser.add_argument('--alias-validation',type=Path)
+    args=parser.parse_args();main(args.corpus,args.output,args.kernel,args.alias_validation)
