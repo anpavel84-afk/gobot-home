@@ -1,5 +1,18 @@
 # Локальное «ГоБот» на Spotpear
 
+### Corrected r2 run and explicit Gabot —2026-11-15
+
+First run failed before training on audible3160-sample negative «Гоу»; the new
+negative-only normalization pads the missing40 samples without changing speech.
+Positives/silence are still guarded. Existing60k plan is immutable/resumable.
+`alias_corpus.py` extends a verified completed public corpus on a separate root:
+1000 TRAIN clips for «Га́бот/Габо́т» and40 held-out alias clips; no private audio.
+The r2 job trains on51k positive/10k negative source clips,102k feature windows,
+10000 steps. `validate_reference.py --alias-validation PATH` is mandatory for an
+alias-trained candidate. No qualified model, build or installation is claimed yet.
+96 focused checks passed. The old unit failed; only the corrected r2 job runs.
+
+
 ### Full waveform reference run —2026-11-15 (RUNNING, not accepted)
 
 `full_corpus.py` extends the existing offline corpus tools to50k positive and10k

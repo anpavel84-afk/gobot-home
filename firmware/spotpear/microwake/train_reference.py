@@ -123,13 +123,13 @@ def select_checkpoint(history):
 def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False,full_corpus=False):
     global TRAIN,TAIL_SAMPLES,WORD_ANCHORED
     WORD_ANCHORED=word_anchored
-    if full_corpus and (not expanded or not word_anchored or steps!=10000 or count!=100000 or cache or reuse_public or initial_weights or hard_replay):raise ValueError('Full corpus requires fresh bounded reference training')
+    if full_corpus and (not expanded or not word_anchored or steps!=10000 or count not in (100000,102000) or cache or reuse_public or initial_weights or hard_replay):raise ValueError('Full corpus requires fresh bounded reference training')
     if word_anchored and (not expanded or cache or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
     if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
         if reuse_public or cache:raise ValueError('Expanded profile requires fresh windows')
-    if steps not in (1000,10000) or count not in ((100000,) if full_corpus else (8192,50000)):raise ValueError('Unsupported bounded reference profile')
+    if steps not in (1000,10000) or count not in ((100000,102000) if full_corpus else (8192,50000)):raise ValueError('Unsupported bounded reference profile')
     if set(TRAIN)&set(VALIDATION+TEST) or set(VALIDATION)&set(TEST):raise ValueError('Speaker leakage')
     out.mkdir(parents=True,exist_ok=True);tf.keras.utils.set_random_seed(SEED);tf.config.experimental.enable_op_determinism()
     config={'architecture':'upstream MixedNet full Russian reference','training_speakers':TRAIN,'validation_speakers':VALIDATION,'test_speakers':TEST,
@@ -149,8 +149,9 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     if word_anchored:config.update(split_revision=5,word_end_anchored=True,public_tts_positive_seeds=75,following_speech_probability=.75)
     if full_corpus:
         completed=json.loads((corpus/'complete.json').read_text())
-        if provenance.get('schema')!='gobot-full-tts-v1' or provenance.get('positive_total')!=50000 or provenance.get('negative_total')!=10000 or completed.get('clips')!=60000 or completed.get('ready_for_feature_extraction') is not True:raise ValueError('Full waveform corpus incomplete')
-        config.update(split_revision=6,full_waveform_corpus=True,public_tts_positive_seeds=50000,public_tts_negative_seeds=10000,positive_weight=1.5,negative_weight=1.,positive_source_coverage='every source once before augmentation',raw_clips_lazy_loaded=True)
+        positive_count={'gobot-full-tts-v1':50000,'gobot-full-tts-alias-v1':51000}.get(provenance.get('schema'),0)
+        if not positive_count or provenance.get('positive_total')!=positive_count or provenance.get('negative_total')!=10000 or completed.get('clips')!=positive_count+10000 or completed.get('ready_for_feature_extraction') is not True or count!=positive_count*2:raise ValueError('Full waveform corpus incomplete')
+        config.update(split_revision=6,full_waveform_corpus=True,public_tts_positive_seeds=positive_count,public_tts_negative_seeds=10000,positive_weight=1.5,negative_weight=1.,positive_source_coverage='every source once before augmentation',raw_clips_lazy_loaded=True,alias_positive_total=provenance.get('alias_positive_total',0))
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
         cached_config=json.loads((cache/'config.json').read_text())
@@ -179,7 +180,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         config['background_only_negative_fraction']=.15*extra_count/count
         (out/'config.json').write_text(json.dumps(config,indent=2))
         del original,extra
-    else:x,y=prepare(files(corpus,TRAIN,(2000,10000) if full_corpus else (498,75) if expanded else (198,15),keyword_only=word_anchored,lazy=full_corpus),out/'train-features.npy',count,SEED,complete_source_coverage=full_corpus)
+    else:x,y=prepare(files(corpus,TRAIN,(2000,config['public_tts_positive_seeds']//5) if full_corpus else (498,75) if expanded else (198,15),keyword_only=word_anchored,lazy=full_corpus),out/'train-features.npy',count,SEED,complete_source_coverage=full_corpus)
     if hard_replay:
         manifest=json.loads(hard_replay.with_suffix('.json').read_text())
         if not expanded or manifest.get('synthetic_only') is not True or manifest['training_speakers']!=list(TRAIN) or set(manifest['excluded_speakers'])!=set(VALIDATION+TEST) or hashlib.sha256(hard_replay.read_bytes()).hexdigest()!=manifest['sha256']:raise ValueError('Hard-replay provenance mismatch')

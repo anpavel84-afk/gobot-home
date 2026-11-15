@@ -1,5 +1,15 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Current pronunciation correction — 2026-11-15
+
+| Requirement | Evidence | Remaining |
+|---|---|---|
+| «Гобот/Габот» | Explicit alias training and held-out generation implemented; existing stress variants preserved | Training/evaluation not complete, no live pass |
+| Corpus recovery | Reproduced3160-sample audible negative failure; negative-only padding fix, preserved46032 sources | Corrected r2 job running with resource/network caps |
+| Hardware | USB0.4.11 idle/scan1/upload0; unchanged app/NVS | New qualified model/build/install pending |
+| Free checks |96 focused tests passed | Human acoustic and complete wake-to-question acceptance pending |
+
+
 ## Current wake continuation — 2026-11-15
 
 | Requirement | Actual result | Remaining acceptance |

@@ -1,5 +1,34 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Full corpus resumed; explicit Gabot variants added — 2026-11-15
+
+Owner requested working wake on both «Гобот» and «Габот». No qualified new model
+is available yet; physical USB still confirms0.4.11-dev-ref-parity-1, Wi-Fi1,
+enrolled1,idle,scanner1,wake_words0,upload0. No flash or paid call performed.
+
+The first full corpus job STOPPED at46,032 completed sources, before training.
+Diagnosis reproduced the exact failure: public negative fragment «Гоу» from Anna
+had3160 samples/peak7315: audible but40 samples (2.5ms) below the blanket3200
+minimum. Fixed processing: only audible negative fragments >=1600 samples may be
+zero-padded to3200; original speech unchanged. Short positives, silence and invalid
+clips remain rejected. Added regression test. Existing source PCM/journals stay
+hash-verified; no dataset reset or hidden retry. Quality adjustment is recorded.
+
+Started ONE explicit corrected offline job `gobot-wake-full-reference-r2-20261115`
+with the same2CPU/4GiB/12h/network-disabled limits, isolated r2 code/log, no retry
+or flash. At19:58:03Z it had resumed to46,100/60,000 base clips. Denis/Dmitri have
+12,000 distinct hashes each; eSpeak10,865/12,000 (recordings are not claimed to be
+independent voices). After base completion, isolated alias_corpus adds1000 TRAIN
+clips for «Га́бот/Габо́т» (both accents,5 existing voices), plus40 held-out alias
+clips from Aleksandr/Elena. Original five GoBot variants/plans remain unchanged.
+Base audio is verified/hardlinked without modification. Extended totals51,000
+positives/10,000 negatives;102,000 feature windows,10000-step training. Held-out
+alias evaluation is REQUIRED before candidate_passed; threshold/window unchanged.
+No human recognition, synthetic recall, firmware build or installation is yet
+claimed for this unfinished run. No raw recording/consent extension/paid grant.
+96 focused free tests passed. All3 B starts spent; Brain/C ledgers unchanged.
+
+
 ## Wake correction and full-scale offline training — 2026-11-15
 
 Physical board remains **0.4.11-dev-ref-parity-1**. Fresh USB status confirms
