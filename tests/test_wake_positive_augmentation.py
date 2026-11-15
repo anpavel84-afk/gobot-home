@@ -15,3 +15,8 @@ def test_short_word_remains_complete():
 
 def test_invalid_window_rejected():
     with pytest.raises(ValueError):m.fit_positive(np.arange(10),1)
+
+def test_quiet_initial_and_final_consonants_are_not_background_cropped():
+    word=np.concatenate([np.full(1000,10.),np.full(2000,12000.),np.full(1000,10.)])
+    np.testing.assert_array_equal(m.trim_background(word,retain_full=True),word)
+    assert len(m.trim_background(word))<len(word)

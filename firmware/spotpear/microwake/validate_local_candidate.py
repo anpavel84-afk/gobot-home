@@ -38,7 +38,7 @@ def main(ident,sha=None):
         result={'model_sha256':sha,'warmup_invocations':warmup,'cutoff':cutoff,'window':window,'human_labels_verified':False,
             'capture_domain':'mono_pcm16_pre_afe','private_event_seconds':[round(i*.03+.05,2) for i in events],
             'provider_calls':0,'installed':False,'product_accepted':False}
-        reference=evidence.get('base_profile')=='reference'
+        reference=evidence.get('base_profile') in ('reference','expanded','variant')
         for speaker,seed in [('aleksandr' if reference else 'dmitri',7635),('elena',7882)]:
             directory=ROOT/f'data/hardware/gobot-v1/kws/{"original-training" if speaker=="aleksandr" else "reference-validation"}/{speaker}'
             manifest=json.loads((directory/'manifest.json').read_text(encoding='utf-8'))

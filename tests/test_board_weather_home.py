@@ -16,7 +16,10 @@ def test_home_context_is_bound_and_has_no_coordinates():
     assert device_home_context(devices,'board','phone')['weather_location_configured'] is False
 
 @pytest.mark.parametrize('question,operation',[
-    ('Какая погода завтра?','weather_forecast'),('Погода за.','weather_unsupported')])
+    ('Какая погода завтра?','weather_forecast'),
+    ('ГоБот, какая погода завтра?','weather_forecast'),
+    ('ГоБот, подскажи пожалуйста, какая погода завтра?','weather_forecast'),
+    ('Погода за.','weather_unsupported')])
 def test_native_uses_actual_weather_transcript_not_model_invention(tmp_path,settings,question,operation):
     original,b,provider,path=prepared(tmp_path,settings);enable(path);calls=[]
     board='spotpear-000000000001'

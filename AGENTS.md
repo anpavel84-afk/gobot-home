@@ -1,3 +1,12 @@
+OWNER continued complete local wake implementation on2026-11-14 using the existing
+recording. Guarded PUBLIC diagnostic0.4.8-dev-reference-local-1 is now installed:
+full64x4 INT8 runtime/parity/error counters verified, NVS/boot/inactive/assets
+preserved, exact0.4.6 rollback available. This diagnostic uses a known acoustically
+failed PUBLIC model and keeps wake-to-Brain OFF. Do not confuse native runtime
+success with a qualified detector. Free bounded public CPU training and PLAN-only
+sample analysis continue. No new recording, paid grant or ledger reset is implied;
+original sample/personal-model expiry remains unchanged. See CURRENT_STATUS first.
+
 # GoBot Home boundaries
 
 OWNER approved on 2026-11-14 installation of prepared0.4.6-dev-raw-wake-1 on

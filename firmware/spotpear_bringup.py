@@ -55,7 +55,7 @@ def verify_nvs_config(before,after):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -154,7 +154,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback"):
+        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback"):
             report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
             previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
             new=PRIVATE/"touch/gobot-voice-status.bin"
@@ -166,6 +166,18 @@ def main():
                 new=PRIVATE/"touch/gobot-fast-start.bin"
                 previous=PRIVATE/"touch/gobot-voice-status.bin"
                 require(report['version']=='0.4.5-dev-fast-start-1' and report['sha256']=='c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764','Unexpected fast-start candidate')
+            elif opts.action.startswith('owner-wake-public'):
+                trial=json.loads((ROOT/'firmware/spotpear/microwake/owner-wake-build.json').read_text())
+                require(trial['version']=='0.4.9-dev-owner-wake-test-1' and trial['production_qualified'] is False and
+                    trial['trial_compiled'] is True and trial['trial_default_active'] is False and
+                    trial['contains_personal_weights'] is False and trial['public_synthetic_only'] is True and
+                    trial['local_max_seconds']==600 and trial['local_max_attempts']==3 and
+                    trial['model_sha256']=='4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9' and
+                    trial['app_sha256']=='579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199',
+                    'Only the exact unarmed PUBLIC Owner trial is admitted')
+                report={'bytes':trial['app_bytes'],'sha256':trial['app_sha256']}
+                previous_report={'app_bytes':2838576,'app_sha256':'4d0183b326fab5f3debc5d99c31cdc496a2f1ea5e6310c5fccb6792c1dd0a1db'}
+                new=PRIVATE/'touch/gobot-owner-wake-public.bin';previous=PRIVATE/'touch/gobot-reference-local.bin'
             elif opts.action.startswith('reference-local'):
                 reference=json.loads((ROOT/'firmware/spotpear/microwake/reference-local-build.json').read_text())
                 require(reference['version']=='0.4.8-dev-reference-local-1' and reference['wake_route'] is False and

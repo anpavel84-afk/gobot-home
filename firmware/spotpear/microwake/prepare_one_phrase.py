@@ -15,7 +15,7 @@ def prepare(root):
     main=root/'main';cfg=(main/'gobot_mww_config.h').read_text()
     if '#define GOBOT_WAKE_ROUTE 0' not in cfg:raise ValueError('Diagnostic candidate must not open cloud sessions')
     if '0.4.3' not in (root/'CMakeLists.txt').read_text():raise ValueError('Expected installed media-ready 0.4.3 baseline')
-    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h'):shutil.copy2(HERE/name,main/name)
+    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h','wake_trial_window.h'):shutil.copy2(HERE/name,main/name)
     replace(main/'application.h','bool gobot_access_received_=false,',
         'bool gobot_wake_turn_=false;\n    bool gobot_access_received_=false,')
     replace(main/'application.cc','if(strcmp(source,"wake")) audio_service_.ClearLocalWake();',

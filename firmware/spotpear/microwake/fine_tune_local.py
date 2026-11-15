@@ -16,16 +16,17 @@ from sample_retention import paths,candidate_path
 from train import features,window,BATCH,FRAMES,STRIDE
 from calibration_plan import validate
 
-def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=False,original_replay=None,negative_weight=1.,context_frames=75,temporal_head=False,base_profile='model3',epochs=12,robust_replay=False,freeze_encoder=False,freeze_norm=False,hard_replay=False,coarticulation=False):
+def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=False,original_replay=None,negative_weight=1.,context_frames=75,temporal_head=False,base_profile='model3',epochs=12,robust_replay=False,freeze_encoder=False,freeze_norm=False,hard_replay=False,coarticulation=False,adapt_last_block=False):
     global FRAMES
     if not 1<=negative_weight<=8:raise ValueError('Unbounded negative-loss weight')
     if context_frames not in (75,120,150,204):raise ValueError('Unsupported bounded context')
-    if epochs not in (12,40) or base_profile not in ('model3','model7','reference'):raise ValueError('Unsupported bounded training profile')
-    if base_profile=='reference' and (context_frames!=204 or not original_replay or not temporal_head):raise ValueError('Reference requires exact temporal architecture and replay split')
+    if epochs not in (12,40) or base_profile not in ('model3','model7','reference','expanded','variant'):raise ValueError('Unsupported bounded training profile')
+    if base_profile in ('reference','expanded','variant') and (context_frames!=204 or not original_replay or not temporal_head):raise ValueError('Reference requires exact temporal architecture and replay split')
+    if adapt_last_block and (not freeze_encoder or base_profile!='variant'):raise ValueError('Last-block adaptation requires the fixed public variant encoder')
     import train as training
     FRAMES=training.FRAMES=context_frames
-    training.POSITIVE_TAIL_SAMPLES=9600 if base_profile=='reference' else 4000
-    replay_speakers=('denis','dmitri','espeak-ru','anna') if base_profile=='reference' else ('denis','espeak-ru','anna','aleksandr')
+    training.POSITIVE_TAIL_SAMPLES=9600 if base_profile in ('reference','expanded','variant') else 4000
+    replay_speakers=('denis','dmitri','espeak-ru','anna','irina') if base_profile in ('expanded','variant') else ('denis','dmitri','espeak-ru','anna') if base_profile=='reference' else ('denis','espeak-ru','anna','aleksandr')
     path,metadata=paths(ident)
     evidence=json.loads(metadata.read_text())
     if time.time()>=evidence['expires_at']:raise ValueError('Sample expired')
@@ -85,7 +86,7 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             masked=training_audio(pcm,positives,heldout_questions)
             try:continuous_features=features(masked)
             finally:masked.fill(0)
-            stream_pos,stream_neg=windows(continuous_features,positives,negatives,rng,count=count,frames=FRAMES)
+            stream_pos,stream_neg=windows(continuous_features,positives,negatives,rng,count=count,frames=FRAMES,positive_tail_frames=60 if base_profile=='variant' else 3)
         for i in range(count):
             owner_word=clips[i%len(clips)]
             if coarticulation and i%3:
@@ -107,7 +108,7 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
         flags=SimpleNamespace(pointwise_filters='24,24,24',repeat_in_block='1,1,1',mixconv_kernel_sizes='[3],[5],[7]',
             residual_connection='0,0,0',first_conv_filters=24,first_conv_kernel_size=3,stride=3,max_pool=False,pooled=True,spatial_attention=False)
         if base_profile=='model7':flags.pointwise_filters='40,40,40';flags.first_conv_filters=40;flags.mixconv_kernel_sizes='[3],[5],[9]'
-        if base_profile=='reference':
+        if base_profile in ('reference','expanded','variant'):
             flags.pointwise_filters='64,64,64,64';flags.repeat_in_block='1,1,1,1';flags.mixconv_kernel_sizes='[5],[7,11],[9,15],[23]'
             flags.residual_connection='0,0,0,0';flags.first_conv_filters=32;flags.first_conv_kernel_size=5;flags.pooled=False
         net=model(flags,(FRAMES,40),BATCH)
@@ -115,9 +116,13 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
         weights=ROOT/'data/hardware/gobot-v1/local-wake-models'/weight_file
         if base_profile=='reference':
             weights=weights.with_name('reference-temporal.weights.h5');expected='b0328f08db7428e5d0a84917cb402d6a86fa4cdc82de1d7bb3cae2b4651d8159'
+        elif base_profile=='expanded':
+            weights=weights.with_name('expanded-public.weights.h5');expected='73a6ceeca599bbdf59223ff3438fed274f71774d1389a61a69a187b04e0bdc2b'
+        elif base_profile=='variant':
+            weights=weights.with_name('variant-public.weights.h5');expected='e65b35666d4a911d5de12a3206bf10a056c4bb839485d7c47e3f1063d3c19dc1'
         assert hashlib.sha256(weights.read_bytes()).hexdigest()==expected
         net.load_weights(weights)
-        if temporal_head and base_profile!='reference':
+        if temporal_head and base_profile not in ('reference','expanded','variant'):
             pooled=net;flags.pooled=False;net=model(flags,(FRAMES,40),BATCH)
             from temporal_head import initialize
             initialize(net,pooled)
@@ -126,10 +131,13 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
                 raise ValueError('Temporal initialization changed baseline function')
         if freeze_encoder:
             for layer in net.layers[:-1]:layer.trainable=False
+        if adapt_last_block:
+            if [type(layer).__name__ for layer in net.layers[-8:]]!=['Stream','DepthwiseConv2D','Conv2D','BatchNormalization','Activation','Stream','Flatten','Dense']:raise ValueError('Unexpected final convolution block')
+            for layer in net.layers[-8:]:layer.trainable=not isinstance(layer,tf.keras.layers.BatchNormalization)
         if freeze_norm:
             for layer in net.layers:
                 if isinstance(layer,tf.keras.layers.BatchNormalization):layer.trainable=False
-        net.compile(optimizer=tf.keras.optimizers.Adam(.0002),loss='binary_crossentropy')
+        net.compile(optimizer=tf.keras.optimizers.Adam(.00005 if adapt_last_block else .0002),loss='binary_crossentropy')
         # Fixed bounded epochs, no search/early stopping on held-out owner questions.
         spectral_rng=np.random.default_rng(20262105)
         for epoch in range(epochs):
@@ -147,6 +155,9 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
         predictions=np.concatenate([np.asarray(net(x[i:i+BATCH],training=False)).reshape(-1) for i in range(0,len(x),BATCH)])
         train_diagnostic={'training_only':True,'positive_mean':float(predictions[y==1].mean()),
             'negative_mean':float(predictions[y==0].mean()),'binary_accuracy':float(((predictions>=.5)==y).mean())}
+        if balanced_replay and continuous_replay and hard_paths:
+            train_diagnostic['positive_origins']={name:{'mean':float(predictions[index::8].mean()),'fraction_above_point9':float(np.mean(predictions[index::8]>=.9))}
+                for name,index in [('owner_augmented',0),('synthetic',3),('owner_continuous',5)]}
         print(json.dumps({'training_inference_diagnostic':train_diagnostic}),flush=True)
         if audit_conversion:
             from conversion_audit import offline_probes
@@ -176,7 +187,7 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
         immutable=candidate_path(ident,model_sha)
         if not immutable.exists():immutable.write_bytes(sealed)
         path.with_name(ident+'-personal-model.dpapi').write_bytes(sealed)
-        report={'kind':'local_existing_microWakeWord_neural_adaptation','epochs':epochs,'seed':20261114,'base_profile':base_profile,'robust_spectral_replay':robust_replay,'frozen_pretrained_encoder':freeze_encoder,'frozen_batch_norm':freeze_norm,'hard_negative_clips':len(hard_paths),
+        report={'kind':'local_existing_microWakeWord_neural_adaptation','epochs':epochs,'seed':20261114,'base_profile':base_profile,'robust_spectral_replay':robust_replay,'frozen_pretrained_encoder':freeze_encoder and not adapt_last_block,'lower_encoder_frozen':freeze_encoder,'frozen_batch_norm':freeze_norm,'hard_negative_clips':len(hard_paths),
             'training_utterances':len(clips),'heldout_isolated_indices':[4,9],
             'question_phrases_used_for_training':bool(plan.get('training_question_prefixes')),
             'training_question_indices':plan.get('training_question_indices',[]),'heldout_question_indices':plan.get('heldout_question_indices',[0,1,2]),
@@ -185,14 +196,16 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             'synthetic_negative_clips':len(negative_paths),
             'balanced_synthetic_replay':balanced_replay,'synthetic_positive_clips':len(synthetic_positive),
             'continuous_frontend_replay':continuous_replay,
+            'continuous_positive_tail_frames':60 if base_profile=='variant' else 3,
             'original_training_replay':bool(original_replay),'validation_test_speakers_in_replay':False if original_replay else None,
             'negative_loss_weight':negative_weight,
             'context_frames':FRAMES,'positive_word_front_crop':False,
             'positive_tail_samples':training.POSITIVE_TAIL_SAMPLES,'replay_speakers':replay_speakers,
-            'cutoff':231 if base_profile=='reference' else 250,'window':10 if base_profile=='reference' else 3,
+            'cutoff':231 if base_profile in ('reference','expanded','variant') else 250,'window':10 if base_profile in ('reference','expanded','variant') else 3,
             'temporal_dense_head':temporal_head,
             'immediate_following_speech_augmentation':coarticulation,
             'owner_negative_training_windows':len(negative_clips),
+            'adapt_only_final_convolution_block':adapt_last_block,
             'training_inference_diagnostic':train_diagnostic,
             'model_sha256':model_sha,'bytes':len(blob),'human_labels_verified':False,
             'product_accepted':False,'installed':False,'raw_or_features_exported':False,'retention_same_as_sample':True}
@@ -211,4 +224,4 @@ def main(ident,balanced_replay=False,audit_conversion=False,continuous_replay=Fa
             for c in stream_pos+stream_neg:c.fill(0)
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');parser.add_argument('--audit-conversion',action='store_true');parser.add_argument('--continuous-replay',action='store_true');parser.add_argument('--original-replay',type=Path);parser.add_argument('--negative-weight',type=float,default=1.);parser.add_argument('--context-frames',type=int,choices=[75,120,150,204],default=75);parser.add_argument('--temporal-head',action='store_true');parser.add_argument('--base-profile',choices=['model3','model7','reference'],default='model3');parser.add_argument('--epochs',type=int,choices=[12,40],default=12);parser.add_argument('--robust-replay',action='store_true');parser.add_argument('--freeze-encoder',action='store_true');parser.add_argument('--freeze-norm',action='store_true');parser.add_argument('--hard-replay',action='store_true');parser.add_argument('--coarticulation',action='store_true');args=parser.parse_args();main(args.sample_id,args.balanced_replay,args.audit_conversion,args.continuous_replay,args.original_replay,args.negative_weight,args.context_frames,args.temporal_head,args.base_profile,args.epochs,args.robust_replay,args.freeze_encoder,args.freeze_norm,args.hard_replay,args.coarticulation)
+    parser=argparse.ArgumentParser();parser.add_argument('sample_id');parser.add_argument('--balanced-replay',action='store_true');parser.add_argument('--audit-conversion',action='store_true');parser.add_argument('--continuous-replay',action='store_true');parser.add_argument('--original-replay',type=Path);parser.add_argument('--negative-weight',type=float,default=1.);parser.add_argument('--context-frames',type=int,choices=[75,120,150,204],default=75);parser.add_argument('--temporal-head',action='store_true');parser.add_argument('--base-profile',choices=['model3','model7','reference','expanded','variant'],default='model3');parser.add_argument('--epochs',type=int,choices=[12,40],default=12);parser.add_argument('--robust-replay',action='store_true');parser.add_argument('--freeze-encoder',action='store_true');parser.add_argument('--freeze-norm',action='store_true');parser.add_argument('--hard-replay',action='store_true');parser.add_argument('--coarticulation',action='store_true');parser.add_argument('--adapt-last-block',action='store_true');args=parser.parse_args();main(args.sample_id,args.balanced_replay,args.audit_conversion,args.continuous_replay,args.original_replay,args.negative_weight,args.context_frames,args.temporal_head,args.base_profile,args.epochs,args.robust_replay,args.freeze_encoder,args.freeze_norm,args.hard_replay,args.coarticulation,args.adapt_last_block)

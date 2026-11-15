@@ -17,7 +17,7 @@ from pymicro_features import MicroFrontend
 from microwakeword.mixednet import model
 from microwakeword.layers.modes import Modes
 from microwakeword.utils import to_streaming_inference
-from augmentation import fit_positive
+from augmentation import fit_positive,trim_background
 
 SEED=20261114
 FRAMES=204
@@ -53,8 +53,7 @@ def features(pcm):
 
 def window(clip,rng,positive):
     raw=np.zeros(0) if clip is None else clip.astype(float)
-    visible=np.flatnonzero(abs(raw)>max(20,np.max(abs(raw),initial=0)*.025))
-    if len(visible):raw=raw[max(0,visible[0]-160):visible[-1]+321]
+    raw=trim_background(raw,retain_full=positive)
     speed=rng.uniform(.72,1.35)
     if len(raw):raw=np.interp(np.arange(0,len(raw),speed),np.arange(len(raw)),raw)
     delay=int(rng.integers(160,2880));raw=np.pad(raw,(0,delay))+rng.uniform(0,.4)*np.pad(raw,(delay,0))
@@ -89,8 +88,9 @@ def select_checkpoint(history):
     if not trained:raise ValueError('No finite trained checkpoint')
     return min(trained,key=lambda row:row['validation_bce'])
 
-def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False):
+def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None):
     global TRAIN,TAIL_SAMPLES
+    if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
         if reuse_public or cache:raise ValueError('Expanded profile requires fresh windows')
@@ -108,6 +108,8 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         if provenance['speakers']!=list(TRAIN) or provenance['synthetic_only'] is not True:raise ValueError('Expanded provenance mismatch')
         config.update(split_revision=3,public_tts_positive_seeds=375,public_tts_negative_seeds=2490,expanded_utterance_corpus=True,
             positive_weight=1.,negative_weight=2.)
+        if provenance.get('wake_variants_source'):
+            config.update(split_revision=4,wake_variants_source=provenance['wake_variants_source'])
     config['corpus_manifest_sha256']={speaker:hashlib.sha256((corpus/speaker/'manifest.json').read_bytes()).hexdigest() for speaker in (*TRAIN,*VALIDATION,*TEST)}
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
@@ -138,11 +140,25 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         (out/'config.json').write_text(json.dumps(config,indent=2))
         del original,extra
     else:x,y=prepare(files(corpus,TRAIN,(498,75) if expanded else (198,15)),out/'train-features.npy',count,SEED)
+    if hard_replay:
+        manifest=json.loads(hard_replay.with_suffix('.json').read_text())
+        if not expanded or manifest.get('synthetic_only') is not True or manifest['training_speakers']!=list(TRAIN) or set(manifest['excluded_speakers'])!=set(VALIDATION+TEST) or hashlib.sha256(hard_replay.read_bytes()).hexdigest()!=manifest['sha256']:raise ValueError('Hard-replay provenance mismatch')
+        extra=np.load(hard_replay)
+        if extra.ndim!=3 or extra.shape[1:]!=(FRAMES,40) or not 1<=len(extra)<=20000 or not np.isfinite(extra).all():raise ValueError('Invalid hard-negative features')
+        x=np.concatenate([x,extra]);y=np.pad(y,(0,len(extra)));config['extra_hard_negative_windows']=len(extra);config['hard_replay_sha256']=manifest['sha256'];config['negative_weight']=4.
+        (out/'config.json').write_text(json.dumps(config,indent=2))
     np.save(out/'train-labels.npy',y)
     val,labels=prepare(files(corpus,VALIDATION,(498,75) if expanded else (198,15)),out/'validation-features.npy',1024,SEED+1)
     flags=SimpleNamespace(pointwise_filters='64,64,64,64',repeat_in_block='1,1,1,1',mixconv_kernel_sizes='[5],[7,11],[9,15],[23]',
         residual_connection='0,0,0,0',first_conv_filters=32,first_conv_kernel_size=5,stride=3,max_pool=False,pooled=False,spatial_attention=False)
-    net=model(flags,(FRAMES,40),BATCH);net.compile(optimizer=tf.keras.optimizers.Adam(.001),loss='binary_crossentropy')
+    net=model(flags,(FRAMES,40),BATCH)
+    if initial_weights:
+        prior=json.loads((initial_weights.parent/'config.json').read_text())
+        if not expanded or prior.get('human_training') is not False or not prior.get('expanded_utterance_corpus') or prior.get('training_speakers')!=list(TRAIN) or prior.get('validation_speakers')!=list(VALIDATION) or prior.get('test_speakers')!=list(TEST) or not initial_sha or hashlib.sha256(initial_weights.read_bytes()).hexdigest()!=initial_sha:raise ValueError('Only hash-pinned public expanded weights with the same split are allowed')
+        net.load_weights(initial_weights);config['initial_public_weights_sha256']=initial_sha
+        config['specaugment_max_frames_bins']=2;config['specaugment_mask_count']=1
+        (out/'config.json').write_text(json.dumps(config,indent=2))
+    net.compile(optimizer=tf.keras.optimizers.Adam(.0002 if initial_weights else .001),loss='binary_crossentropy')
     def validation_bce():
         probs=np.concatenate([np.asarray(net(np.asarray(val[i:i+BATCH],np.float32),training=False)).reshape(-1) for i in range(0,len(val),BATCH)])
         p=np.clip(probs,1e-7,1-1e-7);return float(-np.mean(labels*np.log(p)+(1-labels)*np.log1p(-p)))
@@ -150,10 +166,10 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     for step in range(steps):
         ids=rng.integers(0,len(x),BATCH);batch=np.asarray(x[ids],np.float32).copy()
         for sample in batch:
-            for _ in range(2):
-                width=int(rng.integers(0,6));at=int(rng.integers(0,FRAMES-max(1,width)+1));sample[at:at+width]=0
-                width=int(rng.integers(0,6));at=int(rng.integers(0,40-max(1,width)+1));sample[:,at:at+width]=0
-        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,1. if expanded else 1.5,2. if expanded else 1.).astype(np.float32))
+            for _ in range(1 if initial_weights else 2):
+                width=int(rng.integers(0,3 if initial_weights else 6));at=int(rng.integers(0,FRAMES-max(1,width)+1));sample[at:at+width]=0
+                width=int(rng.integers(0,3 if initial_weights else 6));at=int(rng.integers(0,40-max(1,width)+1));sample[:,at:at+width]=0
+        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,1. if expanded else 1.5,4. if hard_replay else 2. if expanded else 1.).astype(np.float32))
         if (step+1)%100==0:print(json.dumps({'step':step+1,'steps':steps,'loss':float(loss),'elapsed_s':round(time.monotonic()-started,1)}),flush=True)
         if (step+1)%1000==0 or step+1==steps:
             metric=validation_bce()
@@ -182,4 +198,4 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     (out/'model.json').write_text(json.dumps(details,indent=2));print(json.dumps(details),flush=True)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay)

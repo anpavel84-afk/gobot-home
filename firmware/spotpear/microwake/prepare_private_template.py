@@ -5,6 +5,14 @@ from prepare_product import change
 HERE=Path(__file__).resolve().parent
 SLOT_BYTES=65536
 
+def configure_reference_runtime(source):
+    change(source,'MicroMutableOpResolver<13>','MicroMutableOpResolver<15>')
+    change(source,'ops.AddAveragePool2D()!=kTfLiteOk','ops.AddSplit()!=kTfLiteOk || ops.AddSplitV()!=kTfLiteOk || ops.AddAveragePool2D()!=kTfLiteOk')
+    change(source,'arena_size=128*1024','arena_size=512*1024')
+    change(source,'heap_caps_aligned_alloc(16,2048,caps)','heap_caps_aligned_alloc(16,16384,caps)')
+    change(source,'MicroAllocator::Create(var_memory,2048)','MicroAllocator::Create(var_memory,16384)')
+    change(source,'MicroResourceVariables::Create(allocator,20)','MicroResourceVariables::Create(allocator,32)')
+
 def prepare(root,reference=False):
     main=root/'main'
     slot_bytes=131072 if reference else SLOT_BYTES
@@ -14,18 +22,12 @@ def prepare(root,reference=False):
     if '#define GOBOT_WAKE_ROUTE 0' not in (main/'gobot_mww_config.h').read_text():raise ValueError('Template must remain local-only')
     blob=(HERE/'gobot.tflite').read_bytes()
     if hashlib.sha256(blob).hexdigest()!='1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010':raise ValueError('Expected public synthetic-only placeholder')
-    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h'):shutil.copy2(HERE/name,main/name)
+    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h','wake_trial_window.h'):shutil.copy2(HERE/name,main/name)
     config=main/'gobot_mww_config.h'
     change(config,'#define GOBOT_WAKE_CUTOFF 250',f'#define GOBOT_WAKE_CUTOFF {cutoff}')
     with config.open('a') as output:output.write(f'\n#define GOBOT_WAKE_WINDOW {window}\n#define GOBOT_WAKE_WARMUP {warmup}\n')
     if reference:
-        source=main/'gobot_mww.cc'
-        change(source,'MicroMutableOpResolver<13>','MicroMutableOpResolver<15>')
-        change(source,'ops.AddAveragePool2D()!=kTfLiteOk','ops.AddSplit()!=kTfLiteOk || ops.AddSplitV()!=kTfLiteOk || ops.AddAveragePool2D()!=kTfLiteOk')
-        change(source,'arena_size=128*1024','arena_size=512*1024')
-        change(source,'heap_caps_aligned_alloc(16,2048,caps)','heap_caps_aligned_alloc(16,16384,caps)')
-        change(source,'MicroAllocator::Create(var_memory,2048)','MicroAllocator::Create(var_memory,16384)')
-        change(source,'MicroResourceVariables::Create(allocator,20)','MicroResourceVariables::Create(allocator,32)')
+        configure_reference_runtime(main/'gobot_mww.cc')
     (main/'gobot_mww.tflite').write_bytes(blob+bytes(slot_bytes-len(blob)))
     change(main/'application.cc','#include "application.h"','#include "application.h"\n#include "gobot_mww.h"')
     change(main/'application.h','bool gobot_access_received_=false,','bool gobot_wake_turn_=false;\n    bool gobot_access_received_=false,')

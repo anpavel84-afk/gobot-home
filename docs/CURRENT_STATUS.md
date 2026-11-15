@@ -1,5 +1,66 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Controlled question-in-one-phrase candidate — 2026-11-14
+
+PUBLIC0.4.9-dev-owner-wake-test-1 is BUILT and ESP image-verified, not yet flashed:
+2839312 bytes, app SHA256579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199.
+It uses the PUBLIC variant-curriculum model, NOT personally calibrated weights.
+Production qualification stays OFF. Trial is UNARMED at boot; explicit local
+operator arm allows at most3 activation attempts within600 seconds, independent
+server budget/ACL still mandatory. Duplicate arm cannot refill spent attempts.
+Two-second local prefix protects the beginning of a question during delayed
+recognition/setup;12s total startup buffer and overflow cancellation remain.
+Native trial-window host test and67 focused Python checks pass.
+
+The PUBLIC expanded corpus/model is complete:375 positive/2490 negative training
+clips across5 voices,75/498 each for heldout Aleksandr/Elena. Initial expanded
+run:72/75 recall each,24/36 mixed-stream negative events;45 events in30min synthetic
+negative stream. A bounded1000-step curriculum reuses verified negatives, adds
+existing first/second/separated/diphthong name variants and698 TRAIN-only hard
+negative windows. Result46/75 and57/75,2/5 mixed-stream events,3 events in30min
+synthetic negatives. These are FAILED universal-acceptance results, not a
+household false-wake rate. Public candidate detects all3 existing recorded
+question episodes, while isolated-name activation remains unreliable.
+
+Personal calibration improved all10 recorded isolated names and3 question
+episodes after sustained-posterior labels, but false detections on other voices
+remain excessive. It is NOT deployed. Full-word positive preprocessing now keeps
+quiet consonants; long continuous windows cannot front-crop names or include
+heldouts. Raw/model expiry remains unchanged. No raw/features/personal weights
+left PLAN. A fixed two-neural-model consensus probe also failed; no parallel
+native detector was added. No automatic model search remains running.
+
+Existing B allowance is exhausted:8 starts, reserved estimate$1, reported response
+estimate$0.09352952 (transcription separate, invoice not confirmed). Separate3x60s
+wake-test policy/ledger is prepared DISABLED and not mounted; Owner was asked for
+one consolidated manual trial allowance. No paid call, ledger reset, grant renewal
+or runtime deployment occurred. Installed hardware is still the0.4.8 diagnostic
+below; Brain8661454 and phones A/B/C remain unchanged.
+
+## Native full-model diagnostic installed — 2026-11-14
+
+Spotpear now runs0.4.8-dev-reference-local-1, PUBLIC diagnostic app SHA256
+4d0183b326fab5f3debc5d99c31cdc496a2f1ea5e6310c5fccb6792c1dd0a1db.
+This is native memory/timing validation with the acoustically FAILED public
+reference model, NOT the final wake release. Wake-to-Brain remains OFF. Existing
+new-interface/touch code and voice transport remain; phone/Brain not redeployed.
+
+Guarded USB installation completed: enrolled MAC/16MiB/security checked, fresh
+full private snapshot, three factory/recovery copies verified; only ota_0 written
+and readback-verified. NVS configuration, boot/OTA metadata, inactive app and
+shared assets preserved; only permitted RF calibration refreshed. Actual board
+status confirms0.4.8,Wi-Fi1,enrolled1,idle,upload0. Full64x4 INT8 model initializes,
+frontend parity1987024791,4882 feature frames/1627 invocations, max observed feed
+7649us,0 underruns/drops/errors. This is a bounded native snapshot, not a human
+false-wake rate or guaranteed inference latency. No new recording or paid call.
+Physical LCD/human-touch/new wake/Brain conversation have NOT been reaccepted.
+
+Rollback: existing guarded `reference-local-rollback` returns the exact0.4.6 app,
+with the same identity/backup/NVS/inactive/assets checks; no OTA/NVS erase.
+The expanded PUBLIC corpus is complete (2865 training +1146 heldout clips).
+One finite50k-window/10k-step CPU training job is in progress; no failed detector
+is admitted to provider sessions.57 focused Python checks passed.
+
 ## Wake correction / expanded utterances — 2026-11-14
 
 Voice-first product remains NOT_ACCEPTED. Installed0.4.6, working touch and

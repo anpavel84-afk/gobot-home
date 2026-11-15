@@ -2,7 +2,7 @@
 import hashlib,json
 from pathlib import Path
 SPEAKERS=('denis','espeak-ru','anna','aleksandr')
-HARD_PHRASES={'робот','бот','готов','готово','гобой','говорит','голос','погода','погоди','какой бот','домашний робот','этот робот','вот бот'}
+HARD_PHRASES={'робот','бот','готов','готово','гобой','гогот','говорит','голос','погода','погоди','какой бот','домашний робот','этот робот','вот бот'}
 
 def hard_negatives(root,speakers=SPEAKERS):
     result=[]
@@ -14,7 +14,8 @@ def hard_negatives(root,speakers=SPEAKERS):
     return result
 
 def corpus(root,speakers=SPEAKERS):
-    if tuple(speakers) not in (SPEAKERS,('denis','dmitri','espeak-ru','anna')):raise ValueError('Unreviewed replay split')
+    expanded=('denis','dmitri','espeak-ru','anna','irina')
+    if tuple(speakers) not in (SPEAKERS,('denis','dmitri','espeak-ru','anna'),expanded):raise ValueError('Unreviewed replay split')
     root=Path(root).resolve();positive=[];negative=[]
     for speaker in speakers:
         directory=root/speaker
@@ -28,6 +29,7 @@ def corpus(root,speakers=SPEAKERS):
                 item.get('label') not in groups or path.is_symlink()):raise ValueError('Invalid replay manifest')
             if hashlib.sha256(path.read_bytes()).hexdigest()!=item['sha256']:raise ValueError('Replay PCM hash mismatch')
             seen.add(name);groups[item['label']].append(path)
-        if len(groups['positive'])!=15 or len(groups['negative'])!=198:raise ValueError('Incomplete original training speaker')
+        expected=(75,498) if tuple(speakers)==expanded else (15,198)
+        if (len(groups['positive']),len(groups['negative']))!=expected:raise ValueError('Incomplete original training speaker')
         positive.extend(groups['positive']);negative.extend(groups['negative'])
     return positive,negative

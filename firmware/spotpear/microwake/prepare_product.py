@@ -4,9 +4,9 @@ from pathlib import Path
 HERE=Path(__file__).resolve().parent
 
 def change(path,old,new):
-    s=path.read_text()
+    s=path.read_text(encoding='utf-8')
     if s.count(old)!=1:raise ValueError('Unexpected current firmware: '+path.name)
-    path.write_text(s.replace(old,new))
+    path.write_text(s.replace(old,new),encoding='utf-8')
 
 def prepare(root,model_dir,voice_route=False,human_report=None):
     main=root/'main'
@@ -24,7 +24,7 @@ def prepare(root,model_dir,voice_route=False,human_report=None):
             and human.get('model_sha256')==report['sha256']):
             raise ValueError('Wake routing requires passing synthetic/background and labelled human evidence')
     # Existing ring + native frontend/runtime, not another KWS or voice stack.
-    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h'):shutil.copy2(HERE/name,main/name)
+    for name in ('gobot_mww.cc','gobot_mww.h','wake_question_buffer.h','probability_window.h','wake_trial_window.h'):shutil.copy2(HERE/name,main/name)
     (main/'gobot_mww.tflite').write_bytes(blob)
     metadata=json.loads((model_dir/'model.json').read_text())
     warmup=max(25,(int(metadata.get('context_frames',75))+2)//3)

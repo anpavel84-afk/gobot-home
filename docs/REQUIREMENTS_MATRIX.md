@@ -1,5 +1,14 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-14 native full-model diagnostic (current hardware)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Physical install | Exact PUBLIC0.4.8 app flashed/readback verified; enrolled unit and backups checked | Diagnostic FAILED-acoustic model, not final wake release |
+| Native runtime | Full64x4 model state1; parity1987024791;4882 frames,0 underrun/drop/error,max feed7649us | Human wake recall, household false wakes and real Brain path pending |
+| Recovery/isolation | NVS/boot/OTA/inactive/assets preserved;0.4.6 rollback; idle/upload0 | Physical LCD/touch not reaccepted; paid session grant not renewed |
+| Expanded learning |2865 training +1146 heldout PUBLIC TTS clips complete; finite training active | No claim that data preparation/training loss means accepted wake |
+
 ## 2026-11-14 full-reference correction (current checkpoint)
 
 | Requirement | Evidence | Remaining gap |

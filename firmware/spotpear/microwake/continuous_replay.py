@@ -8,7 +8,8 @@ def training_audio(pcm,positives,heldout_questions,rate=16000):
         result[max(0,int(a*rate)):min(len(result),int(np.ceil(b*rate)))]=0
     return result
 
-def windows(rows,positives,negatives,rng,count=512,frames=75):
+def windows(rows,positives,negatives,rng,count=512,frames=75,positive_tail_frames=3):
+    if positive_tail_frames not in (3,60):raise ValueError('Unsupported bounded posterior duration')
     train_ids=[i for i in range(10) if i not in {4,9}]
     ends=[]
     for a,b in negatives:
@@ -22,9 +23,10 @@ def windows(rows,positives,negatives,rng,count=512,frames=75):
     positive_ends=[]
     for index in train_ids:
         a,b=positives[index]
-        for shift in range(-4,4):
+        for shift in range(-4,positive_tail_frames+1):
             end=int(b*100)-2+shift
             if end<frames or end>len(rows):continue
+            if end-frames>int(np.floor(a*100))-2:continue # Never front-crop the labelled word.
             if any(max(end-frames,left)<min(end,right) for left,right in heldout):continue
             positive_ends.append(end)
     if not positive_ends:raise ValueError('No positive context without holdout leakage')

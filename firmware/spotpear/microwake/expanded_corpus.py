@@ -4,13 +4,14 @@ Uses already installed project-local tools/voice files; no network, recordings,
 paid APIs, global installs or overwriting earlier corpora. Irina here is RHVoice,
 not the unrelated Piper model with an unreviewed model card.
 """
-import argparse,hashlib,io,json,os,subprocess,tempfile,wave
+import argparse,hashlib,io,json,os,shutil,subprocess,tempfile,wave
 from pathlib import Path
 import numpy as np
 import onnxruntime
 from piper import PiperVoice,SynthesisConfig
 from piper.config import PiperConfig
-from corpus import POSITIVE,NEGATIVE,HASHES,pcm16
+from corpus import NEGATIVE,HASHES,pcm16
+from wake_variants import VARIANTS
 
 SPEAKERS=('denis','dmitri','espeak-ru','anna','irina')
 QUESTIONS=('',' Какая погода завтра?',' Поставь таймер.',' Который час?',' Расскажи про Луну.')
@@ -26,11 +27,11 @@ SENTENCES=(
 def phrases():
     negative=list(dict.fromkeys([*NEGATIVE,*SENTENCES,*[f'{prefix}, {text.lower()}' for prefix in ('Слушай','Хорошо','А теперь','Пожалуйста') for text in SENTENCES]]))
     if any('гобот' in text.lower().replace('́','') or 'gobot' in text.lower() for text in negative):raise ValueError('Wake word in negative text')
-    positive=[word.rstrip('.!?')+('!' if not question else ','+question) for word in POSITIVE for question in QUESTIONS]
+    positive=[variant['text'] if not question else variant['text'].rstrip('.!?')+','+question for variant in VARIANTS for question in QUESTIONS]
     return positive,negative
 
 
-def main(stage,output,evaluation_only=False):
+def main(stage,output,evaluation_only=False,reuse_negatives=None):
     if output.exists():raise ValueError('New corpus directory required')
     output.mkdir(parents=True)
     rh=stage/'rh-local/root';es=stage/'espeak-local/root'
@@ -47,6 +48,7 @@ def main(stage,output,evaluation_only=False):
     speakers=('aleksandr','elena') if evaluation_only else SPEAKERS
     config={'synthetic_only':True,'speakers':speakers,'evaluation_only':evaluation_only,'validation_speakers':['aleksandr'],'test_speakers':['elena'],
         'positive_prefix_limit_samples':28800,'sample_rate':16000,'network':False,'paid_calls':0,'onnx_intra_threads':2,'onnx_inter_threads':1,
+        'wake_variants_source':'wake_variants.VARIANTS','reused_negative_corpus':reuse_negatives.name if reuse_negatives else None,
         'rhvoice_copyright_sha256':hashlib.sha256(license_path.read_bytes()).hexdigest()}
     (output/'provenance.json').write_text(json.dumps(config,indent=2))
     positive,negative=phrases();onnxruntime.set_seed(1042)
@@ -62,6 +64,16 @@ def main(stage,output,evaluation_only=False):
             voice=PiperVoice(session=onnxruntime.InferenceSession(str(files[0]),sess_options=options,providers=['CPUExecutionProvider']),
                 config=PiperConfig.from_dict(json.loads(files[1].read_text())))
         for label,texts in [('positive',positive),('negative',negative)]:
+            if label=='negative' and reuse_negatives:
+                entries=json.loads((reuse_negatives/speaker/'manifest.json').read_text(encoding='utf-8'))
+                selected=[item for item in entries if item['label']=='negative']
+                if len(selected)!=len(negative)*3:raise ValueError('Incomplete reusable negative class')
+                for item in selected:
+                    name=item['file'];source=reuse_negatives/speaker/name
+                    if Path(name).name!=name or source.is_symlink() or item['speaker']!=speaker or item['synthetic'] is not True or hashlib.sha256(source.read_bytes()).hexdigest()!=item['sha256']:raise ValueError('Reusable negative manifest mismatch')
+                    shutil.copy2(source,folder/name);manifest.append(item)
+                print(json.dumps({'speaker':speaker,'completed_class':'verified_negative_reuse','clips':len(manifest)}),flush=True)
+                continue
             for index,text in enumerate(texts):
                 for variant,speed in enumerate((85,100,115)):
                     if voice:
@@ -85,4 +97,9 @@ def main(stage,output,evaluation_only=False):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('stage',type=Path);p.add_argument('output',type=Path);p.add_argument('--evaluation-only',action='store_true');a=p.parse_args();main(a.stage.resolve(),a.output.resolve(),a.evaluation_only)
+    p=argparse.ArgumentParser();p.add_argument('stage',type=Path);p.add_argument('output',type=Path);p.add_argument('--evaluation-only',action='store_true');p.add_argument('--both-splits',action='store_true');p.add_argument('--reuse-negatives',type=Path);a=p.parse_args()
+    stage=a.stage.resolve();output=a.output.resolve();reuse=a.reuse_negatives.resolve() if a.reuse_negatives else None
+    if a.both_splits:
+        if a.evaluation_only or output.exists():raise ValueError('Both splits require a new parent directory')
+        output.mkdir(parents=True);main(stage,output/'train',False,reuse);main(stage,output/'heldout',True,reuse)
+    else:main(stage,output,a.evaluation_only,reuse)

@@ -10,7 +10,7 @@ def test_background_window_has_audio_without_an_interpolation_source():
     captured=[]
     def frontend(samples):
         captured.append(samples.copy());return np.zeros((204,40),np.float32)
-    namespace={'np':np,'FRAMES':204,'TAIL_SAMPLES':9600,'features':frontend,'lfilter':lambda a,b,signal:signal}
+    namespace={'np':np,'FRAMES':204,'TAIL_SAMPLES':9600,'features':frontend,'lfilter':lambda a,b,signal:signal,'trim_background':lambda sample,retain_full:sample}
     exec(compile(ast.Module(body=[function],type_ignores=[]),'<background-augmentation>','exec'),namespace)
     features=namespace['window'](None,np.random.default_rng(5),False)
     assert features.shape==(204,40)
