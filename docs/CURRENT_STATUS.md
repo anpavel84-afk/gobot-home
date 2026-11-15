@@ -1,5 +1,25 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Live Owner wake trial — 2026-11-15
+
+Owner explicitly approved3 manual B sessions x60s,8 responses x512 output tokens,
+gpt-realtime-2.1-mini/marin with gpt-transcribe, estimated$1 allowance/24h,
+no CLI/Luna/Image or automatic paid retries; absolute invoice cap not guaranteed.
+Separate voice-ab-b-wake policy enabled and mounted after idle checks and WAL-aware
+backups. Old ledgers and C unknown-final reserve preserved. Runtime now
+9c317bca47b78f91854cd0a209a446bf574ca53b; firmware remains0.4.9.
+Free readiness confirmed3 sessions remaining,0 active,0 pending hangups,0 new
+reservations/usage before Owner trial.11 focused budget/weather checks passed.
+No developer provider session opened.
+
+USB COM3 restored. Board was muted; explicit unmute restarted local scanning.
+First arm correctly refused before detector warmup; after warmup it acknowledged
+armed1,left3,production_qualified0. This is a single600-second local trial window,
+not production qualification. Owner instructed to say name+weather question without
+touch. Physical outcome and actual Brain/playback acceptance are PENDING.
+Pre-install/unarmed/pending-budget checkpoints below are historical.
+
+
 ## Current board checkpoint — 0.4.9 installed, Owner trial unarmed
 
 Spotpear physically runs0.4.9-dev-owner-wake-test-1, public app SHA256
