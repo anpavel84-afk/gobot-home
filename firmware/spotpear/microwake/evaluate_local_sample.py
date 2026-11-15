@@ -7,21 +7,25 @@ import numpy as np
 from pymicro_features import MicroFrontend
 from ai_edge_litert.interpreter import Interpreter,OpResolverType
 from gobot.secrets_store import _dpapi
-from sample_retention import paths,cleanup
+from sample_retention import paths,cleanup,candidate_path
 from parity import fingerprint
 
-def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desktop_optimized',background_prefix_seconds=0):
+def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desktop_optimized',background_prefix_seconds=0,candidate_sha=None,input_gain=1.):
     if kernel not in ('desktop_optimized','native_reference'):raise ValueError('Unknown kernel baseline')
     if background_prefix_seconds not in (0,30,120):raise ValueError('Unbounded diagnostic prefix')
+    if candidate_sha and not encrypted_model:raise ValueError('Private candidate selection requires encrypted model scope')
+    if input_gain not in (.5,1.,2.):raise ValueError('Unbounded diagnostic input gain')
     p,meta=paths(ident);metadata=json.loads(meta.read_text())
     if time.time()>=metadata['expires_at']:cleanup(ident);raise ValueError('Sample expired')
     assert fingerprint()==(98,1987024791)
     if encrypted_model:
         source,source_meta=paths(model_sample_id or ident)
         if time.time()>=json.loads(source_meta.read_text())['expires_at']:raise ValueError('Personal model expired')
-        model_bytes=_dpapi(source.with_name((model_sample_id or ident)+'-personal-model.dpapi').read_bytes(),decrypt=True)
+        selected=candidate_path(model_sample_id or ident,candidate_sha) if candidate_sha else source.with_name((model_sample_id or ident)+'-personal-model.dpapi')
+        model_bytes=_dpapi(selected.read_bytes(),decrypt=True)
     else:model_bytes=model.read_bytes()
     model_sha=hashlib.sha256(model_bytes).hexdigest()
+    if candidate_sha and model_sha!=candidate_sha:raise ValueError('Private candidate hash mismatch')
     context_frames=75
     if encrypted_model:
         report_path=source.with_name((model_sample_id or ident)+'-candidate-'+model_sha+'.json')
@@ -52,6 +56,8 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desk
             samples=np.frombuffer(wav.readframes(wav.getnframes()),dtype='<i2').copy()
         assert len(samples)<=16000*60
         source_seconds=len(samples)/16000
+        if input_gain!=1.:
+            original=samples;samples=np.clip(original.astype(np.float64)*input_gain,-32768,32767).astype('<i2');original.fill(0)
         if background_prefix_seconds:
             labels=json.loads(p.with_name(ident+'-labels.json').read_text(encoding='utf-8'))
             # Explicitly diagnostic, provisional quiet start; never train or count
@@ -90,8 +96,9 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desk
             else:segments[-1][1]=int(frame)
         domain=metadata.get('capture_domain','post_afe_opus')
         report={'seconds':source_seconds,'replay_seconds':len(samples)/16000,'repeated_background_prefix_seconds':background_prefix_seconds,'local_only':True,'frontend_parity':1987024791,'kernel_baseline':kernel,
-            'signal_metrics_scope':'replay_including_repeated_background' if background_prefix_seconds else 'source_recording',
-            'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
+            'diagnostic_input_gain':input_gain,
+            'signal_metrics_scope':'controlled_gain_and_background_replay' if background_prefix_seconds and input_gain!=1. else 'controlled_gain_replay' if input_gain!=1. else 'replay_including_repeated_background' if background_prefix_seconds else 'source_recording',
+            'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe' and not background_prefix_seconds and input_gain==1.,
             'context_frames':context_frames,'warmup_invocations':warmup,'probability_window':window,
             'event_seconds':[round(i*.03+.05-background_prefix_seconds,2) for i in events if i*.03+.05>=background_prefix_seconds],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
@@ -101,6 +108,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desk
             'human_labels_verified':False,'true_positive_count':None,'false_positive_count':None}
         suffix='-native-reference-evaluation.json' if kernel=='native_reference' else '-evaluation.json'
         if background_prefix_seconds:suffix='-background-'+str(background_prefix_seconds)+suffix
+        if input_gain!=1.:suffix='-gain-'+str(input_gain)+suffix
         (p.parent/(ident+'-'+model_sha[:12]+suffix)).write_text(json.dumps(report,indent=2))
         print(json.dumps(report))
     finally:
@@ -109,4 +117,4 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desk
         if 'q' in locals():q.fill(0)
 
 if __name__=='__main__':
-    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');a.add_argument('--personal-model-sample');a.add_argument('--kernel',choices=['desktop_optimized','native_reference'],default='desktop_optimized');a.add_argument('--background-prefix-seconds',type=int,choices=[0,30,120],default=0);v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model or bool(v.personal_model_sample),v.personal_model_sample,v.kernel,v.background_prefix_seconds)
+    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');a.add_argument('--personal-model-sample');a.add_argument('--candidate-sha');a.add_argument('--kernel',choices=['desktop_optimized','native_reference'],default='desktop_optimized');a.add_argument('--background-prefix-seconds',type=int,choices=[0,30,120],default=0);a.add_argument('--input-gain',type=float,choices=[.5,1.,2.],default=1.);v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model or bool(v.personal_model_sample),v.personal_model_sample,v.kernel,v.background_prefix_seconds,v.candidate_sha,v.input_gain)

@@ -1,5 +1,32 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## New field sample received and analysed — 2026-11-15
+
+Owner separately approved ONE NEW <=30s raw field-failure sample and confirmed
+completion. Two preparation windows ended without capture; only the later window
+received physical START and full30s pre-AFE mono16k PCM. Sequence/chunk/final CRC
+verified, DPAPI encrypted on PLAN, deletion task READY within original23h deadline.
+Consent is now CONSUMED. Collector closed/cancelled; board returned idle/scan1/
+upload0 on unchanged0.4.11. No new paid call, training or firmware deployment.
+
+Local reference-kernel replay compared the installed public model, both rejected
+public word-anchor candidates and prior private candidates. Installed model misses
+one prescribed question; some private candidates detect all3 in replay but retain
+previous false-event failures on other voices and are NOT deployed/accepted.
+A conservative private candidate misses the new examples, exposing generalization
+limits. Local CPU-only Whisper was used for timing HYPOTHESES; no transcript was
+saved or uploaded, raw/features/weights stayed on PLAN. All3 field questions remain
+held out; unknown trailing speech excluded from provisional negative labels.
+
+One-factor diagnostic gain0.5/2 comparisons on old and new recordings did not fix
+the installed model's missed question. No hardware microphone-gain or threshold
+change. Added bounded gain/private-candidate evaluation options with explicit
+provenance, preserving old reports;97 focused free checks passed. Timing and
+private classifier identifiers are NOT published. Existing sample expiry and B/C
+ledgers unchanged. Human wake-to-Brain remains NOT_ACCEPTED. Earlier pending
+recording/armed-window statements below are historical.
+
+
 ## Latest checkpoint — 2026-11-15: hardware computation verified; wake NOT_ACCEPTED
 
 Installed0.4.11-dev-ref-parity-1 remains unchanged. Native/reference outputs match
