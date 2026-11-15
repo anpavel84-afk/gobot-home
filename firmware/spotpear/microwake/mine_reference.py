@@ -8,7 +8,8 @@ import tensorflow as tf
 from train import features,channel
 
 
-def main(corpus,model,output):
+def main(corpus,model,output,kernel='desktop_optimized'):
+    if kernel not in ('desktop_optimized','native_reference'):raise ValueError('Unknown kernel baseline')
     config=json.loads((model/'config.json').read_text());metadata=json.loads((model/'model.json').read_text())
     speakers=tuple(config['training_speakers']);heldout=set(config['validation_speakers']+config['test_speakers'])
     if config['human_training'] is not False or set(speakers)&heldout or len(speakers)!=5:raise ValueError('Invalid public training split')
@@ -25,7 +26,8 @@ def main(corpus,model,output):
             pool.append(path)
     rng=np.random.default_rng(20261119);hard=[]
     for group in range(16):
-        runtime=tf.lite.Interpreter(model_content=blob,num_threads=1,experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+        resolver=tf.lite.experimental.OpResolverType.BUILTIN_REF if kernel=='native_reference' else tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+        runtime=tf.lite.Interpreter(model_content=blob,num_threads=1,experimental_op_resolver_type=resolver)
         runtime.allocate_tensors();inp=runtime.get_input_details()[0];out=runtime.get_output_details()[0];parts=[rng.normal(0,60,40000)]
         for _ in range(42):
             raw=channel(np.fromfile(pool[int(rng.integers(len(pool)))],'<i2').astype(float),rng)
@@ -40,9 +42,9 @@ def main(corpus,model,output):
     if not hard:raise ValueError('No reproducible training hard negatives')
     np.save(output,np.stack(hard))
     report={'synthetic_only':True,'training_speakers':speakers,'excluded_speakers':sorted(heldout),'source_model_sha256':metadata['sha256'],'windows':len(hard),'context_frames':204,
-        'sha256':hashlib.sha256(output.read_bytes()).hexdigest(),'groups':16,'paid_calls':0,'stream_offline_alignment_frames':1}
+        'sha256':hashlib.sha256(output.read_bytes()).hexdigest(),'groups':16,'paid_calls':0,'stream_offline_alignment_frames':1,'kernel_baseline':kernel}
     output.with_suffix('.json').write_text(json.dumps(report,indent=2))
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('model',type=Path);p.add_argument('output',type=Path);a=p.parse_args();main(a.corpus,a.model,a.output)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('model',type=Path);p.add_argument('output',type=Path);p.add_argument('--kernel',choices=['desktop_optimized','native_reference'],default='desktop_optimized');a=p.parse_args();main(a.corpus,a.model,a.output,a.kernel)

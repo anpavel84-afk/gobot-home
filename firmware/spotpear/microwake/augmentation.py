@@ -12,3 +12,13 @@ def fit_positive(sample,limit):
     if len(sample)<=limit:return sample
     # Time-compress a long augmentation, never delete its first phonemes.
     return np.interp(np.linspace(0,len(sample)-1,limit),np.arange(len(sample)),sample)
+
+
+def place_keyword(background,keyword,following,end):
+    """Anchor a positive label to name completion, not a following question end."""
+    if not 0<len(keyword)<=end<=len(background):raise ValueError('Keyword does not fit its declared endpoint')
+    result=np.asarray(background,dtype=np.float64).copy()
+    result[end-len(keyword):end]+=keyword
+    count=min(len(following),len(result)-end)
+    result[end:end+count]+=following[:count]
+    return result

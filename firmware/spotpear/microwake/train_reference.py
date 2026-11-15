@@ -17,7 +17,7 @@ from pymicro_features import MicroFrontend
 from microwakeword.mixednet import model
 from microwakeword.layers.modes import Modes
 from microwakeword.utils import to_streaming_inference
-from augmentation import fit_positive,trim_background
+from augmentation import fit_positive,trim_background,place_keyword
 
 SEED=20261114
 FRAMES=204
@@ -26,21 +26,26 @@ TRAIN=('denis','dmitri','espeak-ru','anna')
 VALIDATION=('aleksandr',)
 TEST=('elena',)
 TAIL_SAMPLES=3200
+WORD_ANCHORED=False
 
-def files(root,speakers,expected_counts=(198,15)):
+def files(root,speakers,expected_counts=(198,15),keyword_only=False):
     groups={0:[],1:[]}
     for speaker in speakers:
         directory=root/speaker
         entries=json.loads((directory/'manifest.json').read_text(encoding='utf-8'))
-        counts={0:0,1:0};seen=set()
+        counts={0:0,1:0};seen=set();kept_positive=0
         for item in entries:
             name=item['file'];label={'negative':0,'positive':1}.get(item.get('label'))
             if Path(name).name!=name or name in seen or item.get('speaker')!=speaker or not item.get('synthetic') or label is None:
                 raise ValueError('Invalid public synthetic manifest')
             path=directory/name
             if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=item['sha256']:raise ValueError('Synthetic PCM hash mismatch')
-            seen.add(name);counts[label]+=1;groups[label].append(np.fromfile(path,'<i2'))
+            seen.add(name);counts[label]+=1
+            if not (keyword_only and label==1 and ',' in item.get('text','')):
+                groups[label].append(np.fromfile(path,'<i2'))
+                if label:kept_positive+=1
         if counts!={0:expected_counts[0],1:expected_counts[1]}:raise ValueError('Incomplete public speaker')
+        if keyword_only and kept_positive!=15:raise ValueError('Unexpected isolated-name inventory')
     return groups
 
 def features(pcm):
@@ -51,7 +56,7 @@ def features(pcm):
         if result.features:rows.append(result.features)
     return np.asarray(rows,np.float32)
 
-def window(clip,rng,positive):
+def window(clip,rng,positive,following=None):
     raw=np.zeros(0) if clip is None else clip.astype(float)
     raw=trim_background(raw,retain_full=positive)
     speed=rng.uniform(.72,1.35)
@@ -68,7 +73,16 @@ def window(clip,rng,positive):
     if clip is not None:floor=min(floor,max(30,signal_rms/1.8))
     noise=rng.normal(0,floor,total);room_noise=lfilter([.15],[1,-.85],rng.normal(0,floor,total))
     background=noise+room_noise
-    gap=total-len(raw);left=int(rng.integers(max(0,gap-TAIL_SAMPLES),gap+1));background[left:left+len(raw)]+=raw
+    if positive and WORD_ANCHORED:
+        raw=fit_positive(raw,total-1920)
+        end=int(rng.integers(max(len(raw),total-TAIL_SAMPLES),total+1))
+        tail=np.zeros(0) if following is None else following.astype(float)
+        if len(tail):
+            tail=trim_background(tail);rms=max(1.,float(np.sqrt(np.mean(tail*tail))))
+            tail=tail*min(4.,max(.1,signal_rms/rms))*float(rng.uniform(.5,1.2))
+        background=place_keyword(background,raw,tail,end)
+    else:
+        gap=total-len(raw);left=int(rng.integers(max(0,gap-TAIL_SAMPLES),gap+1));background[left:left+len(raw)]+=raw
     warm=rng.normal(0,floor,int(rng.integers(50,250))*160)
     return features(np.clip(np.concatenate([warm,background]),-32768,32767))[-FRAMES:]
 
@@ -78,7 +92,8 @@ def prepare(groups,path,count,seed):
     for i,label in enumerate(y):
         candidates=groups[int(label)];clip=candidates[int(rng.integers(len(candidates)))]
         if not label and rng.random()<.15:clip=None
-        x[i]=window(clip,rng,bool(label))
+        following=groups[0][int(rng.integers(len(groups[0])))] if WORD_ANCHORED and label and rng.random()<.75 else None
+        x[i]=window(clip,rng,bool(label),following)
         if (i+1)%2048==0:print(json.dumps({'prepared_windows':i+1,'total':count}),flush=True)
     x.flush();return x,y.astype(np.float32)
 
@@ -88,8 +103,10 @@ def select_checkpoint(history):
     if not trained:raise ValueError('No finite trained checkpoint')
     return min(trained,key=lambda row:row['validation_bce'])
 
-def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None):
-    global TRAIN,TAIL_SAMPLES
+def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False):
+    global TRAIN,TAIL_SAMPLES,WORD_ANCHORED
+    WORD_ANCHORED=word_anchored
+    if word_anchored and (not expanded or cache or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
     if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
@@ -111,6 +128,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         if provenance.get('wake_variants_source'):
             config.update(split_revision=4,wake_variants_source=provenance['wake_variants_source'])
     config['corpus_manifest_sha256']={speaker:hashlib.sha256((corpus/speaker/'manifest.json').read_bytes()).hexdigest() for speaker in (*TRAIN,*VALIDATION,*TEST)}
+    if word_anchored:config.update(split_revision=5,word_end_anchored=True,public_tts_positive_seeds=75,following_speech_probability=.75)
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
         cached_config=json.loads((cache/'config.json').read_text())
@@ -139,7 +157,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         config['background_only_negative_fraction']=.15*extra_count/count
         (out/'config.json').write_text(json.dumps(config,indent=2))
         del original,extra
-    else:x,y=prepare(files(corpus,TRAIN,(498,75) if expanded else (198,15)),out/'train-features.npy',count,SEED)
+    else:x,y=prepare(files(corpus,TRAIN,(498,75) if expanded else (198,15),keyword_only=word_anchored),out/'train-features.npy',count,SEED)
     if hard_replay:
         manifest=json.loads(hard_replay.with_suffix('.json').read_text())
         if not expanded or manifest.get('synthetic_only') is not True or manifest['training_speakers']!=list(TRAIN) or set(manifest['excluded_speakers'])!=set(VALIDATION+TEST) or hashlib.sha256(hard_replay.read_bytes()).hexdigest()!=manifest['sha256']:raise ValueError('Hard-replay provenance mismatch')
@@ -148,7 +166,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         x=np.concatenate([x,extra]);y=np.pad(y,(0,len(extra)));config['extra_hard_negative_windows']=len(extra);config['hard_replay_sha256']=manifest['sha256'];config['negative_weight']=4.
         (out/'config.json').write_text(json.dumps(config,indent=2))
     np.save(out/'train-labels.npy',y)
-    val,labels=prepare(files(corpus,VALIDATION,(498,75) if expanded else (198,15)),out/'validation-features.npy',1024,SEED+1)
+    val,labels=prepare(files(corpus,VALIDATION,(498,75) if expanded else (198,15),keyword_only=word_anchored),out/'validation-features.npy',1024,SEED+1)
     flags=SimpleNamespace(pointwise_filters='64,64,64,64',repeat_in_block='1,1,1,1',mixconv_kernel_sizes='[5],[7,11],[9,15],[23]',
         residual_connection='0,0,0,0',first_conv_filters=32,first_conv_kernel_size=5,stride=3,max_pool=False,pooled=False,spatial_attention=False)
     net=model(flags,(FRAMES,40),BATCH)
@@ -198,4 +216,4 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     (out/'model.json').write_text(json.dumps(details,indent=2));print(json.dumps(details),flush=True)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);p.add_argument('--word-anchored',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay,a.word_anchored)

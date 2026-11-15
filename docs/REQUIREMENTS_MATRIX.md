@@ -1,6 +1,21 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
-## Current hardware — 0.4.9 Owner trial unarmed
+## Latest hardware checkpoint — 0.4.11, wake NOT_ACCEPTED
+
+| Requirement | Verified evidence | Gap |
+|---|---|---|
+| Physical install/recovery |0.4.11 app write/readback/boot; NVS/boot/inactive/assets preserved | Rollback prepared, not exercised here |
+| Native model execution |1625/1625 reference outputs exactly match; local scanning,0 standby upload | Does not certify microphone acoustics |
+| Natural Russian wake | Owner live no-touch test failed; stored question replay succeeds | Needs representative field-failure diagnosis |
+| Training/false wakes | Two bounded word-end/hard-negative runs evaluated and rejected | Neither meets recall/false-event criteria; not flashed |
+| Voice allowance/UI |3 B starts spent; C ledger intact; neutral firmware denial text | New paid admission absent; short server refusal codes not deployed |
+| Privacy/data | No new recording; old expiry retained; proposed <=30s field protocol guarded | New explicit consent/readiness pending |
+| Verification |94 focused free tests; pinned build and physical native parity | Human wake/Brain acceptance not passed |
+
+Earlier0.4.9 rows below are historical and superseded by this checkpoint.
+
+
+## Historical0.4.9 checkpoint — Owner trial initially unarmed
 
 | Requirement | Actual evidence | Remaining gap |
 |---|---|---|

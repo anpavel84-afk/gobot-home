@@ -1,0 +1,73 @@
+{
+  "synthetic_only": true,
+  "acoustic_acceptance": false,
+  "model_sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+  "sources": [
+    {
+      "file": "positive-0-85.pcm",
+      "sha256": "8e159fa49aca3be2fdcdcba08754a1bb6b6efba51d38ceee9080cc4e63f7ffd8",
+      "label": "positive"
+    },
+    {
+      "file": "positive-4-85.pcm",
+      "sha256": "10fcc1bb7e688d9db38b43d27ea552a1b36c84d1e48356589e97ca1a8063f7e0",
+      "label": "positive"
+    },
+    {
+      "file": "positive-8-85.pcm",
+      "sha256": "403c8090871d15b592a197546945c42adb02617e66abba514056fd9b1130eb66",
+      "label": "positive"
+    },
+    {
+      "file": "positive-12-85.pcm",
+      "sha256": "98263f04ed018c861b60265add8ec2e016cf67fb4e4cec6dbd456c4f39bf185a",
+      "label": "positive"
+    },
+    {
+      "file": "positive-16-85.pcm",
+      "sha256": "8d3bbf7272fc89e410fa6e0e883b9c8eb7a25ed22b6ef5bde8ed5856f4c01f04",
+      "label": "positive"
+    },
+    {
+      "file": "positive-20-85.pcm",
+      "sha256": "7f9a313426cb861e95dfd2c044c1f3a582098f82ada3bfb0009ed1a5568f1bd7",
+      "label": "positive"
+    },
+    {
+      "file": "negative-0-85.pcm",
+      "sha256": "a4c78e107a22ae94ac9b570ae395261e40415fb02672f0128850c00635e7052e",
+      "label": "negative"
+    },
+    {
+      "file": "negative-27-115.pcm",
+      "sha256": "4513267b45fc9d4d29daf7dc59d90fbed1344d7078da27b80e74474b57e71698",
+      "label": "negative"
+    },
+    {
+      "file": "negative-55-100.pcm",
+      "sha256": "8302778619a6ad41156078a0f2efd67d71b00a1c5f99bd741052111259aa3dac",
+      "label": "negative"
+    },
+    {
+      "file": "negative-83-85.pcm",
+      "sha256": "27653b9695eb5df2677a67611be66448dbe6cc405b169f81124e88593a36b6e6",
+      "label": "negative"
+    },
+    {
+      "file": "negative-110-115.pcm",
+      "sha256": "9f044387560d0d317483d3e8efe4de0231d3c88e4ccb791a6340bb24a3b3b14d",
+      "label": "negative"
+    },
+    {
+      "file": "negative-138-100.pcm",
+      "sha256": "4175deeed846a9bb8fa590a7406beb54238f69dcf1804171e9cb37b6d6fcc88e",
+      "label": "negative"
+    }
+  ],
+  "frames": 4875,
+  "invocations": 1625,
+  "maximum_expected": 255,
+  "header_sha256": "150fe6270e5a723b8960a257fe0ed0f079da1aa99659ad307b342e7671cb2e91",
+  "provider_calls": 0,
+  "kernel_baseline": "desktop_optimized"
+}

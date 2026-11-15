@@ -23,7 +23,9 @@ def attach_board_realtime(app,manager,auth):
         active={s.call_id for s in manager.sessions.values() if not s.closed}
         unresolved=[call for call in await asyncio.to_thread(manager.budget.pending_calls) if call not in active]
         state['pending_hangups']=len(unresolved)
-        state['admission_reason']='board_previous_hangup_unconfirmed' if unresolved else None if state['enabled'] and state['sessions_remaining'] else 'board_budget_disabled_or_exhausted'
+        state['admission_reason']=('board_previous_hangup_unconfirmed' if unresolved else
+            'board_budget_inactive' if not state['enabled'] else
+            'board_session_limit' if not state['sessions_remaining'] else None)
         state['enabled']=state['enabled'] and state['sessions_remaining']>0 and not unresolved
         coordinator=getattr(manager,'legacy_handoff',None)
         state['legacy_a_handoff']={'implemented':bool(coordinator),'financially_authorized':bool(coordinator and

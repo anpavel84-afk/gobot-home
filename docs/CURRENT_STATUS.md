@@ -1,5 +1,92 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Latest checkpoint — 2026-11-15: hardware computation verified; wake NOT_ACCEPTED
+
+Installed0.4.11-dev-ref-parity-1 remains unchanged. Native/reference outputs match
+1625/1625 EXACTLY; detector scans locally, no standby upload, production/Owner
+wake routing OFF. Touch/UI/audio code retained; no new physical UI/touch acceptance
+claimed. Neutral conversation-denial message installed; short B refusal codes
+are source-only, Brain runtime9c317bc unchanged. All3 B starts spent,0 active/
+pending hangups; no new developer paid call or quota reset. C reserve preserved.
+
+Two finite public CPU training runs completed and were REJECTED (not flashed):
+word-end anchored model05f85f1f:73/75 and64/75 held-out positives,68/78 negative
+events on498 negatives per voice; one corrective run with967 TRAIN-only hard
+windows produced02ecb34a:26/75 and42/75,1/5 negative events. Fixed cutoff231,
+window10,host BUILTIN_REF. These are synthetic mixed streams, not household rates.
+See word-anchor-results.json. No threshold sweep, automatic search, training or
+capture left running. No raw/derived personal data left PLAN.94 focused free
+checks passed; no additional model installed merely to show progress.
+
+Exhaustive quantization probe: native integer conversion and host float32/64
+conversion agree for all65536 frontend uint16 values. Desktop-vs-reference kernel
+differences do NOT explain the stored-recording result: all3 question episodes
+remain detected using reference kernels, including after120s repeated background.
+This narrows the investigation but does not prove live microphone equivalence.
+
+Owner was asked for ONE NEW <=30s explicit raw USB field-failure sample, DPAPI/
+PLAN-only, deletion within24h, no cloud/API. Consent and readiness are PENDING;
+no collector/arm/task/sample created. Earlier recording consents remain consumed,
+original expiry deadlines unchanged. Collector protocol field_failed_wake_recheck
+is prepared with30s cap and pre-arm consent checks. New data is requested because
+stored replay succeeds where the current live no-touch trial fails; no guaranteed
+acoustic fix is claimed. Paid trial remains disabled by exhausted allowance.
+
+
+## Installed0.4.11 — native reference parity EXACT, wake still unaccepted
+
+Spotpear now physically runs0.4.11-dev-ref-parity-1, app2695a0b436e9db3e04e8f67fa1b2718a34232e4c4531f965c2e5dc137df7cbe5,
+3036288 bytes. Guarded app-only install/readback and actual boot verified;
+NVS/boot/inactive slot/assets preserved, RF recalibrationFalse. Public4ffc model
+and ESP-NN kernels are UNCHANGED. No personal weights/audio or provider admission.
+
+Native fixture result:1625/1625 outputs EXACTLY equal host BUILTIN_REF,
+max_delta0,different0,verified1. State1,local scan running,0 drops/errors/upload.
+Preceding0.4.10 compared with desktop optimized kernels:delta17/different59;
+HOST reference-vs-optimized produces the SAME difference. This was NOT proof of
+an ESP32 runtime defect. An ESP-NN-disabled experiment was stopped before build
+completion and never flashed; no SDK/esp-sr/vendor-source change. Production
+route and Owner trial remain OFF. Human wake acceptance remains FAILED.
+
+PLAN-only replay with native-reference kernels still detects3 stored question
+episodes; adding120s of REPEATED initial background leaves those events unchanged.
+That synthetic conditioning probe is not120s household observation, new recording
+or human acceptance. Original sample/model deletion deadline unchanged.
+
+Source correction underway: word-end anchored training uses isolated-name seeds
+and immediate following negative speech, rather than labelling the end of a whole
+question prefix. One public-only bounded CPU job:8192 windows/1000 steps,2 cores,
+4GiB/1800s maximum; no automatic search/retries/providers. Results PENDING.
+30 focused free checks passed after anchoring/native-scope changes. All3 B starts
+remain spent, no new paid call/ledger reset. Brain runtime remains9c317bc; distinct
+inactive/exhausted B reason fix exists in SOURCE only, not deployed. Firmware now
+accepts64-character reasons and uses neutral conversation denial text.
+
+
+## Local recheck and native parity candidate — 2026-11-15
+
+Owner confirmed zero visible wake responses in the free no-touch recheck.50s
+numeric-only USB trace: detector continuously processed audio, no errors/drops,
+hits stayed4; no capture/upload/provider session. Acoustic acceptance FAILED.
+All3 manual B starts are now spent; third ended user_stop after9993.32ms, no
+response.0 pending hangups/active; response estimate remains$0.02600972 excluding
+transcription. No grant/ledger reset or new paid calls.
+
+Prepared0.4.10-dev-native-parity-1, not yet installed at this source checkpoint.
+It compares1625 fixed PUBLIC synthetic INT8 inputs with host outputs, reports
+max delta/different outputs, rejects parity error>3 and resets state afterwards.
+Bounded diagnostic yields to watchdog; no personal data, production wake or
+Owner trial compiled. Existing touch/audio/Brain retained. It does NOT establish
+microphone accuracy. App e191f3ed5d4724c853f35b55897839ee47c22ba74f4016fc1e11c8528a367c59,
+3036304 bytes, pinned IDF build and image integrity verified.32 focused free
+checks passed. Guarded app-only install/rollback actions prepared.
+
+Also corrected source-level refusal diagnostics: B inactive and exhausted reasons
+are distinct, firmware accepts64-character reasons and no longer labels all
+refusals Live. Brain fix is NOT deployed; runtime still9c317bc. Firmware parity
+candidate has the neutral denial text. Physical native parity result PENDING.
+
+
 ## Owner acoustic result — 2026-11-15: wake acceptance FAILED
 
 Owner explicitly reports: wake without touching does not work. Do NOT count the

@@ -1,6 +1,28 @@
 # Локальное «ГоБот» на Spotpear
 
-### Current physical checkpoint: 0.4.9, unarmed Owner trial
+### Current physical checkpoint:0.4.11 — NOT_ACCEPTED wake
+
+`native-reference-build.json` identifies the installed/readback/boot-verified app.
+The PUBLIC4ffc model and optimized kernels are unchanged.1625 public synthetic
+INT8 outputs match host BUILTIN_REF EXACTLY (max_delta0).0.4.10's17-level mismatch
+was also present between host optimized/reference backends; do not report an
+ESP32 kernel defect. Original first fixture can be reproduced with explicit
+`native_fixture.py --kernel desktop_optimized`; new goldens use native_reference.
+`prepare_reference_fixture.py` preserves kernels and replaces only the golden
+fixture/version. App-only guarded rollback chain is reference-fixture-rollback
+->0.4.10, then native-parity-rollback ->0.4.9; prepared, not exercised.
+
+Local scan runs; production and Owner wake admission remain OFF. Human no-touch
+wake FAILED.94 free checks passed. Two public word-end-anchored CPU candidates
+and their held-out failures are in `word-anchor-results.json`; neither was flashed.
+All3 B starts are spent; no new paid call, raw recording or quota reset. One new
+<=30s PLAN-only encrypted field sample has been requested, NOT approved/armed.
+Existing deletion deadlines stand. These runtime proofs are not acoustic readiness.
+
+Historical build, consent and installation checkpoints follow.
+
+
+### Historical0.4.9 checkpoint, before Owner trial
 
 `owner-wake-build.json` records the PUBLIC0.4.9 app actually USB-installed and
 readback/boot verified. Full native INT8 model/front-end works (parity1987024791,

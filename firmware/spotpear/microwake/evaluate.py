@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 from train import features, STRIDE, SEED
 
-def traces(model, corpus, seed):
+def traces(model, corpus, seed,kernel='desktop_optimized'):
     rng = np.random.default_rng(seed)
     all_files = list(sorted(corpus.glob("*.pcm")))
     rng.shuffle(all_files)
@@ -22,12 +22,13 @@ def traces(model, corpus, seed):
         spans.append((n, n+len(padded),path.name))
         n += len(padded)
     # Same frontend and interpreter continuously through clip boundaries.
-    return trace_audio(model,np.concatenate(chunks)), spans
+    return trace_audio(model,np.concatenate(chunks),kernel=kernel), spans
 
-def trace_audio(model,audio):
+def trace_audio(model,audio,kernel='desktop_optimized'):
+    if kernel not in ('desktop_optimized','native_reference'):raise ValueError('Unknown inference baseline')
     source={'model_content':model} if isinstance(model,bytes) else {'model_path':str(model)}
-    interpreter = tf.lite.Interpreter(**source, num_threads=1,
-        experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+    resolver=tf.lite.experimental.OpResolverType.BUILTIN_REF if kernel=='native_reference' else tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+    interpreter = tf.lite.Interpreter(**source, num_threads=1,experimental_op_resolver_type=resolver)
     interpreter.allocate_tensors()
     inp, out = interpreter.get_input_details()[0], interpreter.get_output_details()[0]
     if tuple(inp['shape'])!=(1,3,40) or inp['dtype']!=np.int8 or out['dtype']!=np.uint8:raise ValueError('Unsupported native KWS contract')
