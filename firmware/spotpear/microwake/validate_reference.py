@@ -23,7 +23,7 @@ def main(corpus,output):
     result={'sha256':metadata['sha256'],'window':10,'cutoff':231,'warmup':68,'validation':{},'test':{},
         'human_trials':0,'installed':False,'product_accepted':False,'paid_calls':0}
     for category,speakers in [('validation',sorted(validation)),('test',sorted(test))]:
-        files(corpus,tuple(speakers)) # Full manifest and hash verification before inference.
+        files(corpus,tuple(speakers),(498,75) if config.get('expanded_utterance_corpus') else (198,15))
         for speaker in speakers:
             metric=score(traces(output/'gobot.tflite',corpus/speaker,20261114),231,window=10,warmup=68)
             result[category][speaker]=metric

@@ -1,6 +1,7 @@
 import hashlib,importlib.util,json
 from pathlib import Path
 import pytest
+import shutil
 FILE=Path(__file__).resolve().parents[1]/'firmware/spotpear/microwake/original_replay.py'
 spec=importlib.util.spec_from_file_location('original_wake_replay',FILE);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 
@@ -23,6 +24,16 @@ def test_only_original_speakers_and_all_hashes(corpus):
 def test_tampered_pcm_rejected(corpus):
     (corpus/'denis/negative-0.pcm').write_bytes(b'changed')
     with pytest.raises(ValueError,match='hash'):m.corpus(corpus)
+
+def test_reference_split_excludes_aleksandr_and_elena(corpus):
+    shutil.copytree(corpus/'denis',corpus/'dmitri')
+    path=corpus/'dmitri/manifest.json';entries=json.loads(path.read_text(encoding='utf-8'))
+    for item in entries:item['speaker']='dmitri'
+    path.write_text(json.dumps(entries))
+    positive,negative=m.corpus(corpus,('denis','dmitri','espeak-ru','anna'))
+    assert len(positive)==60 and len(negative)==792
+    assert not any(path.parent.name in ('aleksandr','elena') for path in positive+negative)
+    with pytest.raises(ValueError,match='Unreviewed'):m.corpus(corpus,('denis','elena'))
 
 @pytest.mark.parametrize('mutation',['speaker','missing'])
 def test_manifest_leak_or_incomplete_original_rejected(corpus,mutation):

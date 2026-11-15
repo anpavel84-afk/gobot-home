@@ -1,5 +1,16 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## 2026-11-14 full-reference correction (current checkpoint)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Export integrity | Untrained-checkpoint export rejected; temporal float alignment verified across1521 outputs | INT8/hardware acoustic validation still required |
+| Same-phrase learning | Full-name retention, following-speech augmentation, declared-negative speech mining | Personal all3 question episodes detected but false-speaker regressions fail |
+| Split integrity | Holdout audio masked before adaptive frontend; long contexts exclude adjacent heldouts | Reused timing hypotheses are not fresh human acceptance |
+| Data diversity | Expanded offline5-voice name-plus-question corpus generating; validation/test separate | Training and acoustic acceptance pending |
+| Native runtime | Public0.4.8 template compiled and ESP image verified | Not installed; transient USB error31 recovered, learned-model/native validation pending |
+| Safety | Installed0.4.6/touch/Brain retained;0 paid calls; ledgers/expiry unchanged | Wake-to-Brain stays OFF until qualified/admitted |
+
 ## 2026-11-14 corrective wake source (not release acceptance)
 
 | Requirement | Evidence | Remaining gap |

@@ -4,18 +4,19 @@ from pathlib import Path
 SPEAKERS=('denis','espeak-ru','anna','aleksandr')
 HARD_PHRASES={'робот','бот','готов','готово','гобой','говорит','голос','погода','погоди','какой бот','домашний робот','этот робот','вот бот'}
 
-def hard_negatives(root):
+def hard_negatives(root,speakers=SPEAKERS):
     result=[]
-    for speaker in SPEAKERS:
+    for speaker in speakers:
         folder=Path(root)/speaker
         for item in json.loads((folder/'manifest.json').read_text(encoding='utf-8')):
             if item.get('label')=='negative' and item.get('text','').strip().lower() in HARD_PHRASES:result.append(folder/item['file'])
     if not result:raise ValueError('Missing original hard-negative phrases')
     return result
 
-def corpus(root):
+def corpus(root,speakers=SPEAKERS):
+    if tuple(speakers) not in (SPEAKERS,('denis','dmitri','espeak-ru','anna')):raise ValueError('Unreviewed replay split')
     root=Path(root).resolve();positive=[];negative=[]
-    for speaker in SPEAKERS:
+    for speaker in speakers:
         directory=root/speaker
         if directory.is_symlink():raise ValueError('Replay speaker must be local')
         manifest=json.loads((directory/'manifest.json').read_text(encoding='utf-8'))

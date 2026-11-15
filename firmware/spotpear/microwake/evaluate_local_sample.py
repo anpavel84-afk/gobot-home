@@ -30,8 +30,10 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
             context_frames=int(model_metadata.get('context_frames',75))
     warmup=max(25,(context_frames+2)//3)
     evidence_path=model.parent/'stream-report.json'
-    evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() and not encrypted_model else {}
-    if evidence and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
+    evidence={}
+    if encrypted_model and report_path.exists():evidence=dict(model_metadata)
+    elif evidence_path.exists():evidence=json.loads(evidence_path.read_text())
+    if evidence and not encrypted_model and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
     if not encrypted_model and (model.parent/'model.json').exists():
         model_metadata=json.loads((model.parent/'model.json').read_text())
         if model_metadata.get('sha256')!=model_sha:raise ValueError('Public model metadata mismatch')

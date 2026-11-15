@@ -55,7 +55,7 @@ def verify_nvs_config(before,after):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -154,7 +154,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback"):
+        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback"):
             report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
             previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
             new=PRIVATE/"touch/gobot-voice-status.bin"
@@ -166,6 +166,16 @@ def main():
                 new=PRIVATE/"touch/gobot-fast-start.bin"
                 previous=PRIVATE/"touch/gobot-voice-status.bin"
                 require(report['version']=='0.4.5-dev-fast-start-1' and report['sha256']=='c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764','Unexpected fast-start candidate')
+            elif opts.action.startswith('reference-local'):
+                reference=json.loads((ROOT/'firmware/spotpear/microwake/reference-local-build.json').read_text())
+                require(reference['version']=='0.4.8-dev-reference-local-1' and reference['wake_route'] is False and
+                    reference['contains_personal_weights'] is False and reference['public_synthetic_only'] is True and
+                    reference['known_acoustic_failure'] is True and
+                    reference['model_sha256']=='4413c921d818a328f8197d5baa5a8cd1656bdf688be40724c7e7b613f5735562',
+                    'Only the exact public local-performance diagnostic is admitted')
+                report={'bytes':reference['app_bytes'],'sha256':reference['app_sha256']}
+                previous_report={'app_bytes':2722208,'app_sha256':'bcd36192abc7583f770f641400a28235740d6656403dce6ef8a0f85a0240c41b'}
+                new=PRIVATE/'touch/gobot-reference-local.bin';previous=PRIVATE/'touch/gobot-raw-wake.bin'
             elif opts.action.startswith('raw-wake'):
                 previous_report=json.loads((ROOT/"firmware/spotpear/voice_status/FAST_START_MANIFEST.json").read_text())
                 previous_report={'app_bytes':previous_report['bytes'],'app_sha256':previous_report['sha256']}

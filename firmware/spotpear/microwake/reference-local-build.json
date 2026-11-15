@@ -1,0 +1,17 @@
+{
+  "version": "0.4.8-dev-reference-local-1",
+  "app_sha256": "4d0183b326fab5f3debc5d99c31cdc496a2f1ea5e6310c5fccb6792c1dd0a1db",
+  "app_bytes": 2838576,
+  "model_sha256": "4413c921d818a328f8197d5baa5a8cd1656bdf688be40724c7e7b613f5735562",
+  "public_synthetic_only": true,
+  "contains_personal_weights": false,
+  "known_acoustic_failure": true,
+  "purpose": "native memory and latency diagnostic only",
+  "wake_route": false,
+  "flashed": false,
+  "paid_calls": 0,
+  "template_sha256": "7e7de64de9cc154e515f2dbcbde5add046273e095959c428285deb5638fe0aa5",
+  "previous_app_sha256": "bcd36192abc7583f770f641400a28235740d6656403dce6ef8a0f85a0240c41b",
+  "variable_arena_bytes": 16384,
+  "model_patch": "fixed-size public model slot; ELF hash identifies the base compiled template"
+}

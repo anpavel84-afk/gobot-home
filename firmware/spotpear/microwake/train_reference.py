@@ -25,8 +25,9 @@ BATCH=128
 TRAIN=('denis','dmitri','espeak-ru','anna')
 VALIDATION=('aleksandr',)
 TEST=('elena',)
+TAIL_SAMPLES=3200
 
-def files(root,speakers):
+def files(root,speakers,expected_counts=(198,15)):
     groups={0:[],1:[]}
     for speaker in speakers:
         directory=root/speaker
@@ -39,7 +40,7 @@ def files(root,speakers):
             path=directory/name
             if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest()!=item['sha256']:raise ValueError('Synthetic PCM hash mismatch')
             seen.add(name);counts[label]+=1;groups[label].append(np.fromfile(path,'<i2'))
-        if counts!={0:198,1:15}:raise ValueError('Incomplete public speaker')
+        if counts!={0:expected_counts[0],1:expected_counts[1]}:raise ValueError('Incomplete public speaker')
     return groups
 
 def features(pcm):
@@ -51,10 +52,11 @@ def features(pcm):
     return np.asarray(rows,np.float32)
 
 def window(clip,rng,positive):
-    raw=clip.astype(float)
-    visible=np.flatnonzero(abs(raw)>max(20,np.max(abs(raw))*.025))
+    raw=np.zeros(0) if clip is None else clip.astype(float)
+    visible=np.flatnonzero(abs(raw)>max(20,np.max(abs(raw),initial=0)*.025))
     if len(visible):raw=raw[max(0,visible[0]-160):visible[-1]+321]
-    speed=rng.uniform(.72,1.35);raw=np.interp(np.arange(0,len(raw),speed),np.arange(len(raw)),raw)
+    speed=rng.uniform(.72,1.35)
+    if len(raw):raw=np.interp(np.arange(0,len(raw),speed),np.arange(len(raw)),raw)
     delay=int(rng.integers(160,2880));raw=np.pad(raw,(0,delay))+rng.uniform(0,.4)*np.pad(raw,(delay,0))
     filt=rng.uniform(0,.6);raw=lfilter([1-filt],[1,-filt],raw)*rng.uniform(.2,4.)
     total=(FRAMES+2)*160
@@ -63,10 +65,11 @@ def window(clip,rng,positive):
         else:
             start=int(rng.integers(0,len(raw)-total+1));raw=raw[start:start+total]
     signal_rms=float(np.sqrt(np.mean(raw*raw)))
-    floor=min(float(rng.uniform(0,1200)),max(30,signal_rms/1.8))
+    floor=float(rng.uniform(0,1200))
+    if clip is not None:floor=min(floor,max(30,signal_rms/1.8))
     noise=rng.normal(0,floor,total);room_noise=lfilter([.15],[1,-.85],rng.normal(0,floor,total))
     background=noise+room_noise
-    gap=total-len(raw);left=int(rng.integers(max(0,gap-3200),gap+1));background[left:left+len(raw)]+=raw
+    gap=total-len(raw);left=int(rng.integers(max(0,gap-TAIL_SAMPLES),gap+1));background[left:left+len(raw)]+=raw
     warm=rng.normal(0,floor,int(rng.integers(50,250))*160)
     return features(np.clip(np.concatenate([warm,background]),-32768,32767))[-FRAMES:]
 
@@ -74,7 +77,9 @@ def prepare(groups,path,count,seed):
     rng=np.random.default_rng(seed);x=np.lib.format.open_memmap(path,mode='w+',dtype=np.float16,shape=(count,FRAMES,40))
     y=np.arange(count,dtype=np.int32)%2;rng.shuffle(y)
     for i,label in enumerate(y):
-        candidates=groups[int(label)];x[i]=window(candidates[int(rng.integers(len(candidates)))],rng,bool(label))
+        candidates=groups[int(label)];clip=candidates[int(rng.integers(len(candidates)))]
+        if not label and rng.random()<.15:clip=None
+        x[i]=window(clip,rng,bool(label))
         if (i+1)%2048==0:print(json.dumps({'prepared_windows':i+1,'total':count}),flush=True)
     x.flush();return x,y.astype(np.float32)
 
@@ -84,7 +89,11 @@ def select_checkpoint(history):
     if not trained:raise ValueError('No finite trained checkpoint')
     return min(trained,key=lambda row:row['validation_bce'])
 
-def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
+def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False):
+    global TRAIN,TAIL_SAMPLES
+    if expanded:
+        TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
+        if reuse_public or cache:raise ValueError('Expanded profile requires fresh windows')
     if steps not in (1000,10000) or count not in (8192,50000):raise ValueError('Unsupported bounded reference profile')
     if set(TRAIN)&set(VALIDATION+TEST) or set(VALIDATION)&set(TEST):raise ValueError('Speaker leakage')
     out.mkdir(parents=True,exist_ok=True);tf.keras.utils.set_random_seed(SEED);tf.config.experimental.enable_op_determinism()
@@ -92,7 +101,14 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
         'human_training':False,'seed':SEED,'steps':steps,'augmented_windows':count,'context_frames':FRAMES,'batch_size':BATCH,'cpu_threads':2,
         'positive_front_crop':False,'public_tts_positive_seeds':60,'public_tts_negative_seeds':792,'reference_cutoff':231,'window':10,'split_revision':2,
         'reference_source':'interkelstar/microwakeword-trainer@8fdbadc3b969a8c1993108c0d655910440dfb762',
-        'pooled':False,'checkpoint_selection':'finite trained validation BCE only'}
+        'pooled':False,'checkpoint_selection':'finite trained validation BCE only',
+        'background_only_negative_fraction':.15,'tail_samples':TAIL_SAMPLES}
+    if expanded:
+        provenance=json.loads((corpus/'provenance.json').read_text())
+        if provenance['speakers']!=list(TRAIN) or provenance['synthetic_only'] is not True:raise ValueError('Expanded provenance mismatch')
+        config.update(split_revision=3,public_tts_positive_seeds=375,public_tts_negative_seeds=2490,expanded_utterance_corpus=True,
+            positive_weight=1.,negative_weight=2.)
+    config['corpus_manifest_sha256']={speaker:hashlib.sha256((corpus/speaker/'manifest.json').read_bytes()).hexdigest() for speaker in (*TRAIN,*VALIDATION,*TEST)}
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
         cached_config=json.loads((cache/'config.json').read_text())
@@ -101,6 +117,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
         x=np.load(cache/'train-features.npy',mmap_mode='r');y=np.load(cache/'train-labels.npy')
         if x.shape!=(count,FRAMES,40) or x.dtype!=np.float16 or y.shape!=(count,) or set(np.unique(y))!={0.,1.}:raise ValueError('Public cache shape/labels mismatch')
         config['public_cache_source']=cache.name
+        config['background_only_negative_fraction']=cached_config.get('background_only_negative_fraction',0)
         with (cache/'train-features.npy').open('rb') as cached:config['public_cache_sha256']=hashlib.file_digest(cached,'sha256').hexdigest()
         (out/'config.json').write_text(json.dumps(config,indent=2))
     elif reuse_public:
@@ -117,11 +134,12 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
         x[keep:]=extra;x.flush();y=np.concatenate([old_labels[:keep].astype(np.float32),extra_y])
         with (reuse_public/'train-features.npy').open('rb') as cached:cache_sha=hashlib.file_digest(cached,'sha256').hexdigest()
         config['reused_public_windows']=keep;config['added_voice_windows']=extra_count;config['reused_public_features_sha256']=cache_sha
+        config['background_only_negative_fraction']=.15*extra_count/count
         (out/'config.json').write_text(json.dumps(config,indent=2))
         del original,extra
-    else:x,y=prepare(files(corpus,TRAIN),out/'train-features.npy',count,SEED)
+    else:x,y=prepare(files(corpus,TRAIN,(498,75) if expanded else (198,15)),out/'train-features.npy',count,SEED)
     np.save(out/'train-labels.npy',y)
-    val,labels=prepare(files(corpus,VALIDATION),out/'validation-features.npy',1024,SEED+1)
+    val,labels=prepare(files(corpus,VALIDATION,(498,75) if expanded else (198,15)),out/'validation-features.npy',1024,SEED+1)
     flags=SimpleNamespace(pointwise_filters='64,64,64,64',repeat_in_block='1,1,1,1',mixconv_kernel_sizes='[5],[7,11],[9,15],[23]',
         residual_connection='0,0,0,0',first_conv_filters=32,first_conv_kernel_size=5,stride=3,max_pool=False,pooled=False,spatial_attention=False)
     net=model(flags,(FRAMES,40),BATCH);net.compile(optimizer=tf.keras.optimizers.Adam(.001),loss='binary_crossentropy')
@@ -135,7 +153,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
             for _ in range(2):
                 width=int(rng.integers(0,6));at=int(rng.integers(0,FRAMES-max(1,width)+1));sample[at:at+width]=0
                 width=int(rng.integers(0,6));at=int(rng.integers(0,40-max(1,width)+1));sample[:,at:at+width]=0
-        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,1.5,1.).astype(np.float32))
+        loss=net.train_on_batch(batch,y[ids],sample_weight=np.where(y[ids]>.5,1. if expanded else 1.5,2. if expanded else 1.).astype(np.float32))
         if (step+1)%100==0:print(json.dumps({'step':step+1,'steps':steps,'loss':float(loss),'elapsed_s':round(time.monotonic()-started,1)}),flush=True)
         if (step+1)%1000==0 or step+1==steps:
             metric=validation_bce()
@@ -164,4 +182,4 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None):
     (out/'model.json').write_text(json.dumps(details,indent=2));print(json.dumps(details),flush=True)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded)

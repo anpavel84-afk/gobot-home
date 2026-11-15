@@ -1,33 +1,50 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## Full reference correction — 2026-11-14, in progress
+## Wake correction / expanded utterances — 2026-11-14
 
-Installed0.4.6 and Brain8661454 are unchanged. The bounded hard-negative compact
-profile completed and failed validation; it is no longer training. No new audio
-capture, paid call, quota renewal or wake routing has occurred.
+Voice-first product remains NOT_ACCEPTED. Installed0.4.6, working touch and
+Brain8661454 are unchanged; no new recording, paid call, quota renewal or wake
+admission. Original DPAPI sample/model expiry remains unchanged.
 
-Public-only full MixedNet training now uses64x4 blocks,204 feature frames and
-50,000 augmented windows from60 positive/792 negative synthetic seeds, NOT50,000
-independently synthesized utterances. Train Denis/Dmitri/espeak-ru/Anna, validation
-Aleksandr, test Elena; Dmitri is NOT held out for this new split. Human audio and
-personal weights never leave PLAN. The initial pooled run failed validation and
-revealed a checkpoint bug: an untrained initialization could win against all
-trained checkpoints. Its export is rejected. Selection now requires a finite
-trained checkpoint, retains last weights, and reports the actual selected step.
-Two regression tests cover initialization/NaN rejection. A single bounded CPU
-run with the upstream temporal head (pooled=false) is currently in progress;
-no acceptance is inferred from training loss or file creation.
+Completed full64x4 MixedNet/204-frame public run: trained checkpoint1000 selected
+from10,000 steps. Strict fixed-policy streaming regression: Aleksandr9/15 positives
+and1 event on198 negative clips; Elena13/15 and7 events on198 negatives. FAILED;
+see `firmware/spotpear/microwake/reference-result.json`. The earlier pooled run
+incorrectly selected untrained initialization; export selection is now fixed and
+covered by tests. Float offline/streaming parity across1521 frames matches at
+one-frame alignment offset (max error1.14e-6); no unexplained transport conversion
+failure was found. This does not certify INT8 accuracy or physical performance.
 
-Prepared0.4.8 reference runtime supports10-score smoothing,68-invocation warmup,
-SplitV and bounded larger PSRAM arena/variable storage. It reports local-scan
-readiness accurately and shows a wake prompt only when genuinely qualified and
-warmed. The prepared image contains only a PUBLIC placeholder and is not flashed.
-One-second prefix and12-second bounded startup buffer remain; overflow cancels.
-52 focused free Python tests passed; native probability-window test passed.
+PLAN-only personal calibration can detect all3 recorded question episodes, but
+its mixed-speaker regressions still produce excessive false events. It is NOT
+installed/accepted. Exact event traces, audio and personal model hashes remain
+private. Longer training contexts now exclude held-out audio BEFORE adaptive
+frontend state as well as excluding overlapping windows. Unknown final speech
+remains unlabelled, never a positive training example. Immediate following speech
+augmentation preserves the full name; negative mining uses only declared-negative
+intervals. These are provisional/reused labels, not independent human trials.
 
-A separate finite wake-test budget implementation is source-only and disabled;
-no runtime mount/admission was enabled, no old ledger reset or grant reused.
-Original sample/personal-model deletion deadlines remain unchanged.
+Expanded PUBLIC TTS corpus preparation is active:5 training voices (Denis,
+Dmitri,espeak-ru,Anna,RHVoice Irina),375 name/name-plus-question clips and2490
+negative clips; Aleksandr/Elena are generated separately for validation/test.
+This is new utterance diversity, not merely renaming augmented windows as voices.
+All synthesis is existing local CPU software, offline, finite resource limits.
+RHVoice Irina uses the packaged generic LGPL inventory; unreviewed Piper Irina,
+NC/ND voice models and the NC/20ms HF feature set are not imported. The full50,000-window/10,000-step expanded profile is training;
+held-out validation is improving, but model acceptance is still pending. No household audio goes to the build host.
+
+PUBLIC0.4.8 reference template BUILT,2838576 bytes,
+SHA2567e7de64de9cc154e515f2dbcbde5add046273e095959c428285deb5638fe0aa5.
+ESP image/checksum/hash checked;10-score smoothing,68-call warmup,SplitV,
+512KiB arena +16KiB variable arena, accurate local-scan/warm readiness,1s prefix/12s bounded buffer.
+The template contains an unqualified public placeholder and is NOT flashed. A
+separate exact public-model native-memory/latency diagnostic is prepared, routeOFF
+and explicitly acoustically failed; it cannot open Brain/provider sessions. USB temporarily returned Windows error31; a later bounded status read succeeded:
+0.4.6,Wi-Fi1,enrolled1,idle,upload0. No write/reset or further recording arm occurred.
+
+57 focused free Python checks and28 board-adapter checks pass (3 overlap).
+Native probability-window test passed. Separate finite wake-test admission remains
+source-only/DISABLED; original B/C ledgers and unknown C reserve stay intact.
 
 ## Wake correction in progress — 2026-11-14, source checkpoint
 

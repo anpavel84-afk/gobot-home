@@ -19,6 +19,7 @@ FRAMES = 75
 STRIDE = 3
 BATCH = 32
 HOP = 160
+POSITIVE_TAIL_SAMPLES = 4000
 def features(audio):
     frontend = MicroFrontend()
     rows = []
@@ -54,7 +55,8 @@ def window(clip, rng, positive):
                 start=rng.integers(0,len(sample)-total+1)
                 sample=sample[start:start+total]
         gap = total - len(sample)
-        left = rng.integers(max(0,gap-4000), gap+1)
+        tail = POSITIVE_TAIL_SAMPLES if positive else 4000
+        left = rng.integers(max(0,gap-tail), gap+1)
         noise[left:left+len(sample)] += sample
     warmup = rng.normal(0, floor, HOP * rng.integers(35, 200))
     return features(np.clip(np.concatenate([warmup,noise]), -32768, 32767))[-FRAMES:]
