@@ -28,7 +28,7 @@ capture job is left running. The prepared firmware rollback returns0.4.8; then
 reference-local-rollback can restore0.4.6. These rollback paths were prepared,
 not physically exercised in this checkpoint.
 
-## Controlled question-in-one-phrase candidate — 2026-11-14
+## Historical pre-install checkpoint — 2026-11-14 (superseded above)
 
 PUBLIC0.4.9-dev-owner-wake-test-1 is BUILT and ESP image-verified, not yet flashed:
 2839312 bytes, app SHA256579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199.
@@ -65,7 +65,7 @@ one consolidated manual trial allowance. No paid call, ledger reset, grant renew
 or runtime deployment occurred. Installed hardware is still the0.4.8 diagnostic
 below; Brain8661454 and phones A/B/C remain unchanged.
 
-## Native full-model diagnostic installed — 2026-11-14
+## Historical 0.4.8 diagnostic checkpoint — 2026-11-14 (superseded above)
 
 Spotpear now runs0.4.8-dev-reference-local-1, PUBLIC diagnostic app SHA256
 4d0183b326fab5f3debc5d99c31cdc496a2f1ea5e6310c5fccb6792c1dd0a1db.
