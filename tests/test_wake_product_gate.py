@@ -18,7 +18,7 @@ def test_failed_model_remains_diagnostic_and_preserves_current_baseline(tmp_path
     root,model,_=fixture(tmp_path)
     mod.prepare(root,model)
     assert '#define GOBOT_WAKE_ROUTE 0' in (root/'main/gobot_mww_config.h').read_text()
-    assert 'warm>=40' in (root/'main/gobot_mww.cc').read_text()
+    assert '#define GOBOT_WAKE_WARMUP 40' in (root/'main/gobot_mww_config.h').read_text()
     assert 'WakeQuestionBuffer' in (root/'main/gobot_mww.cc').read_text()
 
 @pytest.mark.parametrize('passed,human_ok,ambient_ok',[(False,True,True),(True,False,True),(True,True,False)])

@@ -1,5 +1,71 @@
 # Локальное «ГоБот» на Spotpear
 
+### Current physical checkpoint: 0.4.9, unarmed Owner trial
+
+`owner-wake-build.json` records the PUBLIC0.4.9 app actually USB-installed and
+readback/boot verified. Full native INT8 model/front-end works (parity1987024791,
+0 drop/error in the bounded snapshot); NVS/boot/inactive/assets retained.2s local
+prefix and12s startup buffer preserve a question while the connection starts.
+No personal model/audio was sent to the build host or put on the board.
+
+Production qualification remains OFF. `GOBOT_WAKE_TEST_ARM` is an exact local USB
+operator action: at most3 claims/600 seconds, initially unarmed. It is NOT a
+financial permission; server device/profile/budget checks remain mandatory.
+`GOBOT_WAKE_TEST_CANCEL` stops further test activations without pretending that
+an active provider session was closed. Replaying arm cannot refill attempts.
+The additional3x60s B grant is pending, policy DISABLED/unmounted; no paid call.
+Do not arm automatically or substitute another engine. Same Brain/phones remain.
+
+Candidate supports the3 whole-question episodes in the existing recording but
+fails universal/name-only acoustic acceptance. Keep that limitation visible;
+unit/build/native counters are not human voice acceptance. Models calibrated on
+Owner audio are still private/temporary, not installed. Native trial-window test
+and67 focused free Python checks pass. Rollback is guarded owner-wake-public-rollback
+to0.4.8, then reference-local-rollback to0.4.6; not exercised after this install.
+
+### Full reference / finite CPU correction — 2026-11-14
+
+`train_reference.py` runs a public-synthetic-only64x4 MixedNet/204-frame profile.
+50,000 means augmented feature windows from60 positive/792 negative seed clips,
+not50,000 unique TTS utterances. Split2 trains Denis/Dmitri/espeak-ru/Anna;
+Aleksandr validates, Elena tests. Do not call Dmitri held out for this profile.
+The rejected pooled run exposed an initialization-selection bug. Export now
+requires a trained finite checkpoint, preserves last weights and reports selection.
+The upstream default temporal head is retained (pooled=false). The active bounded
+run uses2CPU threads,4GiB memory and30min maximum, no paid/model service/network.
+`validate_reference.py` checks fixed10-score/cutoff231/warmup68 streaming behavior,
+manifest hashes and split isolation; ambient.py now honors the SAME smoothing and
+warmup instead of silently reverting to legacy3-score inference.
+
+`reference-template-build.json` identifies the successfully built PUBLIC0.4.8
+placeholder template: ESP32-S3 image/checksum/hash checked,131072-byte model slot,
+512KiB arena, SplitV, truthful local-scan/warmup status. NOT a qualified model,
+NOT flashed. The existing physical board remains0.4.6, touch intact; USB port
+currently enumerates but Windows returns device-not-functioning on open. Owner
+was asked to reconnect. No recording is armed and no paid test was started.
+
+### Corrective pipeline checkpoint — 2026-11-14
+
+Fixed positive-word front cropping in `train.window`: oversized positive
+augmentations are time-fitted rather than losing initial phonemes. Private audit
+found428/512 affected examples under75 frames;120-frame context and40-call warmup
+are supported. Complete original replay is60 positive/792 negative clips across
+Denis/espeak-ru/Anna/Aleksandr, with manifest/SHA checks; Dmitri/Elena stay excluded.
+`validate_local_candidate.py` performs fixed-cutoff250 streaming tests on both
+reference speakers and the encrypted pre-AFE sample; no model/audio exported.
+The versioned split can train the middle question prefix while retaining outer
+questions and isolated4/9 as holdouts. Do not repeat the older all-questions-excluded
+claim for split2. Human timings are provisional and repeatedly inspected.
+
+All new profiles remain experimental/failed. No universal recall or accepted wake
+is claimed. Immutable encrypted candidate copies are covered by the SAME expiry
+task; candidate reports/IDs stay private. Public-only `prepare_private_template.py`
+builds an unqualified0.4.7 template with64KiB slot and12s transition buffer.
+`private_image.py` substitutes a model locally in RAM, verifies fixed segment
+layout/checksum/SHA and rejects ambiguous slots. The real template patch passed
+esptool image parsing, not hardware inference. No private weights on build host,
+no new flash/paid call and no route enablement. Installed0.4.6 remains.
+
 ### Exact-input capture confirmed — 2026-11-14
 
 Owner physically started and confirmed the FULL50s pre-AFE/Opus-free recording.

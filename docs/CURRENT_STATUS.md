@@ -1,5 +1,180 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Current board checkpoint — 0.4.9 installed, Owner trial unarmed
+
+Spotpear physically runs0.4.9-dev-owner-wake-test-1, public app SHA256
+579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199.
+Guarded USB write/readback and boot version verified. Factory/recovery backups,
+NVS configuration, boot/OTA metadata, inactive slot and assets preserved; no RF
+record changed this time. Full model initializes: parity1987024791,12858 feature
+frames/4286 invocations, max observed feed6570us,0 underruns/drops/errors. This
+numeric snapshot is not human acoustic acceptance or a household false-wake rate.
+Board confirms Wi-Fi1,enrolled1,idle,local scan1,upload0,production route0,
+owner_test0,test_left0. Cancel console command acknowledged; no arm was sent.
+
+The new firmware contains2s local pre-roll, the existing12s startup bound and
+an explicitly UNARMED3-attempt/600s trial. Same interface/touch/audio/Brain retained;
+physical human wake, new touch/LCD reacceptance and a real voice answer are still
+UNVERIFIED. Public candidate detects the3 complete question phrases in the
+existing recording; separate name-only activation remains unreliable. It is not
+an accepted universal wake model. Personally calibrated models stay on PLAN and
+expire with the sample; none was flashed/published/exported. No new recording.
+
+Owner's additional3x60s B allowance is pending. New policy/ledger remains DISABLED,
+not mounted,0 starts; original8 starts remain spent. Brain runtime stays8661454,
+phone A/B/C and C unknown-final reserve unchanged.0 paid developer calls.67 focused
+free Python checks and native C++ trial-window checks passed. No training or
+capture job is left running. The prepared firmware rollback returns0.4.8; then
+reference-local-rollback can restore0.4.6. These rollback paths were prepared,
+not physically exercised in this checkpoint.
+
+## Historical pre-install checkpoint — 2026-11-14 (superseded above)
+
+PUBLIC0.4.9-dev-owner-wake-test-1 is BUILT and ESP image-verified, not yet flashed:
+2839312 bytes, app SHA256579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199.
+It uses the PUBLIC variant-curriculum model, NOT personally calibrated weights.
+Production qualification stays OFF. Trial is UNARMED at boot; explicit local
+operator arm allows at most3 activation attempts within600 seconds, independent
+server budget/ACL still mandatory. Duplicate arm cannot refill spent attempts.
+Two-second local prefix protects the beginning of a question during delayed
+recognition/setup;12s total startup buffer and overflow cancellation remain.
+Native trial-window host test and67 focused Python checks pass.
+
+The PUBLIC expanded corpus/model is complete:375 positive/2490 negative training
+clips across5 voices,75/498 each for heldout Aleksandr/Elena. Initial expanded
+run:72/75 recall each,24/36 mixed-stream negative events;45 events in30min synthetic
+negative stream. A bounded1000-step curriculum reuses verified negatives, adds
+existing first/second/separated/diphthong name variants and698 TRAIN-only hard
+negative windows. Result46/75 and57/75,2/5 mixed-stream events,3 events in30min
+synthetic negatives. These are FAILED universal-acceptance results, not a
+household false-wake rate. Public candidate detects all3 existing recorded
+question episodes, while isolated-name activation remains unreliable.
+
+Personal calibration improved all10 recorded isolated names and3 question
+episodes after sustained-posterior labels, but false detections on other voices
+remain excessive. It is NOT deployed. Full-word positive preprocessing now keeps
+quiet consonants; long continuous windows cannot front-crop names or include
+heldouts. Raw/model expiry remains unchanged. No raw/features/personal weights
+left PLAN. A fixed two-neural-model consensus probe also failed; no parallel
+native detector was added. No automatic model search remains running.
+
+Existing B allowance is exhausted:8 starts, reserved estimate$1, reported response
+estimate$0.09352952 (transcription separate, invoice not confirmed). Separate3x60s
+wake-test policy/ledger is prepared DISABLED and not mounted; Owner was asked for
+one consolidated manual trial allowance. No paid call, ledger reset, grant renewal
+or runtime deployment occurred. Installed hardware is still the0.4.8 diagnostic
+below; Brain8661454 and phones A/B/C remain unchanged.
+
+## Historical 0.4.8 diagnostic checkpoint — 2026-11-14 (superseded above)
+
+Spotpear now runs0.4.8-dev-reference-local-1, PUBLIC diagnostic app SHA256
+4d0183b326fab5f3debc5d99c31cdc496a2f1ea5e6310c5fccb6792c1dd0a1db.
+This is native memory/timing validation with the acoustically FAILED public
+reference model, NOT the final wake release. Wake-to-Brain remains OFF. Existing
+new-interface/touch code and voice transport remain; phone/Brain not redeployed.
+
+Guarded USB installation completed: enrolled MAC/16MiB/security checked, fresh
+full private snapshot, three factory/recovery copies verified; only ota_0 written
+and readback-verified. NVS configuration, boot/OTA metadata, inactive app and
+shared assets preserved; only permitted RF calibration refreshed. Actual board
+status confirms0.4.8,Wi-Fi1,enrolled1,idle,upload0. Full64x4 INT8 model initializes,
+frontend parity1987024791,4882 feature frames/1627 invocations, max observed feed
+7649us,0 underruns/drops/errors. This is a bounded native snapshot, not a human
+false-wake rate or guaranteed inference latency. No new recording or paid call.
+Physical LCD/human-touch/new wake/Brain conversation have NOT been reaccepted.
+
+Rollback: existing guarded `reference-local-rollback` returns the exact0.4.6 app,
+with the same identity/backup/NVS/inactive/assets checks; no OTA/NVS erase.
+The expanded PUBLIC corpus is complete (2865 training +1146 heldout clips).
+One finite50k-window/10k-step CPU training job is in progress; no failed detector
+is admitted to provider sessions.57 focused Python checks passed.
+
+## Wake correction / expanded utterances — 2026-11-14
+
+Voice-first product remains NOT_ACCEPTED. Installed0.4.6, working touch and
+Brain8661454 are unchanged; no new recording, paid call, quota renewal or wake
+admission. Original DPAPI sample/model expiry remains unchanged.
+
+Completed full64x4 MixedNet/204-frame public run: trained checkpoint1000 selected
+from10,000 steps. Strict fixed-policy streaming regression: Aleksandr9/15 positives
+and1 event on198 negative clips; Elena13/15 and7 events on198 negatives. FAILED;
+see `firmware/spotpear/microwake/reference-result.json`. The earlier pooled run
+incorrectly selected untrained initialization; export selection is now fixed and
+covered by tests. Float offline/streaming parity across1521 frames matches at
+one-frame alignment offset (max error1.14e-6); no unexplained transport conversion
+failure was found. This does not certify INT8 accuracy or physical performance.
+
+PLAN-only personal calibration can detect all3 recorded question episodes, but
+its mixed-speaker regressions still produce excessive false events. It is NOT
+installed/accepted. Exact event traces, audio and personal model hashes remain
+private. Longer training contexts now exclude held-out audio BEFORE adaptive
+frontend state as well as excluding overlapping windows. Unknown final speech
+remains unlabelled, never a positive training example. Immediate following speech
+augmentation preserves the full name; negative mining uses only declared-negative
+intervals. These are provisional/reused labels, not independent human trials.
+
+Expanded PUBLIC TTS corpus preparation is active:5 training voices (Denis,
+Dmitri,espeak-ru,Anna,RHVoice Irina),375 name/name-plus-question clips and2490
+negative clips; Aleksandr/Elena are generated separately for validation/test.
+This is new utterance diversity, not merely renaming augmented windows as voices.
+All synthesis is existing local CPU software, offline, finite resource limits.
+RHVoice Irina uses the packaged generic LGPL inventory; unreviewed Piper Irina,
+NC/ND voice models and the NC/20ms HF feature set are not imported. The full50,000-window/10,000-step expanded profile is training;
+held-out validation is improving, but model acceptance is still pending. No household audio goes to the build host.
+
+PUBLIC0.4.8 reference template BUILT,2838576 bytes,
+SHA2567e7de64de9cc154e515f2dbcbde5add046273e095959c428285deb5638fe0aa5.
+ESP image/checksum/hash checked;10-score smoothing,68-call warmup,SplitV,
+512KiB arena +16KiB variable arena, accurate local-scan/warm readiness,1s prefix/12s bounded buffer.
+The template contains an unqualified public placeholder and is NOT flashed. A
+separate exact public-model native-memory/latency diagnostic is prepared, routeOFF
+and explicitly acoustically failed; it cannot open Brain/provider sessions. USB temporarily returned Windows error31; a later bounded status read succeeded:
+0.4.6,Wi-Fi1,enrolled1,idle,upload0. No write/reset or further recording arm occurred.
+
+57 focused free Python checks and28 board-adapter checks pass (3 overlap).
+Native probability-window test passed. Separate finite wake-test admission remains
+source-only/DISABLED; original B/C ledgers and unknown C reserve stay intact.
+
+## Wake correction in progress — 2026-11-14, source checkpoint
+
+Owner explicitly requested completion of local «ГоБот, вопрос» using the existing
+recording. Installed firmware0.4.6 and Brain8661454 remain unchanged, no new
+recording, paid API, quota renewal or wake admission. Existing raw/model expiry
+deadlines are preserved. All human analysis/training/weights remain on PLAN.
+
+Confirmed training bug: positive augmentation cropped the START of long/slowed
+words. On512 deterministic owner-positive augmentations,428 exceeded the old
+75-frame window; up to771ms could be discarded. `augmentation.fit_positive`
+now retains both word boundaries and time-fits oversized examples. Context120
+is supported with40-invocation warmup in evaluation and prepared firmware.
+Original4-voice replay now verifies every PCM hash:60 positives/792 negatives,
+excluding Dmitri/Elena. Earlier87/174-clip replay was the reduced legacy corpus.
+
+Private split revision2 explicitly trains only the middle question's wake prefix;
+outer2 questions and isolated indices4/9 remain excluded. This is disclosed, NOT
+the older claim that all3 questions are untouched. Numeric/provisional labels
+remain private and are not independent human acceptance. Current corrected
+models detect all3 question episodes in the existing recording, but synthetic
+speaker quality remains inadequate: best tested pooled120 profile has0 events
+on198 Dmitri negatives and2 on198 Elena negatives, with only3/15 and10/15
+positive detections respectively. Other bounded profiles, including wider40-channel
+temporal-head CNN, robust replay and a frozen encoder, remain failed candidates.
+No threshold-only acceptance, template/linear replacement or failed-test removal.
+One fixed hard-negative/frozen-normalization40-epoch profile is being evaluated;
+not a paid service or unattended unbounded search.
+
+Public-only0.4.7-dev-word-candidate-1 template BUILT in pinned offline IDF:
+2767440 bytes, SHA2562f5d09559fdf2bc1c94f6ac3d35006c6701c1cc5938e13313dedf76e17b11a03.
+It contains the original PUBLIC model padded to64KiB, never personal weights.
+New runtime source preserves1s rolling prefix +12s transition buffer and cancels
+overflow. Private weight substitution is performed ONLY in PLAN RAM; real ESP
+image segment layout, XOR checksum and appended SHA256 verified independently
+with esptool. The test private image was zeroed, not stored/flashed. This is not
+actual S3 inference of learned weights, physical wake, or real Brain acceptance.
+Wake route remains OFF.47 focused free tests passed at this checkpoint.
+Encrypted immutable candidates now share the original sample expiry/cleanup;
+no more retraining merely to recover an overwritten model.
+
 ## Exact pre-AFE human sample received — 2026-11-14
 
 Owner reported readiness, initiated a physical touch and confirmed completion.

@@ -1,5 +1,45 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Current hardware — 0.4.9 Owner trial unarmed
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| Installed firmware | Public0.4.9 USB/app readback + boot verified; NVS/boot/OTA/inactive/assets preserved | Physical human wake/touch/LCD reacceptance pending |
+| Native runtime | State1,parity1987024791,12858 frames,0 drop/error; local scan1,upload0 | Counters do not establish human recall or household false-wake rate |
+| Whole question |2s pre-roll +12s bound; existing3 recorded question episodes detected | Single-name activation unreliable; universal acoustic criteria FAILED |
+| Safe Owner trial | Local UNARMED3 attempts/600s; production routeOFF; duplicate-arm guard | New3x60s B grant pending; server policy DISABLED/unmounted |
+| Privacy/cost | Public-data weights only on board; personal data/model expiry unchanged;0 paid calls | Real Brain conversation requires Owner manual acceptance |
+
+## 2026-11-14 native full-model diagnostic (current hardware)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Physical install | Exact PUBLIC0.4.8 app flashed/readback verified; enrolled unit and backups checked | Diagnostic FAILED-acoustic model, not final wake release |
+| Native runtime | Full64x4 model state1; parity1987024791;4882 frames,0 underrun/drop/error,max feed7649us | Human wake recall, household false wakes and real Brain path pending |
+| Recovery/isolation | NVS/boot/OTA/inactive/assets preserved;0.4.6 rollback; idle/upload0 | Physical LCD/touch not reaccepted; paid session grant not renewed |
+| Expanded learning |2865 training +1146 heldout PUBLIC TTS clips complete; finite training active | No claim that data preparation/training loss means accepted wake |
+
+## 2026-11-14 full-reference correction (current checkpoint)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Export integrity | Untrained-checkpoint export rejected; temporal float alignment verified across1521 outputs | INT8/hardware acoustic validation still required |
+| Same-phrase learning | Full-name retention, following-speech augmentation, declared-negative speech mining | Personal all3 question episodes detected but false-speaker regressions fail |
+| Split integrity | Holdout audio masked before adaptive frontend; long contexts exclude adjacent heldouts | Reused timing hypotheses are not fresh human acceptance |
+| Data diversity | Expanded offline5-voice name-plus-question corpus generating; validation/test separate | Training and acoustic acceptance pending |
+| Native runtime | Public0.4.8 template compiled and ESP image verified | Not installed; transient USB error31 recovered, learned-model/native validation pending |
+| Safety | Installed0.4.6/touch/Brain retained;0 paid calls; ledgers/expiry unchanged | Wake-to-Brain stays OFF until qualified/admitted |
+
+## 2026-11-14 corrective wake source (not release acceptance)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Whole activation word | Front-crop bug fixed;428/512 prior positive augmentations exceeded window;120-frame context | Corrected candidates still fail general voice validation |
+| Data integrity/split | Original60/792 PCM hashes verified; Dmitri/Elena excluded; split2 trains only middle question prefix | Reused/provisional human intervals are not independent trials |
+| One-phrase capture |0.4.7 PUBLIC template built;1s prefix/12s bounded transition buffer | Not installed; no physical learned-model handoff proof |
+| Personal weight privacy | PLAN-RAM fixed-slot patch checked with ESP segment/checksum/SHA + esptool; immutable DPAPI candidates share expiry | No private model exported or flashed |
+| Voice result | Three recorded question episodes detected by corrected profiles | Best pooled profile still2 Elena negative events and low Dmitri recall; wake remains unaccepted/OFF |
+
 ## 2026-11-14 exact-input capture (supersedes armed-window rows)
 
 | Requirement | Actual evidence | Remaining gap |

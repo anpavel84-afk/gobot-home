@@ -20,10 +20,27 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         model_bytes=_dpapi(source.with_name((model_sample_id or ident)+'-personal-model.dpapi').read_bytes(),decrypt=True)
     else:model_bytes=model.read_bytes()
     model_sha=hashlib.sha256(model_bytes).hexdigest()
+    context_frames=75
+    if encrypted_model:
+        report_path=source.with_name((model_sample_id or ident)+'-candidate-'+model_sha+'.json')
+        if not report_path.exists():report_path=source.with_name((model_sample_id or ident)+'-neural-pilot.json')
+        if report_path.exists():
+            model_metadata=json.loads(report_path.read_text())
+            if model_metadata.get('model_sha256')!=model_sha:raise ValueError('Encrypted candidate/report mismatch')
+            context_frames=int(model_metadata.get('context_frames',75))
+    warmup=max(25,(context_frames+2)//3)
     evidence_path=model.parent/'stream-report.json'
-    evidence=json.loads(evidence_path.read_text()) if evidence_path.exists() and not encrypted_model else {}
-    if evidence and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
-    cutoff=int(evidence.get('cutoff',250))
+    evidence={}
+    if encrypted_model and report_path.exists():evidence=dict(model_metadata)
+    elif evidence_path.exists():evidence=json.loads(evidence_path.read_text())
+    if evidence and not encrypted_model and evidence.get('sha256')!=model_sha:raise ValueError('Model/report mismatch')
+    if not encrypted_model and (model.parent/'model.json').exists():
+        model_metadata=json.loads((model.parent/'model.json').read_text())
+        if model_metadata.get('sha256')!=model_sha:raise ValueError('Public model metadata mismatch')
+        context_frames=int(model_metadata.get('context_frames',75));warmup=max(25,(context_frames+2)//3)
+        evidence={**model_metadata,**evidence}
+    cutoff=int(evidence.get('cutoff',250));window=int(evidence.get('window',3))
+    if window not in (3,10) or not 1<=cutoff<=255:raise ValueError('Unsupported inference policy')
     raw=bytearray(_dpapi(p.read_bytes(),decrypt=True))
     try:
         with wave.open(io.BytesIO(raw),'rb') as wav:
@@ -45,10 +62,10 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         for i in range(0,len(q)-2,3):
             runtime.set_tensor(inp['index'],q[None,i:i+3]);runtime.invoke()
             probabilities.append(int(runtime.get_tensor(out['index'])[0,0]))
-        scores=np.convolve(probabilities,np.ones(3)/3,mode='full')[:len(probabilities)]
+        scores=np.convolve(probabilities,np.ones(window)/window,mode='full')[:len(probabilities)]
         events=[]
         for i in np.flatnonzero(scores>=cutoff):
-            if i>=25 and (not events or i-events[-1]>=50):events.append(int(i))
+            if i>=warmup-1 and (not events or i-events[-1]>=50):events.append(int(i))
         windows=samples[:len(samples)//320*320].reshape(-1,320).astype(np.float64)
         rms=np.sqrt(np.mean(windows**2,axis=1));threshold=max(100,float(np.percentile(rms,15))*3)
         active=np.flatnonzero(rms>=threshold);segments=[]
@@ -58,6 +75,7 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         domain=metadata.get('capture_domain','post_afe_opus')
         report={'seconds':len(samples)/16000,'local_only':True,'frontend_parity':1987024791,
             'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
+            'context_frames':context_frames,'warmup_invocations':warmup,'probability_window':window,
             'event_seconds':[round(i*.03+.05,2) for i in events],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
             'peak_score':max(probabilities,default=0),'cutoff':cutoff,'model_sha256':model_sha,

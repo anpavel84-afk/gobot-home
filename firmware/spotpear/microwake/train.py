@@ -12,12 +12,14 @@ from pymicro_features import MicroFrontend
 from microwakeword.mixednet import model
 from microwakeword.layers.modes import Modes
 from microwakeword.utils import to_streaming_inference
+from augmentation import fit_positive,trim_background
 
 SEED = 7611
 FRAMES = 75
 STRIDE = 3
 BATCH = 32
 HOP = 160
+POSITIVE_TAIL_SAMPLES = 4000
 def features(audio):
     frontend = MicroFrontend()
     rows = []
@@ -29,12 +31,10 @@ def features(audio):
             rows.append(result.features)
     return np.array(rows, np.float32)
 
-def channel(raw, rng):
+def channel(raw, rng,retain_full=False):
     speed = rng.uniform(.77, 1.25)
     raw = np.interp(np.arange(0, len(raw), speed), np.arange(len(raw)), raw)
-    visible = np.where(abs(raw) > max(20, np.max(abs(raw)) * .025))[0]
-    if visible.size:
-        raw = raw[max(0, visible[0]-160):visible[-1]+321]
+    raw=trim_background(raw,retain_full=retain_full)
     room = rng.integers(160, 1200)
     raw = np.pad(raw, (0, room)) + rng.uniform(0, .35) * np.pad(raw, (room, 0))
     filt = rng.uniform(0, .75)
@@ -46,12 +46,15 @@ def window(clip, rng, positive):
     floor = rng.uniform(0, 90)
     noise = rng.normal(0, floor, total)
     if clip is not None:
-        sample = channel(clip, rng)
+        sample = channel(clip, rng,retain_full=positive)
         if len(sample) > total:
-            start = len(sample) - total if positive else rng.integers(0, len(sample)-total+1)
-            sample = sample[start:start+total]
+            if positive:sample=fit_positive(sample,total)
+            else:
+                start=rng.integers(0,len(sample)-total+1)
+                sample=sample[start:start+total]
         gap = total - len(sample)
-        left = rng.integers(max(0,gap-4000), gap+1)
+        tail = POSITIVE_TAIL_SAMPLES if positive else 4000
+        left = rng.integers(max(0,gap-tail), gap+1)
         noise[left:left+len(sample)] += sample
     warmup = rng.normal(0, floor, HOP * rng.integers(35, 200))
     return features(np.clip(np.concatenate([warmup,noise]), -32768, 32767))[-FRAMES:]

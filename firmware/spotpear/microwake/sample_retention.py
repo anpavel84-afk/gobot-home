@@ -10,6 +10,13 @@ def paths(ident):
     if not root.is_relative_to(ROOT.resolve()) or p.is_symlink() or p.with_suffix('.json').is_symlink() or not p.resolve().is_relative_to(root):raise ValueError('Unsafe sample path')
     return p,p.with_suffix('.json')
 
+def candidate_path(ident,sha):
+    p,_=paths(ident)
+    if not re.fullmatch('[a-f0-9]{64}',sha):raise ValueError('Invalid private candidate hash')
+    out=p.with_name(ident+'-candidate-'+sha+'.dpapi')
+    if out.is_symlink():raise ValueError('Unsafe candidate path')
+    return out
+
 def cleanup(ident,now=None):
     p,meta=paths(ident)
     if not meta.exists():return False
@@ -19,6 +26,9 @@ def cleanup(ident,now=None):
     derived=p.with_name(ident+'-personal-model.dpapi')
     if derived.is_symlink():raise ValueError('Unsafe derived model path')
     derived.unlink(missing_ok=True)
+    for candidate in p.parent.glob(ident+'-candidate-*.dpapi'):
+        match=re.fullmatch(re.escape(ident)+r'-candidate-([a-f0-9]{64})\.dpapi',candidate.name)
+        if match:candidate_path(ident,match[1]).unlink(missing_ok=True)
     meta.write_text(json.dumps({'expires_at':data['expires_at'],'deleted_at':now,'deleted':True}))
     return True
 
