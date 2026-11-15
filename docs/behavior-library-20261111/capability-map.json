@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "source_commit": "effd1ff7be7150683ffacb0fa69934fd46142e87",
+  "not_a_runtime_allowlist": true,
+  "bindings": [
+    {
+      "capability": "timer.basic",
+      "audit_status": "baseline_present_scope_unverified",
+      "existing_module": "services/brain/gobot/local_tools.py",
+      "existing_intents": [
+        "timer_start",
+        "timer_remaining",
+        "timer_cancel"
+      ],
+      "integration_note": "Preserve persistence/scope and shared operation claim; audio delivery separately proven."
+    },
+    {
+      "capability": "timer.named_pause_extend",
+      "audit_status": "requires_implementation",
+      "existing_module": "services/brain/gobot/local_tools.py",
+      "existing_intents": [],
+      "integration_note": "Names, pause/resume and extend need state migration and actual executor; future test flags do not enable them."
+    },
+    {
+      "capability": "weather.home_dates",
+      "audit_status": "baseline_present_scope_unverified",
+      "existing_module": "services/brain/gobot/weather_queries.py",
+      "existing_intents": [
+        "settings"
+      ],
+      "integration_note": "Existing home and date followups are already implemented; preserve them."
+    },
+    {
+      "capability": "weather.temporary_place_metric",
+      "audit_status": "requires_fix",
+      "existing_module": "services/brain/gobot/settings_tools.py",
+      "existing_intents": [
+        "settings"
+      ],
+      "integration_note": "Separate read-only other city from home setup; add requested metric/context."
+    },
+    {
+      "capability": "clock.local_timezone",
+      "audit_status": "requires_fix",
+      "existing_module": "services/brain/gobot/local_tools.py",
+      "existing_intents": [
+        "clock_time",
+        "clock_date",
+        "clock_weekday"
+      ],
+      "integration_note": "Server time is currently explicit; proposed IANA contract needs implementation."
+    },
+    {
+      "capability": "local.utility",
+      "audit_status": "baseline_present_scope_unverified",
+      "existing_module": "services/brain/gobot/local_tools.py",
+      "existing_intents": [
+        "utility_*"
+      ],
+      "integration_note": "Use deterministic local operations, validate units and ranges."
+    },
+    {
+      "capability": "device.settings",
+      "audit_status": "conditional",
+      "existing_module": "services/brain/gobot/settings_tools.py",
+      "existing_intents": [
+        "settings"
+      ],
+      "integration_note": "Check actual mode/provider support and existing can_configure_device."
+    },
+    {
+      "capability": "conversation.C",
+      "audit_status": "conditional",
+      "existing_module": "services/brain/gobot/live_backend.py",
+      "existing_intents": [],
+      "integration_note": "Current approved Live client + Luna; text backend cannot execute tools."
+    },
+    {
+      "capability": "conversation.control",
+      "audit_status": "baseline_present_with_extensions",
+      "existing_module": "services/brain/gobot/conversation_modes.py",
+      "existing_intents": [],
+      "integration_note": "Keep End/mode semantics; pending-decline is context-dependent."
+    },
+    {
+      "capability": "visuals",
+      "audit_status": "conditional",
+      "existing_module": "services/brain/gobot/live.py",
+      "existing_intents": [],
+      "integration_note": "Existing visual worker and decode ACK; no new ImageGen consent."
+    },
+    {
+      "capability": "expert.job",
+      "audit_status": "conditional",
+      "existing_module": "services/brain/gobot/expert_jobs.py",
+      "existing_intents": [],
+      "integration_note": "Admission, finite grant and one confirmation per accepted job; no fabricated model entitlement."
+    },
+    {
+      "capability": "smart_home",
+      "audit_status": "not_connected",
+      "existing_module": "services/brain/gobot/skill_catalogue.py",
+      "existing_intents": [],
+      "integration_note": "Missing adapters/devices/allowlist; guard paraphrases as well as exact catalogue strings."
+    },
+    {
+      "capability": "music_and_external",
+      "audit_status": "not_connected",
+      "existing_module": "services/brain/gobot/skill_catalogue.py",
+      "existing_intents": [],
+      "integration_note": "Provider/account/device readiness independent from scenario availability."
+    },
+    {
+      "capability": "alarm_reminder_calendar",
+      "audit_status": "not_connected_or_restricted",
+      "existing_module": "services/brain/gobot/skill_catalogue.py",
+      "existing_intents": [],
+      "integration_note": "Scheduler or connector plus authorized scope and reliable delivery required."
+    },
+    {
+      "capability": "personal_memory",
+      "audit_status": "restricted",
+      "existing_module": "services/brain/gobot/memory.py",
+      "existing_intents": [],
+      "integration_note": "C remains guest/RAM until authorized retrieval/persistence integrated; no second profile database."
+    }
+  ],
+  "new_intent_names": "target_intent values containing new namespaces are semantic requirements; implement explicit mapping into existing QuickIntent fields, do not assume tools of those names exist"
+}

@@ -1,0 +1,43 @@
+{
+  "schema": "gobot-public-full-reference-run-v1",
+  "observed_utc": "2026-11-15T19:58:03Z",
+  "status": "running_resumed_generation",
+  "unit": "gobot-wake-full-reference-r2-20261115.service",
+  "source_clips_target": {
+    "positive": 51000,
+    "negative": 10000,
+    "additional_heldout_alias": 40
+  },
+  "augmented_windows_target": 102000,
+  "steps_target": 10000,
+  "paid_calls": 0,
+  "human_data_uploaded": false,
+  "firmware_changed": false,
+  "accepted": false,
+  "limits": {
+    "cpu_cores": 2,
+    "ram_gib": 4,
+    "whole_job_seconds": 43200,
+    "generation_seconds": 21600,
+    "generated_bytes": 12884901888,
+    "network": false,
+    "automatic_retries": 0,
+    "automatic_flash": false
+  },
+  "source_sha256": {
+    "full_corpus.py": "b86df949427b8efd65f60187695357e40468ef1108b0c9eae6b5624ef0ca8dd9",
+    "alias_corpus.py": "f10f57851590ea2436bdad54b8b5b1e59ff189fbf303c7d3ef404c60223d13e0",
+    "train_reference.py": "132329ae9933ef90466dfa28f5e99ebc1ced790d794e47025ba19610770b0261",
+    "full_reference_job.sh": "b0e4db631241801d77503fb348312255623af5eb078b9d242029aab335d49b09",
+    "validate_reference.py": "6b8aba2ac5c9bcae3698cb87149ac0daed0d5e10bb59250fbf30fa4789ae73ec",
+    "wake_variants.py": "24877c6c7bec1a50697fee40fca6dd94570e3c03292cf8235b29ace9582c1f0d"
+  },
+  "base_source_clips_observed": 46100,
+  "previous_attempt": {
+    "unit": "gobot-wake-full-reference-20261115.service",
+    "status": "failed_before_training",
+    "completed_clips": 46032,
+    "failure": "Audible negative fragment3160 samples below blanket3200 minimum",
+    "no_model_exported": true
+  }
+}

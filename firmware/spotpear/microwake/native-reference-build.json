@@ -1,0 +1,33 @@
+{
+  "version": "0.4.11-dev-ref-parity-1",
+  "app_bytes": 3036288,
+  "app_sha256": "2695a0b436e9db3e04e8f67fa1b2718a34232e4c4531f965c2e5dc137df7cbe5",
+  "template_sha256": "f1c259288896aa329ba06b1cc030b733dc530f254f20bf1ba5edf8ce70a2b615",
+  "model_sha256": "4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9",
+  "public_synthetic_only": true,
+  "contains_personal_weights": false,
+  "production_qualified": false,
+  "trial_compiled": false,
+  "fixture_invocations": 1625,
+  "fixture_header_sha256": "2dd7764946aae85e171bca98ca954ea95f022ce1edf0c398a5c588b05f1f14bd",
+  "native_tolerance": 3,
+  "flashed": true,
+  "native_result": {
+    "invocations": 1625,
+    "max_delta": 0,
+    "different_outputs": 0,
+    "verified": true,
+    "detector_state": 1
+  },
+  "paid_calls": 0,
+  "previous_sha256": "e191f3ed5d4724c853f35b55897839ee47c22ba74f4016fc1e11c8528a367c59",
+  "previous_bytes": 3036304,
+  "physical_wake_accepted": false,
+  "kernel_baseline": "native_reference",
+  "kernel_optimization_changed": false,
+  "app_only_write_readback_verified": true,
+  "boot_version_confirmed": true,
+  "nvs_boot_inactive_assets_preserved": true,
+  "rf_recalibrated": false,
+  "source_base_checkpoint": "0e5fd70"
+}

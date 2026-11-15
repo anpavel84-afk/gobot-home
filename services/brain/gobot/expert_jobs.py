@@ -22,8 +22,11 @@ EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','e
 
 def explicit_expert_request(text):
     """Only a diagnostic intent signal; never authority or a replacement task."""
-    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',text,re.I)
-                and re.search(r'переда\w*|адрес\w*|отправ\w*|спроси|спрашивай|подключ\w*|делегир\w*|обрат\w*|пусть.*(?:провер|разбер)',text,re.I))
+    value=' '.join(text.casefold().strip().split())
+    value=re.sub(r'^(?:(?:гобот|го бот|пожалуйста|а)[, ]+)+','',value)
+    value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|давай)[, ]+','',value)
+    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
+                and re.match(r'^(?:передай|передать|адресуй|адресовать|отправь|отправить|спроси|спрашивай|подключи|подключить|делегируй|делегировать|обратись|обратиться|попроси|попросить|пусть)\b',value))
 
 def profile_in_text(text):
     if re.search(r'\b(?:argon|аргон)\b',text,re.I):return 'ARGON_DEEP'
@@ -118,7 +121,7 @@ class ExpertJobs:
         if not self.budget.active(policy):reasons.append('expert_budget_missing_or_expired')
         elif policy.allowed_client_id and policy.allowed_client_id!=getattr(self.session.offer,'client_id',None) and not owner_public:reasons.append('expert_budget_other_device')
         elif usage['sessions_remaining']==0:reasons.append('expert_budget_exhausted')
-        if owner_public:
+        if owner_public and getattr(self.session,'owner_test_authorized',False):
             owner_state=self.session.manager.owner_testing.status(self.session.owner_test_binding)
             if owner_state['attempts_today'].get('expert',0)>=owner_state['policy']['expert_jobs_per_day']:reasons.append('owner_expert_daily_limit')
         return {'enabled':not reasons,'blocked_reasons':reasons,'profiles':profile_status() if include_profiles else [],
@@ -127,6 +130,8 @@ class ExpertJobs:
 
     def owner_public_allowed(self):
         s=self.session
+        scoped=getattr(s,'scoped_public_expert_allowed',None)
+        if scoped and scoped():return True
         if not getattr(s,'owner_test_authorized',False) or not s.manager.owner_testing.authorized(s.owner_test_binding):return False
         if s.access.confirmed_profile_id:
             family=s.manager.identity.family

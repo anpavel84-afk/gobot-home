@@ -1,0 +1,12 @@
+{
+  "version": "0.4.1-dev-livekit",
+  "app_sha256": "95053146a5e7151641779dcc772864a9e69acfabc8d225a3290781024b9ce247",
+  "app_bytes": 2710320,
+  "previous_sha256": "ed88ea7435218b7a894c762fd8535f337720fe5979e1d5a92689be280228a576",
+  "previous_version": "0.4.0-dev-duplex",
+  "assets_sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0",
+  "hardware_verified": true,
+  "transport": "wss_opus_with_plan_livekit",
+  "usb_boot_verified": true,
+  "wifi_enrollment": true
+}
