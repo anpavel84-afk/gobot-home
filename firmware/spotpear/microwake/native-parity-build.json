@@ -11,9 +11,24 @@
   "fixture_invocations": 1625,
   "fixture_header_sha256": "150fe6270e5a723b8960a257fe0ed0f079da1aa99659ad307b342e7671cb2e91",
   "native_tolerance": 3,
-  "flashed": false,
-  "native_result": null,
+  "flashed": true,
+  "native_result": {
+    "invocations": 1625,
+    "max_delta": 17,
+    "different_outputs": 59,
+    "verified": false,
+    "detector_state": -1
+  },
   "paid_calls": 0,
   "previous_sha256": "579cb7bb4ebea28d5289fce226f955033bb20d1ac2c5c0d88d23034827bb1199",
-  "previous_bytes": 2839312
+  "previous_bytes": 2839312,
+  "app_only_write_readback_verified": true,
+  "boot_version_confirmed": true,
+  "nvs_boot_inactive_assets_preserved": true,
+  "rf_recalibrated": false,
+  "physical_wake_accepted": false,
+  "source_checkpoint": "0e5fd70",
+  "comparison_baseline": "desktop_optimized",
+  "runtime_defect_confirmed": false,
+  "followup_reference_max_delta": 0
 }

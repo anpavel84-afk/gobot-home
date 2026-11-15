@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 
 
-def generate(model, corpus, output):
+def generate(model, corpus, output,kernel='native_reference'):
     import tensorflow as tf
     from pymicro_features import MicroFrontend
     manifest=json.loads((corpus/'manifest.json').read_text(encoding='utf-8'))
@@ -35,8 +35,9 @@ def generate(model, corpus, output):
         if result.features:rows.append(result.features)
     rows=np.asarray(rows,np.float32)
     if len(rows)>12000:raise ValueError('Fixture too large')
-    interpreter=tf.lite.Interpreter(model_path=str(model),num_threads=1,
-        experimental_op_resolver_type=tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+    if kernel not in ('native_reference','desktop_optimized'):raise ValueError('Unknown baseline')
+    resolver=tf.lite.experimental.OpResolverType.BUILTIN_REF if kernel=='native_reference' else tf.lite.experimental.OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+    interpreter=tf.lite.Interpreter(model_path=str(model),num_threads=1,experimental_op_resolver_type=resolver)
     interpreter.allocate_tensors();inp=interpreter.get_input_details()[0];out=interpreter.get_output_details()[0]
     if tuple(inp['shape'])!=(1,3,40) or inp['dtype']!=np.int8 or out['dtype']!=np.uint8:
         raise ValueError('Unsupported firmware inference contract')
@@ -52,7 +53,7 @@ def generate(model, corpus, output):
     header+='static constexpr int8_t input[] = {'+','.join(map(str,q.reshape(-1)))+'};\n'
     header+='static constexpr uint8_t expected[] = {'+','.join(map(str,expected))+'};\n}\n'
     (output/'gobot_mww_fixture.h').write_text(header,encoding='utf-8')
-    result={'synthetic_only':True,'acoustic_acceptance':False,'model_sha256':hashlib.sha256(model.read_bytes()).hexdigest(),
+    result={'synthetic_only':True,'acoustic_acceptance':False,'kernel_baseline':kernel,'model_sha256':hashlib.sha256(model.read_bytes()).hexdigest(),
         'sources':sources,'frames':len(q),'invocations':len(expected),'maximum_expected':max(expected),
         'header_sha256':hashlib.sha256(header.encode()).hexdigest(),'provider_calls':0}
     (output/'fixture.json').write_text(json.dumps(result,indent=2),encoding='utf-8')
@@ -60,5 +61,5 @@ def generate(model, corpus, output):
 
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('corpus',type=Path);p.add_argument('output',type=Path)
-    a=p.parse_args();generate(a.model,a.corpus,a.output)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('model',type=Path);p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--kernel',choices=['native_reference','desktop_optimized'],default='native_reference')
+    a=p.parse_args();generate(a.model,a.corpus,a.output,a.kernel)

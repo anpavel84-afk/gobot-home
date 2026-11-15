@@ -15,6 +15,7 @@ def prepare(root,fixture):
     if '0.4.9-dev-owner-wake-test-1' not in (root/'CMakeLists.txt').read_text():raise ValueError('Expected isolated0.4.9 copy')
     if not meta.get('synthetic_only') or meta['model_sha256']!='4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9':
         raise ValueError('Only the pinned PUBLIC model fixture is allowed')
+    if meta.get('kernel_baseline','desktop_optimized')!='desktop_optimized':raise ValueError('This historical comparison requires the desktop-optimized baseline')
     header=fixture/'gobot_mww_fixture.h'
     if hashlib.sha256(header.read_bytes()).hexdigest()!=meta['header_sha256'] or not 1<=meta['invocations']<=4096:
         raise ValueError('Invalid fixture')

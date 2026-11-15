@@ -68,5 +68,6 @@
   "invocations": 1625,
   "maximum_expected": 255,
   "header_sha256": "150fe6270e5a723b8960a257fe0ed0f079da1aa99659ad307b342e7671cb2e91",
-  "provider_calls": 0
+  "provider_calls": 0,
+  "kernel_baseline": "desktop_optimized"
 }

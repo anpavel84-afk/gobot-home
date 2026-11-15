@@ -10,7 +10,9 @@ from gobot.secrets_store import _dpapi
 from sample_retention import paths,cleanup
 from parity import fingerprint
 
-def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
+def evaluate(ident,model,encrypted_model=False,model_sample_id=None,kernel='desktop_optimized',background_prefix_seconds=0):
+    if kernel not in ('desktop_optimized','native_reference'):raise ValueError('Unknown kernel baseline')
+    if background_prefix_seconds not in (0,30,120):raise ValueError('Unbounded diagnostic prefix')
     p,meta=paths(ident);metadata=json.loads(meta.read_text())
     if time.time()>=metadata['expires_at']:cleanup(ident);raise ValueError('Sample expired')
     assert fingerprint()==(98,1987024791)
@@ -39,6 +41,8 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         if model_metadata.get('sha256')!=model_sha:raise ValueError('Public model metadata mismatch')
         context_frames=int(model_metadata.get('context_frames',75));warmup=max(25,(context_frames+2)//3)
         evidence={**model_metadata,**evidence}
+    if not evidence and model_sha!='1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010':
+        raise ValueError('Non-default model requires matching context/window/cutoff metadata')
     cutoff=int(evidence.get('cutoff',250));window=int(evidence.get('window',3))
     if window not in (3,10) or not 1<=cutoff<=255:raise ValueError('Unsupported inference policy')
     raw=bytearray(_dpapi(p.read_bytes(),decrypt=True))
@@ -47,12 +51,24 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
             assert (wav.getframerate(),wav.getnchannels(),wav.getsampwidth())==(16000,1,2)
             samples=np.frombuffer(wav.readframes(wav.getnframes()),dtype='<i2').copy()
         assert len(samples)<=16000*60
+        source_seconds=len(samples)/16000
+        if background_prefix_seconds:
+            labels=json.loads(p.with_name(ident+'-labels.json').read_text(encoding='utf-8'))
+            # Explicitly diagnostic, provisional quiet start; never train or count
+            # repeated background as independently observed household negatives.
+            if metadata.get('capture_domain')!='mono_pcm16_pre_afe' or source_seconds!=50:
+                raise ValueError('This prefix probe requires the exact pre-AFE calibration')
+            if min(start for start,end in labels['positive_segments'])<1:
+                raise ValueError('Prefix overlaps a provisionally labelled wake')
+            original=samples
+            samples=np.concatenate([np.tile(original[:16000],background_prefix_seconds),original]);original.fill(0)
         front=MicroFrontend();rows=[]
         for offset in range(0,len(samples)-159,160):
             r=front.process_samples(samples[offset:offset+160].tobytes())
             assert r.samples_read==160
             if r.features:rows.append(r.features)
-        runtime=Interpreter(model_content=model_bytes,experimental_op_resolver_type=OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES)
+        resolver=OpResolverType.BUILTIN_REF if kernel=='native_reference' else OpResolverType.BUILTIN_WITHOUT_DEFAULT_DELEGATES
+        runtime=Interpreter(model_content=model_bytes,experimental_op_resolver_type=resolver)
         runtime.allocate_tensors();inp=runtime.get_input_details()[0];out=runtime.get_output_details()[0]
         assert inp['shape'].tolist()==[1,3,40]
         assert inp['dtype']==np.int8 and out['dtype']==np.uint8
@@ -73,16 +89,19 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
             if not segments or frame-segments[-1][1]>20:segments.append([int(frame),int(frame)])
             else:segments[-1][1]=int(frame)
         domain=metadata.get('capture_domain','post_afe_opus')
-        report={'seconds':len(samples)/16000,'local_only':True,'frontend_parity':1987024791,
+        report={'seconds':source_seconds,'replay_seconds':len(samples)/16000,'repeated_background_prefix_seconds':background_prefix_seconds,'local_only':True,'frontend_parity':1987024791,'kernel_baseline':kernel,
+            'signal_metrics_scope':'replay_including_repeated_background' if background_prefix_seconds else 'source_recording',
             'capture_domain':domain,'device_kws_input_equivalent':domain=='mono_pcm16_pre_afe',
             'context_frames':context_frames,'warmup_invocations':warmup,'probability_window':window,
-            'event_seconds':[round(i*.03+.05,2) for i in events],
+            'event_seconds':[round(i*.03+.05-background_prefix_seconds,2) for i in events if i*.03+.05>=background_prefix_seconds],
             'speech_segment_seconds':[[round(a*.02,2),round((b+1)*.02,2)] for a,b in segments if b-a>=8],
             'peak_score':max(probabilities,default=0),'cutoff':cutoff,'model_sha256':model_sha,
             'clipped_fraction':float(np.mean(np.abs(samples.astype(np.int32))>=32760)),
             'rms_quantiles':np.percentile(rms,[10,50,90]).round(2).tolist(),
             'human_labels_verified':False,'true_positive_count':None,'false_positive_count':None}
-        (p.parent/(ident+'-'+model_sha[:12]+'-evaluation.json')).write_text(json.dumps(report,indent=2))
+        suffix='-native-reference-evaluation.json' if kernel=='native_reference' else '-evaluation.json'
+        if background_prefix_seconds:suffix='-background-'+str(background_prefix_seconds)+suffix
+        (p.parent/(ident+'-'+model_sha[:12]+suffix)).write_text(json.dumps(report,indent=2))
         print(json.dumps(report))
     finally:
         raw[:]=bytes(len(raw))
@@ -90,4 +109,4 @@ def evaluate(ident,model,encrypted_model=False,model_sample_id=None):
         if 'q' in locals():q.fill(0)
 
 if __name__=='__main__':
-    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');a.add_argument('--personal-model-sample');v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model or bool(v.personal_model_sample),v.personal_model_sample)
+    a=argparse.ArgumentParser();a.add_argument('sample_id');a.add_argument('--model',type=Path,default=Path(__file__).with_name('gobot.tflite'));a.add_argument('--encrypted-personal-model',action='store_true');a.add_argument('--personal-model-sample');a.add_argument('--kernel',choices=['desktop_optimized','native_reference'],default='desktop_optimized');a.add_argument('--background-prefix-seconds',type=int,choices=[0,30,120],default=0);v=a.parse_args();evaluate(v.sample_id,v.model,v.encrypted_personal_model or bool(v.personal_model_sample),v.personal_model_sample,v.kernel,v.background_prefix_seconds)

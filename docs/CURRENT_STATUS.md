@@ -1,5 +1,35 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Installed0.4.11 — native reference parity EXACT, wake still unaccepted
+
+Spotpear now physically runs0.4.11-dev-ref-parity-1, app2695a0b436e9db3e04e8f67fa1b2718a34232e4c4531f965c2e5dc137df7cbe5,
+3036288 bytes. Guarded app-only install/readback and actual boot verified;
+NVS/boot/inactive slot/assets preserved, RF recalibrationFalse. Public4ffc model
+and ESP-NN kernels are UNCHANGED. No personal weights/audio or provider admission.
+
+Native fixture result:1625/1625 outputs EXACTLY equal host BUILTIN_REF,
+max_delta0,different0,verified1. State1,local scan running,0 drops/errors/upload.
+Preceding0.4.10 compared with desktop optimized kernels:delta17/different59;
+HOST reference-vs-optimized produces the SAME difference. This was NOT proof of
+an ESP32 runtime defect. An ESP-NN-disabled experiment was stopped before build
+completion and never flashed; no SDK/esp-sr/vendor-source change. Production
+route and Owner trial remain OFF. Human wake acceptance remains FAILED.
+
+PLAN-only replay with native-reference kernels still detects3 stored question
+episodes; adding120s of REPEATED initial background leaves those events unchanged.
+That synthetic conditioning probe is not120s household observation, new recording
+or human acceptance. Original sample/model deletion deadline unchanged.
+
+Source correction underway: word-end anchored training uses isolated-name seeds
+and immediate following negative speech, rather than labelling the end of a whole
+question prefix. One public-only bounded CPU job:8192 windows/1000 steps,2 cores,
+4GiB/1800s maximum; no automatic search/retries/providers. Results PENDING.
+30 focused free checks passed after anchoring/native-scope changes. All3 B starts
+remain spent, no new paid call/ledger reset. Brain runtime remains9c317bc; distinct
+inactive/exhausted B reason fix exists in SOURCE only, not deployed. Firmware now
+accepts64-character reasons and uses neutral conversation denial text.
+
+
 ## Local recheck and native parity candidate — 2026-11-15
 
 Owner confirmed zero visible wake responses in the free no-touch recheck.50s
