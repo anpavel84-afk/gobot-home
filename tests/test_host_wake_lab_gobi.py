@@ -138,7 +138,7 @@ class SeparateCandidateTests(unittest.TestCase):
 class CatalogTests(unittest.TestCase):
     def test_identical_synthetic_clip_list_and_no_aliasing(self):
         self.assertEqual(len(P),4)  # HISTORICAL frozen PCM corpus, not active names
-        self.assertEqual(set(CANDIDATES),{"gobi","hey_gobi","globi"})
+        self.assertEqual(set(CANDIDATES),{"gobi","hey_gobi","globi","monika"})
         self.assertEqual({len(x) for x in P.values()},{6})
         self.assertEqual(len(NEG),14)
         self.assertNotEqual(P["gobi"][0],P["globi"][0])
