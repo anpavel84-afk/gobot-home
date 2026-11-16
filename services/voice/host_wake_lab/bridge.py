@@ -1,46 +1,60 @@
-"""One-way HOST-A integration port, intentionally no network or gateway imports.
+"""HOST-B adapter for HOST-A's authoritative contract_v1.
 
-Accept a mapping/object from HOST-A's canonical AudioChunk contract. Do not
-duplicate AudioChunk/WakeEvent dataclasses: the A-owned source of truth wins.
-Activation is *off by default*, regardless of detected candidates.
+A owns AudioChunk, WakeEvent and single activation in HostCore.
+This adapter does not create a second shared contract type, gateway or Brain.
+It is shadow-only by default: feed_chunk returns None until acceptance.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Mapping
+import importlib
+import time
+from typing import Any
 
 from .detect import WakeLab
 
 
-def _read(chunk: Any, key: str) -> Any:
-    if isinstance(chunk, Mapping):
-        return chunk[key]
-    return getattr(chunk, key)
+def _host_a_event_type():
+    # HOST-A's sanitized branch owns this module. Do not vendor a duplicate.
+    for module_name in ("host_wake_contract", "services.voice.host_wake_contract"):
+        try:
+            return importlib.import_module(module_name).WakeEvent
+        except ModuleNotFoundError as exc:
+            if exc.name not in (module_name, module_name.split(".")[0]):
+                raise
+    raise RuntimeError("HOST_A_CONTRACT_NOT_INSTALLED")
 
 
-class ShadowWakePort:
-    """Return shadow candidates and optionally call A's callback after acceptance."""
+class HostWakeDetectorAdapter:
+    """Implements HostWakeDetector.feed_chunk(AudioChunk)->WakeEvent|None, reset()."""
 
-    def __init__(self, lab: WakeLab, *, on_event: Callable[[dict], None] | None = None,
-                 host_a_accepted: bool = False):
-        if host_a_accepted and on_event is None:
-            raise ValueError("event_sink_required_for_activation")
-        self.lab = lab
-        self.on_event = on_event
-        self.accepted = bool(host_a_accepted)
+    def __init__(self, backend, *, activation_approved: bool = False,
+                 wake_event_type=None, clock=time.monotonic_ns):
+        self.lab = WakeLab(backend, clock=clock)
+        self.activation_approved = bool(activation_approved)
+        self.wake_event_type = wake_event_type
+        self.last_shadow_candidate = None
+        self.shadow_candidate_count = 0
 
-    def feed_audio_chunk(self, audio_chunk, *, speaking: bool = False) -> list[dict]:
-        """AudioChunk: pcm_s16le, stream_epoch, sample_index, receive_monotonic."""
+    def feed_chunk(self, chunk: Any):
+        """Consume the actual A-owned AudioChunk fields, no time conversion."""
         events = self.lab.feed(
-            pcm_s16le=_read(audio_chunk, "pcm_s16le"),
-            stream_epoch=_read(audio_chunk, "stream_epoch"),
-            sample_index=_read(audio_chunk, "sample_index"),
-            receive_monotonic=_read(audio_chunk, "receive_monotonic"),
-            speaking=speaking,
+            pcm_s16le=chunk.pcm_s16le,
+            stream_epoch=chunk.stream_epoch,
+            sample_index=chunk.sample_index,
+            received_monotonic_ns=chunk.received_monotonic_ns,
         )
-        if self.accepted and self.on_event is not None:
-            for event in events:
-                self.on_event(dict(event))
-        return events
+        if not events:
+            return None
+        if len(events) != 1:
+            raise RuntimeError("multiple_wake_events_on_single_frame")
+        event = events[0]
+        self.shadow_candidate_count += 1
+        self.last_shadow_candidate = event
+        if not self.activation_approved:
+            return None  # An unaccepted recognizer may never activate A.
+        cls = self.wake_event_type or _host_a_event_type()
+        return cls(**event)
 
-    def reset(self) -> None:
+    def reset(self):
         self.lab.reset()
+        self.last_shadow_candidate = None

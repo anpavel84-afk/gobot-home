@@ -19,7 +19,7 @@ def emit(lab, index, text=None, epoch="e1", speaking=False):
         lab.backend.text = text
     return lab.feed(
         pcm_s16le=b"\x00\x00" * 960, stream_epoch=epoch,
-        sample_index=index, receive_monotonic=index / 16000 + 1,
+        sample_index=index, received_monotonic_ns=index * 62500 + 1_000_000_000,
         speaking=speaking,
     )
 
@@ -61,7 +61,7 @@ class MatcherTests(unittest.TestCase):
 
 class PcmContractTests(unittest.TestCase):
     def test_event_position_and_no_paid_side_effect(self):
-        l = WakeLab(FakeBackend("гобот какая сегодня погода"), clock=lambda: 25.5)
+        l = WakeLab(FakeBackend("гобот какая сегодня погода"), clock=lambda: 25_500_000_000)
         self.assertEqual(emit(l, 0), [])
         self.assertEqual(emit(l, 960), [])
         e = emit(l, 1920)
@@ -69,7 +69,7 @@ class PcmContractTests(unittest.TestCase):
         self.assertEqual(e[0], dict(
             stream_epoch="e1", end_sample_index=2880,
             phrase_id="gobot", detector_id="fake-pcm",
-            confidence=None, detected_monotonic=25.5,
+            confidence=None, detected_monotonic_ns=25_500_000_000,
         ))
         self.assertEqual(emit(l, 2880), [])
 
@@ -91,7 +91,7 @@ class PcmContractTests(unittest.TestCase):
         l = WakeLab(FakeBackend(""))
         with self.assertRaises(DiscontinuousAudio):
             l.feed(pcm_s16le=b"\x00", stream_epoch="e", sample_index=0,
-                   receive_monotonic=0.0)
+                   received_monotonic_ns=0)
 
     def test_decimation_statefulness(self):
         import numpy as np

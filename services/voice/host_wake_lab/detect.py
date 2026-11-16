@@ -1,7 +1,7 @@
 """Model-independent wake policy and strict PCM16 monotonic transport adapter.
 
 PCM input: s16le mono 16 kHz, stream_epoch, first sample_index,
-and receive_monotonic. Event output is a plain dict conforming to
+and received_monotonic_ns. Event output is a plain dict conforming to
 the HOST-A contract (issue #5); no second shared type definition.
 """
 from __future__ import annotations
@@ -85,7 +85,7 @@ class WakeMatcher:
 
 class WakeLab:
     """One decoder per isolated lab instance. Never opens a paid conversation."""
-    def __init__(self, backend: Backend, *, clock=time.monotonic):
+    def __init__(self, backend: Backend, *, clock=time.monotonic_ns):
         self.backend = backend
         self.detector_id = backend.detector_id
         self.clock = clock
@@ -106,7 +106,7 @@ class WakeLab:
         self.decoded_frames = 0
 
     def feed(self, *, pcm_s16le: bytes, stream_epoch: str,
-             sample_index: int, receive_monotonic: float,
+             sample_index: int, received_monotonic_ns: int,
              speaking: bool = False) -> list[dict]:
         if not isinstance(pcm_s16le, bytes) or not pcm_s16le or len(pcm_s16le) % 2:
             raise DiscontinuousAudio("pcm_s16le_mono16_required")
@@ -114,8 +114,8 @@ class WakeLab:
             raise DiscontinuousAudio("stream_epoch_required")
         if type(sample_index) is not int or sample_index < 0:
             raise DiscontinuousAudio("invalid_sample_index")
-        if not math.isfinite(receive_monotonic):
-            raise DiscontinuousAudio("invalid_receive_clock")
+        if type(received_monotonic_ns) is not int or received_monotonic_ns < 0:
+            raise DiscontinuousAudio("invalid_receive_clock_ns")
         if self.epoch != stream_epoch:
             self.reset()
             self.epoch = stream_epoch
@@ -123,12 +123,12 @@ class WakeLab:
         if self.expected != sample_index:
             self.reset()  # fail closed: no skipped/duplicated samples
             raise DiscontinuousAudio("pcm_discontinuity")
-        if self.last_receive is not None and receive_monotonic < self.last_receive:
+        if self.last_receive is not None and received_monotonic_ns < self.last_receive:
             self.reset()
             raise DiscontinuousAudio("nonmonotonic_receive_clock")
         end = sample_index + len(pcm_s16le) // 2
         self.expected = end
-        self.last_receive = receive_monotonic
+        self.last_receive = received_monotonic_ns
         result = self.backend.feed_pcm(pcm_s16le)
         self.last_text = result.text
         self.decoded_frames += 1
@@ -143,7 +143,7 @@ class WakeLab:
                 "phrase_id": phrase,
                 "detector_id": self.detector_id,
                 "confidence": result.confidence,
-                "detected_monotonic": self.clock(),
+                "detected_monotonic_ns": self.clock(),
             })
         if result.endpoint:
             self.matcher.reset()

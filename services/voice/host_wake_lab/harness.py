@@ -128,7 +128,7 @@ def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2):
         pcm = clip["pcm"]
         # Identical 1.20 seconds of post-clip silence for all decoders.
         extended = pcm + b"\0\0" * int(SAMPLE_RATE * 1.2)
-        stream_epoch = "fixture:" + clip["id"]
+        stream_epoch = "fixture_" + clip["id"]
         detections = []
         for i in range(0, len(extended), FRAME_SAMPLES * 2):
             frame = extended[i:i + FRAME_SAMPLES * 2]
@@ -136,7 +136,7 @@ def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2):
             events = detector.feed(
                 pcm_s16le=frame, stream_epoch=stream_epoch,
                 sample_index=first_sample,
-                receive_monotonic=10000.0 + first_sample / SAMPLE_RATE,
+                received_monotonic_ns=10_000_000_000_000 + int(first_sample * 1_000_000_000 / SAMPLE_RATE),
             )
             frame_count += 1
             for event in events:

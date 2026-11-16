@@ -3,12 +3,12 @@
 **Current gate: SOURCE_IMPLEMENTED / FREE_TESTED / MODEL_NOT_ACCEPTED.**
 PC_MIC_HUMAN_ACCEPTED=NOT_RUN_CONSENT_REQUIRED; BOARD_HUMAN_ACCEPTED=NOT_RUN_HOST_A_ONLY; PAID_CALLS=0.
 
-This is an isolated host-only research implementation, not a production wake module. It does not modify the HOST-A gateway, Opus path, firmware, active Brain, running workers, system Python, or the canonical PCM/WakeEvent contract. Its separate Git worktree is feat/host-wake-lab, based on the verified 64ba27e2 (descendant of H0 bf8a2e98), never the stale a31674e.
+This is an isolated host-only research implementation, not a production wake module. It does not modify the HOST-A gateway, Opus path, firmware, active Brain, running workers, system Python, or the canonical PCM/WakeEvent contract. Its separate PLAN worktree is feat/host-wake-lab-public, rebased for safe publication on sanitized public HOST snapshot f24c32d5, whose tree exactly equals local 64ba27e2 (H0 descendant bf8a2e98). No private PLAN ancestry is part of the published branch; never reset to stale a31674e.
 
 ## API and safety
 
-- detect.py: WakeLab.feed(pcm_s16le, stream_epoch, sample_index, receive_monotonic, speaking=False) consumes mono s16le PCM16 at 16 kHz and returns a list of WakeEvent dictionaries (stream_epoch, end_sample_index, phrase_id, detector_id, confidence or null, detected_monotonic).
-- bridge.py: ShadowWakePort.feed_audio_chunk takes the future HOST-A-owned AudioChunk mapping/object, keeping A's contract as source-of-truth. Activation callback is **off by default**, regardless of detection. HOST-A may enable only after acceptance.
+- detect.py: WakeLab.feed(pcm_s16le, stream_epoch, sample_index, received_monotonic_ns, speaking=False) consumes mono s16le PCM16 at 16 kHz and returns laboratory candidate dictionaries with the exact A-owned WakeEvent fields (stream_epoch, end_sample_index, phrase_id, detector_id, detected_monotonic_ns, confidence or null).
+- bridge.py: HostWakeDetectorAdapter implements HOST-A's exact v1 protocol: feed_chunk(AudioChunk)->WakeEvent|None and reset(). It consumes the A-owned received_monotonic_ns and returns the A-owned WakeEvent class, never a duplicate contract class. The adapter returns None in shadow mode by default, even when ASR finds a candidate. Only HOST-A can deliberately activate after acceptance. Integration was tested using actual published A AudioChunk, WakeEvent, and HostCore classes with a **fake** speech hypothesis: event constructed, HostCore accepted 1 activation, no physical device, no paid call.
 - engines.py: native streaming T-one 8 kHz with private 16→8 FIR; small Vosk 16 kHz fails closed on OOV, Zipformer RU is **offline rolling-window**, not native streaming.
 - Strict continuity across sample_index and stream_epoch, two spaced ASR updates before event, one event per segment, no forced one-word grammar/fuzzy aliases.
 - live.py: no mic until Owner locally types YES-PC-MIC after an explicit CLI flag and warning. Bounded run; no PCM/transcript writes; no network. One local PC speaker earcon and optional time/timer via deterministic local_command.py + pre-existing read-only Piper Russian TTS.
@@ -28,7 +28,7 @@ Reports: C:\Users\PLAN\gobot\HOST-B-lab\results
 | Vosk | vosk-model-small-ru-0.22 | Apache-2.0 in official Vosk list | 16k, online OOV blocked |
 | Small Zipformer | sherpa-onnx-small-zipformer-ru-2024-09-18 | Apache-2.0, originating alphacep Hugging Face model card | 16k, offline transducer windows |
 
-Runtimes: Python 3.14.4 isolated; sherpa-onnx==2.0.1, vosk==0.3.45, sounddevice==0.5.6, numpy==2.5.5, psutil==7.2.2, piper-tts==1.8.0; ONNX CPU. No paid models, adaptation, retries, or new always-on services.
+Runtimes: Python 3.14.4 isolated; sherpa-onnx==2.0.1, vosk==0.3.45, sounddevice==0.5.6, numpy==2.5.5, psutil==7.2.2, piper-tts==1.8.0; ONNX CPU. The B module deliberately does not vendor A's canonical dataclasses: imported at integration time from A's branch (draft PR #8). No paid models, adaptation, retries, or new always-on services.
 
 Upstream model/license references:
 - https://k2-fsa.github.io/sherpa/onnx/pretrained_models/online-ctc/t-one-ctc-models.html
@@ -36,7 +36,7 @@ Upstream model/license references:
 - https://k2-fsa.github.io/sherpa/onnx/pretrained_models/offline-transducer/zipformer-transducer-models.html
 - https://huggingface.co/alphacep/vosk-model-small-ru
 
-GigaAM CTC was considered but excluded due to noncommercial licensing restrictions in published GigaAM models; production cannot silently substitute it.
+GigaAM CTC was considered but excluded pending license review because published GigaAM model families include noncommercial licensing restrictions; production cannot silently substitute it.
 
 Verified SHA256:
 - T-one model.onnx: 5ded080e2a6c86ecc11bc0902d77524eb3e8b0844cb0c0754347f5aafb4dabc
@@ -88,6 +88,6 @@ After real wake, try "Гобот который час?" or "Гобот пост
 
 ## HOST-A handoff gate
 
-1. Use bridge.py and detect.py only as an isolated importable experiment. A owns the canonical contract and production side.
-2. Keep callback disabled (shadow) until Owner accepts human trials and false-positive exposure. No automatic merge to master.
+1. Use bridge.py / HostWakeDetectorAdapter with the A-owned services/voice/host_wake_contract.py (published in HOST-A draft PR #8). The input fields are pcm_s16le, stream_epoch, sample_index, received_monotonic_ns. The output is WakeEvent with detected_monotonic_ns. B does not vendor contract types.
+2. Keep activation_approved=False (shadow feed_chunk returns None) until Owner accepts human trials and false-positive exposure. No automatic merge to master.
 3. Current benchmark verdict **NOT_ACCEPTED**. Among tested candidates, T-one is the best *starting point* for future human evaluation because it is genuine Russian native streaming — not a pass.

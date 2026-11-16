@@ -65,7 +65,7 @@ def main():
     speaker = OfflineSpeaker(args.piper_model) if args.piper_model else None
     decoder = WakeLab(backend)
     epoch = uuid.uuid4().hex
-    frames: queue.Queue[tuple[bytes, float]] = queue.Queue(maxsize=16)
+    frames: queue.Queue[tuple[bytes, int]] = queue.Queue(maxsize=16)
     overflow = threading.Event()
     playing = threading.Event()
     speaker_thread = None
@@ -81,7 +81,7 @@ def main():
             overflow.set()
             return
         try:
-            frames.put_nowait((bytes(indata), time.monotonic()))
+            frames.put_nowait((bytes(indata), time.monotonic_ns()))
         except queue.Full:
             overflow.set()
 
@@ -129,7 +129,7 @@ def main():
                 events = decoder.feed(
                     pcm_s16le=pcm, stream_epoch=epoch,
                     sample_index=sequence_samples,
-                    receive_monotonic=received, speaking=playing.is_set(),
+                    received_monotonic_ns=received, speaking=playing.is_set(),
                 )
                 sequence_samples += len(pcm) // 2
                 if events:
@@ -137,7 +137,7 @@ def main():
                     awaiting_intent_until = time.monotonic() + 8
                     print("WAKE_EVENT", events[0]["phrase_id"],
                           "sample", events[0]["end_sample_index"],
-                          "detected_monotonic", round(events[0]["detected_monotonic"], 4))
+                          "detected_monotonic_ns", events[0]["detected_monotonic_ns"])
                     beep_ack()
                 if awaiting_intent_until and not playing.is_set():
                     intent = parse_local_intent(decoder.last_text)
