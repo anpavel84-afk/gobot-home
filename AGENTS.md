@@ -1,10 +1,72 @@
+OWNER 2026-11-15 APPROVED ONE NEW guided50s local USB calibration; raw DPAPI PLAN-only deletion within24h. Explicitly permits retaining ONLY an acceptance-passed selected personal model on PLAN and this enrolled column until Owner deletion. No private audio/features/cloud transfer, paid budget renewal, automatic repeats or retention of rejected candidates. Capture requires physical touch; mark consumed only on START.
+
+LATEST INSTALLED:0.4.12-dev-guided-calibration-1,app1acb944d,readback/NVS verified; native1625 delta0; WiFi/enrolled1/phase0/upload0/raw0samples0. No recording ARM or paid call. Human wake NOT ACCEPTED. Fresh guided50s capture and persistent selected personal model permission not yet granted.
+
+LATEST 2026-11-15: ALL training jobs FINISHED/REJECTED. Human wake NOT ACCEPTED. Guided0.4.12 unchanged public4ffc build/install facts in guided-calibration-build.json. Recorder OFF; no NEW recording/paid/retention/transfer consent. Original sample/model expiry unchanged. 149 free wake tests. Correct alignment ONE frame, original end=i+4 restored. Older running/endpoint-fix notes superseded.
+
+LATEST2026-11-15: r2 full job COMPLETED,0dc97077 REJECTED (75/75both,FP134/112;Gabot17/20,16/20). Public continuous1610-window correction09ec4abd also REJECTED (70/75,65/75;FP3/9;Gabot8/20,12/20). Neither flashed. ONE balanced correction now running gobot-wake-balanced-20261115: full10kTRAINnegative scan capped20khardwindows, exact-schedule alias balancing,3000steps,2CPU/4GiB/2h/networkOFF, no retry/paid/flash. Board0.4.11 unchanged, budgets not renewed, C reserve/old expiry preserved. Await actual evaluation, no READY. Earlier running/completion notes historical.
+
+LATEST2026-11-15: Full job v1 FAILED before training at46032 sources (audible negative «Гоу»3160samples vs3200 minimum). Fixed negative-only zero padding, preserving speech/positive validation. ONE corrected offline r2 job RUNNING, no retries: gobot-wake-full-reference-r2-20261115,2CPU/4GiB/12h/networkOFF. Resume hash-verified base, then explicit Owner «Габот» alias extension1000 TRAIN/40 heldout sources;51kpositive/10knegative,102kwindows/10000steps, mandatory alias acceptance.96 free tests. Board0.4.11 unchanged, scan1/upload0,wake NOT_ACCEPTED. No flash/recording/paid allowance renewal;3 B starts spent/C reserve preserved. Older job-running notes are historical. CURRENT_STATUS/run manifest authoritative.
+
+LATEST2026-11-15: One PUBLIC full-scale offline CPU job gobot-wake-full-reference-20261115.service RUNNING on existing VPS: target50k positive/10k negative actual PCM clips, then100k windows/10000steps/evaluation. Network OFF,2CPU/4GiB/12h cap, generation6h/12GiB; no retries/auto-flash. Source full_reference_job.sh, details CURRENT_STATUS/full-reference-run.json. No ready model yet. Prior new private hard-negative correction and DTW experiment FAILED, not installed. Board0.4.11 unchanged, idle/scan1/upload0.93 free tests; no paid calls/new recording/expiry renewal. All3 B starts spent; C reserve unchanged. No raw/features/personal weights leave PLAN. Preserve original deletion deadlines. Old 'no jobs remain' entries below are historical.
+
+LATEST2026-11-15: ONE approved NEW30s pre-AFE USB field sample is now COMPLETE/CRC verified, Owner confirmed completion. Consent CONSUMED. DPAPI/PLAN only, deletion task READY within original23h. No recorder/arm remains; no new paid calls or firmware/runtime change. Installed public model misses one prescribed field question in replay; private candidates find3 but still fail synthetic false-event acceptance, NOT deployed. Timing labels are local ASR hypotheses only; new3 questions remain held out. No more recording without NEW explicit consent. Earlier pending/armed notes are historical.
+
+OWNER2026-11-15 APPROVED ONE NEW <=30s raw USB field-failure recording and is ready. First preparation ended WITHOUT START/0 PCM; consent not consumed. Collector now armed awaiting physical touch (session84747), protocol field_failed_wake_recheck, DPAPI/deletion task registered BEFORE arm. Do not open a second collector or rearm during this one. No paid calls/Brain wake admission/consent renewal. On actual capture, this one-shot consent is consumed; preserve all old expiry deadlines. Await Owner completion.
+
+LATEST2026-11-15: board0.4.11 exact native reference parity PASS; human wake NOT_ACCEPTED. Two public word-end training runs FINISHED/REJECTED, no jobs remain. ALL3 B starts spent; no renewal. NEW <=30s raw field recording consent ASKED/PENDING, no collector/arm/sample/task created. Original sample expiry unchanged.94 free tests pass; do not claim readiness or start paid calls. See latest CURRENT_STATUS.
+
+LATEST2026-11-15 board0.4.11-dev-ref-parity-1 installed, exact1625-output native reference parity PASS0 delta. PUBLIC model unchanged, production and Owner trial OFF. Human wake FAILED; no new paid/recording allowance. ALL3 B starts spent. One bounded public word-end-anchored CPU training job running; no repeats, preserve original sample expiry. Earlier0.4.10 delta17 was desktop-vs-reference backend difference, NOT proven ESP bug. See CURRENT_STATUS.
+
+LATEST2026-11-15 Owner says wake WITHOUT TOUCH FAILS. Local trial CANCEL acknowledged; no rearm.2 B starts spent,1 manual remains, expiry unchanged.0 pending hangups. Multiple playback responses do NOT establish wake acceptance. See newest CURRENT_STATUS.
+
+OWNER on2026-11-15 explicitly APPROVED3 manual board B sessions x60s,8 responses x512tokens,marin,gpt-transcribe,$1 estimate/24h; no CLI/Luna/Image/retries. USB restored. Wake-test scope enabled/mounted after WAL-aware backups; runtime9c317bca47b78f91854cd0a209a446bf574ca53b deployed idle. Board0.4.9 unmuted and ARM acknowledged3 attempts/600s. Do NOT rearm/refill or spend automatically. Await Owner physical question. Acoustic acceptance remains pending; old ledgers/C reserve untouched. Earlier PENDING/UNARMED notes below are historical.
+
+Current hardware checkpoint: PUBLIC0.4.9-dev-owner-wake-test-1 installed and
+readback/boot verified. Production wake OFF; bounded3-attempt/600s Owner trial
+UNARMED. No arm, recording, paid call or Brain deployment occurred. New3x60s B
+allowance requested and PENDING; policy DISABLED/unmounted, old8 starts spent.
+Do not enable/spend without Owner answer. Public question-in-one-phrase candidate
+is NOT universal/name-only accepted. Personal audio/weights stay PLAN-only with
+original expiry. Firmware rollback to0.4.8 prepared. CURRENT_STATUS is factual.
+
+OWNER continued complete local wake implementation on2026-11-14 using the existing
+recording. Guarded PUBLIC diagnostic0.4.8-dev-reference-local-1 is now installed:
+full64x4 INT8 runtime/parity/error counters verified, NVS/boot/inactive/assets
+preserved, exact0.4.6 rollback available. This diagnostic uses a known acoustically
+failed PUBLIC model and keeps wake-to-Brain OFF. Do not confuse native runtime
+success with a qualified detector. Free bounded public CPU training and PLAN-only
+sample analysis continue. No new recording, paid grant or ledger reset is implied;
+original sample/personal-model expiry remains unchanged. See CURRENT_STATUS first.
+
 # GoBot Home boundaries
+
+OWNER approved on 2026-11-14 installation of prepared0.4.6-dev-raw-wake-1 on
+the enrolled Spotpear, with identity/backup/NVS/rollback checks, AND ONE NEW
+<=50s pre-AFE USB recording. Physical touch only after separate instruction;
+PLAN-only DPAPI, delete within24h, no cloud/paid APIs. No wake-route enablement
+or renewed voice budget. Keep original two sample expiry deadlines unchanged.
+The raw USB consent is NOW CONSUMED: Owner reported presence, initiated physical
+touch and confirmed completion;50.0s pre-AFE PCM passed full sequence/CRC, DPAPI
+on PLAN, deletion scheduled at original23h deadline. No recorder remains armed.
+Earlier armed window expired with no touch/audio. No automatic further recording,
+paid call, publication/remote transfer of human speech/features/personal weights,
+or wake enablement. Local CPU analysis/calibration remains authorized; model
+quality must pass, no false READY and no threshold-only bypass.
+
+Both Owner local recording consents on 2026-11-14 are CONSUMED:49.92s and35.0s.
+Owner corrected the second protocol: FOUR final wake calls, not three. Both
+samples are post-AFE/Opus conversation audio, NOT exact pre-AFE KWS input.
+Do not use them as device wake acceptance or continue adapting them as raw KWS.
+DPAPI/deletion deadlines stay unchanged; no cloud/paid calls, automatic repeats,
+expense renewal or wake admission. No recorder is armed. Prepare a lossless
+pre-AFE USB diagnostic on a COPY; installation/NEW recording need scoped consent.
 
 The ONE local wake sample consent below was CONSUMED on 2026-11-14:49.92s,
 Owner-confirmed pronunciation protocol, DPAPI on PLAN, no cloud transfer.
 The encrypted personal model shares raw-sample deletion within24h. No additional
-recording consent is implied; a proposed35s hard-negative/control sample is
-pending a separate Owner answer. No recorder remains armed; B restored.
+recording consent is implied; the separately approved35s sample above is also
+consumed. No recorder remains armed; B restored.
 
 OWNER resumed the complete local Russian GoBot wake-to-question product on
 2026-11-13; touch is fallback, not the target interaction. Continue local wake

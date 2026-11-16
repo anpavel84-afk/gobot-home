@@ -1,5 +1,73 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Installed guided calibration — 2026-11-15
+
+Physical Spotpear now runs **0.4.12-dev-guided-calibration-1**, app SHA
+`1acb944df377c6da4ac53b013997d9ac548e01cba6bdadece4267f7c502c5c6a`,3037584bytes.
+Fresh full private snapshot, exact enrolled identity, app-only write/readback and
+NVS/boot/inactive/assets preservation verified. WiFi/enrolled1,phase0,upload0.
+Native reference parity1625,max_delta0. Raw USB READY/status verified:state0,
+samples0,guided0; no recording armed. Two host C++ checks passed.
+This installation repairs calibration; it does NOT fix/qualify human wake yet.
+Brain runtime remains9c317bca47b78f91854cd0a209a446bf574ca53b, no deployment.
+Rollback: `data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py guided-calibration-rollback`
+uses the guarded exact0.4.11 image and preserves enrollment. Physical new LCD/touch
+and fresh guided human calibration still need Owner participation/consent.
+
+## Wake checkpoint 2026-11-15
+
+All public training jobs finished and FAILED acceptance; see
+firmware/spotpear/microwake/continuous-correction-results.json. No candidate installed.
+Two private PLAN-only adaptations train on two field questions, hold out the third,
+and both miss that third question. Original raw/model deletion deadlines unchanged.
+Licensed public human negatives: LibriSpeech dev-clean, CC BY4.0, 32 TRAIN/8 heldout
+speakers. No Owner audio/features/personal weights uploaded.
+
+CORRECTION: measured offline/stream alignment is ONE frame. Original mining
+end=i+4 restored; earlier claim of an endpoint bug is incorrect. Early continuous
+and balanced zero-alignment experiments were rejected, not runtime acceptance.
+
+Guided0.4.12 built with unchanged public4ffc, distinct screen repetition counters,
+USB readiness handshake, and repaired timeout: late touch no longer expires an
+already-started capture. Default recording/wake route OFF. No new recording armed.
+Both question calls and one isolated call per stress remain held out. Prompt timing
+is not verified speech labeling. Actual install evidence: guided-calibration-build.json.
+
+149 free Python wake tests passed (2459 deselected). No new paid calls, no budget
+renewal, no Brain runtime deployment. B starts spent, C ledger/reserve preserved.
+Human GoBot/Gabot wake remains NOT ACCEPTED. Older running-job notes superseded.
+
+
+## Full model evaluated; continuous correction —2026-11-15
+
+The r2 public job COMPLETED generation,10000-step training and native-reference
+streaming evaluation.51k positive/10k negative source clips plus40 held-out Gabot
+clips exist; no private data uploaded. Model0dc97077 was REJECTED:75/75 ordinary
+positives for both held-out voices,134/112 false events on498 negatives each;
+Gabot17/20 and16/20. It is not installed or production-qualified.
+
+A controlled float-window vs native INT8 diagnostic on public speech found false
+high scores in both paths (144/134 negative windows above0.9,1425 negative windows;
+mean output difference0.033 overall). Export/native arithmetic is not sufficient
+to explain these false decisions; no ESP kernel change or threshold workaround.
+
+Implemented public-only continuous negative correction, fixed a one-frame mining
+endpoint error (consumed3 frames means end=start+3), included quiet/unmodified
+speech. One1610-window/3000-step correction09ec4abd completed:70/75 and65/75,
+false events3/9 on498 negatives, Gabot8/20 and12/20. REJECTED, not installed.
+
+One explicit balanced correction is RUNNING in
+`gobot-wake-balanced-20261115.service`: same public base weights, complete10k
+TRAIN-negative scan, capped20k hard windows, dedicated balanced Gabot positives,
+3000 steps, mandatory held-out ordinary/alias evaluation. Alias feature indices
+are recovered from the exact original seeded source schedule, not guessed from
+transcripts or held-out examples. No held-out speech is used for gradient updates.
+Network OFF,2CPU/4GiB/2h, no retry/paid call/flash. New unit is not a finished result.
+102 focused free checks passed before the extra schedule test; that test also
+passed in its7-test correction-scope suite. Current board remains0.4.11 and
+all3 B starts remain spent. Existing source expiry and C ledger/reserve retained.
+
+
 ## Full corpus resumed; explicit Gabot variants added — 2026-11-15
 
 Owner requested working wake on both «Гобот» and «Габот». No qualified new model

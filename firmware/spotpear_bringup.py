@@ -55,7 +55,7 @@ def verify_nvs_config(before,after):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback", "native-parity", "native-parity-rollback", "reference-fixture", "reference-fixture-rollback"])
+    parser.add_argument("action", choices=["inspect", "install", "restore", "touch", "touch-audio", "touch-volume", "touch-auto", "previous", "wake-probe", "wake-rollback", "duplex", "duplex-rollback", "continuous", "continuous-rollback", "session-ack", "session-ack-rollback", "media-ready", "media-ready-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback", "native-parity", "native-parity-rollback", "reference-fixture", "reference-fixture-rollback", "guided-calibration", "guided-calibration-rollback"])
     parser.add_argument("--hardware-data", type=Path, default=ROOT/"data/hardware",
                         help="Existing owner-private backup and enrollment directory")
     parser.add_argument("--resume-snapshot",type=Path,help="Resume this local guarded read, preserving completed four-MiB segments")
@@ -154,7 +154,7 @@ def main():
         if opts.action=="install":
             require(current[0x20000:]==original[0x20000:], "Factory app/assets differ; review before install")
         require(original[0x8000:0x8c00]==(PRIVATE/"candidate/partition-table.bin").read_bytes(),"Partition geometry changed")
-        if opts.action in ("voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback", "native-parity", "native-parity-rollback", "reference-fixture", "reference-fixture-rollback"):
+        if opts.action in ("guided-calibration", "guided-calibration-rollback", "voice-status", "voice-status-rollback", "fast-start", "fast-start-rollback", "raw-wake", "raw-wake-rollback", "reference-local", "reference-local-rollback", "owner-wake-public", "owner-wake-public-rollback", "native-parity", "native-parity-rollback", "reference-fixture", "reference-fixture-rollback"):
             report=json.loads((ROOT/"firmware/spotpear/voice_status/BUILD_MANIFEST.json").read_text())
             previous_report=json.loads((ROOT/"firmware/spotpear/duplex/media-ready-release.json").read_text())
             new=PRIVATE/"touch/gobot-voice-status.bin"
@@ -166,6 +166,17 @@ def main():
                 new=PRIVATE/"touch/gobot-fast-start.bin"
                 previous=PRIVATE/"touch/gobot-voice-status.bin"
                 require(report['version']=='0.4.5-dev-fast-start-1' and report['sha256']=='c722c3e0654d9ecbc41d898eb1db6092183d50936090a394a4a464b7af97e764','Unexpected fast-start candidate')
+            elif opts.action.startswith('guided-calibration'):
+                diagnostic=json.loads((ROOT/'firmware/spotpear/microwake/guided-calibration-build.json').read_text())
+                require(diagnostic['version']=='0.4.12-dev-guided-calibration-1' and
+                    diagnostic['app_sha256']=='1acb944df377c6da4ac53b013997d9ac548e01cba6bdadece4267f7c502c5c6a' and
+                    diagnostic['wake_route'] is False and diagnostic['recording_default_active'] is False and
+                    diagnostic['contains_personal_weights'] is False and
+                    diagnostic['model_sha256']=='4ffc532e16b3e20b7ce09099338023b5af304a0e31bf537034bb03dd67a4c5f9',
+                    'Only exact unarmed public guided calibration candidate admitted')
+                report={'bytes':diagnostic['app_bytes'],'sha256':diagnostic['app_sha256']}
+                previous_report={'app_bytes':3036288,'app_sha256':'2695a0b436e9db3e04e8f67fa1b2718a34232e4c4531f965c2e5dc137df7cbe5'}
+                new=PRIVATE/'touch/gobot-guided-calibration.bin';previous=PRIVATE/'touch/gobot-reference-fixture.bin'
             elif opts.action.startswith('reference-fixture'):
                 diagnostic=json.loads((ROOT/'firmware/spotpear/microwake/native-reference-build.json').read_text())
                 require(diagnostic['version']=='0.4.11-dev-ref-parity-1' and diagnostic['production_qualified'] is False and

@@ -1,7 +1,6 @@
 {
   "schema": "gobot-public-full-reference-run-v1",
-  "observed_utc": "2026-11-15T19:58:03Z",
-  "status": "running_resumed_generation",
+  "status": "completed_rejected",
   "unit": "gobot-wake-full-reference-r2-20261115.service",
   "source_clips_target": {
     "positive": 51000,
@@ -32,12 +31,13 @@
     "validate_reference.py": "6b8aba2ac5c9bcae3698cb87149ac0daed0d5e10bb59250fbf30fa4789ae73ec",
     "wake_variants.py": "24877c6c7bec1a50697fee40fca6dd94570e3c03292cf8235b29ace9582c1f0d"
   },
-  "base_source_clips_observed": 46100,
+  "base_source_clips_observed": 61000,
   "previous_attempt": {
     "unit": "gobot-wake-full-reference-20261115.service",
     "status": "failed_before_training",
     "completed_clips": 46032,
     "failure": "Audible negative fragment3160 samples below blanket3200 minimum",
     "no_model_exported": true
-  }
+  },
+  "model_sha256": "0dc97077ea6f69c4efa3e622bfc18d0d7b4bfb6203d980d863921884119e31fa"
 }

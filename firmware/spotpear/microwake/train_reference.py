@@ -56,7 +56,7 @@ def features(pcm):
         if result.features:rows.append(result.features)
     return np.asarray(rows,np.float32)
 
-def window(clip,rng,positive,following=None):
+def window(clip,rng,positive,following=None,quiet=False):
     raw=np.zeros(0) if clip is None else clip.astype(float)
     raw=trim_background(raw,retain_full=positive)
     speed=rng.uniform(.72,1.35)
@@ -69,7 +69,7 @@ def window(clip,rng,positive,following=None):
         else:
             start=int(rng.integers(0,len(raw)-total+1));raw=raw[start:start+total]
     signal_rms=float(np.sqrt(np.mean(raw*raw)))
-    floor=float(rng.uniform(0,1200))
+    floor=float(np.exp(rng.uniform(np.log(.5),np.log(1200)))) if quiet else float(rng.uniform(0,1200))
     if clip is not None:floor=min(floor,max(30,signal_rms/1.8))
     noise=rng.normal(0,floor,total);room_noise=lfilter([.15],[1,-.85],rng.normal(0,floor,total))
     background=noise+room_noise
@@ -100,6 +100,15 @@ def load_clip(value):
     return np.fromfile(value,'<i2') if isinstance(value,Path) else value
 
 
+def append_features(base,extra,path):
+    combined=np.lib.format.open_memmap(path,mode='w+',dtype=np.float16,shape=(len(base)+len(extra),*base.shape[1:]))
+    for at in range(0,len(base),1024):
+        end=min(at+1024,len(base));combined[at:end]=base[at:end]
+    for at in range(0,len(extra),1024):
+        end=min(at+1024,len(extra));combined[len(base)+at:len(base)+end]=extra[at:end]
+    combined.flush();return combined
+
+
 def prepare(groups,path,count,seed,complete_source_coverage=False):
     rng=np.random.default_rng(seed);x=np.lib.format.open_memmap(path,mode='w+',dtype=np.float16,shape=(count,FRAMES,40))
     y=np.arange(count,dtype=np.int32)%2;rng.shuffle(y)
@@ -120,15 +129,16 @@ def select_checkpoint(history):
     if not trained:raise ValueError('No finite trained checkpoint')
     return min(trained,key=lambda row:row['validation_bce'])
 
-def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False,full_corpus=False):
+def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expanded=False,initial_weights=None,initial_sha=None,hard_replay=None,word_anchored=False,full_corpus=False,pooled=False,speech_replay=None):
     global TRAIN,TAIL_SAMPLES,WORD_ANCHORED
     WORD_ANCHORED=word_anchored
-    if full_corpus and (not expanded or not word_anchored or steps!=10000 or count not in (100000,102000) or cache or reuse_public or initial_weights or hard_replay):raise ValueError('Full corpus requires fresh bounded reference training')
-    if word_anchored and (not expanded or cache or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
+    if speech_replay and (not full_corpus or not cache or pooled or hard_replay or initial_weights):raise ValueError('Licensed speech experiment requires fixed full public cache')
+    if full_corpus and (not expanded or not word_anchored or steps!=10000 or count not in (100000,102000) or reuse_public or initial_weights or hard_replay):raise ValueError('Full corpus requires fresh bounded reference training')
+    if word_anchored and (not expanded or (cache and not full_corpus) or reuse_public):raise ValueError('Word anchoring requires fresh expanded windows')
     if bool(initial_weights)!=bool(initial_sha):raise ValueError('Initial weights require their exact hash')
     if expanded:
         TRAIN=('denis','dmitri','espeak-ru','anna','irina');TAIL_SAMPLES=9600
-        if reuse_public or cache:raise ValueError('Expanded profile requires fresh windows')
+        if reuse_public or (cache and not full_corpus):raise ValueError('Expanded profile requires fresh windows')
     if steps not in (1000,10000) or count not in ((100000,102000) if full_corpus else (8192,50000)):raise ValueError('Unsupported bounded reference profile')
     if set(TRAIN)&set(VALIDATION+TEST) or set(VALIDATION)&set(TEST):raise ValueError('Speaker leakage')
     out.mkdir(parents=True,exist_ok=True);tf.keras.utils.set_random_seed(SEED);tf.config.experimental.enable_op_determinism()
@@ -136,7 +146,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         'human_training':False,'seed':SEED,'steps':steps,'augmented_windows':count,'context_frames':FRAMES,'batch_size':BATCH,'cpu_threads':2,
         'positive_front_crop':False,'public_tts_positive_seeds':60,'public_tts_negative_seeds':792,'reference_cutoff':231,'window':10,'split_revision':2,
         'reference_source':'interkelstar/microwakeword-trainer@8fdbadc3b969a8c1993108c0d655910440dfb762',
-        'pooled':False,'checkpoint_selection':'finite trained validation BCE only',
+        'pooled':pooled,'checkpoint_selection':'finite trained validation BCE only',
         'background_only_negative_fraction':.15,'tail_samples':TAIL_SAMPLES}
     if expanded:
         provenance=json.loads((corpus/'provenance.json').read_text())
@@ -155,7 +165,7 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     (out/'config.json').write_text(json.dumps(config,indent=2))
     if cache:
         cached_config=json.loads((cache/'config.json').read_text())
-        for key in ('training_speakers','validation_speakers','test_speakers','human_training','seed','augmented_windows','context_frames','split_revision'):
+        for key in ('training_speakers','validation_speakers','test_speakers','human_training','seed','augmented_windows','context_frames','split_revision','corpus_manifest_sha256'):
             if cached_config.get(key)!=json.loads(json.dumps(config[key])):raise ValueError('Public cache split mismatch: '+key)
         x=np.load(cache/'train-features.npy',mmap_mode='r');y=np.load(cache/'train-labels.npy')
         if x.shape!=(count,FRAMES,40) or x.dtype!=np.float16 or y.shape!=(count,) or set(np.unique(y))!={0.,1.}:raise ValueError('Public cache shape/labels mismatch')
@@ -188,10 +198,17 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
         if extra.ndim!=3 or extra.shape[1:]!=(FRAMES,40) or not 1<=len(extra)<=20000 or not np.isfinite(extra).all():raise ValueError('Invalid hard-negative features')
         x=np.concatenate([x,extra]);y=np.pad(y,(0,len(extra)));config['extra_hard_negative_windows']=len(extra);config['hard_replay_sha256']=manifest['sha256'];config['negative_weight']=4.
         (out/'config.json').write_text(json.dumps(config,indent=2))
+    if speech_replay:
+        from public_data_scope import validate_speech_replay
+        info=validate_speech_replay(speech_replay);extra=np.load(speech_replay,mmap_mode='r')
+        if extra.dtype!=np.float16 or extra.shape!=(info['windows'],FRAMES,40):raise ValueError('Wrong native public speech feature shape')
+        x=append_features(x,extra,out/'combined-features.npy');y=np.pad(y,(0,len(extra)))
+        config.update(human_training=True,owner_human_training=False,public_human_negative_training=True,public_speech_source_md5=info['source_md5'],public_speech_source_url=info['source_url'],public_speech_license=info['license'],public_speech_negative_windows=len(extra),public_speech_sha256=info['sha256'],total_training_windows=len(x))
+        (out/'config.json').write_text(json.dumps(config,indent=2))
     np.save(out/'train-labels.npy',y)
     val,labels=prepare(files(corpus,VALIDATION,(498,75) if expanded else (198,15),keyword_only=word_anchored),out/'validation-features.npy',1024,SEED+1)
     flags=SimpleNamespace(pointwise_filters='64,64,64,64',repeat_in_block='1,1,1,1',mixconv_kernel_sizes='[5],[7,11],[9,15],[23]',
-        residual_connection='0,0,0,0',first_conv_filters=32,first_conv_kernel_size=5,stride=3,max_pool=False,pooled=False,spatial_attention=False)
+        residual_connection='0,0,0,0',first_conv_filters=32,first_conv_kernel_size=5,stride=3,max_pool=False,pooled=pooled,spatial_attention=False)
     net=model(flags,(FRAMES,40),BATCH)
     if initial_weights:
         prior=json.loads((initial_weights.parent/'config.json').read_text())
@@ -221,6 +238,10 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     selected=select_checkpoint(history)
     (out/'selection.json').write_text(json.dumps({'selected':selected,'initial':history[0],'accepted':False},indent=2))
     net.load_weights(out/'best.weights.h5')
+    export_stream(net,x,out,started)
+
+
+def export_stream(net,x,out,started):
     streamed=to_streaming_inference(net,dict(spectrogram_length=FRAMES,features_length=FRAMES,stride=3),mode=Modes.STREAM_INTERNAL_STATE_INFERENCE)
     export=tf.keras.export.ExportArchive();export.track(streamed);export.add_endpoint('serve',streamed.call,input_signature=[tf.TensorSpec((1,3,40),tf.float32)]);export.write_out(str(out/'saved'))
     converter=tf.lite.TFLiteConverter.from_saved_model(str(out/'saved'));converter.optimizations=[tf.lite.Optimize.DEFAULT]
@@ -236,7 +257,9 @@ def main(corpus,out,steps=10000,count=50000,reuse_public=None,cache=None,expande
     details={'sha256':hashlib.sha256(blob).hexdigest(),'bytes':len(blob),'context_frames':FRAMES,'window':10,'cutoff':231,
         'input_quantization':runtime.get_input_details()[0]['quantization'],'output_quantization':runtime.get_output_details()[0]['quantization'],
         'ops':sorted({op['op_name'] for op in runtime._get_ops_details()}),'human_training':False,'cpu_only':True,'elapsed_train_s':time.monotonic()-started}
+    config=json.loads((out/'config.json').read_text())
+    for key in ('human_training','owner_human_training','public_human_negative_training','public_speech_source_md5','public_speech_source_url','public_speech_license'):
+        if key in config:details[key]=config[key]
     (out/'model.json').write_text(json.dumps(details,indent=2));print(json.dumps(details),flush=True)
-
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);p.add_argument('--word-anchored',action='store_true');p.add_argument('--full-corpus',action='store_true');a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay,a.word_anchored,a.full_corpus)
+    p=argparse.ArgumentParser();p.add_argument('corpus',type=Path);p.add_argument('output',type=Path);p.add_argument('--steps',type=int,default=10000);p.add_argument('--windows',type=int,default=50000);p.add_argument('--reuse-public',type=Path);p.add_argument('--cache',type=Path);p.add_argument('--expanded',action='store_true');p.add_argument('--initial-weights',type=Path);p.add_argument('--initial-sha');p.add_argument('--hard-replay',type=Path);p.add_argument('--word-anchored',action='store_true');p.add_argument('--full-corpus',action='store_true');p.add_argument('--pooled',action='store_true');p.add_argument('--speech-replay',type=Path);a=p.parse_args();main(a.corpus,a.output,a.steps,a.windows,a.reuse_public,a.cache,a.expanded,a.initial_weights,a.initial_sha,a.hard_replay,a.word_anchored,a.full_corpus,a.pooled,a.speech_replay)

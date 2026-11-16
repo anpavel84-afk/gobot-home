@@ -285,3 +285,16 @@ ai-edge-litert2.3.0 and pymicro-features2.0.2; parity98/1987024791 matches ESP32
 numeric scores/segments. These are unlabelled until verified against real trials.
 The voice-first product remains NOT_ACCEPTED; do not replace this status with
 source/build/unit-test counts. C/B ledgers and finite admissions stay unchanged.
+
+
+### Guided calibration (2026-11-15)
+prepare_guided_calibration.py copies pinned0.4.11, preserves public4ffc and generates
+guided_wake_prompts.h from guided_wake_plan.py. guided_wake8 is a separate consented
+50s physical capture, never automatic. Bounded USB handshake; active capture gets
+its own deadline independent of arm window. Sample-clock prompts have repetition
+counters. Both full questions and one name per stress remain held out. Verify
+actual speech labels. Persistent selected-model consent is independent and does
+not retain/flash rejected models automatically. Current personal adaptations failed.
+public_speech.py / public_data_scope.py verify licensed LibriSpeech and speaker
+separation; Owner data stays PLAN-only with original expiry. Public corrections
+all failed (continuous-correction-results.json). Measured stream alignment +1 frame.

@@ -24,4 +24,10 @@ int main() {
     assert(c.release_storage()==memory.data());assert(!c.arm(15,600000));
     assert(c.attach(memory.data(),memory.size()) && c.arm(15,600000));
     c.clear();
+    assert(c.arm(15,700000) && c.start(true,819000));
+    c.feed(block,160);assert(c.recorded_samples()==160);
+    assert(!c.poll(820001) && c.state()==State::Recording); // Late touch never reuses the arm deadline.
+    for(int i=1;i<1500;++i)c.feed(block,160);
+    assert(c.state()==State::Ready && c.size()==240000);
+    assert(!c.poll(835000));assert(c.poll(856001));
 }
