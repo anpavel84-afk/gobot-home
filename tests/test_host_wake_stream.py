@@ -286,3 +286,20 @@ def test_host_launcher_does_not_require_brain_or_livekit_secrets(monkeypatch,tmp
     monkeypatch.setattr(sys,'argv',['gateway','--config',str(path)])
     with pytest.raises(StopBeforeBind):asyncio.run(module.main())
     assert tokens==[''] and not (tmp_path/'run/keys.json').exists()
+
+
+
+def test_real_opus_first_packet_preserves_producer_sample_clock():
+    """Decoder priming discards 16 samples unless normalized at transport."""
+    audio=packets(8)
+    decoder=StreamOpus()
+    core=HostCore(Detector(), "epoch")
+    for sequence,packet in enumerate(audio):
+        pcm=decoder.feed(packet)
+        assert len(pcm)==1920, (sequence,len(pcm))
+        if sequence==0:assert pcm[:32]==bytes(32)
+        core.feed(meta(sequence),pcm)
+        assert core.sample_cursor==(sequence+1)*960
+    assert decoder.samples==len(audio)*960
+    core.close()
+    decoder.close()

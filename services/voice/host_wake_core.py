@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass,field
 import time,uuid
+from host_wake_contract import AudioChunk, WakeEvent
 RATE=16000
 FRAME_SAMPLES=960
 
@@ -57,6 +58,7 @@ class HostCore:
         self.detector=detector;self.epoch=epoch;self.history=Ring()
         self.sample_cursor=0;self.expected_seq=0;self.active=None;self.speaking=False
         self.output_epoch=0;self.stop_pending=None;self.closed=False
+        self.last_wake_end_sample_index=-1
         self.max_input_samples=max_input_seconds*RATE
         self.counts={'frames':0,'activations':0,'stops':0,'duplicate_activations':0,'truncated_inputs':0}
     def validate_frame(self,meta):
@@ -90,7 +92,7 @@ class HostCore:
         if not playing:self.detector.reset()
     def finish_input(self):
         result=self.active;self.active=None;self.detector.reset();return result
-    def feed(self,meta,pcm):
+    def feed(self,meta,pcm,*,received_monotonic_ns=None):
         self.validate_frame(meta)
         if not pcm or len(pcm)%2 or len(pcm)>FRAME_SAMPLES*2:raise StreamFault('decoded_frame_size')
         start=self.sample_cursor;end=start+len(pcm)//2
@@ -101,12 +103,27 @@ class HostCore:
                 self.active.truncated=True;self.active.clear();self.active=None;self.counts['truncated_inputs']+=1
                 raise StreamFault('utterance_limit_truncated')
             self.active.pcm.extend(pcm);self.active.cursor=end
-        # Local wake/stop ALWAYS sees original PCM, before any conversation gate.
-        event=self.detector.feed(pcm,speaking=self.speaking)
+        # Feed canonical PCM BEFORE any conversation mask. HOST-B never sees Opus.
+        if callable(getattr(self.detector,'feed_chunk',None)):
+            stamp=time.monotonic_ns() if received_monotonic_ns is None else received_monotonic_ns
+            event=self.detector.feed_chunk(AudioChunk(bytes(pcm),self.epoch,start,stamp))
+        else:
+            # Existing legacy detectors remain available until HOST-B is accepted.
+            event=self.detector.feed(pcm,speaking=self.speaking)
         if not event:return []
-        if event.kind=='stop':result=self.stop() if self.speaking else None
-        elif event.kind=='wake':result=self.activate('host_wake')
-        else:raise StreamFault('unknown_detector_event')
+        if isinstance(event,WakeEvent):
+            if (event.stream_epoch!=self.epoch or
+                    event.end_sample_index>self.sample_cursor or
+                    event.end_sample_index<=self.last_wake_end_sample_index or
+                    event.end_sample_index<max(0,self.sample_cursor-2*RATE)):
+                raise StreamFault('stale_or_replayed_wake_event')
+            self.last_wake_end_sample_index=event.end_sample_index
+            result=self.activate('host_wake')
+        elif isinstance(event,Detection):
+            if event.kind=='stop':result=self.stop() if self.speaking else None
+            elif event.kind=='wake':result=self.activate('host_wake')
+            else:raise StreamFault('unknown_detector_event')
+        else:raise StreamFault('invalid_detector_event')
         return [result] if result else []
     def close(self):
         if self.active:self.active.clear();self.active=None

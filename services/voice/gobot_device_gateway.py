@@ -148,6 +148,7 @@ class Gateway:
         self.auth = {'Authorization': 'Bearer ' + brain_token}
         self.client_factory = client_factory
         self.host_detector_factory = host_detector_factory
+        self.latency = None
         self.active = False
         self.next_packet_at = 0.0
         self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0,
@@ -200,7 +201,9 @@ class Gateway:
             self.active = True
             self.stats['accepted'] += 1
             self.save_stats()
-            connection = HostConnection(factory)
+            connection = HostConnection(factory,allow_free_fixture=host_policy.get('free_downlink_fixture') is True,
+                                        input_level_stats=host_policy.get('input_level_stats') is True)
+            self.stats['host'] = connection.stats
             try:
                 await connection.run(ws, validate_hello)
             finally:
@@ -210,6 +213,8 @@ class Gateway:
             return
         self.active = True
         self.stats['accepted'] += 1
+        from voice_latency import LatencyTrace
+        self.latency = LatencyTrace() if self.config.get('latency_enabled') is True else None
         self.save_stats()
         session = str(uuid.uuid4())
         connection_started=asyncio.get_running_loop().time()
@@ -254,6 +259,9 @@ class Gateway:
                     if isinstance(raw, bytes):
                         if state != 'capture' or decoder is None:
                             raise ValueError('audio_outside_capture')
+                        if self.latency:
+                            self.latency.mark('gateway_first_frame')
+                            self.latency.mark('gateway_last_frame',last=True)
                         decoder.feed(raw); self.stats['received_packets'] += 1
                         if decoder.packets == 1:
                             self.stats['streams_with_audio'] += 1
@@ -301,7 +309,12 @@ class Gateway:
                             await send(voice_status('A' if legacy else 'B' if self.config['mode']=='realtime_b' else 'C','connecting'))
                         else:
                             await send({'type':'gobot_access','allowed':True,'continuous':False})
+                        if self.latency and obj.get('latency_v1') is True:
+                            await send({'type':'gobot_latency_ready','trace_id':self.latency.trace_id,'turn':0})
                         state = 'ready'
+                    elif kind=='gobot_latency' and self.latency and state!='hello':
+                        try:self.latency.device_event(obj,session_id=session)
+                        except ValueError:self.latency.invalid+=1
                     elif kind=='gobot_session_ready' and self.config.get('continuous_live') and obj.get('continuous') is True and state in {'ready','capture'}:
                         session_ready=True
                         deferred_start=obj.get('capture_deferred') is True
@@ -321,6 +334,7 @@ class Gateway:
                                 legacy=await self.active_legacy_flow(client) if self.config['mode'] in {'live_c','realtime_b'} else None
                             if not legacy:
                                 stream=StreamingSpeech()
+                                stream.latency=self.latency
                                 maybe_respond()
                             elif self.config.get('continuous_live'):
                                 decoder=OpusInput(26) # A keeps its approved sample/packet cap, not B's 180s buffer.
@@ -379,6 +393,10 @@ class Gateway:
             self.legacy_turn = None
             self.active = False
             self.stats.update(active_engine=None,voice_phase='idle')
+            if self.latency:
+                self.latency.mark('local_resources_released')
+                self.stats['latency']=self.latency.summary()
+                self.latency.closed=True
             self.save_stats()
 
     def save_stats(self):
@@ -396,6 +414,9 @@ class Gateway:
             await asyncio.sleep(scheduled-now)
         await ws.send(packet)
         self.stats['downlink_packets'] += 1
+        if self.latency:
+            self.latency.gauge('send_pacing_wait_ms',max(0.,scheduled-now)*1000)
+            self.latency.mark('first_output_packet_sent',kind='provider_reply' if self.config['mode'] in {'live_c','realtime_b'} else 'fixture' if self.config['mode'] in {'hardware_test','duplex_test'} else 'unknown')
         self.next_packet_at = scheduled + .060
 
     async def respond(self, ws, send, wav: bytes, turn_id: str):

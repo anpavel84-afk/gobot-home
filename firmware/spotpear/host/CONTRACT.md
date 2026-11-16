@@ -76,3 +76,54 @@ idle; full Brain routing/handover is still a separate unfinished integration.
 5. Installation and active gateway switch require separate Owner approval.
 6. Actual device wake/screen/speaker tests and30min real-time LAN soak remain
    NOT_RUN until those controlled steps. No paid budget is needed for local cue.
+
+
+## HOST-A / HOST-B internal detector handoff (Issue #5/#6)
+
+HOST-B should provide a factory returning a `HostWakeDetector` instance:
+`feed_chunk(AudioChunk) -> WakeEvent | None`, `reset() -> None`.
+The exact Python dataclasses live in
+`services/voice/host_wake_contract.py`; contract_version=1.
+
+- Input is unmodified decoded **PCM s16le mono 16kHz**, one 960-sample
+  (60 ms) frame. No model-specific resampling is allowed in the transport;
+  HOST-B owns any private detector resampling.
+- `stream_epoch` identifies one authenticated WSS connection,
+  `sample_index` is the beginning of the canonical frame in that epoch,
+  `received_monotonic_ns` belongs **only to PLAN** and must not be compared
+  directly with ESP32 time.
+- WakeEvent carries one stable `phrase_id` and the exclusive
+  `end_sample_index` of the detected phrase; stale/replayed/epoch-mismatched
+  events are rejected. HOST-B must never call Brain or control the physical
+  display/audio; `HostCore` owns activation and Stop. The old legacy detector
+  remains in the software for compatibility during development.
+- HOST-B may inspect receiver frame cadence but must not mutate
+  `gobot_device_gateway.py`, `host_stream.py`, or firmware transport.
+
+## Opt-in free output verification on PLAN
+
+The new `host_wake.free_downlink_fixture` config flag is **false/absent**
+by default, and does not change the installed gateway. On a separately
+authorized HOST client, after ready/ready_ack, send
+`{"type":"gobot_host_fixture", "session_id":"...", "epoch":"..."}`
+exactly once per transport epoch. This is accepted **only** if the host_wake
+policy explicitly enables that fixture and no utterance/feedback/Stop is in
+flight.
+
+The host replies with:
+- `gobot_host_output_start`: playback_id, audio_kind=`fixture`,
+  output_epoch, sample_rate=24000, frame_samples=1440, packet_count.
+- For each output frame: JSON `gobot_host_output_frame` with playback_id,
+  output_epoch, seq, sample_start=seq*1440, sample_count=1440; then a separate
+  raw binary Opus packet. Do NOT prepend metadata to binary Opus.
+- `gobot_host_output_end` with the playback_id/output_epoch/packet_count.
+  Device `gobot_host_playback` ack must contain matching playback_id,
+  the current output_epoch and `playing=true` at actual playback start.
+  `playing=false` must not be acknowledged before physical drain and
+  receipt of `gobot_host_output_end`. Stale ID or duplicate receipts fault.
+
+The fixture is a short, low-amplitude local test tone. It is **not** a
+Brain answer, wake recognition, acoustic verification, or approval to play it
+on a household device. The current 0.4.12 firmware does NOT support this
+protocol. Port, build, flash and gateway switching all require separate steps
+and Owner permission. No paid session is opened by this fixture.
