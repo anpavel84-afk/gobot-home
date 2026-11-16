@@ -1,0 +1,108 @@
+{
+  "checked_at_utc": "2026-11-12T01:40:54.584825+00:00",
+  "runtime_code_commit": "7649463e3b82b73b47c040ef56293cdb6ee41b4f",
+  "runtime_code_commit_evidence": "authenticated Brain status; DebugJournal startup pin",
+  "expected_code_commit": "7649463e3b82b73b47c040ef56293cdb6ee41b4f",
+  "checkout_head": "7649463e3b82b73b47c040ef56293cdb6ee41b4f",
+  "source_sha256": {
+    "services/brain/gobot/brain.py": "663516bab14775a387ecc095912bccc52520a530bcb4b428f448f909cd69117e",
+    "services/brain/gobot/live.py": "754551bf868f18e6411085a21995e5053b9a218a70bbc32bd62ce0532c588eec",
+    "services/brain/gobot/expert_jobs.py": "e5cd91729ea479c0a36f288de57a4373712c3ac985de2fc7d08fc7ba0edfb419",
+    "services/brain/gobot/live_backend.py": "60b564658a1b30ad6f9b479388aec4aa4c8b36f4c0191a671cef36de90d5a2b7",
+    "services/brain/gobot/local_tools.py": "7e4ed78cae99768e5e84c1b675437902d95e82b2206caeda2ba45991d4035abc",
+    "services/brain/gobot/quick_intents.py": "b5ad90e24703d82adad9171e9df48ad240ffec8005fcd7120301a73ae5a2f1d7",
+    "services/brain/gobot/skill_catalogue.py": "dad61ac7ac8161239b846de6b5f30f7ac7e620eb8b2ba2e72e7c6d881e0d2805",
+    "services/brain/gobot/behavior_library.py": "abc97d784fd19bb43ef571ad85bb680ee71cfdd9606452acceb5a59b29e1cdd9",
+    "services/brain/behavior-library.json": "f50214703928a6f64d519274ed7aa4f0f59a6cf7c3d97655317d1949c7d3ab2b",
+    "services/brain/gobot/settings_tools.py": "144a41427ec836d1b291336daa77878fd5c0623190d790fa1c2e177339975b79",
+    "services/brain/gobot/weather_queries.py": "ea63ef76279743639939e4f1aca4b1683c7bf749d42c601fef9ddc844f3a130e",
+    "services/brain/gobot/weather.py": "b149d8ff4e1f57c8b10807c83777abf379b74660fc2c98e9e3340ae34ebf5013",
+    "services/brain/gobot/presentation.py": "b123a8a470ccf9fe66ff941986ed4ac06d4fd6930e58bdeb4b1c083b369e92bc",
+    "services/phone/dist/live.js": "c32f5f4a29c69f20929803dc72072a27c12bc6c407a51a6fb4d48133ecca336c"
+  },
+  "source_comparison": "Git-normalized blobs via hash-object --path; SHA256 values describe raw working files",
+  "idle_before": {
+    "turns": 0,
+    "voice_streams": 0,
+    "B": 0,
+    "C": 0,
+    "pending_hangups": 0,
+    "unconfirmed_live": 0
+  },
+  "idle_after": {
+    "turns": 0,
+    "voice_streams": 0,
+    "B": 0,
+    "C": 0,
+    "pending_hangups": 0,
+    "unconfirmed_live": 0
+  },
+  "loopback_http": {
+    "Brain": 200,
+    "Bridge": 200,
+    "VoiceMock": 200,
+    "Images": 200
+  },
+  "https_http": {
+    "/": 200,
+    "/device": 200,
+    "/live.js": 200,
+    "/unified.js": 200,
+    "/device-renderer.js": 200,
+    "/visual.js": 200,
+    "/design-data.js": 200,
+    "/design-primitives.js": 200,
+    "/design.css": 200,
+    "/noto-sans.ttf": 200,
+    "/visual-atlas.html": 200,
+    "/visual-atlas.css": 200,
+    "/visual-atlas.js": 200,
+    "/design-reference.js": 200,
+    "/demo2": 200,
+    "/demo2/a/device": 200,
+    "/demo2/b/device": 200,
+    "/demo2/c": 200,
+    "/demo2/c/device": 200
+  },
+  "frozen_A": {
+    "unchanged": true,
+    "checked_files": 25
+  },
+  "served_live_and_unified_js_match_source": true,
+  "default_engine": "live",
+  "idle_seconds": 10,
+  "C_model": "gpt-live-1",
+  "C_delegation": "client",
+  "B_model": "gpt-realtime-2.1-mini",
+  "backend": {
+    "model": "gpt-6-luna",
+    "input_tokens": 2048,
+    "output_tokens": 512,
+    "concurrency": 1
+  },
+  "catalogue": {
+    "scenarios": 400,
+    "inventory_is_not_permission": true,
+    "all_integrations_enabled": false
+  },
+  "unified_bookmarks": true,
+  "private_memory_ready": false,
+  "wake_word_ready": false,
+  "offline_suite": {
+    "passed": 2078,
+    "seconds": 208.89,
+    "evidence": "arguments supplied from completed offline test run"
+  },
+  "this_check": {
+    "http_methods": [
+      "GET"
+    ],
+    "provider_sessions_created": 0,
+    "cli_jobs_started": 0,
+    "paid_calls": 0,
+    "policy_or_budget_changes": 0,
+    "journal_content_read": false
+  },
+  "real_voice_after_change_verified": false,
+  "physical_iphone_after_change_verified": false
+}

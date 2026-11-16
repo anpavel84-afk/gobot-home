@@ -1,0 +1,8 @@
+{
+  "version": "0.4.2-dev-session-ack",
+  "app_sha256": "b7c57b92f4871a4639a9729eb2588132ee861aff3e6fdc2785db9e673fe9118b",
+  "app_bytes": 2710640,
+  "previous_sha256": "95053146a5e7151641779dcc772864a9e69acfabc8d225a3290781024b9ce247",
+  "hardware_verified": true,
+  "usb_boot_verified": true
+}

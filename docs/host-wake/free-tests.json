@@ -1,0 +1,16 @@
+{
+  "tests": 95,
+  "new_host_tests": 55,
+  "failures": 0,
+  "errors": 0,
+  "seconds": 10.518,
+  "physical_device": false,
+  "human_recognition": false,
+  "loopback_websocket_and_real_opus": true,
+  "fake_detector_used": true,
+  "accelerated_audio_seconds": 1800,
+  "initial_accelerated_wall_seconds": 2.274,
+  "max_preroll_pcm_bytes": 64000,
+  "live_30min_soak": "NOT_RUN",
+  "paid_client_dependencies_forbidden_in_tests": true
+}

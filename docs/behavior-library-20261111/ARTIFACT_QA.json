@@ -1,0 +1,11 @@
+{
+  "html_embedded_data": "valid_400_inventory_120_dialogue",
+  "html_visual_browser_check": "blocked",
+  "blocker": "Chromium could not create process singleton socket: Operation not permitted in this environment",
+  "trace_checker_positive_and_negative_checks": "passed",
+  "runtime_gobot_executed": false,
+  "provider_tests_executed": false,
+  "iphone_acoustic_tests_executed": false,
+  "screenshots_created": false,
+  "html_javascript_syntax_check": "passed"
+}

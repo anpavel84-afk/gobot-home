@@ -1,0 +1,221 @@
+{
+  "model": {
+    "sha256": "4413c921d818a328f8197d5baa5a8cd1656bdf688be40724c7e7b613f5735562",
+    "bytes": 60912,
+    "context_frames": 204,
+    "window": 10,
+    "cutoff": 231,
+    "input_quantization": [
+      0.10196078568696976,
+      -128
+    ],
+    "output_quantization": [
+      0.00390625,
+      0
+    ],
+    "ops": [
+      "ASSIGN_VARIABLE",
+      "CALL_ONCE",
+      "CONCATENATION",
+      "CONV_2D",
+      "DELEGATE",
+      "DEPTHWISE_CONV_2D",
+      "FULLY_CONNECTED",
+      "LOGISTIC",
+      "QUANTIZE",
+      "READ_VARIABLE",
+      "RESHAPE",
+      "SPLIT_V",
+      "STRIDED_SLICE",
+      "VAR_HANDLE"
+    ],
+    "human_training": false,
+    "cpu_only": true,
+    "elapsed_train_s": 613.1290548108518
+  },
+  "config": {
+    "architecture": "upstream MixedNet full Russian reference",
+    "training_speakers": [
+      "denis",
+      "dmitri",
+      "espeak-ru",
+      "anna"
+    ],
+    "validation_speakers": [
+      "aleksandr"
+    ],
+    "test_speakers": [
+      "elena"
+    ],
+    "human_training": false,
+    "seed": 20261114,
+    "steps": 10000,
+    "augmented_windows": 50000,
+    "context_frames": 204,
+    "batch_size": 128,
+    "cpu_threads": 2,
+    "positive_front_crop": false,
+    "public_tts_positive_seeds": 60,
+    "public_tts_negative_seeds": 792,
+    "reference_cutoff": 231,
+    "window": 10,
+    "split_revision": 2,
+    "reference_source": "interkelstar/microwakeword-trainer@8fdbadc3b969a8c1993108c0d655910440dfb762",
+    "pooled": false,
+    "checkpoint_selection": "finite trained validation BCE only",
+    "public_cache_source": "reference-balanced-20261114",
+    "public_cache_sha256": "abeca69ae58516861ac1dfd1c322e4a1de52a30df93271ddfdf8a8e688205899"
+  },
+  "selection": {
+    "selected": {
+      "step": 1000,
+      "validation_bce": 0.49670031666755676
+    },
+    "initial": {
+      "step": 0,
+      "validation_bce": 0.6932915449142456
+    },
+    "accepted": false
+  },
+  "history": [
+    {
+      "step": 0,
+      "validation_bce": 0.6932915449142456
+    },
+    {
+      "step": 1000,
+      "validation_bce": 0.49670031666755676
+    },
+    {
+      "step": 2000,
+      "validation_bce": 0.6078412532806396
+    },
+    {
+      "step": 3000,
+      "validation_bce": 1.2729061841964722
+    },
+    {
+      "step": 4000,
+      "validation_bce": 1.369778037071228
+    },
+    {
+      "step": 5000,
+      "validation_bce": 2.0116043090820312
+    },
+    {
+      "step": 6000,
+      "validation_bce": 1.0149803161621094
+    },
+    {
+      "step": 7000,
+      "validation_bce": 1.2607791423797607
+    },
+    {
+      "step": 8000,
+      "validation_bce": 1.3693814277648926
+    },
+    {
+      "step": 9000,
+      "validation_bce": 1.6741037368774414
+    },
+    {
+      "step": 10000,
+      "validation_bce": 1.933415412902832
+    }
+  ],
+  "stream-report": {
+    "sha256": "4413c921d818a328f8197d5baa5a8cd1656bdf688be40724c7e7b613f5735562",
+    "window": 10,
+    "cutoff": 231,
+    "warmup": 68,
+    "validation": {
+      "aleksandr": {
+        "tp": 9,
+        "positive": 15,
+        "false_events": 1,
+        "negative": 198,
+        "stream_seconds": 685.785,
+        "mistakes": [
+          "positive-4-100.pcm",
+          "positive-4-118.pcm",
+          "positive-1-82.pcm",
+          "negative-46-118.pcm",
+          "positive-4-82.pcm",
+          "positive-1-118.pcm",
+          "positive-3-100.pcm"
+        ]
+      }
+    },
+    "test": {
+      "elena": {
+        "tp": 13,
+        "positive": 15,
+        "false_events": 7,
+        "negative": 198,
+        "stream_seconds": 616.89,
+        "mistakes": [
+          "negative-27-100.pcm",
+          "positive-4-118.pcm",
+          "negative-5-118.pcm",
+          "negative-3-118.pcm",
+          "negative-22-118.pcm",
+          "negative-34-118.pcm",
+          "negative-27-82.pcm",
+          "negative-28-118.pcm",
+          "positive-1-118.pcm"
+        ]
+      }
+    },
+    "human_trials": 0,
+    "installed": false,
+    "product_accepted": false,
+    "paid_calls": 0,
+    "candidate_passed": false
+  },
+  "parity-report": {
+    "public_only": true,
+    "frame_comparisons": 1521,
+    "alignment_offsets_frames": {
+      "-3": {
+        "max_error": 0.7464651688933372,
+        "mean_error": 0.039402562569006525,
+        "different_decision_fraction": 0.009861932938856016
+      },
+      "-2": {
+        "max_error": 0.532807283103466,
+        "mean_error": 0.02404349896516781,
+        "different_decision_fraction": 0.005259697567389875
+      },
+      "-1": {
+        "max_error": 0.4642607495188713,
+        "mean_error": 0.0288385477105605,
+        "different_decision_fraction": 0.005259697567389875
+      },
+      "0": {
+        "max_error": 0.4516390189528465,
+        "mean_error": 0.024819210298114486,
+        "different_decision_fraction": 0.009861932938856016
+      },
+      "1": {
+        "max_error": 1.1324882507324219e-06,
+        "mean_error": 4.624934684916514e-08,
+        "different_decision_fraction": 0.0
+      },
+      "2": {
+        "max_error": 0.3688376843929291,
+        "mean_error": 0.024934026392880334,
+        "different_decision_fraction": 0.0039447731755424065
+      },
+      "3": {
+        "max_error": 0.5005955100059509,
+        "mean_error": 0.027653871248060246,
+        "different_decision_fraction": 0.009861932938856016
+      }
+    },
+    "best_offset_frames": "1",
+    "note": "Measured alignment offsets are diagnostic; no thresholds or acceptance gates changed."
+  },
+  "status": "FAILED_ACOUSTIC_CANDIDATE_NOT_INSTALLED",
+  "paid_calls": 0,
+  "full_physical_acceptance": false
+}

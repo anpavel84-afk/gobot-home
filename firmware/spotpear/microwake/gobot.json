@@ -1,0 +1,17 @@
+{
+  "type": "micro",
+  "model": "gobot.tflite",
+  "author": "GoBot Home",
+  "version": 2,
+  "wake_word": "ГоБот",
+  "trained_languages": [
+    "ru"
+  ],
+  "micro": {
+    "feature_step_size": 10,
+    "tensor_arena_size": 131072,
+    "probability_cutoff": 0.9803921568627451,
+    "sliding_window_size": 3,
+    "minimum_esphome_version": "2026.10.2"
+  }
+}

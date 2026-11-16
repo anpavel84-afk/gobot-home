@@ -1,0 +1,85 @@
+{
+  "synthetic_only": true,
+  "human_training": false,
+  "paid_calls": 0,
+  "installed": false,
+  "kernel_baseline": "native_reference",
+  "cutoff": 231,
+  "window": 10,
+  "stages": {
+    "first": {
+      "model_sha256": "05f85f1fcccefb45201bdcd2dce0febfe40cf398ca94e6304178d218229baeeb",
+      "candidate_passed": false,
+      "training_speakers": [
+        "denis",
+        "dmitri",
+        "espeak-ru",
+        "anna",
+        "irina"
+      ],
+      "heldout_speakers": [
+        "aleksandr",
+        "elena"
+      ],
+      "word_end_anchored": true,
+      "training_steps": 1000,
+      "augmented_windows": 8192,
+      "hard_negative_windows": 0,
+      "validation": {
+        "aleksandr": {
+          "tp": 73,
+          "positive": 75,
+          "false_events": 68,
+          "negative": 498,
+          "stream_seconds": 2698.915
+        }
+      },
+      "test": {
+        "elena": {
+          "tp": 64,
+          "positive": 75,
+          "false_events": 78,
+          "negative": 498,
+          "stream_seconds": 2311.1575
+        }
+      }
+    },
+    "corrected": {
+      "model_sha256": "02ecb34a7d0500d7eb63c05450a0fe691f9a71a6d36be93a193ff157841d8c71",
+      "candidate_passed": false,
+      "training_speakers": [
+        "denis",
+        "dmitri",
+        "espeak-ru",
+        "anna",
+        "irina"
+      ],
+      "heldout_speakers": [
+        "aleksandr",
+        "elena"
+      ],
+      "word_end_anchored": true,
+      "training_steps": 1000,
+      "augmented_windows": 8192,
+      "hard_negative_windows": 967,
+      "validation": {
+        "aleksandr": {
+          "tp": 26,
+          "positive": 75,
+          "false_events": 1,
+          "negative": 498,
+          "stream_seconds": 2698.915
+        }
+      },
+      "test": {
+        "elena": {
+          "tp": 42,
+          "positive": 75,
+          "false_events": 5,
+          "negative": 498,
+          "stream_seconds": 2311.1575
+        }
+      }
+    }
+  }
+}

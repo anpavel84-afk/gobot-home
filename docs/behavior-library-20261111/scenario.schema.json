@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:gobot:scenario-card:v1",
+  "title": "Authored GoBot scenario card, not execution evidence",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "title",
+    "utterances",
+    "target_intent",
+    "route",
+    "preconditions",
+    "slots",
+    "expected_behavior",
+    "response_variants",
+    "clarification",
+    "failure",
+    "screen",
+    "context_policy",
+    "forbidden",
+    "acceptance",
+    "priority",
+    "capability_status",
+    "execution_evidence"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z_]+-[0-9]{2}$"
+    },
+    "category": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "utterances": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "target_intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "route": {
+      "enum": [
+        "brain_executor",
+        "conversation_backend",
+        "visual_worker",
+        "expert_bridge",
+        "integration_guard",
+        "identity_guard",
+        "conversation_control"
+      ]
+    },
+    "preconditions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "slots": {
+      "type": "object"
+    },
+    "expected_behavior": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "response_variants": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "clarification": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "when",
+            "question"
+          ],
+          "properties": {
+            "when": {
+              "type": "string"
+            },
+            "question": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "failure": {
+      "type": "object",
+      "required": [
+        "when",
+        "response",
+        "forbid_success"
+      ],
+      "properties": {
+        "when": {
+          "type": "string"
+        },
+        "response": {
+          "type": "string"
+        },
+        "forbid_success": {
+          "const": true
+        }
+      }
+    },
+    "screen": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context_policy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "forbidden": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "priority": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2"
+      ]
+    },
+    "capability_status": {
+      "enum": [
+        "baseline_declared_unverified",
+        "requires_extension",
+        "not_connected",
+        "policy_restricted"
+      ]
+    },
+    "execution_evidence": {
+      "type": "object",
+      "required": [
+        "offline",
+        "provider",
+        "acoustic"
+      ],
+      "properties": {
+        "offline": {
+          "const": "not_run"
+        },
+        "provider": {
+          "const": "not_run"
+        },
+        "acoustic": {
+          "const": "not_run"
+        }
+      }
+    },
+    "source_inventory": {
+      "type": "object"
+    },
+    "response_contract": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": false
+}

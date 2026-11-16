@@ -1,11 +1,77 @@
-# Firmware readiness
+# Spotpear ESP32-S3 — состояние на паузе
 
-Upstream SHA a73e9a7e266e3196d1368ba46c30bee0d81f0a64; профиль/pins проверены по source, физическая ревизия неизвестна.
-См. docs/HARDWARE_CHECKLIST.md и docs/PROTOCOL.md. Прошивка не выполнялась.
-sdkconfig.gobot.defaults — candidate. HAVE_LVGL — build define.
-custom-ui-card.patch использует существующий Application::Schedule/display API для простой карточки.
-Патч проверен только git apply --check; ESP-IDF отсутствует, компиляция и native timer/weather widgets
-ещё не проверены. Постоянные LVGL widgets/timer tick — дальнейшая работа. Этот patch не применялся к устройству.
-preview_image уже есть условно, но нуждается в user permission и firmware URL/MIME/size/redirect guards.
-До первой записи — полный factory dump и проверка размера. Flash scripts не создавались.
-Hermes не установлен и не заменяет XiaoZhi; его Spotpear profile экспериментален.
+Разработка остановлена владельцем 12 ноября 2026. [Полный актуальный обзор](../docs/CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки).
+
+Установлено **0.4.3-dev-media-ready**: flash verify, USB boot, Wi-Fi и enrollment подтверждены.
+[Release manifest](spotpear/duplex/media-ready-release.json) · [Числовые доказательства](spotpear/duplex/evidence.json) · [Приёмка](spotpear/acceptance.json).
+
+- Touch открывает одну сессию: Connecting → media-ready → «Слушаю» → непрерывный capture/playback.
+- ES8311 MIC/DAC reference, AEC и прежний touch UI сохранены. Голосовой режим — GPT-Live 1 через PLAN LiveKit bridge и существующий Brain.
+- Firmware: XiaoZhi/ESP-IDF 6.0.1, ESP-SR 2.4.7, LVGL, Opus, TFLM/microWakeWord. LiveKit SDK на ESP32 не установлен из-за конфликтов; используется серверный путь 2B.
+- Локальный wake установлен как диагностика, **wake_to_brain=false**, качество русского «ГоБот» не принято.
+- Бесплатный физический прогон: 5 с искусственного setup, peak backlog 120 мс, 400 mic frames во время звука, 0 ошибок, standby upload=0. Это не human barge-in приёмка.
+- Последняя общая регрессия: 2120 passed /3 skipped /1 xfailed /118 subtests. На 0.4.3 ещё не подтверждены владельцем новый LCD-переход, реальные слова/перебивание, инструменты и поведение после сбоев.
+- Пакет платы: 48 из 50 ручных минутных запусков осталось на момент обзора, без Luna/CLI/Image API. Новые пробы сейчас не запрашиваются.
+- Две factory copies, полный preflash snapshot и прежний ACK app сохранены приватно. Записывался только ota_0; NVS/assets/другой слот сохранены. Реальный rollback не проверялся.
+
+[Подготовка, версии и guarded rollback](spotpear/duplex/README.md). Команды восстановления — документация, не указание выполнить их во время паузы.
+Бинарники, NVS, ключи, Wi-Fi, записи семьи и приватные дампы в GitHub не опубликованы.
+
+<details>
+<summary>Исторические инструкции ранних 0.1–0.3. Не использовать как описание текущей установленной версии.</summary>
+
+# Spotpear ESP32-S3 на PLAN
+
+На устройстве установлен [диагностический microWakeWord](spotpear/microwake/README.md). Порядок запуска, хеши и границы проверки указываются отдельно от работающего тач-интерфейса.
+
+## Touch-релиз
+
+Короткое касание запускает захват. Конец фразы должен определяться автоматически. Владелец сообщил, что последняя физическая проверка паузы не прошла. Короткое повторное касание во время слушания игнорируется. Дополнительный сигнал окончания возможен, когда Live уже прислал транскрипт вопроса и начал выдавать звук в той же сессии. Длинное удержание во время хода останавливает его, а в ожидании включает или снимает mute. Короткое касание говорящего лица сохраняет воспроизведение. Микрофон в ожидании не передаёт пакеты. Домашний location хранится у платы отдельно. Подтверждённые аппаратные результаты указаны в [acceptance](spotpear/acceptance.json).
+
+После подготовки предыдущей версии в отдельном checkout выполнить:
+
+```text
+python firmware/spotpear/prepare_display_candidate.py <checkout>
+python firmware/spotpear/touch_assets.py <private-build-inputs>/touch_atlas.h
+python firmware/spotpear/prepare_touch.py <checkout> <private-build-inputs>/touch_atlas.h
+```
+
+Для конвертации используются Pillow, resvg-py 0.5.0 и Noto Sans из браузерной поставки. Сборка выполняется в закреплённом контейнере ESP-IDF. После сверки хешей guarded-команда `touch-auto` ставит текущий релиз с 0.2.2, `touch-volume` — с 0.2.1, а `touch-audio` — с 0.2.0. Команда `previous` возвращает текущий релиз на 0.1.0. NVS и общие assets сохраняются. Команды принимает `firmware/spotpear_bringup.py` в окружении esptool. Версию и текущий уровень ES8311 показывает `firmware/spotpear/touch_probe.py --seconds 5`. Параметры `--volume 100 --sound-check` применяют уровень к свободной зарегистрированной плате, сохраняют его в NVS и проигрывают локальный сигнал. Параметр `--pause-check` помечает только следующее касание как локальную проверку конца речи. При этом аудио не покидает плату, «Пауза услышана» и USB-счётчик подтверждают срабатывание детектора. Перед изменением инструмент перепроверяет аппаратную идентичность через USB и ожидает загрузки приложения. [Manifest](spotpear/touch_release.json).
+
+## Сборка
+
+Исходная ревизия XiaoZhi, digest ESP-IDF 6.0.1, размеры и SHA-256 первой сборки указаны в [manifest](spotpear/manifest.json). Взять пустую копию закреплённой ревизии. На PLAN проверенные приватные входы лежат в `data/hardware/gobot-v1/source`. Нужны sdkconfig, заголовок синтетических примеров, build info и публичный CA данного устройства. Закрытые ключи, NVS и токен в сборочную среду не передаются.
+
+```text
+python firmware/spotpear/prepare_bringup.py <fresh-xiaozhi-checkout> <private-source-inputs>
+```
+
+Монтировать подготовленный checkout в `/project` в контейнере из manifest. Использовать зафиксированные managed components и `dependencies.lock`. Команда сборки внутри контейнера:
+
+```sh
+idf.py -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.esp32s3;sdkconfig.gobot.defaults' build
+```
+
+Дополнительная сборка дисплея выполняется на отдельной копии подготовленного исходного дерева. Применить `python firmware/spotpear/prepare_display_candidate.py <copy>` и повторить build. Сборка 0.1.1 поддерживает краткую текстовую карточку gobot.ui v2 и локальный отсчёт оставшегося времени. Получение JPEG, полный погодный виджет и подтверждение фактического показа ещё нужны. Аппаратный экземпляр остаётся на 0.1.0. Исторические `gobot-one-turn.patch` и `custom-ui-card.patch` не требуется накладывать поверх этих исходников.
+
+## USB и восстановление
+
+Из корня GoBotHome на PLAN. Закрыть serial monitor. Инспекция использует esptool и может перезагрузить плату. В начале каждой операции скрипт сверяет единственный USB-порт Espressif, MAC регистрации, Flash, защиты, копии завода и делает свежий полный снимок под новым именем. После ручного прекращения операции проверить процесс и снимок до снятия оставшейся блокировки.
+
+```powershell
+data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py inspect
+```
+
+`install` принимает исходную заводскую геометрию и проверенные бинарники из приватного каталога `candidate`. Для восстановления выполнить следующую команду. Она возвращает согласованные заводские app и общие assets, делает verify и сохраняет текущий NVS. Реальный откат в этом испытании не выполнялся.
+
+```powershell
+data/hardware/venv/Scripts/python.exe firmware/spotpear_bringup.py restore
+```
+
+## Шлюз и проверка «ГоБот»
+
+Шлюз использует приватный TLS endpoint регистрации, серверный токен и привязку к устройству. `hardware_test` воспроизводит диагностический тон после разрешённого turn. `legacy_a` использует существующие STT и потоковый голосовой endpoint Brain. `live_c` передаёт речь потоком в Brain через аудиоканал WebRTC и получает события по SSE. Для C нужен aiortc из `requirements-acceptance.txt`, отдельное `hardware_live_consent` и допуск аппаратного client ID в серверном бюджете. Доступ проверяется по аппаратной привязке на каждом подключении.
+
+Для исследования русского детектора `kws_bench.py synthesize MODEL FOLDER` создаёт короткие PCM локальным Piper. `kws_bench.py evaluate --train DIR1 DIR2 --heldout DIR3` проверяет совпадение акустических шаблонов; `kws_linear.py --train DIR1 DIR2 --test DIR3 DIR4` обучает компактный линейный классификатор. Запускать эти команды из `firmware/spotpear`. Разделение выполняется по голосам. Датасеты Denis и Dmitri в карточках указаны как CC0, Ruslan — CC BY-NC-SA 4.0, у Irina лицензия датасета не указана. Два последних голоса использованы только для локальной оценки. Аудио, веса и записи семьи в Git не включены. Версия Piper и хеши образцов влияют на воспроизводимость: очередной синтез стохастичен. Точный текущий набор хранится только на PLAN. C++ frontend проверен на числовом примере и скомпилирован под Xtensa. Измерения на человеческой речи и длительная проверка ложных срабатываний остаются обязательными.
+
+</details>

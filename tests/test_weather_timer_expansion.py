@@ -46,6 +46,17 @@ def forecast_source(change=None):
     def handle(request):calls.append(request);return httpx.Response(200,json={'timezone':'America/Sao_Paulo','daily':daily})
     return WeatherClient(transport=httpx.MockTransport(handle),clock=lambda:STAMP),calls,today
 
+def test_partial_distant_day_does_not_hide_complete_tomorrow():
+    def change(data):
+        for name in ('weather_code','temperature_2m_min','temperature_2m_max','wind_speed_10m_max'):
+            data[name][15]=None
+    async def run():
+        client,_,_=forecast_source(change)
+        place=WeatherPreferences(enabled=True,location_name='Fixture',latitude=0,longitude=0)
+        assert len((await client.forecast(place,offset=1,days=1))['days'])==1
+        with pytest.raises(WeatherError):await client.forecast(place,offset=15,days=1)
+    asyncio.run(run())
+
 def test_forecast_local_tomorrow_16_days_cache_and_source_params():
     async def run():
         client,calls,today=forecast_source();place=WeatherPreferences(enabled=True,location_name='Synthetic',latitude=0,longitude=0)
@@ -68,7 +79,8 @@ def test_bad_or_stale_forecast_is_never_used(change):
  ('Погода завтра',1,1),('Какая будет погода послезавтра?',1,2),('Покажи прогноз на неделю',7,0),('Покажи погоду на две недели',14,0),('Погода на 16 дней',16,0),('Будет ли дождь завтра?',1,1),('Нужен ли зонт завтра?',1,1),('Какая температура завтра?',1,1)])
 def test_forecast_request_routes_to_source_not_generic_llm(query,days,offset):
     quick=resolve_quick(query);assert quick.executor=='settings'
-    assert quick.slots=={'operation':'weather_forecast','offset':offset,'days':days,'weekday':None}
+    metric={'Будет ли дождь завтра?':'precipitation','Нужен ли зонт завтра?':'umbrella','Какая температура завтра?':'temperature'}.get(query)
+    assert quick.slots=={'operation':'weather_forecast','offset':offset,'days':days,'weekday':None,**({'metric':metric} if metric else {})}
 
 @pytest.mark.parametrize('query,offset',[('Можешь проверить погоду завтра?',1),('Погода через три дня',3),('Погода через неделю',7),('Погода через две недели',14)])
 def test_additional_weather_phrasings_keep_requested_date(query,offset):
