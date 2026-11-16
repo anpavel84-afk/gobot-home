@@ -60,6 +60,7 @@ class StreamingSpeech(AudioStreamTrack):
         self.peak_backlog_bytes = 0
         self.phase = "waiting"
         self.deferred_start = False
+        self.latency = None
 
     def feed(self, pcm):
         if self.finished or len(pcm)%2 or len(self.buffer)+len(pcm)>self.MAX_BACKLOG_BYTES:
@@ -67,6 +68,7 @@ class StreamingSpeech(AudioStreamTrack):
         self.buffer.extend(pcm)
         self.received_samples += len(pcm)//2
         self.peak_backlog_bytes = max(self.peak_backlog_bytes, len(self.buffer))
+        if self.latency:self.latency.gauge('input_backlog_ms',len(self.buffer)/32)
         self.input_seen |= bool(pcm)
         if pcm and np.sqrt(np.mean(np.frombuffer(pcm,"<i2").astype(np.float64)**2))>=100:
             self.last_signal=asyncio.get_running_loop().time()
