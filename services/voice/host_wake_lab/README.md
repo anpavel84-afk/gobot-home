@@ -1,11 +1,19 @@
 # GoBot HOST-B — Russian Wake Recognition Lab (#6)
 
-**NEW OWNER PRIORITY (2026-11-16): «Го́би» first-syllable stress, «Гло́би» competitor, «А, Го́би» reserve, «Эй, Го́би» tested independently.** The legacy GoBot/Gabot results below are historical and are no longer the wake name selection target. New actual PLAN vocabulary check, 12 independent synthetic model/phrase results, CPU/RAM, separate human test launchers and KWS availability review: [GOBI_REPORT_2026-11-16.md](GOBI_REPORT_2026-11-16.md). Project name remains GoBot. No new name is activated on the physical column.
+**OWNER PRIORITY (2026-11-16): «Го́би» first-syllable stress; «Эй, Го́би» reserve; «Гло́би» separate competitor.** «А, Гоби» is excluded from active targets/aliases (historical synthetic results only). Legacy «Гобот/Габот» results are historical. Synthetic benchmark/vocabulary details: [GOBI_REPORT_2026-11-16.md](GOBI_REPORT_2026-11-16.md); actual Owner human mic outcome: [GOBI_HUMAN_RESULT_2026-11-16.md](GOBI_HUMAN_RESULT_2026-11-16.md). GoBot project name unchanged and no wake enabled on the physical speaker.
 
-**Current gate: SOURCE_IMPLEMENTED / FREE_TESTED / MODEL_NOT_ACCEPTED.**
-PC_MIC_HUMAN_ACCEPTED=NOT_RUN_CONSENT_REQUIRED; BOARD_HUMAN_ACCEPTED=NOT_RUN_HOST_A_ONLY; PAID_CALLS=0.
+**Current gate: SOURCE_IMPLEMENTED / FREE_TESTED / HUMAN_TESTED_NOT_ACCEPTED.**
+PLAN human mic «Го́би» self-confirmed Vosk **0/3** and T-one same-human-PCM shadow **0/3**, with 0 false wake events on six short negative trials (36 seconds real non-address background). Real false wakes/hour and acoustic name-end P50/P95 are **NOT_MEASURED**. BOARD_HUMAN_ACCEPTED=NOT_RUN_HOST_A_ONLY; PAID_CALLS=0.
 
 This is an isolated host-only research implementation, not a production wake module. It does not modify the HOST-A gateway, Opus path, firmware, active Brain, running workers, system Python, or the canonical PCM/WakeEvent contract. Its separate PLAN worktree is feat/host-wake-lab-public, rebased for safe publication on sanitized public HOST snapshot f24c32d5, whose tree exactly equals local 64ba27e2 (H0 descendant bf8a2e98). No private PLAN ancestry is part of the published branch; never reset to stale a31674e.
+
+## Owner's open-microphone free-form word finder (NEW)
+
+Free dictation Vosk is intentionally created with required_words=() so the historical wake vocabulary (гобот/габот) CANNOT prevent an open-vocabulary model load. This is a **local free-dictation-only override**, not a relaxation of the strict existing wake mode. Verified loading BOTH real installed models (Vosk + T-one) on PLAN without opening the mic; separate no-mic regression confirms the free constructor uses no required wake words.
+
+Use the local Windows PLAN launcher (not committed): C:\Users\PLAN\gobot\HOST-B-lab\START_FREE_DICTATION.cmd . An equivalent clean launcher is C:\Users\PLAN\gobot\HOST-B-lab\FREE_SPEECH_MIC_CONSOLE.cmd . Both invoke free_dictation.py from the isolated B worktree and use the existing **Vosk 16k + T-one 8k streaming engines** on the SAME Windows MME #1 mono16k microphone signal. This is an **unrestricted ASR transcription console**, NOT a wake detector; it accepts any spoken names without a whitelist, shows actual changing **partial** and native **final** hypotheses separately for Vosk and T-one, and prints a numerical audio level every five seconds. No metric or candidate is silently marked as accepted. The Owner can listen for 1–2 second pauses between repeated variants and subjectively select promising words for later blinded false-wake tests.
+
+Start requires user physically at PLAN to type exact YES-PC-MIC each time. Runs at most **15 minutes** by launcher (module hard maximum 30 minutes), also stops with Ctrl+C. No audio file, transcript, stderr log, background service, cloud transfer, gateway/Brain state, paid API, or ASR models download. PCM lives in a <=32-frame transient queue and is discarded; a mutable LAST interim text string exists only in RAM for console de-duplication. Model/source code and repeatable unit tests are public, but local household speech remains **not recorded**. If another monitor is active, do not start another session; one local owner console only.
 
 ## API and safety
 
