@@ -1,5 +1,19 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Issue #4 HOST checkpoint (2026-11-16)
+
+| Requirement | Status | Evidence / gap |
+|---|---|---|
+| H0 actual source/WIP/binary/runtime preserved | VERIFIED | LOCALbf8a2e98, private manifest23artifacts, no reset |
+| LOCAL personal wake | REJECTED/FROZEN | No new recording/training |
+| HOST server transport | SOURCE_IMPLEMENTED/FREE_TESTED | 95 free tests incl real codec/socket, firmware client still missing |
+| Ready Russian GoBot/Gabot | BLOCKED_OOV | Vosk exact vocabulary absent; no alias substitution |
+| Free hardware reaction | NOT_RUN | Software feedback verified with fake client/detector only |
+| HOST binary/install/human latency | NOT_BUILT/NOT_INSTALLED/NOT_RUN | Separate deployment approval still required |
+
+[Full report](host-wake/README.md). Older matrix rows do not supersede this boundary.
+
+
 ## Current pronunciation correction — 2026-11-15
 
 | Requirement | Evidence | Remaining |

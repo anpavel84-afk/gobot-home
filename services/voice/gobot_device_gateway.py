@@ -143,10 +143,11 @@ def validate_hello(message: dict) -> bool:
 
 
 class Gateway:
-    def __init__(self, config: dict, brain_token: str, *, client_factory=httpx.AsyncClient):
+    def __init__(self, config: dict, brain_token: str, *, client_factory=httpx.AsyncClient, host_detector_factory=None):
         self.config = config
         self.auth = {'Authorization': 'Bearer ' + brain_token}
         self.client_factory = client_factory
+        self.host_detector_factory = host_detector_factory
         self.active = False
         self.next_packet_at = 0.0
         self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0,
@@ -187,6 +188,26 @@ class Gateway:
             await ws.close(1008, 'Unauthorized device'); return
         if self.active:
             await ws.close(1013, 'Device busy'); return
+        host_policy = self.config.get('host_wake', {})
+        if isinstance(host_policy, dict) and host_policy.get('enabled') is True:
+            # Separate, explicit LOCAL->HOST deployment approval. No B/C admission
+            # or reserve is consulted for the free local feedback path.
+            if host_policy.get('lan_stream_consent') is not True or host_policy.get('acceptance_only') is not True:
+                await ws.close(1008, 'Explicit HOST acceptance policy required'); return
+            from host_stream import HostConnection
+            from host_vosk import VoskDetector
+            factory = self.host_detector_factory or (lambda: VoskDetector(host_policy.get('model_path', '')))
+            self.active = True
+            self.stats['accepted'] += 1
+            self.save_stats()
+            connection = HostConnection(factory)
+            try:
+                await connection.run(ws, validate_hello)
+            finally:
+                self.stats['host'] = connection.stats
+                self.active = False
+                self.save_stats()
+            return
         self.active = True
         self.stats['accepted'] += 1
         self.save_stats()
@@ -570,8 +591,10 @@ async def main():
     if config['brain_url']!='http://127.0.0.1:18781':raise ValueError('brain_must_be_loopback')
     if config['mode'] not in {'hardware_test','legacy_a','live_c','realtime_b','duplex_test'}:
         raise ValueError('explicit_hardware_mode_required')
-    token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' else ''
-    if config.get("continuous_live"):
+    host_policy = config.get('host_wake', {})
+    host_only = isinstance(host_policy, dict) and host_policy.get('enabled') is True
+    token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' and not host_only else ''
+    if config.get("continuous_live") and not host_only:
         if config["mode"] not in {"live_c","realtime_b","duplex_test"}:raise ValueError("continuous_live_requires_native_mode")
         config["livekit_settings"]=json.loads((PRIVATE/"livekit/private.json").read_text())
     gateway=Gateway(config,token)

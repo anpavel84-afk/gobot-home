@@ -1,0 +1,2 @@
+# Install ONLY in isolated HOST test environment; not Brain runtime.
+vosk==0.3.45

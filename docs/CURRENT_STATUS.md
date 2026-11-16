@@ -1,5 +1,28 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## HOST issue #4 checkpoint — 2026-11-16
+
+LOCAL0.4.12 wake experiment **REJECTED / FROZEN**. New personal training and
+recording STOPPED. Actual source8586c06 and two dirty changes preserved in
+LOCAL checkpointbf8a2e98; matching app1acb944d and compatible Brain9c317bc,
+private configuration and firmware build inputs saved on PLAN. Source was NOT
+reset to publisheda31674e. Fresh read-only USB confirms0.4.12 idle/upload0/raw0.
+
+HOST separate branch: feat/host-wake-streaming. Implemented bounded server
+Opus16k/60ms lane, epoch/sequence checks,2s RAM history, single touch/wake
+activation, Stop state and free feedback path before B/C admission.
+**95 free tests passed**, including real loopback WebSocket/Opus with a
+fake detector. Accelerated1800audio seconds is NOT30min live Wi-Fi acceptance.
+
+Ready Vosk0.3.45/small-ru-0.22 actual vocabulary lookup: гобот=-1, габот=-1,
+гоп=245961. No forced grammar/fuzzy aliases. H2 BLOCKED_OOV; official small
+Russian compile package inspected, custom graph NOT_BUILT.
+HOST firmware/client integration, physical wake/Stop and latency NOT_RUN.
+No flash/runtime switch/paid call/ledger reset. HA not found in inspected
+installation scopes and not in actual GoBot audio path.
+[Detailed execution/remaining gaps](host-wake/README.md).
+
+
 ## Installed guided calibration — 2026-11-15
 
 Physical Spotpear now runs **0.4.12-dev-guided-calibration-1**, app SHA
