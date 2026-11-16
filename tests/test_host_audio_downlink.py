@@ -82,7 +82,8 @@ def test_local_authenticated_full_duplex_fixture_not_provider():
         config = {"device_mac": "test-mac", "device_token": "test-token",
                   "mode": "realtime_b", "host_wake": {
                       "enabled": True, "lan_stream_consent": True,
-                      "acceptance_only": True, "free_downlink_fixture": True}}
+                      "acceptance_only": True, "free_downlink_fixture": True,
+                      "input_level_stats": True}}
 
         async def handler(ws):
             g = Gateway(config, "fixture-only", client_factory=forbidden,
@@ -170,6 +171,8 @@ def test_local_authenticated_full_duplex_fixture_not_provider():
         assert s["fixture_playback_started_ack"] is True
         assert s["fixture_playback_drained_ack"] is True
         assert s["max_queue_frames"] <= 4 and s["raw_audio_saved"] is False
+        assert s["pcm_frames"] == 14 and s["last_input_seq"] == 13
+        assert s["pcm_nonquiet_frames"] == 0 and s["pcm_peak_abs"] == 0
         assert s["clean_mute"] is True
         assert "last_failure_code" not in s, s
 

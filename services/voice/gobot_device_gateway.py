@@ -201,7 +201,9 @@ class Gateway:
             self.active = True
             self.stats['accepted'] += 1
             self.save_stats()
-            connection = HostConnection(factory,allow_free_fixture=host_policy.get('free_downlink_fixture') is True)
+            connection = HostConnection(factory,allow_free_fixture=host_policy.get('free_downlink_fixture') is True,
+                                        input_level_stats=host_policy.get('input_level_stats') is True)
+            self.stats['host'] = connection.stats
             try:
                 await connection.run(ws, validate_hello)
             finally:

@@ -2,7 +2,7 @@
 Raw Opus payload unchanged. JSON frame metadata carries epoch/sequence separately.
 0.4.12 lacks HOST capabilities: reject honestly rather than changing its behavior.
 """
-import asyncio,contextlib,json,time,uuid
+import asyncio,contextlib,json,time,uuid,math,struct
 from collections import deque
 import av
 from websockets.exceptions import ConnectionClosedOK
@@ -21,22 +21,30 @@ class StreamOpus:
         if not frames or sum(f.samples*16000//f.sample_rate for f in frames)!=960:raise StreamFault('opus_duration_mismatch')
         for decoded in frames:
             for frame in self.resampler.resample(decoded):out.extend(frame.to_ndarray().astype('<i2',copy=False).tobytes())
-        if not 0<len(out)<=1920:raise StreamFault('resampler_frame_limit')
-        self.packets+=1;self.samples+=len(out)//2;return bytes(out)
+        # PyAV/FFmpeg removes Opus decoder pre-skip (16 samples at 16 kHz)
+        # from the FIRST packet. The physical producer's seq*960 index still
+        # includes these samples: restore timing with silence, not old audio.
+        if self.packets==0 and len(out)==1888:
+            out[:0]=bytes(32)
+        if len(out)!=1920:raise StreamFault('resampler_frame_timing_mismatch')
+        self.packets+=1;self.samples+=960;return bytes(out)
     def close(self):
         # Never flush delayed old samples into the next transport epoch.
         self.closed=True;self.codec=None;self.resampler=None
 
 class HostConnection:
-    def __init__(self,detector_factory,*,clock=time.monotonic,max_queue_frames=4,max_queue_age=.25,allow_free_fixture=False):
+    def __init__(self,detector_factory,*,clock=time.monotonic,max_queue_frames=4,max_queue_age=.25,allow_free_fixture=False,input_level_stats=False):
         if not 1<=max_queue_frames<=8 or not .06<=max_queue_age<=.5:raise ValueError('invalid_transport_bounds')
         self.detector_factory=detector_factory;self.clock=clock;self.queue_limit=max_queue_frames;self.max_age=max_queue_age
         self.allow_free_fixture=allow_free_fixture is True
+        self.input_level_stats=input_level_stats is True
         self.fixture_requested=False;self.fixture_playback_id=None;self.fixture_playback_started=False
         self.fixture_output_finished=False;self.output_task=None
         self.stats={'received_packets':0,'max_queue_age_ms':0.,'max_queue_frames':0,'provider_calls':0,'financial_reservations':0,'raw_audio_saved':False,'screen_latency_measured':False,
                     'downlink_packets':0,'free_fixture_requested':False,
                     'fixture_playback_started_ack':False,'fixture_playback_drained_ack':False}
+        self.stats.update(pcm_frames=0,pcm_peak_abs=0,pcm_max_rms=0.,pcm_nonquiet_frames=0,last_input_seq=-1,
+                          pcm_total_samples=0,pcm_clipped_samples=0,pcm_rms_min=None,pcm_abs_dc_max=0.)
         self.ack_delays_ms=deque(maxlen=128);self.pending_feedback={};self.last_core=None;self.inflight=None
     async def compute(self,fn,*args,**kwargs):
         task=asyncio.create_task(asyncio.to_thread(fn,*args,**kwargs));self.inflight=task
@@ -132,6 +140,20 @@ class HostConnection:
                         if age<0 or age>self.max_age:raise StreamFault('host_queue_stale')
                         if kind=='audio':
                             core.validate_frame(obj);pcm=await self.compute(decoder.feed,packet)
+                            if self.input_level_stats:
+                                # Only numeric aggregate; PCM and transcripts never logged.
+                                samples=struct.unpack('<'+str(len(pcm)//2)+'h',pcm)
+                                peak=max(abs(v) for v in samples)
+                                rms=math.sqrt(sum(v*v for v in samples)/len(samples))
+                                self.stats['pcm_frames']+=1
+                                self.stats['pcm_peak_abs']=max(self.stats['pcm_peak_abs'],peak)
+                                self.stats['pcm_max_rms']=max(self.stats['pcm_max_rms'],round(rms,2))
+                                self.stats['pcm_nonquiet_frames']+=int(rms>=100)
+                                self.stats['pcm_total_samples']+=len(samples)
+                                self.stats['pcm_clipped_samples']+=sum(abs(v)>=32700 for v in samples)
+                                self.stats['pcm_rms_min']=round(min(rms,self.stats['pcm_rms_min']) if self.stats['pcm_rms_min'] is not None else rms,2)
+                                self.stats['pcm_abs_dc_max']=max(self.stats['pcm_abs_dc_max'],round(abs(sum(samples)/len(samples)),2))
+                                self.stats['last_input_seq']=obj['seq']
                             events=await self.compute(core.feed,obj,pcm,received_monotonic_ns=int(received*1_000_000_000))
                             for event in events:await feedback(event)
                         elif obj['type']=='gobot_host_touch':
