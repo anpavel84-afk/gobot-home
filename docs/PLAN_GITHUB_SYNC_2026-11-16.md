@@ -8,8 +8,8 @@ GoBot разрабатывался на Windows PLAN в отдельных ло�
 | Что | Реальная локальная точка | Публичный GitHub | Проверка |
 | --- | --- | --- | --- |
 | Базовая ветка разработки | `codex/hybrid-web-vnext`, `8586c069ccc4c1887276357099625a257b199cc8` | Не опубликована отдельной веткой; её исходный снимок входит в H0 | По сведениям `git` PLAN |
-| Сохранение LOCAL 0.4.12 и WIP | `bf8a2e98cc9bd00942b1e79ac0023cd90cb9a3c8` | [archive/local-0.4.12-frozen-20261116](../tree/archive/local-0.4.12-frozen-20261116), `4f0dd3e3846e58d118e2f375c227110b79d1f417` | **Идентичный Git tree** `2beec30e1afbfa2f4af0fdcf217e69459286c0b7` |
-| Начальная HOST реализация | `64ba27e2363c977b81d06530f03cf766fbfdf8d7` | [feat/host-wake-streaming](../tree/feat/host-wake-streaming), `f24c32d5a28d5ffbdaadceea3bbd0e490605aa3e` | **Идентичный Git tree** `d81738cb366e515a2d19fde30f3b4e3565de6286` |
+| Сохранение LOCAL 0.4.12 и WIP | `bf8a2e98cc9bd00942b1e79ac0023cd90cb9a3c8` | [archive/local-0.4.12-frozen-20261116](https://github.com/anpavel84-afk/gobot-home/tree/archive/local-0.4.12-frozen-20261116), `4f0dd3e3846e58d118e2f375c227110b79d1f417` | **Идентичный Git tree** `2beec30e1afbfa2f4af0fdcf217e69459286c0b7` |
+| Начальная HOST реализация | `64ba27e2363c977b81d06530f03cf766fbfdf8d7` | [feat/host-wake-streaming](https://github.com/anpavel84-afk/gobot-home/tree/feat/host-wake-streaming), `f24c32d5a28d5ffbdaadceea3bbd0e490605aa3e` | **Идентичный Git tree** `d81738cb366e515a2d19fde30f3b4e3565de6286` |
 
 **Почему SHA коммитов различаются:** опубликованные H0 и HOST получили отдельную очищенную от локальной истории цепочку. Содержимое зафиксированных деревьев совпадает, но это не публикация всех локальных коммитов и их сообщений.
 
