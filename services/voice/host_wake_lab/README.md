@@ -86,6 +86,22 @@ $py = 'C:\Users\PLAN\gobot\HOST-B-lab\.venv\Scripts\python.exe'
 
 After real wake, try "Гобот который час?" or "Гобот поставь таймер на 3 минуты" naturally, no pause after name. The local demo accepts timers **only up to three minutes** and, after mic capture ends, waits for the finite local timer to ring (or logs explicit cancellation), rather than falsely claiming a daemon timer survived process exit. Successful local deterministic response is **not** proof of an LLM conversation. If wake recognition fails, no false synthetic ACK is permitted. A local test does not authorize paid B/C/CLI, gateway integration, device flashing, or a production switch.
 
+## Controlled human phrase benchmark (prepared, consent NOT granted)
+
+Run this IN A VISIBLE LOCAL PLAN TERMINAL, with Owner physically present. It will not open the mic unless Owner uses BOTH the explicit CLI flag and typed YES-PC-MIC, then manually presses Enter per test. **It has NOT been executed on a human voice yet.**
+
+~~~powershell
+Set-Location 'C:\Users\PLAN\gobot\GoBotHome-wake-lab'
+$py = 'C:\Users\PLAN\gobot\HOST-B-lab\.venv\Scripts\python.exe'
+& $py -m services.voice.host_wake_lab.guided_live --owner-consent-live --models-root 'C:\Users\PLAN\gobot\HOST-B-lab\models' --device 21 --engine t-one --shadow-engine zipformer-window --rounds 1 --trial-seconds 4 --include-tv-negative
+~~~
+
+The CLI displays **8 positive** natural phrase prompts, **5 near-negative** prompts and, with optional flag, a 30-second **real TV** negative trial. Owner confirms after each actual utterance; skipped/unconfirmed trials do NOT contribute denominators. T-one is processed LIVE as mic PCM arrives. Once the mic is closed, identical ephemeral in-memory PCM is replayed to the Zipformer shadow decoder. Each buffer is zeroed after replay. No raw audio or ASR transcripts are written. The report saves only manual prompt ID, phrase ID of candidates, confirmed positives/misses, negative false events, model/cpu/RAM and frame backlog; stored only in C:\Users\PLAN\gobot\HOST-B-lab\results\guided-human-meta-*.json outside Git.
+
+This is **real human self-confirmed trial accuracy**, not independently acoustically verified speech; Zipformer shadow replay is not a live latency benchmark. Neither p50/p95 from *end of spoken wake name* nor false wakes/hour may be reported without independent name-end annotation and >=30 minutes genuine negative exposure. No session, model retraining, external provider, second permanent Brain or hardware gateway is started. Up to 300 cumulative seconds of bounded mic capture per explicit local run, then stream closes.
+
+**No auto-integration:** if human samples still miss, keep MODEL_NOT_ACCEPTED, do not widen to untested fuzzy aliases or spend paid quotas. To test paid actual conversation later, obtain separate Owner grant and let HOST-A use its existing Brain admission path; HOST-B provides only detector events.
+
 ## HOST-A handoff gate
 
 1. Use bridge.py / HostWakeDetectorAdapter with the A-owned services/voice/host_wake_contract.py (published in HOST-A draft PR #8). The input fields are pcm_s16le, stream_epoch, sample_index, received_monotonic_ns. The output is WakeEvent with detected_monotonic_ns. B does not vendor contract types.
