@@ -6,7 +6,6 @@ the HOST-A contract (issue #5); no second shared type definition.
 """
 from __future__ import annotations
 from dataclasses import dataclass
-import math
 import re
 import time
 from typing import Protocol
@@ -108,10 +107,12 @@ class WakeLab:
     def feed(self, *, pcm_s16le: bytes, stream_epoch: str,
              sample_index: int, received_monotonic_ns: int,
              speaking: bool = False) -> list[dict]:
-        if not isinstance(pcm_s16le, bytes) or not pcm_s16le or len(pcm_s16le) % 2:
-            raise DiscontinuousAudio("pcm_s16le_mono16_required")
-        if not isinstance(stream_epoch, str) or not stream_epoch:
-            raise DiscontinuousAudio("stream_epoch_required")
+        if (not isinstance(pcm_s16le, bytes) or not 0 < len(pcm_s16le) <= 1920
+                or len(pcm_s16le) % 2):
+            raise DiscontinuousAudio("pcm_s16le_mono16_frame_limit")
+        if (not isinstance(stream_epoch, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", stream_epoch)):
+            raise DiscontinuousAudio("stream_epoch_invalid_token")
         if type(sample_index) is not int or sample_index < 0:
             raise DiscontinuousAudio("invalid_sample_index")
         if type(received_monotonic_ns) is not int or received_monotonic_ns < 0:

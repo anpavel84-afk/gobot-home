@@ -9,7 +9,9 @@ import wave
 from services.voice.host_wake_lab.harness import (
     load_manifest, nearest_ranks, MIN_LATENCY_TRIALS,
 )
-from services.voice.host_wake_lab.local_command import parse_local_intent, time_answer
+from services.voice.host_wake_lab.local_command import (
+    parse_local_intent, schedule_local_timer, time_answer,
+)
 
 
 class LocalIntentTests(unittest.TestCase):
@@ -24,7 +26,35 @@ class LocalIntentTests(unittest.TestCase):
         self.assertEqual((x.kind, x.seconds), ("timer", 180))
         self.assertEqual(parse_local_intent("таймер 15 секунд").seconds, 15)
         self.assertIsNone(parse_local_intent("таймер на 999 минут"))
+        self.assertIsNone(parse_local_intent("таймер на 4 минуты"))
+        self.assertEqual(parse_local_intent("таймер на 3 минуты").seconds, 180)
         self.assertIsNone(parse_local_intent("таймер на пять минут"))
+
+    def test_demo_timer_schedules_a_real_bounded_callback(self):
+        history = []
+        class FakeTimer:
+            def __init__(self, delay, callback):
+                self.delay = delay
+                self.callback = callback
+                self.daemon = False
+                self.started = False
+            def start(self):
+                self.started = True
+        timer = schedule_local_timer(
+            2, lambda: history.append("RANG"), timer_factory=FakeTimer,
+        )
+        self.assertTrue(timer.started)
+        self.assertTrue(timer.daemon)
+        self.assertEqual(timer.delay, 2)
+        self.assertEqual(history, [])
+        timer.callback()
+        self.assertEqual(history, ["RANG"])
+
+    def test_demo_timer_refuses_long_or_invalid_duration(self):
+        for seconds in (0, 181, -1, 1.5, True):
+            with self.subTest(seconds=seconds):
+                with self.assertRaises(ValueError):
+                    schedule_local_timer(seconds, lambda: None)
 
     def test_time_answer_is_deterministic(self):
         from datetime import datetime

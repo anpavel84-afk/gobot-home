@@ -39,7 +39,8 @@ class MatcherTests(unittest.TestCase):
     def test_near_misses_and_mentions(self):
         for phrase in ("робот", "работа", "гоп", "габарит", "гобота",
                        "поговорим о гоботе", "телевизор сказал гобот",
-                       "эй работа", "поговорим, Гобот"):
+                       "эй работа", "поговорим, Гобот",
+                       "Эй робот", "Привет работа", "Вот какая сегодня погода"):
             with self.subTest(phrase=phrase):
                 self.assertIsNone(match_address(phrase))
 
@@ -92,6 +93,28 @@ class PcmContractTests(unittest.TestCase):
         with self.assertRaises(DiscontinuousAudio):
             l.feed(pcm_s16le=b"\x00", stream_epoch="e", sample_index=0,
                    received_monotonic_ns=0)
+
+    def test_canonical_audio_chunk_bounds_fail_closed(self):
+        l = WakeLab(FakeBackend(""))
+        for pcm, epoch in ((b"\x00\x00" * 961, "e"),
+                           (b"\x00\x00" * 960, "invalid:epoch"),
+                           (b"\x00\x00" * 960, "гобот"),
+                           (b"\x00\x00" * 960, "x" * 65)):
+            with self.subTest(epoch=epoch, n=len(pcm)):
+                with self.assertRaises(DiscontinuousAudio):
+                    l.feed(pcm_s16le=pcm, stream_epoch=epoch,
+                           sample_index=0, received_monotonic_ns=100)
+
+    def test_backwards_received_clock_resets_decoder(self):
+        l = WakeLab(FakeBackend("гобот"))
+        self.assertFalse(l.feed(pcm_s16le=b"\x00\x00" * 960,
+                                stream_epoch="e", sample_index=0,
+                                received_monotonic_ns=100))
+        with self.assertRaises(DiscontinuousAudio):
+            l.feed(pcm_s16le=b"\x00\x00" * 960,
+                   stream_epoch="e", sample_index=960,
+                   received_monotonic_ns=99)
+        self.assertIsNone(l.epoch)
 
     def test_decimation_statefulness(self):
         import numpy as np

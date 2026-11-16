@@ -10,8 +10,8 @@ This is an isolated host-only research implementation, not a production wake mod
 - detect.py: WakeLab.feed(pcm_s16le, stream_epoch, sample_index, received_monotonic_ns, speaking=False) consumes mono s16le PCM16 at 16 kHz and returns laboratory candidate dictionaries with the exact A-owned WakeEvent fields (stream_epoch, end_sample_index, phrase_id, detector_id, detected_monotonic_ns, confidence or null).
 - bridge.py: HostWakeDetectorAdapter implements HOST-A's exact v1 protocol: feed_chunk(AudioChunk)->WakeEvent|None and reset(). It consumes the A-owned received_monotonic_ns and returns the A-owned WakeEvent class, never a duplicate contract class. The adapter returns None in shadow mode by default, even when ASR finds a candidate. Only HOST-A can deliberately activate after acceptance. Integration was tested using actual published A AudioChunk, WakeEvent, and HostCore classes with a **fake** speech hypothesis: event constructed, HostCore accepted 1 activation, no physical device, no paid call.
 - engines.py: native streaming T-one 8 kHz with private 16→8 FIR; small Vosk 16 kHz fails closed on OOV, Zipformer RU is **offline rolling-window**, not native streaming.
-- Strict continuity across sample_index and stream_epoch, two spaced ASR updates before event, one event per segment, no forced one-word grammar/fuzzy aliases.
-- live.py: no mic until Owner locally types YES-PC-MIC after an explicit CLI flag and warning. Bounded run; no PCM/transcript writes; no network. One local PC speaker earcon and optional time/timer via deterministic local_command.py + pre-existing read-only Piper Russian TTS.
+- Strict HOST-A v1 bounds: 1–960 PCM samples per chunk, ASCII-safe epoch token, sample_index continuity and monotonic nanoseconds. Two spaced ASR updates before event, one event per segment, no forced one-word grammar/fuzzy aliases. An event's end_sample_index is the **confirmation-frame end**, NOT independently annotated acoustic end of the wake word; latency from real name end still requires separate human annotation.
+- live.py: no mic until Owner locally types YES-PC-MIC after an explicit CLI flag and warning. Bounded run; no PCM/transcript writes; no network. One local PC speaker earcon and optional time/timer via deterministic local_command.py + pre-existing read-only Piper Russian TTS. ACK records only API request/return timings, **not verified acoustic playback onset**.
 - harness.py: exact 16 kHz mono16 WAV and hashes, same 960-sample frames and 1.2-second silence tail. Never counts synthetic speech as human. P50/P95 require >=20 annotated non-synthetic trials; false wakes/hour requires >=1800 seconds measured nonsynthetic background.
 - synthetic.py: Piper synthetic same-utterance name + question, not stitched name-only segments and not proof of human acceptance.
 
@@ -45,19 +45,19 @@ Verified SHA256:
 
 ## Measured PLAN results: 2026-11-16
 
-Sequential 1-thread offline benchmark on AMD Ryzen 7 7840HS. The SAME PCM was used for each engine. RTF = inference wall time / total replay audio; it is not wake latency. Peak RSS includes Python+model, not just weights.
+Sequential 1-thread offline benchmark on AMD Ryzen 7 7840HS. The SAME PCM was used for each engine. Synthetic result columns below are v2 (8 positives + 8 negatives, no natural voice), and public column uses three public natural-speech negatives. RTF = inference wall time / total replay audio; it is not wake latency. Peak RSS includes Python+model, not just weights.
 
 | Model | Public natural speech negatives | Synthetic positives/negatives | Cold ms (public/synthetic) | RTF (public/synthetic) | CPU cores eq. (public/synthetic) | Peak RSS MB (public/synthetic) |
 |---|---|---|---|---|---|---|
-| T-one | FP 0/3 | TP 0/8; FP 0/5 | 2026/2077 | 0.113/0.155 | 0.988/0.996 | 367.5/364.0 |
+| T-one | FP 0/3 | TP 0/8; FP 0/8 | 2026/2940 | 0.113/0.183 | 0.988/0.889 | 367.5/364.7 |
 | Vosk | BLOCKED OOV | NOT_RUN | n/a | n/a | n/a | n/a |
-| Zipformer window | FP 0/3 | TP 0/8; FP 0/5 | 2323/2510 | 0.141/0.164 | 0.999/1.002 | 158.0/157.6 |
+| Zipformer window | FP 0/3 | TP 0/8; FP 0/8 | 2323/2188 | 0.141/0.135 | 0.999/0.991 | 158.0/159.2 |
 
-Vosk direct vocabulary lookup: gobot [гобот] = -1, gabot [габот] = -1; grammar forcing is NOT proof of vocabulary support. A diagnostic synthetic single utterance "Гобот какая сегодня погода" yielded T-one text "вот какая сегодня погода" and Zipformer window text "да вот какая сегодня погода" — both lost the name.
+Vosk direct vocabulary lookup: gobot [гобот] = -1, gabot [габот] = -1; grammar forcing is NOT proof of vocabulary support. A diagnostic synthetic single utterance "Гобот какая сегодня погода" yielded T-one text "вот какая сегодня погода" and Zipformer window an intermediate "да вот какая сегодня погода" — both lost the name. Critically, synthetic negative "Вот какая сегодня погода" also yielded EXACTLY "вот какая сегодня погода" with T-one: aliasing the very common word "вот" as GoBot would be unsafe. Synthetic negatives now also include "Эй робот" and "Привет работа". No fuzzy alias was enabled.
 
 Public dataset hash: 7869291bf875db2d6d7de19afe4a45c24b7f7ffd5d232502c459a4bb63b70f73
-Synthetic dataset hash: 5a951802ee3a5d1fd5868e5b6a8a4e5c6fda3a28661d09a97364baf0e365fe6b
-Report JSONs: public-three-models.json and synthetic-three-models.json under external results folder. Neither private recordings nor models committed.
+Synthetic v2 dataset hash (8 positives + 8 negatives): 8fa4541303880ffa78712ca0490f64496ce2d45e939eb38ca80083a5f4516d46
+Reports: public-three-models.json and synthetic-v2-three-models.json under external results folder. Original v1 synthetic-three-models.json with 8 positives + 5 negatives is retained as a historical control (v1 hash 5a951802ee3a5d1fd5868e5b6a8a4e5c6fda3a28661d09a97364baf0e365fe6b). Neither private recordings nor models committed.
 
 P50/P95 measured: **NOT_MEASURED** (no accepted positives or annotated human name offsets). False wakes/hr: **NOT_MEASURED** (background exposure far less than 30 minutes; test negatives do not include real television playback). Real PC mic: NOT_RUN. The synthetic results are NOT evidence of human performance.
 
@@ -84,7 +84,7 @@ $py = 'C:\Users\PLAN\gobot\HOST-B-lab\.venv\Scripts\python.exe'
 & $py -m services.voice.host_wake_lab.live --engine t-one --models-root 'C:\Users\PLAN\gobot\HOST-B-lab\models' --device 21 --seconds 90 --owner-consent-live --piper-model 'C:\Users\PLAN\gobot\GoBotHome\data\models\vits-piper-ru_RU-denis-medium\ru_RU-denis-medium.onnx'
 ~~~
 
-After real wake, try "Гобот который час?" or "Гобот поставь таймер на 3 минуты" naturally, no pause after name. Successful local deterministic response is **not** proof of an LLM conversation. If wake recognition fails, no false synthetic ACK is permitted. A local test does not authorize paid B/C/CLI, gateway integration, device flashing, or a production switch.
+After real wake, try "Гобот который час?" or "Гобот поставь таймер на 3 минуты" naturally, no pause after name. The local demo accepts timers **only up to three minutes** and, after mic capture ends, waits for the finite local timer to ring (or logs explicit cancellation), rather than falsely claiming a daemon timer survived process exit. Successful local deterministic response is **not** proof of an LLM conversation. If wake recognition fails, no false synthetic ACK is permitted. A local test does not authorize paid B/C/CLI, gateway integration, device flashing, or a production switch.
 
 ## HOST-A handoff gate
 

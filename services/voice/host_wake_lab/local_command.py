@@ -6,6 +6,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import re
+import threading
+
+# Live test is finite; refuse timers that cannot finish within the bounded demo.
+MAX_DEMO_TIMER_SECONDS = 180
 
 
 @dataclass(frozen=True)
@@ -22,9 +26,19 @@ def parse_local_intent(text: str) -> LocalIntent | None:
     if m:
         value = int(m.group(1))
         seconds = value * (60 if m.group(2).startswith("минут") else 1)
-        if 1 <= seconds <= 120 * 60:
+        if 1 <= seconds <= MAX_DEMO_TIMER_SECONDS:
             return LocalIntent("timer", seconds)
     return None
+
+
+def schedule_local_timer(seconds: int, on_alarm, *, timer_factory=threading.Timer):
+    """One bounded timer, never a resident service; caller joins or cancels."""
+    if type(seconds) is not int or not 1 <= seconds <= MAX_DEMO_TIMER_SECONDS:
+        raise ValueError("local_demo_timer_out_of_bounds")
+    timer = timer_factory(seconds, on_alarm)
+    timer.daemon = True
+    timer.start()
+    return timer
 
 
 def time_answer(now=None) -> str:

@@ -19,7 +19,8 @@ import uuid
 from .detect import WakeLab
 from .engines import REGISTRY, make_backend
 from .local_command import (
-    OfflineSpeaker, beep_ack, parse_local_intent, time_answer, timer_answer,
+    MAX_DEMO_TIMER_SECONDS, OfflineSpeaker, beep_ack,
+    parse_local_intent, schedule_local_timer, time_answer, timer_answer,
 )
 
 
@@ -69,6 +70,7 @@ def main():
     overflow = threading.Event()
     playing = threading.Event()
     speaker_thread = None
+    timers = []  # finite local timers, joined/cancelled before exiting
     awaiting_intent_until = 0.
     sequence_samples = 0
     wake_events = 0
@@ -104,13 +106,15 @@ def main():
 
     def run_timer(seconds: int):
         def alarm():
+            print("LOCAL_TIMER_DUE", seconds)
             try:
                 beep_ack()
-            except Exception:
-                pass
-        timer = threading.Timer(seconds, alarm)
-        timer.daemon = True
-        timer.start()
+                print("LOCAL_TIMER_ACK_PLAYED")
+            except Exception as exc:
+                print("LOCAL_TIMER_ACK_FAILED", type(exc).__name__)
+        timer = schedule_local_timer(seconds, alarm)
+        timers.append(timer)
+        print("LOCAL_TIMER_SCHEDULED", seconds)
 
     try:
         with sd.RawInputStream(
@@ -136,9 +140,21 @@ def main():
                     wake_events += len(events)
                     awaiting_intent_until = time.monotonic() + 8
                     print("WAKE_EVENT", events[0]["phrase_id"],
-                          "sample", events[0]["end_sample_index"],
+                          "confirmation_sample", events[0]["end_sample_index"],
                           "detected_monotonic_ns", events[0]["detected_monotonic_ns"])
-                    beep_ack()
+                    ack_call_ns = time.monotonic_ns()
+                    try:
+                        beep_ack()
+                        ack_ok = True
+                    except Exception as exc:
+                        print("ACK_DEVICE_ERROR", type(exc).__name__)
+                        ack_ok = False
+                    ack_return_ns = time.monotonic_ns()
+                    print("LOCAL_ACK_API_PROXY", "attempted", True, "ok", ack_ok,
+                          "detector_to_api_call_ms", round(
+                              (ack_call_ns - events[0]["detected_monotonic_ns"]) / 1e6, 2),
+                          "api_call_duration_ms", round((ack_return_ns - ack_call_ns) / 1e6, 2),
+                          "audible_onset_verified", False, "human_end_annotation", False)
                 if awaiting_intent_until and not playing.is_set():
                     intent = parse_local_intent(decoder.last_text)
                     if intent is not None:
@@ -154,8 +170,17 @@ def main():
                         awaiting_intent_until = 0
     finally:
         decoder.reset()
-    if speaker_thread:
-        speaker_thread.join(timeout=4)
+        if speaker_thread:
+            speaker_thread.join(timeout=10)
+            if speaker_thread.is_alive():
+                print("LOCAL_AUDIO_DRAIN_NOT_CONFIRMED")
+        # No unattended timer service: remaining short timers complete here,
+        # after the microphone stream has already closed.
+        for timer in timers:
+            timer.join(timeout=MAX_DEMO_TIMER_SECONDS + 2)
+            if timer.is_alive():
+                timer.cancel()
+                print("LOCAL_TIMER_CANCELLED_NOT_FIRED")
     print("LIVE_CAPTURE_ENDED", "wake_events", wake_events,
           "local_actions", local_actions,
           "audio_written", False, "paid_calls", 0,

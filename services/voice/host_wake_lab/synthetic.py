@@ -25,6 +25,9 @@ REPLIES = [
     ("negative-mentions", "negative", None, "Мне рассказывали про роботов"),
     ("negative-hello", "negative", None, "Привет добрый день"),
     ("negative-tv-like", "negative", None, "По телевизору показывают прогноз погоды"),
+    ("negative-vot-weather", "negative", None, "Вот какая сегодня погода"),
+    ("negative-hey-robot", "negative", None, "Эй робот"),
+    ("negative-privet-rabota", "negative", None, "Привет работа"),
 ]
 
 
