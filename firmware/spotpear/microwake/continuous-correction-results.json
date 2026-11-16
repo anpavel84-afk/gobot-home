@@ -1,0 +1,158 @@
+{
+  "schema": "gobot-public-continuous-correction-v1",
+  "cutoff": 231,
+  "window": 10,
+  "kernel": "native_reference",
+  "human_trials": 0,
+  "flashed": false,
+  "product_accepted": false,
+  "paid_calls": 0,
+  "results": [
+    {
+      "model_sha256": "0dc97077ea6f69c4efa3e622bfc18d0d7b4bfb6203d980d863921884119e31fa",
+      "stage": "full-public",
+      "ordinary_true_positive": [
+        75,
+        75
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        134,
+        112
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        17,
+        16
+      ],
+      "gabot_trials_per_voice": 20,
+      "accepted": false
+    },
+    {
+      "model_sha256": "09ec4abd85fbde7b4e158e385bfa9a2bbe1582d5dbbe3baab7a08631ddfa7780",
+      "stage": "continuous-public",
+      "ordinary_true_positive": [
+        70,
+        65
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        3,
+        9
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        8,
+        12
+      ],
+      "gabot_trials_per_voice": 20,
+      "hard_windows": 1610,
+      "accepted": false
+    },
+    {
+      "stage": "balanced-public",
+      "model_sha256": "1e394389adeabca51a16aad4345a1c15de39965e5b0852514cfb8174cf96cb39",
+      "ordinary_true_positive": [
+        52,
+        48
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        1,
+        1
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        8,
+        8
+      ],
+      "gabot_trials_per_voice": 20,
+      "accepted": false
+    },
+    {
+      "stage": "pooled-public",
+      "model_sha256": "b63694c41a2f187735583dbbd712e2bb5517c8369ac4ce69dcb846c05003f3b4",
+      "ordinary_true_positive": [
+        75,
+        73
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        153,
+        166
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        20,
+        17
+      ],
+      "gabot_trials_per_voice": 20,
+      "accepted": false
+    },
+    {
+      "stage": "phonetic-public",
+      "model_sha256": "b22d7cd297616934f8534c38c6be717fdc7c7436eb49eb67de8c4022f595b2d2",
+      "ordinary_true_positive": [
+        68,
+        63
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        2,
+        8
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        13,
+        13
+      ],
+      "gabot_trials_per_voice": 20,
+      "accepted": false
+    },
+    {
+      "stage": "public-human-background",
+      "ordinary_true_positive": [
+        67,
+        73
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        48,
+        55
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        14,
+        14
+      ],
+      "gabot_trials_per_voice": 20,
+      "public_speech_false_events": 4,
+      "public_speech_clips": 200,
+      "accepted": false
+    },
+    {
+      "stage": "public-human-refined",
+      "ordinary_true_positive": [
+        59,
+        53
+      ],
+      "ordinary_trials_per_voice": 75,
+      "false_events": [
+        2,
+        6
+      ],
+      "negative_clips_per_voice": 498,
+      "gabot_true_positive": [
+        11,
+        10
+      ],
+      "gabot_trials_per_voice": 20,
+      "public_speech_false_events": 1,
+      "public_speech_clips": 200,
+      "accepted": false
+    }
+  ],
+  "all_jobs_finished": true,
+  "stream_offline_alignment_frames": 1,
+  "early_continuous_and_balanced_alignment_frames": 0
+}

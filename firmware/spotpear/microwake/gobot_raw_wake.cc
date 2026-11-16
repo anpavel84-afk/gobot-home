@@ -1,5 +1,6 @@
 #include "gobot_raw_wake.h"
 #include "raw_wake_capture.h"
+#include "guided_wake_prompts.h"
 #include <esp_heap_caps.h>
 #include <esp_timer.h>
 #include <driver/usb_serial_jtag.h>
@@ -16,6 +17,7 @@ static raw_wake::Capture* capture=nullptr;
 static std::atomic<bool> initialized{false};
 static std::string nonce;
 static std::atomic<bool> exporting{false},cancelled{false};
+static bool guided=false;
 static uint64_t clock_ms(){return esp_timer_get_time()/1000;}
 static uint32_t crc(const uint8_t* p,size_t n){
     uint32_t v=~0u;while(n--){v^=*p++;for(int i=0;i<8;++i)v=(v>>1)^(0xedb88320u&-(v&1));}return ~v;
@@ -51,31 +53,40 @@ static void export_task(void*){
         static_cast<unsigned long>(crc(bytes,size)));write_line(line,n,deadline);}
     erase();exporting=false;vTaskDelete(nullptr);
 }
+static bool prepare_usb(){
+    if(usb_serial_jtag_is_driver_installed())return true;
+    usb_serial_jtag_driver_config_t config{.tx_buffer_size=8192,.rx_buffer_size=1024};
+    if(usb_serial_jtag_driver_install(&config)!=ESP_OK)return false;
+    usb_serial_jtag_vfs_use_driver();return true;
+}
 bool command(const std::string& line,bool idle,bool muted,uint64_t now){
-    if(line=="GOBOT_RAW_CANCEL"){
-        cancelled=true;if(capture && !exporting)erase();return true;
+    if(line=="GOBOT_RAW_USB_PREPARE"){
+        if(idle && !busy() && prepare_usb()){printf("GOBOT_RAW_USB_READY\n");fflush(stdout);}return true;
     }
-    if(line.rfind("GOBOT_RAW_ARM ",0)!=0)return false;
+    if(line=="GOBOT_RAW_STATUS"){
+        printf("GOBOT_RAW_STATUS capable_guided=1 state=%d guided=%d samples=%u\n",capture?int(capture->state()):0,int(guided),capture?unsigned(capture->recorded_samples()):0);fflush(stdout);return true;
+    }
+    if(line=="GOBOT_RAW_CANCEL"){
+        cancelled=true;if(capture && !exporting)erase();guided=false;return true;
+    }
+    const bool wants_guided=line.rfind("GOBOT_RAW_GUIDED_ARM ",0)==0;
+    if(!wants_guided && line.rfind("GOBOT_RAW_ARM ",0)!=0)return false;
     // Format: GOBOT_RAW_ARM <32 lowercase hex nonce> <15..60 seconds>.
-    const auto arg=line.substr(14);const auto space=arg.find(' ');
+    const auto arg=line.substr(wants_guided?21:14);const auto space=arg.find(' ');
     if(space!=32 || arg.substr(0,32).find_first_not_of("0123456789abcdef")!=std::string::npos)return true;
     const auto duration=arg.substr(space+1);
     if(duration.empty() || duration.size()>2 || duration.find_first_not_of("0123456789")!=std::string::npos)return true;
     const int seconds=atoi(duration.c_str());
-    if(!idle || muted || busy() || seconds<15 || seconds>60)return true;
-    if(!usb_serial_jtag_is_driver_installed()){
-        usb_serial_jtag_driver_config_t config{.tx_buffer_size=8192,.rx_buffer_size=1024};
-        if(usb_serial_jtag_driver_install(&config)!=ESP_OK)return true;
-        usb_serial_jtag_vfs_use_driver(); // Existing console now uses the same driver.
-    }
+    if(!idle || muted || busy() || seconds<15 || seconds>60 || (wants_guided && seconds!=50))return true;
+    if(!prepare_usb())return true;
     if(!capture){
         capture=new raw_wake::Capture(nullptr,0);initialized.store(true);
     }
     auto* buffer=static_cast<int16_t*>(heap_caps_calloc(60*16000,sizeof(int16_t),MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
     if(!buffer)return true;
     if(!capture->attach(buffer,60*16000)){heap_caps_free(buffer);return true;}
-    nonce=arg.substr(0,32);cancelled=false;
-    if(capture->arm(seconds,now))printf("GOBOT_RAW_ARMED %s %d\n",nonce.c_str(),seconds);
+    nonce=arg.substr(0,32);cancelled=false;guided=wants_guided;
+    if(capture->arm(seconds,now)){printf("%s %s %d\n",guided?"GOBOT_RAW_GUIDED_ARMED":"GOBOT_RAW_ARMED",nonce.c_str(),seconds);fflush(stdout);}
     return true;
 }
 bool touch(bool physical,bool hold,uint64_t now){
@@ -97,7 +108,12 @@ void poll(uint64_t now){
 }
 const char* label(){
     if(exporting)return "Передача по USB";
-    if(capture && capture->state()==raw_wake::State::Recording)return "Локальная запись";
-    return "Коснитесь для записи";
+    if(capture && capture->state()==raw_wake::State::Recording)return guided?guided_wake::at(capture->recorded_samples()).text:"Локальная запись";
+    return guided?"Коснитесь один раз":"Коснитесь для записи";
+}
+const char* detail(){
+    if(exporting)return "Запись завершена";
+    if(guided && capture && capture->state()==raw_wake::State::Recording)return guided_wake::at(capture->recorded_samples()).hint;
+    return guided?"Настройка ГоБот":"Без облака";
 }
 }

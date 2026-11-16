@@ -10,4 +10,5 @@ void feed(const int16_t* pcm,size_t n);
 void missed_block();
 void poll(uint64_t now);
 const char* label();
+const char* detail();
 }

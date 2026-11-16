@@ -707,3 +707,6 @@ Full gate: **2078 passed / 0 failed / 3 skipped / 1 xfailed; 118 subtests passed
 Xfail/skip не включаются в число положительно прошедших сценариев.
 
 </details>
+
+
+Wake 2026-11-15: human GoBot/Gabot NOT ACCEPTED. All new candidates rejected. Guided calibration/capture timeout fix built; capture OFF, fresh recording consent required. 149 free Python checks do not prove acoustic readiness. CURRENT_STATUS / guided-calibration-build.json contain installation evidence.

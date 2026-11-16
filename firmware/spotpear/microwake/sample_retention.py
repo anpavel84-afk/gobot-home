@@ -1,5 +1,5 @@
 """Delete only an explicitly enrolled local wake sample; never uploads data."""
-import argparse,json,re,time
+import argparse,json,re,time,shutil
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 DIRECTORY=ROOT/'data/hardware/gobot-v1/wake-human'
@@ -32,6 +32,10 @@ def cleanup(ident,now=None):
     selection=p.with_name(ident+'-mined-public-negatives.json')
     if selection.is_symlink():raise ValueError('Unsafe private negative-selection path')
     selection.unlink(missing_ok=True)
+    for temporary in p.parent.glob(ident+'-export-*'):
+        if not re.fullmatch(re.escape(ident)+r'-export-[a-z0-9_]{8}',temporary.name):continue
+        if temporary.is_symlink() or not temporary.is_dir() or temporary.resolve().parent!=p.parent.resolve():raise ValueError('Unsafe expired export directory')
+        shutil.rmtree(temporary)
     meta.write_text(json.dumps({'expires_at':data['expires_at'],'deleted_at':now,'deleted':True}))
     return True
 
