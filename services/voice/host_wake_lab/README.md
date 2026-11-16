@@ -1,5 +1,7 @@
 # GoBot HOST-B — Russian Wake Recognition Lab (#6)
 
+**CURRENT OWNER SELECTION: «Моника»**. Vosk Russian vocabulary ID 57908 verified on PLAN. New B-only exact-name matcher, consented live PC mic launcher and default-shadow HOST-A adapter have been implemented. Physical Spotpear RC1 already flashed by HOST-A, but production wake remains OFF and requires an approved A-owned finite pilot. See [MONIKA_STATUS_2026-11-16.md](MONIKA_STATUS_2026-11-16.md). Previous «Гоби/Глоби/Эй, Гоби» experiments below are ARCHIVED historical comparisons and not the new active wake target.
+
 **OWNER PRIORITY (2026-11-16): «Го́би» first-syllable stress; «Эй, Го́би» reserve; «Гло́би» separate competitor.** «А, Гоби» is excluded from active targets/aliases (historical synthetic results only). Legacy «Гобот/Габот» results are historical. Synthetic benchmark/vocabulary details: [GOBI_REPORT_2026-11-16.md](GOBI_REPORT_2026-11-16.md); actual Owner human mic outcome: [GOBI_HUMAN_RESULT_2026-11-16.md](GOBI_HUMAN_RESULT_2026-11-16.md). GoBot project name unchanged and no wake enabled on the physical speaker.
 
 **Current gate: SOURCE_IMPLEMENTED / FREE_TESTED / HUMAN_TESTED_NOT_ACCEPTED.**

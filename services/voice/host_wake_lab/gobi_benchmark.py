@@ -23,7 +23,7 @@ def main():
     a.add_argument("--fixtures-dir",type=Path,required=True)
     a.add_argument("--models-root",type=Path,required=True)
     a.add_argument("--out",type=Path,required=True)
-    a.add_argument("--candidates",nargs="+",choices=CANDIDATES,
+    a.add_argument("--candidates",nargs="+",choices=("gobi","hey_gobi","globi"),
                    default=["gobi","hey_gobi","globi"])
     a.add_argument("--engines",nargs="+",choices=REGISTRY,
                    default=["t-one","vosk","zipformer-window"])

@@ -88,7 +88,7 @@ def main():
             "duration_s":round(len(pcm)/32000.,3),
             "text":text,
         })
-    for candidate in CANDIDATES:
+    for candidate in P:  # historical frozen v1 corpus; new Monika has separate tests
         samples=[]
         for record in all_records:
             samples.append({

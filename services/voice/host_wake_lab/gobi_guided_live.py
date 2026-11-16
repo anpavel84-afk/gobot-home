@@ -29,7 +29,7 @@ BACKGROUND_FPH_MIN=1800
 def catalog(candidate):
     if candidate not in CANDIDATES:
         raise ValueError("unknown_candidate")
-    name={"gobi":"Го́би", "globi":"Гло́би", "hey_gobi":"Эй, Го́би"}[candidate]
+    name=CANDIDATE_DISPLAY[candidate]
     # The backing detector uses plain ASR text 'гоби'; U+0301 here is user prompt only.
     positive=[
       ("isolated1","isolated","Обычный голос, 30-50 см: "+name),
@@ -50,8 +50,22 @@ def catalog(candidate):
       ("no-address","non_address","Мы долго говорили про пустыню Гоби"),
       ("room","conversation","Расскажите вслух пару предложений без обращения к помощнику"),
     ]
-    # Exclude ONLY the exact phrase for this candidate, keep other short
-    # names as negatives. This is a candidate-level metric, not an alias model.
+    if candidate=="monika":
+        # Ordinary household distractors, not all other wake names are
+        # interchangeable. A person can mention "Моника" without addressing
+        # the assistant: score that mention separately from cross-name cases.
+        neg=[
+          ("monitor","near","Монитор работает"),
+          ("monik","near","Моник на столе"),
+          ("monya","near","Моня здесь"),
+          ("monika-mention","conversation","Мы сегодня обсуждали Монику"),
+          ("montirovka","near","Монтировка лежит на полу"),
+          ("robot","near","Робот работает"),
+          ("weather","non_address","Какая сегодня погода?"),
+          ("room","conversation","Поговорите вслух о чём-нибудь без обращения"),
+        ]
+    # Exclude target as a cross-name negative and preserve all other explicit
+    # competing names distinctly from everyday unrelated negative speech.
     neg=[x for x in neg if x[0]!=candidate]
     return (
       [(f"{candidate}-{ident}","positive",condition,name,txt)
@@ -94,9 +108,12 @@ def main():
     positives,negatives=catalog(args.candidate)
     if args.quick:
         positives=[t for t in positives if t[0].split("-")[-1] in ("isolated1","weather","time")]
-        negatives=[t for t in negatives if t[0] in (
-            "negative-robot","negative-gobot","negative-lips",
-            "negative-globe","negative-room")]
+        wanted=(("negative-monitor","negative-monik","negative-monya",
+                 "negative-monika-mention","negative-room")
+                if args.candidate=="monika" else
+                ("negative-robot","negative-gobot","negative-lips",
+                 "negative-globe","negative-room"))
+        negatives=[t for t in negatives if t[0] in wanted]
     trials=positives+negatives
     if args.background_tv:
         trials.append(("tv","negative","TV_background",None,"Включите обычную речь с телевизора на 30 секунд"))

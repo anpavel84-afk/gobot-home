@@ -1,8 +1,9 @@
-"""Owner-directed HOST-B: Го́би first, Эй Го́би reserve, Гло́би comparison.
+"""HOST-B exact-name candidate policy; currently Owner-selected «Моника».
 
-No other wake names are supported by this new candidate policy. The historical
-"А, Гоби" trial is archived but NOT a candidate, alias or planned positive.
-Project name GoBot and HOST-A activation policy remain unchanged.
+Monika is an isolated exact candidate with ID "monika". The prior Gobi/Globi
+words remain only for reproducible archived comparisons; never enable two
+candidate names at once. Historical "А, Гоби" is no longer an alias/target.
+Project GoBot and HOST-A production activation policy remain unchanged.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -12,18 +13,20 @@ from typing import Literal
 from .detect import WakeLab
 from .engines import VoskOnline, make_backend
 
-CandidateId = Literal["gobi", "globi", "hey_gobi"]
+CandidateId = Literal["gobi", "globi", "hey_gobi", "monika"]
 
 # Exact token patterns, not fuzzy matches or forced Vosk grammars.
 CANDIDATES = {
     "gobi": ("гоби",),
     "globi": ("глоби",),
     "hey_gobi": ("эй", "гоби"),
+    "monika": ("моника",),
 }
 CANDIDATE_DISPLAY = {
     "gobi": "Го́би",
     "globi": "Гло́би",
     "hey_gobi": "Эй, Го́би",
+    "monika": "Моника",
 }
 
 
