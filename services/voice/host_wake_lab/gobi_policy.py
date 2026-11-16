@@ -1,9 +1,8 @@
-"""Owner-directed GoBot HOST-B 2026-11-16: independently benchmark Gobi / Globi.
+"""Owner-directed HOST-B: Го́би first, Эй Го́би reserve, Гло́би comparison.
 
-Do not change the project name or enable any wake in the live gateway.
-One and ONLY one candidate is evaluated per detector instance. In particular,
-"гоби" is not a spelling alias for "глоби" or "а гоби". The optional "эй
-гоби" is likewise an independent reserve candidate, not silently enabled.
+No other wake names are supported by this new candidate policy. The historical
+"А, Гоби" trial is archived but NOT a candidate, alias or planned positive.
+Project name GoBot and HOST-A activation policy remain unchanged.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -13,19 +12,17 @@ from typing import Literal
 from .detect import WakeLab
 from .engines import VoskOnline, make_backend
 
-CandidateId = Literal["gobi", "globi", "a_gobi", "hey_gobi"]
+CandidateId = Literal["gobi", "globi", "hey_gobi"]
 
 # Exact token patterns, not fuzzy matches or forced Vosk grammars.
 CANDIDATES = {
     "gobi": ("гоби",),
     "globi": ("глоби",),
-    "a_gobi": ("а", "гоби"),
     "hey_gobi": ("эй", "гоби"),
 }
 CANDIDATE_DISPLAY = {
     "gobi": "Го́би",
     "globi": "Гло́би",
-    "a_gobi": "А, Го́би",
     "hey_gobi": "Эй, Го́би",
 }
 
@@ -33,9 +30,8 @@ CANDIDATE_DISPLAY = {
 def candidate_for(text: str, candidate_id: str) -> str | None:
     """Whole Cyrillic words, anchored to FIRST token; accents removed by ASR.
 
-    No long-string substring matches; matching a prefix is forbidden when
-    that prefix is part of another candidate (e.g. 'а гоби' must not fire
-    'гоби').
+    No long-string substring matches; prefix is never a silent alias.
+    A phrase beginning 'Эй, Гоби' does not trigger the standalone policy.
     """
     if candidate_id not in CANDIDATES:
         raise ValueError("unknown_candidate")

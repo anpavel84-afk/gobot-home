@@ -1,4 +1,4 @@
-"""Four INDEPENDENT candidate exact-match benchmarks on the SAME public/synthetic PCM.
+"""Three ACTIVE independently tested candidate names on the SAME historic synthetic PCM.
 
 No live microphone, no training or paid API. Output is metadata + sample hashes,
 not audio/transcripts. All variants run as isolated tests, never simultaneously
@@ -14,6 +14,7 @@ import platform
 import sys
 from .gobi_policy import CANDIDATES, CANDIDATE_DISPLAY
 from .harness import benchmark_one,load_manifest
+from .gobi_reconcile import summarize_run
 from .engines import REGISTRY
 
 
@@ -23,7 +24,7 @@ def main():
     a.add_argument("--models-root",type=Path,required=True)
     a.add_argument("--out",type=Path,required=True)
     a.add_argument("--candidates",nargs="+",choices=CANDIDATES,
-                   default=["gobi","globi","a_gobi","hey_gobi"])
+                   default=["gobi","hey_gobi","globi"])
     a.add_argument("--engines",nargs="+",choices=REGISTRY,
                    default=["t-one","vosk","zipformer-window"])
     a.add_argument("--threads",type=int,default=1)
@@ -45,20 +46,29 @@ def main():
             r["candidate_id"]=candidate
             r["candidate_spelling"]=CANDIDATE_DISPLAY[candidate]
             r["fixture_dataset_sha256"]=digest
+            # Do not conflate invocation containing another wake name with
+            # a truly unrelated everyday false wake event.
+            r["independent_error_classes"]=summarize_run(r)
             if r["status"]=="BLOCKED":
                 print("BENCH_BLOCKED",candidate,engine,r.get("reason"),flush=True)
             else:
                 print("BENCH_RESULT",candidate,engine,
                       "TP",r["true_positive"],"/",r["positive_trials"],
-                      "FP",r["false_events"],"/",r["negative_trials"],
+                      "ARCHIVED_TOTAL_NEGATIVE_EVENTS",r["false_events"],"/",r["negative_trials"],
+                      "UNRELATED_FALSE",r["independent_error_classes"]["unrelated_speech_false_events"],
+                      "CROSS_NAME",r["independent_error_classes"]["other_distinct_address_events"],
+                      "ARCHIVED_A_GOBI",r["independent_error_classes"]["historical_A_Gobi_variant_events"],
                       "CPU_s",r["cpu_time_s"],"RSS_MB",r["peak_observed_rss_mb"],
                       "RTF",r["realtime_factor"],flush=True)
             reports.append(r)
     catalog=args.fixtures_dir/"corpus_catalog.json"
     report={
-        "schema":"gobot_host_b_gobi_independent_benchmark_v1",
+        "schema":"gobot_host_b_gobi_independent_benchmark_v2",
+        "archived_A_Gobi_not_an_active_candidate":True,
+        "v1_archive_retained_unchanged":True,
         "timestamp_utc":datetime.now(timezone.utc).isoformat(),
-        "candidate_priority":["gobi","globi","a_gobi","hey_gobi"],
+        "candidate_priority":["gobi","hey_gobi","globi"],
+        "historical_a_gobi_not_tested_as_target":True,
         "project_name_unchanged":"GoBot",
         "single_candidate_per_detector":True,
         "all_audio_source":"synthetic_Piper_ru_RU_denis_medium",

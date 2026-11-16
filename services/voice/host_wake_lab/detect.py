@@ -102,6 +102,7 @@ class WakeLab:
         self.expected = None
         self.last_receive = None
         self.last_text = ""
+        self.last_hypothesis = None
         self.decoded_frames = 0
 
     def feed(self, *, pcm_s16le: bytes, stream_epoch: str,
@@ -131,6 +132,7 @@ class WakeLab:
         self.expected = end
         self.last_receive = received_monotonic_ns
         result = self.backend.feed_pcm(pcm_s16le)
+        self.last_hypothesis = result
         self.last_text = result.text
         self.decoded_frames += 1
         phrase = None if (speaking or not result.updated) else self.matcher.observe(result.text, end)

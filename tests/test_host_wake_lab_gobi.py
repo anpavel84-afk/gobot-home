@@ -12,6 +12,7 @@ from services.voice.host_wake_lab.gobi_policy import (
 from services.voice.host_wake_lab.gobi_guided_live import catalog, main
 from services.voice.host_wake_lab.bridge import HostWakeDetectorAdapter
 from services.voice.host_wake_lab.gobi_background_watch import rate_per_hour
+from services.voice.host_wake_lab.gobi_reconcile import classify, summarize_run
 from services.voice.host_wake_lab.gobi_synthetic import P, NEG
 
 
@@ -40,7 +41,6 @@ class SeparateCandidateTests(unittest.TestCase):
         pairs={
             "Гоби, какая сегодня погода?": "gobi",
             "Глоби": "globi",
-            "А, Гоби": "a_gobi",
             "Эй, Гоби": "hey_gobi",
         }
         for utterance,candidate in pairs.items():
@@ -48,6 +48,13 @@ class SeparateCandidateTests(unittest.TestCase):
                 with self.subTest(text=utterance,detector=query):
                     expected=candidate if candidate==query else None
                     self.assertEqual(candidate_for(utterance,query),expected)
+
+    def test_A_Gobi_is_not_an_active_candidate_or_alias(self):
+        self.assertNotIn("a_gobi",CANDIDATES)
+        for candidate in CANDIDATES:
+            self.assertIsNone(candidate_for("А, Гоби, сколько времени?",candidate))
+        with self.assertRaises(ValueError):
+            CandidateMatcher("a_gobi")
 
     def test_false_words_and_background_mentions(self):
         negatives=("гобот","робот","губы","глобус","гобиус",
@@ -130,7 +137,8 @@ class SeparateCandidateTests(unittest.TestCase):
 
 class CatalogTests(unittest.TestCase):
     def test_identical_synthetic_clip_list_and_no_aliasing(self):
-        self.assertEqual(len(P),4)
+        self.assertEqual(len(P),4)  # HISTORICAL frozen PCM corpus, not active names
+        self.assertEqual(set(CANDIDATES),{"gobi","hey_gobi","globi"})
         self.assertEqual({len(x) for x in P.values()},{6})
         self.assertEqual(len(NEG),14)
         self.assertNotEqual(P["gobi"][0],P["globi"][0])
@@ -143,6 +151,28 @@ class CatalogTests(unittest.TestCase):
             # Never treat the candidate itself as a 'negative cross name'
             self.assertNotIn("negative-"+candidate,[n[0] for n in negatives])
             self.assertTrue(any("robot" in n[0] for n in negatives))
+            self.assertFalse(any("a_gobi" in n[0] for n in negatives))
+
+    def test_historical_A_Gobi_is_cross_variant_not_ambient_false(self):
+        self.assertEqual(classify("a_gobi_02","gobi"),"historical_address_A_Gobi")
+        self.assertEqual(classify("negative_lips","gobi"),"unrelated_speech")
+        self.assertEqual(classify("globi_02","gobi"),"other_distinct_address")
+        self.assertEqual(classify("gobi_02","gobi"),"target")
+        with self.assertRaises(ValueError):
+            classify("a_gobi_02","a_gobi")
+
+    def test_historical_fp_reclassification(self):
+        run={"candidate_id":"gobi","engine":"t-one","status":"FREE_TESTED_NOT_HUMAN_ACCEPTED",
+             "events":[
+               {"id":"gobi_00","events":[]},
+               {"id":"a_gobi_02","events":[{"phrase_id":"gobi"}]},
+               {"id":"negative_robot","events":[]},
+               {"id":"negative_gobot","events":[]}
+             ]}
+        result=summarize_run(run)
+        self.assertEqual(result["unrelated_speech_false_events"],0)
+        self.assertEqual(result["historical_A_Gobi_variant_events"],1)
+        self.assertEqual(result["target_misses"],1)
 
     def test_false_wakes_hour_requires_independent_background_exposure(self):
         self.assertIsNone(rate_per_hour(0, 1799.99, owner_confirmed=True))

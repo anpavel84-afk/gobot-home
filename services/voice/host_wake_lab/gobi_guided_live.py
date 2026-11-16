@@ -29,7 +29,7 @@ BACKGROUND_FPH_MIN=1800
 def catalog(candidate):
     if candidate not in CANDIDATES:
         raise ValueError("unknown_candidate")
-    name={"gobi":"Го́би", "globi":"Гло́би", "a_gobi":"А, Го́би", "hey_gobi":"Эй, Го́би"}[candidate]
+    name={"gobi":"Го́би", "globi":"Гло́би", "hey_gobi":"Эй, Го́би"}[candidate]
     # The backing detector uses plain ASR text 'гоби'; U+0301 here is user prompt only.
     positive=[
       ("isolated1","isolated","Обычный голос, 30-50 см: "+name),
@@ -46,7 +46,6 @@ def catalog(candidate):
       ("globe","near","Глобус стоит на столе"),
       ("globi","cross_name","Гло́би, какая сегодня погода?"),
       ("gobi","cross_name","Го́би, какая сегодня погода?"),
-      ("a_gobi","cross_name","А, Го́би, какая сегодня погода?"),
       ("hey_gobi","cross_name","Эй, Го́би, сколько времени?"),
       ("no-address","non_address","Мы долго говорили про пустыню Гоби"),
       ("room","conversation","Расскажите вслух пару предложений без обращения к помощнику"),
@@ -76,8 +75,12 @@ def main():
     p.add_argument("--engine",default="auto",choices=("auto","vosk","t-one","zipformer-window"))
     p.add_argument("--shadow-engine",default="auto",choices=("auto","none","vosk","t-one","zipformer-window"))
     p.add_argument("--models-root",type=Path,required=True)
-    p.add_argument("--device",type=int,default=21)
+    p.add_argument("--device",type=int,default=1)  # Windows MME shared mic; avoid WDM-KS 21
     p.add_argument("--seconds",type=float,default=6.0)
+    p.add_argument("--quick",action="store_true",
+                   help="Only prioritized 3 positive prompts + 5 negative controls")
+    p.add_argument("--trace-all",action="store_true",
+                   help="Show three actual model partials/finals ONLY at local console after Owner consent")
     p.add_argument("--background-tv",action="store_true",
                    help="30s genuine TV speech negative, from actual room TV")
     p.add_argument("--background-music",action="store_true",
@@ -89,6 +92,11 @@ def main():
     if args.shadow_engine=="auto":
         args.shadow_engine="zipformer-window" if args.engine=="t-one" else "t-one"
     positives,negatives=catalog(args.candidate)
+    if args.quick:
+        positives=[t for t in positives if t[0].split("-")[-1] in ("isolated1","weather","time")]
+        negatives=[t for t in negatives if t[0] in (
+            "negative-robot","negative-gobot","negative-lips",
+            "negative-globe","negative-room")]
     trials=positives+negatives
     if args.background_tv:
         trials.append(("tv","negative","TV_background",None,"Включите обычную речь с телевизора на 30 секунд"))
@@ -108,6 +116,7 @@ def main():
     print("ONLY THIS CANDIDATE ACTIVE in this lab. All other names are negatives.")
     print("Проверка бесплатная и локальная. Звук/транскрипты не сохраняются.")
     print("Нажатие Enter перед фразой запускает запись; после фразы подтвердите y/yes/да.")
+    print("MIC_ROUTE",args.device,"(PLAN MME Microphone Array=1; old WDM-KS=21)")
     print("Встроенный сигнал после распознавания НЕ является ответом Brain.")
     print("Owner PHYSICALLY at PLAN must now type YES-PC-MIC to authorize this run.")
     if input("Local Owner consent: ").strip() != "YES-PC-MIC":
@@ -124,16 +133,36 @@ def main():
         t0=time.perf_counter()
         second=make_candidate_backend(args.shadow_engine,args.models_root,args.candidate,threads=1)
         second_cold_ms=round((time.perf_counter()-t0)*1000,1)
+    # Optional diagnostics only: third model never produces activation/ACK.
+    # Its texts appear only in the locally consented terminal, never in JSON.
+    trace_models={}
+    if args.trace_all:
+        from .gobi_diagnostics import replay_model_hypotheses
+        for engine_name in ("vosk","t-one","zipformer-window"):
+            if engine_name==args.engine:
+                trace_models[engine_name]=primary
+            elif engine_name==args.shadow_engine and second is not None:
+                trace_models[engine_name]=second
+            else:
+                try:
+                    trace_models[engine_name]=make_candidate_backend(
+                        engine_name,args.models_root,args.candidate,threads=1)
+                except Exception as exc:
+                    print("TRACE_MODEL_UNAVAILABLE",engine_name,type(exc).__name__,
+                          str(exc)[:120])
     outcomes={args.engine:{"positives":0,"detected":0,"misses":0,"negative_cases":0,
                            "false_events":0,"background_seconds":0.0,
-                           "background_false_events":0,"near_negative_false_events":0}}
+                           "background_false_events":0,"near_negative_false_events":0,
+                           "cross_variant_cases":0,"cross_variant_events":0}}
     if second is not None:
         outcomes[args.shadow_engine]={"positives":0,"detected":0,"misses":0,
                 "negative_cases":0,"false_events":0,"background_seconds":0.0,
-                "background_false_events":0,"near_negative_false_events":0}
+                "background_false_events":0,"near_negative_false_events":0,
+                "cross_variant_cases":0,"cross_variant_events":0}
     records=[]
     ack_events=[]
     excluded=[]
+    capture_errors=[]  # error class/device only; never save human ASR text
     rss_max=proc.memory_info().rss
     cpu0=proc.cpu_times()
     wall0=time.perf_counter()
@@ -174,11 +203,24 @@ def main():
         seconds=30 if condition in ("TV_background","music_background") else args.seconds
         pcm=None
         try:
+            def live_trace(hypothesis, end_index):
+                print("LIVE_ASR",args.engine,
+                      "stage",("SEGMENT_FINAL" if hypothesis.endpoint else "PARTIAL"),
+                      "pcm_end_s",round(end_index/HZ,3),
+                      "text",repr(hypothesis.text[:180]),flush=True)
             pcm,live_events,epoch,queue_backlog_ms=capture_live(
                 primary,device=args.device,seconds=seconds,
-                candidate_id=args.candidate,on_wake=local_ack)
+                candidate_id=args.candidate,on_wake=local_ack,
+                on_hypothesis=live_trace if args.trace_all else None)
             print("MIC_CLOSED | events",len(live_events))
             shadow_events=process_pcm(second,pcm,epoch,candidate_id=args.candidate) if second else []
+            if args.trace_all:
+                print("== SAME HUMAN PCM: actual ASR HYPOTHESES, console-only ==")
+                for engine_name, model in trace_models.items():
+                    print("REPLAY_TRACE_MODEL",engine_name,"candidate",args.candidate,
+                          "not live detection, no audio/transcript file")
+                    replay_model_hypotheses(model,pcm,label=engine_name)
+                print("== END CONSOLE ASR TRACES; NONE SAVED IN REPORT ==")
             levels=pcm_signal_levels(pcm)
             print("SIGNAL_RMS_DBFS",levels["rms_dbfs"],"PEAK_DBFS",levels["peak_dbfs"],
                   "no audio file written")
@@ -206,6 +248,9 @@ def main():
                     s["positives"]+=1
                     s["detected"]+=int(outcome["hit"])
                     s["misses"]+=int(not outcome["hit"])
+                elif condition=="cross_name":
+                    s["cross_variant_cases"]+=1
+                    s["cross_variant_events"]+=outcome["false_events"]
                 else:
                     s["negative_cases"]+=1
                     s["false_events"]+=outcome["false_events"]
@@ -218,6 +263,18 @@ def main():
                 rec[f"{eng}_false_events"]=outcome["false_events"]
             records.append(rec)
             rss_max=max(rss_max,proc.memory_info().rss)
+        except Exception as exc:
+            # Keep full PortAudio diagnostics in this LOCAL terminal only.
+            # Do not persist stack traces or any speech hypothesis.
+            print("LIVE_MIC_OR_PIPELINE_ERROR",type(exc).__name__,
+                  "device",args.device,"details",str(exc)[:280],flush=True)
+            print("MIC_CAPTURE_ABORTED_NO_RETRY; no paid calls; no gateway switch")
+            capture_errors.append({
+                "trial_id":ident,"error_type":type(exc).__name__,
+                "device":args.device,"run_aborted":True,
+            })
+            excluded.append({"id":ident,"reason":"MIC_CAPTURE_OR_PIPELINE_ERROR"})
+            break
         finally:
             if pcm is not None:
                 pcm[:]=bytes(len(pcm))
@@ -245,6 +302,8 @@ def main():
                        **({args.shadow_engine:second_cold_ms} if second else {})},
       "one_candidate_only":True,"activation_approved":False,
       "audio_saved":False,"transcripts_saved":False,"network_audio_sent":False,
+      "trace_showed_all_model_hypotheses_locally":bool(args.trace_all),
+      "trace_hypothesis_text_persisted":False,
       "paid_calls":0,
       "name_end_offset_ground_truth_available":False,
       "cue_onset_acoustically_measured":False,
@@ -254,6 +313,8 @@ def main():
             r["capture_duration_s"] for r in records
             if r["condition"] in ("TV_background","music_background","conversation")),2),
       "results":outcomes,"trials":records,"excluded":excluded,
+      "capture_errors":capture_errors,
+      "cross_variant_events_are_not_ambient_false_activations":True,
       "cue_api_proxies":ack_events,
       "model_status":"HUMAN_TESTED_NOT_AUTO_ACCEPTED"}
     path=args.out or (args.models_root.parent/"results"/(

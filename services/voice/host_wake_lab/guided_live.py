@@ -100,7 +100,7 @@ def process_pcm(backend, pcm: bytearray, epoch: str, *, candidate_id=None):
 
 
 def capture_live(backend, *, device: int, seconds: float,
-                 candidate_id=None, on_wake=None):
+                 candidate_id=None, on_wake=None, on_hypothesis=None):
     """Returns a mutable in-memory PCM buffer and LIVE primary candidates only."""
     import sounddevice as sd
     if not 2 <= seconds <= 8 and seconds != 30:
@@ -118,6 +118,7 @@ def capture_live(backend, *, device: int, seconds: float,
     detected = []
     index = 0
     measured_peak_backlog_ms = 0.0
+    last_trace_text = None  # mandatory before first real PCM hypothesis
 
     def callback(data, nframes, time_info, status):
         if status or nframes != FRAME_SAMPLES:
@@ -147,6 +148,13 @@ def capture_live(backend, *, device: int, seconds: float,
                     pcm_s16le=part, stream_epoch=epoch, sample_index=index,
                     received_monotonic_ns=recv_ns,
                 )
+                if on_hypothesis is not None:
+                    hypothesis = decoder.last_hypothesis
+                    if (hypothesis is not None and hypothesis.updated
+                            and (hypothesis.text != last_trace_text
+                                 or hypothesis.endpoint)):
+                        on_hypothesis(hypothesis, index + len(part)//2)
+                        last_trace_text = hypothesis.text
                 detected.extend(emitted)
                 if on_wake is not None:
                     for event in emitted:
