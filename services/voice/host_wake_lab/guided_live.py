@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -154,6 +155,40 @@ def display_event_summary(events: list[dict]):
     return [(event["phrase_id"], event["end_sample_index"]) for event in events]
 
 
+def prompt_confirm(input_fn=input, output_fn=print):
+    """Do not silently exclude a recorded trial on an accidental Enter.
+
+    Explicit Owner confirmation is mandatory. Recognize RU/EN yes variants.
+    Empty or unrecognized input prompts again rather than defaulting yes/no.
+    """
+    while True:
+        reply = input_fn(
+            "Подтвердить, что произнесли фразу? y / yes / да = ЗАСЧИТАТЬ; "
+            "n / no / нет = НЕ засчитывать: "
+        ).strip().casefold()
+        if reply in ("y", "yes", "да", "д"):
+            return True
+        if reply in ("n", "no", "нет", "н"):
+            return False
+        output_fn(
+            "Enter НЕ засчитывает и НЕ пропускает попытку. "
+            "Пожалуйста, ответьте y/yes/да или n/no/нет."
+        )
+
+
+def pcm_signal_levels(pcm: bytearray):
+    """Non-reversible numeric levels only; NOT human speech verification."""
+    import numpy as np
+    samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+    if not len(samples):
+        return {"rms_dbfs": None, "peak_dbfs": None}
+    rms = float(np.sqrt(np.mean(samples * samples)))
+    peak = float(np.max(np.abs(samples)))
+    def dbfs(amplitude):
+        return round(20.0 * math.log10(max(amplitude, 1e-8) / 32768.0), 1)
+    return {"rms_dbfs": dbfs(rms), "peak_dbfs": dbfs(peak)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--owner-consent-live", action="store_true")
@@ -164,6 +199,8 @@ def main():
                         default="zipformer-window")
     parser.add_argument("--trial-seconds", type=float, default=4)
     parser.add_argument("--rounds", type=int, default=1)
+    parser.add_argument("--only", nargs="+", choices=[t[0] for t in TRIALS],
+                        help="Replay only selected prompts; preserves separate new report")
     parser.add_argument("--include-tv-negative", action="store_true")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args()
@@ -174,13 +211,15 @@ def main():
         parser.error("trial_seconds_2_to_8_and_rounds_1_to_3")
     if args.shadow_engine == args.engine:
         parser.error("shadow_engine_must_differ_from_live_primary")
-    planned_capture = len(TRIALS) * args.rounds * args.trial_seconds
+    selected = [t for t in TRIALS if args.only is None or t[0] in set(args.only)]
+    planned_capture = len(selected) * args.rounds * args.trial_seconds
     if args.include_tv_negative:
         planned_capture += 30.0
     if planned_capture > 300:
         parser.error("total_open_mic_time_must_be_300_seconds_or_less")
     print("HOST-B human microphone trial: PLAN only, no recordings/transcripts.")
-    print("Each trial: press ENTER when ready, speak the displayed natural phrase.")
+    print("Each trial: ENTER starts; after speaking you MUST type y/yes/да to COUNT it.")
+    print("At confirmation, blank Enter will ask again and NEVER silently exclude.")
     print("Mic opens ONLY for that trial; shared PCM lives only in RAM and is zeroized.")
     print("T-one live vs shadow offline Zipformer are NOT equivalent latency measurements.")
     print("Models are NOT_ACCEPTED. No Brain/B/C/CLI or hardware gateway operations.")
@@ -202,11 +241,12 @@ def main():
     stats = {args.engine: make_summary(args.engine, live)}
     if shadow is not None:
         stats[args.shadow_engine] = make_summary(args.shadow_engine, shadow)
-    trials = list(TRIALS) * args.rounds
+    trials = list(selected) * args.rounds
     if args.include_tv_negative:
         trials.append(("tv-background", "tv_background", None,
                        "Включите ТВ с обычной речью (НЕ произносите обращений)"))
     results = []
+    excluded_trials = []
     cpu0 = proc.cpu_times()
     started = time.perf_counter()
     peak_rss = proc.memory_info().rss
@@ -215,12 +255,15 @@ def main():
         print(f"\nTRIAL {i}/{len(trials)} ({kind}) · {prompt}")
         answer = input("Enter=start  |  s=skip  |  q=finish: ").strip().lower()
         if answer == "q":
+            excluded_trials.append({"trial_id": ident, "reason": "OWNER_FINISHED_EARLY"})
             break
         if answer == "s":
-            print("SKIPPED")
+            excluded_trials.append({"trial_id": ident, "reason": "SKIPPED_BEFORE_CAPTURE"})
+            print("SKIPPED_NOT_COUNTED", ident)
             continue
         if answer != "":
-            print("INVALID_SELECTION_SKIP; mic not opened")
+            excluded_trials.append({"trial_id": ident, "reason": "INVALID_START_INPUT"})
+            print("INVALID_SELECTION_SKIP; mic not opened; not counted", ident)
             continue
         seconds = 30.0 if kind == "tv_background" else args.trial_seconds
         print("MIC_OPENING; speak naturally as prompted.")
@@ -235,10 +278,16 @@ def main():
             if shadow is not None:
                 shadow_events = process_pcm(shadow, pcm, epoch)
                 print("Shadow candidates", display_event_summary(shadow_events))
-            confirm = input("Was the entire prompted utterance/TV exposure really done? y/n: ").strip().lower()
-            if confirm != "y":
-                print("EXCLUDED_UNCONFIRMED, not included in denominators")
+            levels = pcm_signal_levels(pcm)
+            print("MIC_SIGNAL_LEVEL", levels,
+                  "levels_only_no_transcripts_or_recording")
+            if levels["rms_dbfs"] is not None and levels["rms_dbfs"] < -52:
+                print("WARNING_QUIET_MIC: signal may be muted or too weak")
+            if not prompt_confirm():
+                excluded_trials.append({"trial_id": ident, "reason": "OWNER_DECLINED_AFTER_CAPTURE"})
+                print("EXCLUDED_BY_OWNER, not included in denominators", ident)
                 continue
+            print("TRIAL_COUNTED", ident)
             per_engine = [(args.engine, live_events)]
             if shadow is not None:
                 per_engine.append((args.shadow_engine, shadow_events))
@@ -262,6 +311,7 @@ def main():
                 "primary_event_phrases": [x["phrase_id"] for x in live_events],
                 "shadow_event_phrases": [x["phrase_id"] for x in shadow_events],
                 "live_queue_max_backlog_ms": queue_backlog_ms,
+                "mic_signal_levels": levels,
             })
             peak_rss = max(peak_rss, proc.memory_info().rss)
         finally:
@@ -297,6 +347,8 @@ def main():
         "cpu_cores_equivalent": round(used_cpu/wall, 3) if wall else None,
         "peak_process_rss_mb": round(peak_rss/1048576, 1),
         "engine_results": stats, "trials": results,
+        "planned_trial_count": len(trials), "counted_trial_count": len(results),
+        "excluded_trials": excluded_trials,
     }
     out = args.out or (args.models_root.parent / "results" /
                        ("guided-human-meta-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + ".json"))
@@ -308,6 +360,8 @@ def main():
               "positive", s["correct_hits"], "/", s["positive_trials"],
               "negative_false_events", s["false_events"],
               "negative_trials", s["negative_trials"])
+    print("COUNTED", len(results), "EXCLUDED", len(excluded_trials),
+          "PLANNED", len(trials))
     print("METADATA_ONLY_REPORT", out, "PAID_CALLS=0")
     print("NOT_ACCEPTED_UNTIL_OWNER_REVIEWS_HUMAN_RESULTS")
 

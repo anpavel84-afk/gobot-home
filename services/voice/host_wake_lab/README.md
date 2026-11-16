@@ -102,6 +102,17 @@ This is **real human self-confirmed trial accuracy**, not independently acoustic
 
 **No auto-integration:** if human samples still miss, keep MODEL_NOT_ACCEPTED, do not widen to untested fuzzy aliases or spend paid quotas. To test paid actual conversation later, obtain separate Owner grant and let HOST-A use its existing Brain admission path; HOST-B provides only detector events.
 
+## First real human attempt on PLAN and corrected confirmation UI (16 November 2026)
+
+An actual Owner-run live guided microphone result was found at 18:40 local time:
+`C:\\Users\\PLAN\\gobot\\HOST-B-lab\\results\\guided-human-meta-20261116T214004Z.json`. It is retained only on PLAN, not committed or uploaded. T-one live primary and Zipformer same-PCM shadow each recorded **0 correct wakes out of 5 Owner-confirmed positive trials** and **0 false events out of 5 confirmed negative trials**. Three positive prompts were **absent from the saved denominator**: `hello-gobot`, `gabot-weather`, `gobot-time`. Whether skipped or excluded because Enter was pressed during y/n confirmation cannot be recovered: the original runner did not save exclusion reasons. There was no TV trial and no measured microphone signal level. Audio was not persisted, so it is impossible to verify voice clarity from the old report. These results are real Owner-confirmed trials, not independent acoustic transcription; the detector is still **NOT_ACCEPTED**.
+
+Updated runner now accepts `y`, `yes`, `да` for confirming a completed trial; `n`, `no`, `нет` exclude. At the *confirmation* prompt, blank Enter **re-prompts rather than silently skipping**; at the *start* prompt Enter starts recording. It records explicit skipped/excluded prompt IDs and only numerical RMS/peak dBFS as an input-level diagnostic (no PCM/transcripts). It still demands separate local typed `YES-PC-MIC` authorization. You can repeat just the three missing prompts using the following local file (not committed):
+
+`C:\\Users\\PLAN\\gobot\\HOST-B-lab\\RETRY_3_WAKE_TEST.cmd`
+
+This opens the microphone only after local Owner consent, for at most three 8-second prompts (24 seconds total), and writes a *new* metadata-only JSON without overwriting the prior result. It does not run the background-TV test or ask paid models. At this point, no new real mic capture has been initiated by HOST-B.
+
 ## HOST-A handoff gate
 
 1. Use bridge.py / HostWakeDetectorAdapter with the A-owned services/voice/host_wake_contract.py (published in HOST-A draft PR #8). The input fields are pcm_s16le, stream_epoch, sample_index, received_monotonic_ns. The output is WakeEvent with detected_monotonic_ns. B does not vendor contract types.

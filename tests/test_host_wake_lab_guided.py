@@ -7,7 +7,8 @@ from unittest import mock
 
 from services.voice.host_wake_lab.detect import Hypothesis
 from services.voice.host_wake_lab.guided_live import (
-    TRIALS, make_summary, process_pcm, score_trial, main,
+    TRIALS, make_summary, process_pcm, score_trial, prompt_confirm,
+    pcm_signal_levels, main,
 )
 
 
@@ -63,6 +64,32 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(got[0]["phrase_id"], "gobot")
         self.assertEqual(got[0]["end_sample_index"], 2880)
         self.assertGreaterEqual(backend.resets, 2)
+
+    def test_empty_enter_reprompts_not_silent_skip(self):
+        inputs = iter(["", "yes"])
+        warnings = []
+        accepted = prompt_confirm(input_fn=lambda _: next(inputs),
+                                  output_fn=warnings.append)
+        self.assertTrue(accepted)
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("НЕ засчитывает", warnings[0])
+
+    def test_confirmation_accepts_yes_and_russian_da(self):
+        for word in ("y", "yes", "да", "д", "YES", " ДА "):
+            with self.subTest(word=word):
+                self.assertTrue(prompt_confirm(input_fn=lambda _, w=word: w))
+        for word in ("n", "no", "нет", "НЕТ"):
+            with self.subTest(word=word):
+                self.assertFalse(prompt_confirm(input_fn=lambda _, w=word: w))
+
+    def test_signal_levels_only_not_original_pcm(self):
+        import numpy as np
+        pcm = bytearray(np.array([16384] * 16000, dtype="<i2").tobytes())
+        metric = pcm_signal_levels(pcm)
+        self.assertEqual(metric, {"rms_dbfs": -6.0, "peak_dbfs": -6.0})
+        silent = pcm_signal_levels(bytearray(b"\x00\x00" * 500))
+        self.assertLess(silent["peak_dbfs"], -100.0)
+        self.assertIsInstance(metric["rms_dbfs"], float)
 
     def test_default_consent_gate_exits_before_models_or_mic(self):
         output = io.StringIO()
