@@ -80,9 +80,13 @@ def make_summary(engine: str, backend):
     }
 
 
-def process_pcm(backend, pcm: bytearray, epoch: str):
+def process_pcm(backend, pcm: bytearray, epoch: str, *, candidate_id=None):
     """Replay after capture; receiver positions correspond to recorded PCM only."""
-    decoder = WakeLab(backend)
+    if candidate_id is None:
+        decoder = WakeLab(backend)
+    else:
+        from .gobi_policy import CandidateMatcher
+        decoder = WakeLab(backend, matcher=CandidateMatcher(candidate_id))
     decoder.reset()
     events = []
     for i in range(0, len(pcm), FRAME_SAMPLES * 2):
@@ -95,12 +99,17 @@ def process_pcm(backend, pcm: bytearray, epoch: str):
     return events
 
 
-def capture_live(backend, *, device: int, seconds: float):
+def capture_live(backend, *, device: int, seconds: float,
+                 candidate_id=None, on_wake=None):
     """Returns a mutable in-memory PCM buffer and LIVE primary candidates only."""
     import sounddevice as sd
     if not 2 <= seconds <= 8 and seconds != 30:
         raise ValueError("invalid_capture_duration")
-    decoder = WakeLab(backend)
+    if candidate_id is None:
+        decoder = WakeLab(backend)
+    else:
+        from .gobi_policy import CandidateMatcher
+        decoder = WakeLab(backend, matcher=CandidateMatcher(candidate_id))
     decoder.reset()
     epoch = uuid.uuid4().hex
     frames = queue.Queue(maxsize=12)
@@ -139,6 +148,9 @@ def capture_live(backend, *, device: int, seconds: float):
                     received_monotonic_ns=recv_ns,
                 )
                 detected.extend(emitted)
+                if on_wake is not None:
+                    for event in emitted:
+                        on_wake(event)
                 index += len(part) // 2
     except BaseException:
         pcm[:] = bytes(len(pcm))

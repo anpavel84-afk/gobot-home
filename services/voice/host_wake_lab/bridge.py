@@ -28,8 +28,15 @@ class HostWakeDetectorAdapter:
     """Implements HostWakeDetector.feed_chunk(AudioChunk)->WakeEvent|None, reset()."""
 
     def __init__(self, backend, *, activation_approved: bool = False,
-                 wake_event_type=None, clock=time.monotonic_ns):
-        self.lab = WakeLab(backend, clock=clock)
+                 wake_event_type=None, clock=time.monotonic_ns,
+                 candidate_id: str | None = None):
+        if candidate_id is None:
+            matcher = None  # legacy GoBot words, retained only for old tests
+        else:
+            from .gobi_policy import CandidateMatcher
+            matcher = CandidateMatcher(candidate_id)
+        self.lab = WakeLab(backend, clock=clock, matcher=matcher)
+        self.candidate_id = candidate_id
         self.activation_approved = bool(activation_approved)
         self.wake_event_type = wake_event_type
         self.last_shadow_candidate = None

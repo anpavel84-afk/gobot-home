@@ -98,12 +98,16 @@ def nearest_ranks(data):
             "p95_ms": percentile(.95), "gate": "MEASURED_AUDIO_OFFSET_ONLY"}
 
 
-def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2):
+def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2, *, candidate_id=None):
     import psutil
     process = psutil.Process(os.getpid())
     cold_start = time.perf_counter()
     try:
-        decoder = make_backend(engine_name, root, threads=threads)
+        if candidate_id is None:
+            decoder = make_backend(engine_name, root, threads=threads)
+        else:
+            from .gobi_policy import make_candidate_backend
+            decoder = make_candidate_backend(engine_name, root, candidate_id, threads=threads)
     except Exception as exc:
         return {
             "engine": engine_name, "status": "BLOCKED",
@@ -123,7 +127,11 @@ def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2):
     total_samples = 0
     frame_count = 0
     for clip in clips:
-        detector = WakeLab(decoder)
+        if candidate_id is None:
+            detector = WakeLab(decoder)
+        else:
+            from .gobi_policy import CandidateMatcher
+            detector = WakeLab(decoder, matcher=CandidateMatcher(candidate_id))
         detector.reset()
         pcm = clip["pcm"]
         # Identical 1.20 seconds of post-clip silence for all decoders.
@@ -182,7 +190,7 @@ def benchmark_one(engine_name: str, root: str, clips: list, threads: int = 2):
         and e["audio_offset_after_name_ms"] is not None
     ]
     return {
-        "engine": engine_name, "version": decoder.model_version,
+        "engine": engine_name, "candidate_id": candidate_id, "version": decoder.model_version,
         "license": decoder.license, "native_rate": decoder.native_rate,
         "native_streaming": decoder.streaming,
         "status": "FREE_TESTED_NOT_HUMAN_ACCEPTED",

@@ -101,7 +101,7 @@ class VoskOnline:
     native_rate = 16000
     streaming = True
 
-    def __init__(self, models_root, num_threads=2):
+    def __init__(self, models_root, num_threads=2, required_words=("гобот", "габот")):
         from vosk import Model, KaldiRecognizer, SetLogLevel
         self._kaldi_recognizer = KaldiRecognizer
         base = Path(models_root) / self.model_version
@@ -112,7 +112,7 @@ class VoskOnline:
         if not hasattr(self.model, "vosk_model_find_word"):
             raise VocabularyUnavailable("no_verified_vocab_lookup")
         self.word_ids = {w: self.model.vosk_model_find_word(w)
-                         for w in ("гобот", "габот")}
+                         for w in required_words}
         missing = [word for word, idx in self.word_ids.items() if idx < 0]
         if missing:
             raise VocabularyUnavailable("OOV_no_untrained_repair:" + ",".join(missing))

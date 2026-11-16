@@ -84,11 +84,11 @@ class WakeMatcher:
 
 class WakeLab:
     """One decoder per isolated lab instance. Never opens a paid conversation."""
-    def __init__(self, backend: Backend, *, clock=time.monotonic_ns):
+    def __init__(self, backend: Backend, *, clock=time.monotonic_ns, matcher=None):
         self.backend = backend
         self.detector_id = backend.detector_id
         self.clock = clock
-        self.matcher = WakeMatcher()
+        self.matcher = matcher if matcher is not None else WakeMatcher()
         self.epoch: str | None = None
         self.expected: int | None = None
         self.last_receive: float | None = None

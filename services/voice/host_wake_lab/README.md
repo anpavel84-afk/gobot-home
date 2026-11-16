@@ -1,5 +1,7 @@
 # GoBot HOST-B — Russian Wake Recognition Lab (#6)
 
+**NEW OWNER PRIORITY (2026-11-16): «Го́би» first-syllable stress, «Гло́би» competitor, «А, Го́би» reserve, «Эй, Го́би» tested independently.** The legacy GoBot/Gabot results below are historical and are no longer the wake name selection target. New actual PLAN vocabulary check, 12 independent synthetic model/phrase results, CPU/RAM, separate human test launchers and KWS availability review: [GOBI_REPORT_2026-11-16.md](GOBI_REPORT_2026-11-16.md). Project name remains GoBot. No new name is activated on the physical column.
+
 **Current gate: SOURCE_IMPLEMENTED / FREE_TESTED / MODEL_NOT_ACCEPTED.**
 PC_MIC_HUMAN_ACCEPTED=NOT_RUN_CONSENT_REQUIRED; BOARD_HUMAN_ACCEPTED=NOT_RUN_HOST_A_ONLY; PAID_CALLS=0.
 
