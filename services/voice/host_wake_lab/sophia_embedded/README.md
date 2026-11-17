@@ -45,6 +45,30 @@ The standalone app_main() exercises exactly that callable PCM
 interface with 100 frames of SYNTHETIC ZERO PCM, and NO I2S hardware.
 No production gateway, Brain, key, budget, NVS, OTA or assets edits.
 
+## PLAN online: read-only model and recovery checkpoint
+
+On 2026-11-17 PLAN returned ONLINE. HOST-B independently checked that the
+last HOST-A pilot was stopped and its status reported LOCAL restored;
+there was no active matching HOST-A listener on port 18799. COM3 is
+enumerated, but HOST-B did NOT open it. Actual live board phase was
+NOT queried.
+
+The official wn10_sophia packed image is now verified privately on PLAN
+under HOST-B-lab/sophia-wakenet10-private. The new script
+plan_readonly_preflight.py checks the full SHA256 of that model, the
+existing installed r3 app binary and both H0/postflash 16MiB snapshot
+files from the documented HOST-A run folder, **without writing anything**.
+The full H0/postflash hashes match the existing HOST-A manifest and
+their partition tables are identical. Crucially the historical NVS
+change remains an explicit unresolved caveat. A separate historical
+preflash-current.bin with a different hash is NOT treated as the
+verified H0 backup.
+
+Local checkpoint: READ_ONLY_BACKUP_AND_SOPHIA_MODEL_CHECK_PASS.
+This is NOT a device check, app integration test, approval or safe-flash
+verdict. HOST-A must still build and qualify an actual combined RC1-r3
+app; HOST-B must not open COM3 or flash the installed board.
+
 ## Test and release gates
 
 Source builder: espressif/idf:v6.0.1, ESP-SR 2.6.2, ESP32-S3.
