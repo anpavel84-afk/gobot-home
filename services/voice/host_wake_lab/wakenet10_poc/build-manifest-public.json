@@ -1,0 +1,61 @@
+{
+  "schema": "gobot_hostb_esp_local_wakenet10_poc_build_v1",
+  "owner_direct": "https://github.com/anpavel84-afk/gobot-home/issues/5#issuecomment-6935913449",
+  "scope": "HOST-B ESP_LOCAL WakeNet10 only; HOST-A owns PC voice/cloud STT and physical integration",
+  "source_status": "SOURCE_IMPLEMENTED_POC_AND_HANDOFF_ONLY",
+  "built": "PASS_STANDALONE_DEMO",
+  "esp_idf": "6.0.1",
+  "docker_image": "espressif/idf:v6.0.1",
+  "docker_image_sha256": "efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "esp_sr": "2.6.2",
+  "esp_sr_component_hash": "31c301aa50346158c85271b149a6c7473dfdf3edaa0958968f9cdfe06d4dcd45",
+  "target": "esp32s3",
+  "build_steps_total": 1187,
+  "model": "wn10_ru_privetesp",
+  "model_actual_wake_phrase": "Привет ESP",
+  "model_is_monika": false,
+  "model_monika_available": false,
+  "source_sha256": {
+    "main/main.c": "7d3cdcb906f7c57afc056ecc3fdbdf71b40717a354bae41f0fb6d0c65f03d566",
+    "sdkconfig.defaults": "6f74b18561c750b09739bffeae5807c23d6df016bddea975da111edb90970c60",
+    "dependencies.lock": "6411359731c7d21e281530c9d9f24a71093b730926b57a7cd3080cac14319269"
+  },
+  "private_build_artifacts_not_in_git": {
+    "app": {
+      "bytes": 584720,
+      "sha256": "37c788ff1b1ec1f33dc3e11aaecbd15232bbf036e4bb87bb531ae79dd83145bf"
+    },
+    "packed_model": {
+      "bytes": 378634,
+      "sha256": "137fbde80079b3c755f21222021ffa0edabceb43059e45e3e6e51b0359163b1d"
+    },
+    "standalone_partition_table": {
+      "bytes": 3072,
+      "sha256": "eba912fa9636217976fd5b1e10ef4a32d932d957e96ac50e5f919322d0ad767c"
+    },
+    "elf": {
+      "bytes": 16777180,
+      "sha256": "877c370f75488bb86d1284accfb02fffb989e930b7cb69fbbe4dd22a9ed5d745"
+    }
+  },
+  "verified_artifacts_on_PLAN": [
+    "app",
+    "packed_model",
+    "standalone_partition_table"
+  ],
+  "flash_modified": false,
+  "installed": false,
+  "acoustic_tested_on_esp32": false,
+  "runtime_ram_psram_cpu_measured": false,
+  "current_installed_rc1_firmware_modified": false,
+  "current_real_partition_table_has_model_partition": false,
+  "current_real_app_partition_bytes": 4128768,
+  "current_real_app_bytes": 3047680,
+  "current_real_assets_partition_bytes": 8388608,
+  "model_partition_in_poc_bytes": 2097152,
+  "owner_approval_required_for_any_flash": true,
+  "paid_calls": 0,
+  "audio_saved": false,
+  "model_weights_committed": false,
+  "native_source_gate_test": "PASS_NATIVE_GNU_CXX17"
+}

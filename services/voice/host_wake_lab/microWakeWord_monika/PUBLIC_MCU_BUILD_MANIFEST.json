@@ -1,0 +1,46 @@
+{
+  "schema": "gobot_host_b_monika_microWakeWord_build_v1",
+  "owner_issue": "https://github.com/anpavel84-afk/gobot-home/issues/6",
+  "scope": "ESP_LOCAL independent B sandbox only",
+  "idf_version": "6.0.1",
+  "idf_docker_digest": "efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "target": "ESP32-S3",
+  "standalone_initial_full_build_steps": 1332,
+  "source_main_cpp_sha256": "1ec219c73d2a0b4adb327c6ec59e409f9f93e581dc5ee8af74b3ac9f8ca94726",
+  "component_lock_sha256": "21f855df2b459edd6dbbab4793202237c0e9aad3205699fa98565a5b24dad1ab",
+  "embedded_model_partition_required": false,
+  "real_device_partition_table_changed": false,
+  "includes_HOST_A_RC1_firmware": false,
+  "real_hardware_runtime_measured": false,
+  "human_acoustic_accepted": false,
+  "current_device_flashed": false,
+  "paid_calls": 0,
+  "model_training_quality": "V1/V2/V3_REJECTED_BY_SYNTHETIC_HELDOUT",
+  "artifacts_private_sha256_only": {
+    "model_v1": {
+      "size_bytes": 47416,
+      "sha256": "520bdf5fc2642dd16ef06397320d2aa2b158394b2c58e036b4b3a258de3610e5",
+      "private_on_plan": true
+    },
+    "model_v2": {
+      "size_bytes": 60912,
+      "sha256": "07a53b8e22eb3367e10240383ade52f2e3b058666bb4c9ae0c6cf156df8b67e7",
+      "private_on_plan": true
+    },
+    "model_v3": {
+      "size_bytes": 47416,
+      "sha256": "50e18fb457413a579f050b880b55257a26f470f660541a59a22a44dbf71de42c",
+      "private_on_plan": true
+    },
+    "standalone_v1": {
+      "size_bytes": 378336,
+      "sha256": "a21bc5906e36b1eaddcded2e7a5e10fb036c80716024e283d23aebbe841f4278",
+      "private_on_plan": true
+    },
+    "standalone_v3": {
+      "size_bytes": 378352,
+      "sha256": "ed69e29e179d67e0e87602ad1750cd3cbadbf68f6e91e0725c11a6f493251dc5",
+      "private_on_plan": true
+    }
+  }
+}

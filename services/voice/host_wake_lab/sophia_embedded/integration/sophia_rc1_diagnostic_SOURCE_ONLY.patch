@@ -1,0 +1,188 @@
+--- a/main/CMakeLists.txt
++++ b/main/CMakeLists.txt
+@@ -1193,7 +1193,7 @@
+     )
+ endif()
+ idf_component_register(SRCS ${SOURCES}
+-                    EMBED_FILES "gobot_mww.tflite" ${LANG_SOUNDS} ${COMMON_SOUNDS}
++                    EMBED_FILES "gobot_mww.tflite" "sophia_srmodels.bin" ${LANG_SOUNDS} ${COMMON_SOUNDS}
+                     INCLUDE_DIRS ${INCLUDE_DIRS}
+                     WHOLE_ARCHIVE
+                     PRIV_REQUIRES
+--- a/main/idf_component.yml
++++ b/main/idf_component.yml
+@@ -42,7 +42,7 @@
+   78/xiaozhi-fonts: ~2.0.0
+   espressif/led_strip: ~3.0.3
+   espressif/esp_codec_dev: ~1.6.2
+-  espressif/esp-sr: ==2.4.7
++  espressif/esp-sr: ==2.6.2
+   espressif/button: ~4.2.1
+   espressif/knob: ^1.1.0
+   esphome/esp-hub75:
+--- a/main/audio/audio_service.h
++++ b/main/audio/audio_service.h
+@@ -134,6 +134,9 @@
+     bool IsAudioProcessorRunning() const {
+         return xEventGroupGetBits(event_group_) & AS_EVENT_AUDIO_PROCESSOR_RUNNING;
+     }
++    // HOST-B diagnostic only: volatile, no NVS, disabled by default.
++    void EnableSophiaDiagnostic(bool enabled) { sophia_diagnostic_requested_.store(enabled); }
++    bool IsSophiaDiagnosticEnabled() const {return sophia_diagnostic_requested_.load();}
+     bool IsLocalScanRunning() const;
+     void SetLocalScan(bool on);
+     void ClearLocalWake();
+@@ -219,6 +222,7 @@
+     bool device_aec_enabled_ = false;
+ #endif
+     std::atomic<uint64_t> host_encoder_seq_{0};
++    std::atomic<bool> sophia_diagnostic_requested_{false}; // volatile, OFF after reboot
+     std::atomic<bool> service_stopped_{true};
+     std::atomic<bool> audio_input_need_warmup_{false};
+ 
+--- a/main/audio/audio_service.cc
++++ b/main/audio/audio_service.cc
+@@ -247,6 +247,8 @@
+ }
+ 
+ #include "gobot_mww.h"
++#include "embedded_sophia_engine.hpp"
++#include "esp_heap_caps.h"
+ namespace {constexpr EventBits_t kLocalScan = 1u << 5;}
+ bool AudioService::IsLocalScanRunning() const {auto bits=xEventGroupGetBits(event_group_);return (bits & kLocalScan) && !(bits & AS_EVENT_AUDIO_PROCESSOR_RUNNING) && !gobot_raw_wake::busy();}
+ void AudioService::SetLocalScan(bool on) {
+@@ -262,6 +264,20 @@
+     xEventGroupSetBits(event_group_, AS_EVENT_AUDIO_INPUT_STOP_REQUEST);
+ }
+ void AudioService::AudioInputTask() {
++    // HOST-B test mode only: never install/change I2S driver. Owner enables
++    // this volatile diagnostic at idle via serial. Default: completely OFF.
++    // Test only emits safe numerical UART event counters, not Brain turns.
++    static gobot_sophia::EmbeddedSophiaEngine sophia;
++    bool sophia_ready=false;
++    uint32_t sophia_epoch=1;
++    uint64_t sophia_next_sample=0;
++    uint64_t sophia_cooldown_us=0;
++    auto sophia_log=[](const gobot_sophia::WakeEvidence &e,void*) {
++        ESP_LOGW(TAG,"SOPHIA_LOCAL_DETECTED epoch=%lu sample_end=%llu infer_us=%llu event_device_us=%llu",
++            (unsigned long)e.epoch, (unsigned long long)e.sample_end,
++            (unsigned long long)e.inference_duration_us,
++            (unsigned long long)e.detected_us);
++    };
+     unsigned observed=0;
+     constexpr EventBits_t kAudioInputActiveBits = kLocalScan | AS_EVENT_AUDIO_TESTING_RUNNING |
+                                                   AS_EVENT_WAKE_WORD_RUNNING |
+@@ -273,8 +289,36 @@
+             pdFALSE, portMAX_DELAY);
+ 
+         const auto generation=local_generation_.load();
++        const bool requested=sophia_diagnostic_requested_.load();
++        if(requested && !sophia_ready) {
++            // Report actual device heap only after a future authorized install.
++            // No audio/text is logged and no paid cloud connection is opened.
++            const size_t int_before=heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
++            const size_t ps_before=heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
++            if(sophia.initialize() && sophia.set_owner(gobot_sophia::WakeOwner::ESP_LOCAL_SOPHIA)) {
++                const size_t int_after=heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
++                const size_t ps_after=heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
++                ESP_LOGI(TAG,"SOPHIA_DIAG_MEMORY internal_before=%u internal_after=%u psram_before=%u psram_after=%u init_us=%llu",
++                    (unsigned)int_before,(unsigned)int_after,
++                    (unsigned)ps_before,(unsigned)ps_after,
++                    (unsigned long long)sophia.init_time_us());
++                sophia_ready=true; ++sophia_epoch;
++                sophia_next_sample=0; sophia_cooldown_us=0;
++                ESP_LOGI(TAG,"SOPHIA_DIAG_ON model=wn10_sophia mode=LOCAL only=1");
++            } else {
++                sophia.close();
++                sophia_diagnostic_requested_.store(false);
++                ESP_LOGE(TAG,"SOPHIA_DIAG_INIT_FAIL; prior GoBot wake retained");
++            }
++        } else if(!requested && sophia_ready) {
++            sophia.close();
++            sophia_ready=false;sophia_next_sample=0;sophia_cooldown_us=0;
++            gobot_mww::reset();
++            ESP_LOGI(TAG,"SOPHIA_DIAG_OFF normal_LOCAL_wake_restored=1");
++        }
+         if(observed!=generation) {gobot_mww::reset();observed=generation;}
+         if (service_stopped_.load()) {
++            if(sophia_ready) {sophia.close(); sophia_ready=false;}
+             // ADC continuous mode keeps its hardware mutex from start until stop,
+             // so the input task that started it must also stop it before exiting.
+             if (codec_->input_enabled()) {
+@@ -351,6 +395,35 @@
+                 pcm.resize(pcm.size()/2);
+             }
+             if(local_generation_.load()!=generation) continue;
++            if(sophia_ready) {
++                const auto now=(uint64_t)esp_timer_get_time();
++                // During cooldown the latch is intentionally held; DO NOT
++                // call ingest_existing_pcm while in that state, because its
++                // fail-closed return would otherwise cause a premature reset
++                // and permit repeated wakes before the 3-second timer.
++                if(sophia_cooldown_us && now<sophia_cooldown_us) continue;
++                if(sophia_cooldown_us && now>=sophia_cooldown_us) {
++                    sophia.new_stream_epoch();
++                    sophia_next_sample=0;
++                    ++sophia_epoch;
++                    sophia_cooldown_us=0;
++                }
++                // Preserve capture ordering. A worker thread is preferable
++                // before production, but this test runs only in LOCAL scan
++                // with zero Opus uploads, never in the I2S ISR.
++                const auto before=sophia.accepted_wakes();
++                if(!sophia.ingest_existing_pcm(sophia_epoch,sophia_next_sample,
++                    pcm.data(),pcm.size(),now,sophia_log,nullptr)) {
++                    sophia.new_stream_epoch();++sophia_epoch;
++                    sophia_next_sample=0;
++                    ESP_LOGW(TAG,"SOPHIA_DIAG_PCM_GAP; epoch_reset=1");
++                    continue;
++                }
++                sophia_next_sample+=pcm.size();
++                if(sophia.accepted_wakes()>before)
++                    sophia_cooldown_us=now+3000000; // 3s local cooldown
++                continue;
++            }
+             gobot_raw_wake::feed(pcm.data(),pcm.size()); // Exact pre-AFE, pre-Opus KWS tap.
+             static bool raw_was_busy=false;
+             if(gobot_raw_wake::busy()){raw_was_busy=true;continue;}
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -1513,6 +1513,23 @@
+     }
+ }
+ void Application::GoBotSerial(const std::string& line) {
++    if(line=="GOBOT_SOPHIA_TEST_ON") {
++        if(host_mode_ || gobot_turn_.Active() || gobot_muted_ ||
++           GetDeviceState()!=kDeviceStateIdle || !audio_service_.IsPlaybackIdle() ||
++           gobot_raw_wake::busy() || audio_service_.IsAudioProcessorRunning()) {
++            ESP_LOGW(TAG,"SOPHIA_DIAG_REJECT busy_or_host_or_muted=1");
++            return;
++        }
++        audio_service_.EnableSophiaDiagnostic(true);
++        audio_service_.SetLocalScan(true);
++        ESP_LOGI(TAG,"SOPHIA_DIAG_REQUESTED enabled=1 volatile=1");
++        return;
++    }
++    if(line=="GOBOT_SOPHIA_TEST_OFF") {
++        audio_service_.EnableSophiaDiagnostic(false);
++        ESP_LOGI(TAG,"SOPHIA_DIAG_REQUESTED enabled=0 volatile=1");
++        return;
++    }
+     if(line=="GOBOT_HOST_ON"){HostEnable(true);return;}
+     if(line=="GOBOT_HOST_OFF"){HostEnable(false);return;}
+     if(line=="GOBOT_HOST_TONE"){
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -24,6 +24,12 @@
+ }
+ 
+ void Application::HostEnable(bool enabled) {
++    // A listening diagnostic owns the local mic stream. HOST switching
++    // is forbidden until the Owner has turned that diagnostic OFF.
++    if(enabled && audio_service_.IsSophiaDiagnosticEnabled()) {
++        ESP_LOGW(TAG,"SOPHIA_DIAG_HOST_SWITCH_REJECT run_SOPHIA_TEST_OFF_first");
++        return;
++    }
+     // Selection never writes NVS or modifies the enrolled endpoint.
+     if(gobot_turn_.Active() || GetDeviceState()!=kDeviceStateIdle ||
+        !audio_service_.IsPlaybackIdle()) {

@@ -1,0 +1,45 @@
+dependencies:
+  esphome/esp-micro-speech-features:
+    component_hash: 2b720b4ed49fa9df14b24f35fd3ec8a012eddde1c8dd4709448e36a581eebd3e
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=4.4'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.2.3
+  espressif/esp-nn:
+    component_hash: 55d167047662a4dc5cc67981581d5e5a98bdca5be80253921dbc526130ff5317
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.1'
+    source:
+      registry_url: https://components.espressif.com
+      type: service
+    version: 1.5.0
+  espressif/esp-tflite-micro:
+    component_hash: bdb2625ed976d5b861177cdc295abc6738724f84f4c7c60fc58c721d2b30bed6
+    dependencies:
+    - name: espressif/esp-nn
+      registry_url: https://components.espressif.com
+      require: private
+      version: '>=1.3.0'
+    - name: idf
+      require: private
+      version: '>=5.1'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.4.1
+  idf:
+    source:
+      type: idf
+    version: 6.0.1
+direct_dependencies:
+- esphome/esp-micro-speech-features
+- espressif/esp-tflite-micro
+manifest_hash: def81dcf5d0e0d1d01ce8423dd9490b8274724eb36ecd20481e36937663da73d
+target: esp32s3
+version: 3.0.0

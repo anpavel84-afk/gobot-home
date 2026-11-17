@@ -1,0 +1,21 @@
+# Never publish synthetic raw clips, model binaries, TTS weights, or personal audio.
+corpus/
+model/
+output/
+logs/
+build/
+*.pcm
+*.wav
+*.flac
+*.tflite
+*.h5
+*.npy
+*.npz
+*.log
+*.part
+**/managed_components/
+**/sdkconfig
+**/sdkconfig.old
+**/__pycache__/
+*.bin
+*.elf

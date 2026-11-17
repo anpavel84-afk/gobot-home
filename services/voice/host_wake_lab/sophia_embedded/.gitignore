@@ -1,0 +1,12 @@
+# Never upload official Espressif weights or generated firmware binaries
+/main/sophia_srmodels.bin
+/build/
+/managed_components/
+/private/
+/sdkconfig
+/sdkconfig.old
+*.bin
+*.elf
+*.map
+*.log
+__pycache__/

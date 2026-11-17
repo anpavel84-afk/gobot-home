@@ -1,0 +1,13 @@
+# NOT FOR FLASH. Only demonstrates why model partition needs migration approval.
+# Layout based on parsed preserved PLAN flash partition table (read only).
+# Retains NVS, otadata, phy, both OTA offsets and size, but replaces 2 MiB
+# of existing 8 MiB assets with model. DO NOT INSTALL without A sign-off,
+# assets inventory, data migration, OTA compatibility and separate Owner grant.
+# Name, Type, SubType, Offset, Size, Flags
+nvs, data, nvs, 0x9000, 0x4000,
+otadata, data, ota, 0xd000, 0x2000,
+phy_init, data, phy, 0xf000, 0x1000,
+ota_0, app, ota_0, 0x20000, 0x3f0000,
+ota_1, app, ota_1, 0x410000, 0x3f0000,
+assets, data, 0x82, 0x800000, 0x600000,
+model, data, spiffs, 0xe00000, 0x200000,

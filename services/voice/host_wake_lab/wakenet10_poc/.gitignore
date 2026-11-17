@@ -1,0 +1,12 @@
+# Never upload generated binary/images, private model weights, caches or config.
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+*.elf
+*.bin
+*.map
+*.log
+*.zip
+__pycache__/
+*.pyc
