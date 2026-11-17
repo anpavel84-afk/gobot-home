@@ -1,8 +1,37 @@
 # HOST-B: Sophia ESP32-S3 experimental model embedded in APP
 
+**LATEST PHYSICAL INSTALL (2026-11-17): SOPHIA V3 INSTALLED.**
+After Owner authorization, the full RC1-r3-derived Sophia V3 app
+(`0.4.13-dev-host-b-sophia-active-v3`, **3,668,224 bytes**, SHA-256
+`0d7bd0f65ff4a649eff16660f8bd1ee441a16314ca5bb4ecf7135e0dbd22fadd`)
+was APP-ONLY flashed into existing OTA0 at 0x20000 and verified
+by an independent ROM digest comparison. The physical board booted
+successfully, Wi-Fi and enrollment survived, and table/OTA metadata
+readbacks before and after matched byte-for-byte.
+
+V3 now **automatically loads WakeNet10 on boot** and routes a genuine
+Sophia detection into the existing GoBot wake/Brain conversation handler,
+with 2s PCM pre-roll, Mute/Stop/Host fallback and bounded 3s debounce.
+On-device auto-init was observed (~225ms), but **no user-confirmed spoken
+Russian or English Sophia detection has yet been captured** in the
+bounded live trial. An absence of wake events without spoken ground
+truth does not prove acoustic failure/success.
+The official model is English `wn10_sophia`, not Russian-customized
+weights.
+
+[Full V3 technical install + server report](HARDWARE_SOPHIA_V3_2026-11-17.md).
+[Reproducible source-only V2→V3 patch](integration/sophia_v3_active_wake_SOURCE_ONLY.patch).
+The preceding [V2 diagnostic install report](HARDWARE_INSTALL_2026-11-17.md)
+is retained only as historical information, NOT current firmware state.
+
+Earlier sections below describe historical standalone research
+and MUST NOT be mistaken for the updated device-install status.
+
 OWNER DIRECT Issue #6, draft PR #12. The official Espressif ESP-SR 2.6.2
 wn10_sophia is an ENGLISH Sophia wake word, not Monika.
-Whether Russian "София" works is UNKNOWN. No real mic test performed.
+Russian "София" recall is still UNKNOWN: real mic is now connected and
+one model event was observed, but verified spoken positive trial count
+and real false-wake denominator were not established.
 
 ## App-embedded model and live PCM path
 
@@ -22,7 +51,9 @@ The file partitions_RC1_LAYOUT_CHECK_ONLY.csv represents read-only
 metadata recovered from Spotpear: NVS 16KiB, otadata 8KiB,
 OTA0 and OTA1 0x3f0000 bytes each, assets 8MiB, no model partition.
 It is a SIZE CHECK ONLY; its flags/assets state have NOT been verified
-against current physical hardware because PLAN is offline.
+against current physical hardware in that EARLIER stage. PLAN returned
+online later; the actual table and OTA metadata were verified from
+physical Flash before/after the authorized app-only installation.
 DO NOT FLASH the table on the installed device.
 
 The main/embedded_sophia_engine.hpp interface exposes the real
