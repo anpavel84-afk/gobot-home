@@ -13,6 +13,7 @@ import struct
 
 EXPECTED = {
     "official_sophia_packed": (383508, "f3aaf5c6017dc7460e8acd58e2204b85692747b9b5d42e6a54ee831d9fdad415"),
+    "sophia_rc1_diag_v2": (3667024, "53b6521146cde1f64e6499d46ba9315218eacb808d6e8ea5208c66faa8187462"),
     "installed_rc1_r3_app": (3047680, "5186b41a80d3f4155dd544fa1112975eca74fa4b979d62c275b6804626d13576"),
     "preserved_h0_full": (16777216, "c7848a7f183fc27340e7872ff8e424fa135eb8a95862a43f5996dd3d4529269b"),
     "preserved_postflash_full": (16777216, "98bcfdff4c9fa1e4092966336e246695a5112a17aa95c206dbfbf9eec3d31486"),
@@ -59,6 +60,7 @@ def main() -> None:
     p.add_argument("--rc1",required=True,type=Path)
     p.add_argument("--h0",required=True,type=Path)
     p.add_argument("--post",required=True,type=Path)
+    p.add_argument("--diagnostic-app",type=Path,default=None)
     args=p.parse_args()
 
     model=verified_bytes("official_sophia_packed",args.model)
@@ -76,6 +78,17 @@ def main() -> None:
             raise ValueError(f"unexpected_partition_{name}")
     if "model" in before:
         raise ValueError("observed_layout_incorrectly_has_model_partition")
+    candidate_ok=False
+    if args.diagnostic_app is not None:
+        candidate=verified_bytes("sophia_rc1_diag_v2",args.diagnostic_app)
+        if candidate.count(model)!=1:
+            raise ValueError("verified_candidate_model_not_embedded_exactly_once")
+        for marker in (b"0.4.13-dev-host-b-sophia-diagnostic-NOT-FOR-FLASH",
+                       b"SOPHIA_DIAG_MEMORY",b"SOPHIA_LOCAL_DETECTED",
+                       b"GOBOT_SOPHIA_TEST_ON",b"GOBOT_SOPHIA_TEST_OFF"):
+            if marker not in candidate:
+                raise ValueError("candidate_missing_diagnostic_guard:"+str(marker))
+        candidate_ok=True
     if h0[0x8000:0x9000]!=post[0x8000:0x9000]:
         raise ValueError("partition_table_bytes_changed")
     # This preflight does NOT attest bitwise NVS equality; prior boot changed
@@ -84,6 +97,9 @@ def main() -> None:
         "status":"READ_ONLY_BACKUP_AND_SOPHIA_MODEL_CHECK_PASS",
         "offline_sophia_weight_bytes":len(model),
         "official_model_name":"wn10_sophia",
+        "candidate_diagnostic_app_hash_verified":candidate_ok,
+        "candidate_embeds_one_exact_model":candidate_ok,
+        "candidate_official_version_marker_NOT_FOR_FLASH":candidate_ok,
         "rc1_r3_app_hash_verified":True,
         "full_h0_image_hash_verified":True,
         "full_postflash_image_hash_verified":True,
@@ -94,9 +110,11 @@ def main() -> None:
         "NVS_bitwise_unchanged":False,
         "current_live_board_state":"NOT_QUERIED",
         "current_software_host_a_wip":"NOT_PATCHED",
-        "combined_rc1_sophia_app_built":False,
+        "rc1_derived_diagnostic_app_built":candidate_ok,
+        "full_rc1_sophia_production_firmware_built":False,
         "flash_safe":False,
-        "owner_authorized_flash":False,
+        "flash_authorized_by_this_preflight":False,
+        "HOST_A_exclusive_hardware_install_review_complete":False,
         "radio_device_or_COM3_touched":False,
         "paid_calls":0,
     },ensure_ascii=False,indent=2))

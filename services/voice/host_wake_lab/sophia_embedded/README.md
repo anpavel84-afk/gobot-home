@@ -69,6 +69,30 @@ This is NOT a device check, app integration test, approval or safe-flash
 verdict. HOST-A must still build and qualify an actual combined RC1-r3
 app; HOST-B must not open COM3 or flash the installed board.
 
+## RC1-r3 with real microphone diagnostic — Owner authorized trial
+
+As of 2026-11-17, a separate full RC1-r3-derived application now compiles
+with official Sophia embedded in app Flash and an actual PCM tap from the
+existing LOCAL AudioService input task. Test is gated by VOLATILE UART
+GOBOT_SOPHIA_TEST_ON / GOBOT_SOPHIA_TEST_OFF, no new I2S reader or cloud.
+The v2 diagnostic was rebuilt to correct duplicate-wake cooldown and add
+RAM/PSRAM initialization measurements. **It has NOT been flashed or run on
+the physical Spotpear.** Complete test source, verified model, original r3
+app and backup are stored in private PLAN directories; only source patch,
+hash and handoff docs are published here.
+
+Final B-only v2 image: **3,667,024 B**, SHA256
+53b6521146cde1f64e6499d46ba9315218eacb808d6e8ea5208c66faa8187462,
+giving 461,744 bytes free in the 4,128,768-byte OTA app slot.
+Owner requested a physical trial, but HOST-A remains the exclusive
+COM3/physical firmware executor and must independently recheck its current
+board, running image/backup, full integration and safe rollback before any
+single app-only write. See
+[integration/HOST_A_SOPHIA_DIAGNOSTIC_HANDOFF.md](integration/HOST_A_SOPHIA_DIAGNOSTIC_HANDOFF.md)
+and [integration/sophia_rc1_diagnostic_SOURCE_ONLY.patch](integration/sophia_rc1_diagnostic_SOURCE_ONLY.patch).
+This test does not establish actual model RAM/PSRAM/CPU or acoustic
+recognition of Russian "Со́фия" (official wake name is English Sophia).
+
 ## Test and release gates
 
 Source builder: espressif/idf:v6.0.1, ESP-SR 2.6.2, ESP32-S3.
