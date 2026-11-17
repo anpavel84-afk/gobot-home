@@ -412,6 +412,11 @@ def create_app(settings=None):
         elif board_mount.get('profile')=='wake_owner_test':
             from .board_wake_test import WakeTestRealtime
             board_realtime=WakeTestRealtime(realtime,board_root.parent/'voice-ab-b-wake')
+        elif board_mount.get('profile')=='wake_owner_test_20261117':
+            # New Owner-approved finite 2026-11-17 epoch; NEVER recycle the
+            # exhausted original B ledger or previous wake test records.
+            from .board_wake_test import WakeTestRealtime
+            board_realtime=WakeTestRealtime(realtime,board_root.parent/'voice-ab-b-wake-renewal-20261117')
         else:raise ValueError('unknown_board_budget_profile')
     @asynccontextmanager
     async def lifespan(app):
