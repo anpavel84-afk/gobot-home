@@ -72,15 +72,16 @@ Private artifact sizes and full SHA256:
   137fbde80079b3c755f21222021ffa0edabceb43059e45e3e6e51b0359163b1d
 - standalone partition-table.bin 3,072 B:
   eba912fa9636217976fd5b1e10ef4a32d932d957e96ac50e5f919322d0ad767c
-- ESP32-S3 PoC ELF 16,777,180 B on isolated Linux staging only:
+- ESP32-S3 PoC ELF 16,777,180 B was built and hashed in isolated Linux staging (not needed for deployment and subsequently removed from that temporary builder):
   877c370f75488bb86d1284accfb02fffb989e930b7cb69fbbe4dd22a9ed5d745.
 
 These three essential PRIVATE binaries (app, model, standalone partition table)
 were copied without an Internet file-sharing endpoint to:
 C:\Users\PLAN\gobot\HOST-B-lab\wakenet10-build-private
 Windows PLAN verified all three destination hashes against builder SHA256
-and removed temporary base64 transfer files. ELF remains private on isolated
-builder and is NOT needed for any current user task.
+and removed temporary base64 transfer files. The temporary ELF and remote
+build products were discarded after verified transfer to PLAN. Only source,
+verified hashes and text build evidence remain for reproducibility.
 
 Public source-equivalence SHA256 (Linux build vs Windows public source):
 - main/main.c:
