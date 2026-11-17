@@ -68,7 +68,7 @@ def catalog(candidate):
     # competing names distinctly from everyday unrelated negative speech.
     neg=[x for x in neg if x[0]!=candidate]
     return (
-      [(f"{candidate}-{ident}","positive",condition,name,txt)
+      [(f"{candidate}-{ident}","positive",condition,candidate,txt)
        for ident,condition,txt in positive],
       [(f"negative-{ident}","negative",condition,None,txt)
        for ident,condition,txt in neg],

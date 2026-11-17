@@ -60,7 +60,8 @@ class MonikaTests(unittest.TestCase):
     def test_catalog_includes_realistic_negative_words(self):
         positives,negatives=catalog("monika")
         self.assertEqual(len(positives),6)
-        self.assertTrue(all(p[3]=="Моника" for p in positives))
+        self.assertTrue(all(p[3]=="monika" for p in positives))
+        self.assertTrue(all("Моника" in p[4] for p in positives))
         negids={n[0] for n in negatives}
         for name in ("negative-monitor","negative-monik","negative-monya",
                      "negative-monika-mention", "negative-room"):

@@ -148,6 +148,7 @@ class CatalogTests(unittest.TestCase):
             positives,negatives=catalog(candidate)
             self.assertEqual(len(positives),6)
             self.assertTrue(all(p[0].startswith(candidate+"-") for p in positives))
+            self.assertTrue(all(p[3]==candidate for p in positives))
             # Never treat the candidate itself as a 'negative cross name'
             self.assertNotIn("negative-"+candidate,[n[0] for n in negatives])
             self.assertTrue(any("robot" in n[0] for n in negatives))
