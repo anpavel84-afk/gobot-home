@@ -1,0 +1,5 @@
+dependencies:
+  espressif/esp-tflite-micro:
+    version: "==1.4.1"
+  esphome/esp-micro-speech-features:
+    version: "==1.2.3"

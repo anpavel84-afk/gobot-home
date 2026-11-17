@@ -1,0 +1,88 @@
+{
+  "schema": "monika_microWakeWord_versioned_cpu_training_summary_v1",
+  "user_recorded_audio_used": false,
+  "trained_own_models": true,
+  "weight_files_in_github": false,
+  "paid_calls": 0,
+  "test_model_family": "TFLite INT8 microWakeWord MixedNet",
+  "native_device_wake_accepted": false,
+  "real_ambient_false_wake_hour": null,
+  "versions": {
+    "v1": {
+      "model_sha256": "520bdf5fc2642dd16ef06397320d2aa2b158394b2c58e036b4b3a258de3610e5",
+      "size_bytes": 47416,
+      "cpu_steps": 1500,
+      "train_feature_windows": 8192,
+      "checkpoint_step": 1000,
+      "best_validation_bce": 0.48753729462623596,
+      "cpu_only": true,
+      "synthetic_only": true,
+      "human_accepted": false,
+      "installed_on_board": false,
+      "validation_cutoff_uint8": 251,
+      "validation_gate": "SYNTHETIC_VALIDATION_GATE_FAILED",
+      "heldout_elena": {
+        "positive": 55,
+        "detected": 39,
+        "negative": 100,
+        "false_events": 35
+      }
+    },
+    "v2": {
+      "model_sha256": "07a53b8e22eb3367e10240383ade52f2e3b058666bb4c9ae0c6cf156df8b67e7",
+      "size_bytes": 60912,
+      "cpu_steps": 1500,
+      "train_feature_windows": 8192,
+      "checkpoint_step": 500,
+      "best_validation_bce": 0.6566841006278992,
+      "cpu_only": true,
+      "synthetic_only": true,
+      "human_accepted": false,
+      "installed_on_board": false,
+      "validation_cutoff_uint8": 251,
+      "validation_gate": "SYNTHETIC_VALIDATION_GATE_FAILED",
+      "heldout_elena": {
+        "positive": 70,
+        "detected": 45,
+        "negative": 150,
+        "false_events": 57
+      }
+    },
+    "v3": {
+      "model_sha256": "50e18fb457413a579f050b880b55257a26f470f660541a59a22a44dbf71de42c",
+      "size_bytes": 47416,
+      "cpu_steps": 2500,
+      "train_feature_windows": 16384,
+      "checkpoint_step": 1500,
+      "best_validation_bce": 0.5551059246063232,
+      "cpu_only": true,
+      "synthetic_only": true,
+      "human_accepted": false,
+      "installed_on_board": false,
+      "validation_cutoff_uint8": 255,
+      "validation_gate": "SYNTHETIC_VALIDATION_REJECTED",
+      "validation_at_cutoff": {
+        "positive": 70,
+        "detected": 4,
+        "negative": 150,
+        "false_events": 0
+      },
+      "heldout": {
+        "elena": {
+          "positive": 62,
+          "detected": 29,
+          "negative": 150,
+          "false_events": 9,
+          "excluded_exact_text_overlap": 8
+        },
+        "aleksandr-hq": {
+          "positive": 56,
+          "detected": 4,
+          "negative": 125,
+          "false_events": 4,
+          "excluded_exact_text_overlap": 4
+        }
+      }
+    }
+  }
+}

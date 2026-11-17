@@ -1,0 +1,9 @@
+build/
+managed_components/
+sdkconfig
+sdkconfig.old
+main/monika_int8.tflite
+*.bin
+*.elf
+*.map
+__pycache__/
