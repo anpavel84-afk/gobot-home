@@ -1,17 +1,20 @@
 """Sophia controls on the existing private HTTPS application, not a new daemon.
 
 The column and the browser keep their existing, independent identities/grants.
-Browser Lab keeps its private implementation and ledger. This panel neither
-enrols a browser nor lends the column/phone/Lab grant to another source.
+Browser Lab keeps its private implementation and ledger. Explicit browser setup
+creates only a dedicated guest profile, never a column/phone/Lab spending grant.
 """
 import asyncio
 import base64
 from collections import deque
 import contextlib
+import hashlib
+import hmac
 import ipaddress
 import json
 from pathlib import Path
 import re
+import secrets
 import sqlite3
 import time
 
@@ -22,20 +25,63 @@ from fastapi.responses import FileResponse, JSONResponse
 from websockets.asyncio.client import connect
 
 
-def existing_browser_binding(root, peer):
-    """Read the existing browser.py guest scope; never create or enrol a profile.
+BROWSER_COOKIE = '__Host-gobot_sophia_guest'
+BROWSER_COOKIE_AGE = 30*24*60*60
+BROWSER_COOKIE_PURPOSE = b'gobot:sophia-browser-guest:v1\0'
+BROWSER_HOST = 'plan.tailffc57c.ts.net'
+BROWSER_ORIGIN = 'https://'+BROWSER_HOST
 
-    The private Lab has ephemeral browser-voice-* IDs and a different ledger;
-    those aren't DeviceStore identities and must never be substituted here.
-    """
-    owner = 'browser-'+peer.replace('.', '-')
-    scope = owner+'@'+peer
+
+def browser_cookie_token(nonce, key, *, now=None):
+    """Only the explicit bind route mints this guest credential."""
+    if not isinstance(nonce, str) or not re.fullmatch(r'[a-f0-9]{32}', nonce) or not key:
+        raise ValueError('invalid_browser_guest_identity')
+    claims = {'v': 1, 'id': nonce, 'exp': int(time.time() if now is None else now)+BROWSER_COOKIE_AGE}
+    payload = base64.urlsafe_b64encode(json.dumps(claims, separators=(',', ':')).encode()).rstrip(b'=').decode()
+    signature = hmac.new(key.encode(), BROWSER_COOKIE_PURPOSE+payload.encode(), hashlib.sha256).hexdigest()
+    return payload+'.'+signature
+
+
+def browser_cookie_nonce(cookie, key, *, now=None):
+    if not cookie:
+        raise PermissionError('browser_binding_missing')
+    if not isinstance(cookie, str) or len(cookie) > 512 or not key:
+        raise PermissionError('browser_binding_invalid')
+    try:
+        payload, signature = cookie.split('.')
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,400}', payload) or not re.fullmatch(r'[a-f0-9]{64}', signature):
+            raise ValueError()
+        expected = hmac.new(key.encode(), BROWSER_COOKIE_PURPOSE+payload.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError()
+        claims = json.loads(base64.urlsafe_b64decode(payload+'='*(-len(payload) % 4)))
+        if (not isinstance(claims, dict) or set(claims) != {'v', 'id', 'exp'} or
+                type(claims['v']) is not int or claims['v'] != 1 or
+                not isinstance(claims['id'], str) or not re.fullmatch(r'[a-f0-9]{32}', claims['id']) or
+                type(claims['exp']) is not int):
+            raise ValueError()
+        remaining = claims['exp']-int(time.time() if now is None else now)
+        if remaining <= 0:
+            raise PermissionError('browser_binding_expired')
+        if remaining > BROWSER_COOKIE_AGE:
+            raise ValueError()
+        return claims['id']
+    except (ValueError, TypeError, KeyError):
+        raise PermissionError('browser_binding_invalid') from None
+
+
+def browser_guest_binding(root, cookie, key, *, now=None):
+    """Cookie-only exact lookup; reads never enroll or fall back to a peer IP."""
+    nonce = browser_cookie_nonce(cookie, key, now=now)
+    owner = 'browser-sophia-'+nonce
     path = Path(root)/'data/browser-devices/profiles.sqlite'
-    if not path.is_file() or path.is_symlink():
+    if path.is_symlink() or path.parent.is_symlink():
+        raise PermissionError('browser_binding_unavailable')
+    if not path.is_file():
         raise PermissionError('browser_binding_missing')
     try:
         with sqlite3.connect(path.resolve().as_uri()+'?mode=ro', uri=True, timeout=2) as db:
-            row = db.execute('SELECT profile FROM profiles WHERE owner=?', (scope,)).fetchone()
+            row = db.execute('SELECT profile FROM profiles WHERE owner=?', (owner+'@sophia',)).fetchone()
         if not row:
             raise PermissionError('browser_binding_missing')
         from .device_contract import DeviceProfile
@@ -44,8 +90,8 @@ def existing_browser_binding(root, peer):
             raise PermissionError('browser_binding_unavailable')
     except (sqlite3.Error, ValueError):
         raise PermissionError('browser_binding_unavailable') from None
-    return {'device_id': owner, 'client_id': profile.client_id,
-            'owner_test_binding': profile.client_id}
+    # A guest credential is not an owner/adult/private-memory authorization.
+    return {'device_id': owner, 'client_id': profile.client_id}
 
 
 def browser_resume(state, admission, hello):
@@ -241,17 +287,26 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
                     else request.headers.get('origin') not in origins | {None})):
             raise HTTPException(403, 'private_voice_panel_only')
 
+    def brain_key():
+        return json.loads((root/'run/keys.json').read_text(encoding='utf-8'))['api_token']
+
     def brain_auth():
-        key = json.loads((root/'run/keys.json').read_text(encoding='utf-8'))['api_token']
-        return {'Authorization': 'Bearer '+key}
+        return {'Authorization': 'Bearer '+brain_key()}
+
+    async def browser_scope(request):
+        cookie = request.cookies.get(BROWSER_COOKIE)
+        if not cookie:
+            raise PermissionError('browser_binding_missing')
+        key = await asyncio.to_thread(brain_key)
+        scope = await asyncio.to_thread(browser_guest_binding, root, cookie, key)
+        return scope, {'Authorization': 'Bearer '+key}
 
     def connection():
         config = json.loads((root/'data/hardware/gobot-v1/gateway.json').read_text(encoding='utf-8'))
         return config, brain_auth()
 
     async def browser_state(request):
-        scope = await asyncio.to_thread(existing_browser_binding, root, request.client.host)
-        auth = await asyncio.to_thread(brain_auth)
+        scope, auth = await browser_scope(request)
         async with client_factory(trust_env=False, timeout=4) as client:
             response = await client.get(backend+'/status', headers=auth,
                                         params={'source': 'browser', **scope})
@@ -333,6 +388,55 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
         except httpx.HTTPError:
             raise HTTPException(503, 'voice_control_unavailable') from None
 
+    @app.post('/api/sophia/browser/bind')
+    async def browser_bind(request: Request):
+        boundary(request, mutation=True)
+        # Serve terminates TLS and uvicorn keeps proxy_headers=False. Only the
+        # exact private HTTPS Host/Origin authorizes cookie enrollment; never XFF.
+        if request.headers.get('host') != BROWSER_HOST or request.headers.get('origin') != BROWSER_ORIGIN:
+            raise HTTPException(403, 'browser_binding_requires_private_https')
+        from .realtime_api import bounded_json
+        if await bounded_json(request, 256) != {}:
+            raise HTTPException(422, 'browser_guest_bind_empty_object_required')
+        key = await asyncio.to_thread(brain_key)
+        if not isinstance(key, str) or not key:
+            raise HTTPException(503, 'browser_binding_unavailable')
+        try:
+            scope = await asyncio.to_thread(browser_guest_binding, root,
+                request.cookies.get(BROWSER_COOKIE), key)
+            created = False
+            cookie = None
+        except PermissionError as error:
+            if str(error) not in {'browser_binding_missing', 'browser_binding_invalid', 'browser_binding_expired'}:
+                raise HTTPException(409, str(error)) from None
+            # Explicit user setup can replace a missing/expired credential, but
+            # the caller cannot supply any identity, role, consent or policy ID.
+            nonce = secrets.token_hex(16)
+            owner = 'browser-sophia-'+nonce
+            def create_guest():
+                from .device_store import DeviceStore
+                directory = root/'data/browser-devices'
+                if directory.is_symlink() or (directory/'profiles.sqlite').is_symlink():
+                    raise PermissionError('browser_binding_unavailable')
+                store = DeviceStore(directory)
+                return store.profile(owner+'@sophia')
+            try:
+                profile = await asyncio.to_thread(create_guest)
+            except PermissionError as error:
+                raise HTTPException(409, str(error)) from None
+            scope = {'device_id': owner, 'client_id': profile.client_id}
+            created = True
+            cookie = browser_cookie_token(nonce, key)
+        response = JSONResponse({'binding_present': True, 'created': created,
+            'guest': True, 'device_id': scope['device_id'], 'client_id': scope['client_id'],
+            'private_memory_allowed': False, 'paid_grant_created': False,
+            'microphone_started': False, 'requires_explicit_start': True},
+            headers={'Cache-Control': 'no-store'})
+        if cookie:
+            response.set_cookie(BROWSER_COOKIE, cookie, max_age=BROWSER_COOKIE_AGE,
+                secure=True, httponly=True, samesite='strict', path='/')
+        return response
+
     @app.get('/api/sophia/browser/status')
     async def browser_status(request: Request):
         boundary(request)
@@ -363,8 +467,7 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
         if set(body)-{'action', 'mode', 'muted'} or body.get('action') not in {'mode', 'mute', 'stop'}:
             raise HTTPException(422, 'invalid_sophia_control')
         try:
-            scope = await asyncio.to_thread(existing_browser_binding, root, request.client.host)
-            auth = await asyncio.to_thread(brain_auth)
+            scope, auth = await browser_scope(request)
             # Stop/Mute must remain usable when the spending grant has expired.
             async with client_factory(trust_env=False, timeout=5) as client:
                 result = await client.post(backend+'/control', headers=auth,

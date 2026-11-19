@@ -15,9 +15,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from gobot.device_store import DeviceStore
 from gobot.realtime_ws_api import attach_brain_direct_voice
-from gobot.sophia_panel import BrowserPlaybackCredit, attach_sophia_panel, existing_browser_binding
+from gobot.sophia_panel import (BROWSER_COOKIE, BROWSER_COOKIE_AGE, BROWSER_COOKIE_PURPOSE,
+    BROWSER_HOST, BrowserPlaybackCredit, attach_sophia_panel, browser_cookie_token, browser_guest_binding)
 
-ORIGIN = 'http://127.0.0.1:18811'
+ORIGIN = 'https://plan.tailffc57c.ts.net'
 HELLO = dict(type='hello', session_id='browser-session-1', conversation_id='browser-conversation-1',
              mode='fast', consent=True)
 
@@ -86,7 +87,10 @@ def panel(tmp_path, *, existing=True):
         'device_protocol_confirmed': True, 'generation_allowed': False,
         'last_wake_ui_visible_ms': 12, 'last_wake_lvgl_refresh_ready_ms': 12,
         'wake_ui_measurement': 'lvgl_refr_ready_not_panel_dma'}}))
-    profile = DeviceStore(tmp_path/'data/browser-devices').profile('browser-127-0-0-1@127.0.0.1') if existing else None
+    nonce = 'a'*32
+    owner = 'browser-sophia-'+nonce
+    profile = DeviceStore(tmp_path/'data/browser-devices').profile(owner+'@sophia') if existing else None
+    cookie = browser_cookie_token(nonce, 'server-secret-not-browser') if existing else None
     state = {'admission': dict(allowed=True, generation_allowed=True, expert_available=True,
         code='manual_activation_available', model='gpt-realtime-2.1-mini'), 'sessions': []}
     board = {'sessions': [{'state': 'ready', 'generation_allowed': False}]}
@@ -108,12 +112,14 @@ def panel(tmp_path, *, existing=True):
     attach_sophia_panel(app, tmp_path, client_factory=lambda **kw: httpx.AsyncClient(
         transport=httpx.MockTransport(backend), **kw), ws_connector=connector)
     client = TestClient(app, base_url=ORIGIN, client=('127.0.0.1', 50000))
-    return SimpleNamespace(app=app, client=client, profile=profile, state=state, board=board,
+    if cookie:
+        client.cookies.set(BROWSER_COOKIE, cookie, domain=BROWSER_HOST, path='/')
+    return SimpleNamespace(app=app, client=client, profile=profile, owner=owner, cookie=cookie, state=state, board=board,
                            calls=calls, upstreams=upstreams, connectors=connectors)
 
 
 def open_browser(client):
-    return client.websocket_connect('ws://127.0.0.1:18811/api/sophia/browser/stream', headers={'Origin': ORIGIN})
+    return client.websocket_connect('wss://plan.tailffc57c.ts.net/api/sophia/browser/stream', headers={'Origin': ORIGIN})
 
 
 def test_missing_binding_does_not_enroll_or_contact_brain(tmp_path):
@@ -130,16 +136,17 @@ def test_missing_binding_does_not_enroll_or_contact_brain(tmp_path):
     assert not p.calls and not p.connectors
 
 
-def test_binding_uses_exact_existing_peer_not_forwarded_or_policy_identity(tmp_path):
+def test_binding_uses_signed_browser_cookie_not_forwarded_or_peer_identity(tmp_path):
     p = panel(tmp_path)
     with p.client as client:
         result = client.get('/api/sophia/browser/status', headers={'X-Forwarded-For': '100.90.228.125'})
         assert result.json()['available'] is True
         params = p.calls[-1].url.params
-        assert params['device_id'] == 'browser-127-0-0-1'
-        assert params['client_id'] == params['owner_test_binding'] == p.profile.client_id
+        assert params['device_id'] == p.owner
+        assert params['client_id'] == p.profile.client_id
+        assert 'owner_test_binding' not in params
         assert 'server-secret-not-browser' not in result.text
-        assert existing_browser_binding(tmp_path, '127.0.0.1')['client_id'] == p.profile.client_id
+        assert browser_guest_binding(tmp_path, p.cookie, 'server-secret-not-browser')['client_id'] == p.profile.client_id
         result = client.get('/api/sophia/status')
         assert 'last_wake_ui_visible_ms' not in result.json()['device']
         assert result.json()['device']['wake_ui_measurement'] == 'lvgl_refr_ready_not_panel_dma'
@@ -156,7 +163,7 @@ def test_ws_boundary_denies_before_authority_or_upstream(tmp_path, headers, peer
     p = panel(tmp_path)
     with TestClient(p.app, base_url=ORIGIN, client=(peer, 50000)) as client:
         with pytest.raises(WebSocketDisconnect) as error:
-            with client.websocket_connect('ws://127.0.0.1:18811/api/sophia/browser/stream', headers=headers):
+            with client.websocket_connect('wss://plan.tailffc57c.ts.net/api/sophia/browser/stream', headers=headers):
                 pytest.fail('boundary accepted foreign request')
         assert error.value.code == 1008
     assert not p.calls and not p.connectors
@@ -187,8 +194,8 @@ def test_denied_admission_never_opens_upstream_and_cleanup_still_scoped(tmp_path
             response = client.post('/api/sophia/browser/control', headers={'Origin': ORIGIN}, json=body)
             assert response.status_code == 200
             sent = json.loads(p.calls[-1].content)
-            assert sent == {**body, 'source': 'browser', 'device_id': 'browser-127-0-0-1',
-                            'client_id': p.profile.client_id, 'owner_test_binding': p.profile.client_id}
+            assert sent == {**body, 'source': 'browser', 'device_id': p.owner,
+                            'client_id': p.profile.client_id}
         response = client.post('/api/sophia/browser/control', headers={'Origin': ORIGIN},
                                json={'action': 'stop', 'client_id': 'phone-owner'})
         assert response.status_code == 422
@@ -211,8 +218,9 @@ def test_bound_guest_offer_pcm_gate_stop_and_transport_lease_cleanup(tmp_path):
             assert ws.receive_json()['type'] == 'ready'
             offer = json.loads(p.upstreams[0].messages[0])
             assert offer['source'] == 'browser'
-            assert offer['offer']['client_id'] == offer['offer']['owner_test_binding'] == p.profile.client_id
-            assert offer['offer']['device_id'] == 'browser-127-0-0-1'
+            assert offer['offer']['client_id'] == p.profile.client_id
+            assert 'owner_test_binding' not in offer['offer']
+            assert offer['offer']['device_id'] == p.owner
             assert offer['offer']['client_kind'] == 'panel'
             assert offer['offer']['remember'] is False
             assert offer['offer']['speaker_consent'] is False
@@ -474,3 +482,157 @@ def test_proxy_rejects_forged_early_playback_receipts_before_brain(tmp_path, rec
         assert ws.receive_json()['type'] == 'error'
     assert not any(json.loads(m).get('type') in {'playback_progress', 'playback_finished'}
                    for m in p.upstreams[0].messages if isinstance(m, str))
+
+
+def test_explicit_guest_binding_is_secure_idempotent_and_creates_no_grant(tmp_path):
+    import sqlite3
+    from gobot.device_contract import DeviceProfile
+    from gobot.family_access import IdentityAccessManager
+    from gobot.realtime_ws import DirectOffer
+    p = panel(tmp_path, existing=False)
+    p.state['admission'].update(allowed=False, generation_allowed=False, code='exact_authorized_client_required')
+    protected = {}
+    for name in ('realtime', 'owner-full-test', 'voice-ab-b', 'voice-ab-c', 'browser-lab'):
+        path = tmp_path/'run'/name/'policy.json'
+        path.parent.mkdir()
+        value = json.dumps({'authorization': name+'-existing', 'allowed_client_id': 'original-'+name})
+        path.write_text(value)
+        protected[path] = value
+    with p.client as client:
+        assert client.get('/api/sophia/browser/status').json()['binding_present'] is False
+        assert not p.calls and not p.connectors
+        result = client.post('/api/sophia/browser/bind', headers={'Origin': ORIGIN}, json={})
+        assert result.status_code == 200
+        binding = result.json()
+        assert binding['created'] is True and binding['guest'] is True
+        assert binding['paid_grant_created'] is False and binding['private_memory_allowed'] is False
+        assert binding['microphone_started'] is False
+        assert binding['device_id'].startswith('browser-sophia-')
+        cookie_header = result.headers['set-cookie']
+        assert cookie_header.startswith(BROWSER_COOKIE+'=')
+        assert '; Secure' in cookie_header and '; HttpOnly' in cookie_header
+        assert '; SameSite=strict' in cookie_header and '; Path=/' in cookie_header
+        assert 'Domain=' not in cookie_header and f'Max-Age={BROWSER_COOKIE_AGE}' in cookie_header
+        assert 'server-secret-not-browser' not in result.text
+        assert BROWSER_COOKIE not in result.text and 'owner_test_binding' not in binding
+        assert not p.calls and not p.connectors
+        repeated = client.post('/api/sophia/browser/bind', headers={'Origin': ORIGIN}, json={})
+        assert repeated.status_code == 200 and repeated.json()['created'] is False
+        assert repeated.json()['client_id'] == binding['client_id']
+        assert 'set-cookie' not in repeated.headers  # Idempotence does not silently renew authentication.
+        status = client.get('/api/sophia/browser/status').json()
+        assert status['binding_present'] is True and status['available'] is False
+        assert status['code'] == 'exact_authorized_client_required'
+        assert not p.connectors
+        with sqlite3.connect(tmp_path/'data/browser-devices/profiles.sqlite') as db:
+            rows = db.execute('SELECT owner,profile FROM profiles').fetchall()
+        assert len(rows) == 1 and rows[0][0] == binding['device_id']+'@sophia'
+        profile = DeviceProfile.model_validate_json(rows[0][1])
+        assert profile.client_id == binding['client_id']
+        assert profile.voice.realtime_consent is False and profile.voice.expert_quota_consent is False
+        offer = DirectOffer(session_id='guest-session', conversation_id='guest-conversation',
+            device_id=binding['device_id'], client_id=binding['client_id'], client_kind='panel',
+            remember=False, personalization_mode='guest', speaker_consent=False)
+        access = IdentityAccessManager(None).native(offer)
+        assert access.confirmed_profile_id is None and access.private_access is False
+        assert access.child_restrictions is True and access.memory_mode == 'guest_ram_only'
+        assert offer.owner_test_binding is None and offer.confirmed_profile_epoch is None
+        assert DeviceStore(tmp_path/'data/browser-devices').scoped_owner(
+            binding['device_id'], binding['client_id']) == rows[0][0]
+    assert all(path.read_text() == value for path, value in protected.items())
+
+
+def test_distinct_cookie_jars_behind_same_peer_never_inherit_legacy_loopback_profile(tmp_path):
+    import sqlite3
+    p = panel(tmp_path, existing=False)
+    store = DeviceStore(tmp_path/'data/browser-devices')
+    legacy = store.profile('browser-127-0-0-1@127.0.0.1')
+    legacy_json = legacy.model_dump_json()
+    bindings = []
+    for _ in range(2):
+        with TestClient(p.app, base_url=ORIGIN, client=('127.0.0.1', 50000)) as client:
+            assert client.get('/api/sophia/browser/status').json()['code'] == 'browser_binding_missing'
+            response = client.post('/api/sophia/browser/bind', headers={'Origin': ORIGIN}, json={})
+            assert response.status_code == 200
+            binding = response.json()
+            bindings.append(binding)
+            for _ in range(2):
+                assert client.get('/api/sophia/browser/status').json()['binding_present'] is True
+            assert p.calls[-1].url.params['client_id'] == binding['client_id']
+    assert bindings[0]['device_id'] != bindings[1]['device_id']
+    assert bindings[0]['client_id'] != bindings[1]['client_id']
+    assert legacy.client_id not in {b['client_id'] for b in bindings}
+    with sqlite3.connect(store.db) as db:
+        assert db.execute('SELECT count(*) FROM profiles').fetchone()[0] == 3
+        assert db.execute('SELECT profile FROM profiles WHERE owner=?',
+            ('browser-127-0-0-1@127.0.0.1',)).fetchone()[0] == legacy_json
+
+
+@pytest.mark.parametrize('kind,expected', [
+    ('tampered', 'browser_binding_invalid'), ('wrong_purpose', 'browser_binding_invalid'),
+    ('expired', 'browser_binding_expired'), ('signed_missing_row', 'browser_binding_missing'),
+])
+def test_invalid_or_unregistered_cookie_cannot_create_or_access_browser_scope(tmp_path, kind, expected):
+    import hashlib
+    import hmac
+    import time
+    p = panel(tmp_path, existing=False)
+    cookie = browser_cookie_token('c'*32, 'server-secret-not-browser')
+    if kind == 'tampered':
+        cookie = cookie[:-1]+('0' if cookie[-1] != '0' else '1')
+    elif kind == 'wrong_purpose':
+        payload = cookie.split('.')[0]
+        cookie = payload+'.'+hmac.new(b'server-secret-not-browser', b'profile:'+payload.encode(), hashlib.sha256).hexdigest()
+    elif kind == 'expired':
+        cookie = browser_cookie_token('c'*32, 'server-secret-not-browser', now=time.time()-BROWSER_COOKIE_AGE-1)
+    p.client.cookies.set(BROWSER_COOKIE, cookie, domain=BROWSER_HOST, path='/')
+    with p.client as client:
+        status = client.get('/api/sophia/browser/status').json()
+        assert status['binding_present'] is False and status['code'] == expected
+        assert client.post('/api/sophia/browser/control', headers={'Origin': ORIGIN}, json={'action': 'stop'}).status_code == 403
+        with open_browser(client) as ws:
+            ws.send_json(HELLO)
+            assert ws.receive_json()['data']['code'] == expected
+    assert not (tmp_path/'data/browser-devices').exists()
+    assert not p.calls and not p.connectors
+
+
+@pytest.mark.parametrize('body', [
+    {'client_id': 'original-phone'}, {'device_id': 'spotpear-existing'},
+    {'owner_test_binding': 'original-phone'}, {'profile_epoch': 'owner'},
+    {'confirmed_profile_epoch': 'adult'}, {'consent': True}, {'remember': True},
+    {'source': 'browser-voice-existing-lab'},
+])
+def test_bind_cannot_accept_identity_privilege_or_expense_fields(tmp_path, body):
+    p = panel(tmp_path, existing=False)
+    with p.client as client:
+        result = client.post('/api/sophia/browser/bind', headers={'Origin': ORIGIN}, json=body)
+        assert result.status_code == 422
+    assert not (tmp_path/'data/browser-devices').exists()
+    assert not p.calls and not p.connectors
+
+
+@pytest.mark.parametrize('origin,host,peer', [
+    ('https://foreign.invalid', BROWSER_HOST, '127.0.0.1'),
+    (ORIGIN, '127.0.0.1:18811', '127.0.0.1'),
+    ('http://127.0.0.1:18811', '127.0.0.1:18811', '127.0.0.1'),
+    (ORIGIN, BROWSER_HOST, '192.0.2.40'),
+    ('', BROWSER_HOST, '127.0.0.1'),
+])
+def test_bind_requires_exact_private_https_origin_and_loopback_proxy(tmp_path, origin, host, peer):
+    p = panel(tmp_path, existing=False)
+    with TestClient(p.app, base_url=ORIGIN, client=(peer, 50000)) as client:
+        response = client.post('/api/sophia/browser/bind', headers={
+            'Origin': origin, 'Host': host, 'X-Forwarded-Proto': 'https', 'X-Forwarded-For': '127.0.0.1'}, json={})
+        assert response.status_code == 403
+    assert not (tmp_path/'data/browser-devices').exists()
+
+
+def test_serve_http_upstream_still_sets_secure_cookie_for_exact_owner_https(tmp_path):
+    p = panel(tmp_path, existing=False)
+    with TestClient(p.app, base_url='http://'+BROWSER_HOST, client=('127.0.0.1', 50000)) as client:
+        result = client.post('/api/sophia/browser/bind', headers={'Origin': ORIGIN}, json={})
+        assert result.status_code == 200
+        assert '; Secure' in result.headers['set-cookie']
+        assert '; HttpOnly' in result.headers['set-cookie']
+    assert not p.calls and not p.connectors

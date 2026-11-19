@@ -15,7 +15,10 @@ const messages = {
   microphone_source_change_requires_idle: 'Сменить микрофон можно после ответа или после Stop.',
   microphone_source_state_unavailable: 'Не удалось проверить состояние колонки. Смена источника пока недоступна.',
   brain_or_gateway_unavailable: 'Не удалось связаться с сервером. Состояние проверяется автоматически.',
-  browser_binding_missing: 'У этого браузера нет существующей привязки к основному Brain. Допуск прежнего Browser Lab сюда не переносится.',
+  browser_binding_missing: 'Подключите этот браузер кнопкой ниже. Будет создан отдельный гостевой профиль; микрофон и платные допуски останутся выключенными.',
+  browser_binding_invalid: 'Привязку этого браузера не удалось подтвердить. Создайте новую гостевую привязку кнопкой «Подключить этот браузер».',
+  browser_binding_expired: 'Срок гостевой привязки истёк. Кнопка «Подключить этот браузер» создаст новую; прежние платные допуски не переносятся.',
+  browser_binding_requires_private_https: 'Подключить браузер можно только через приватную HTTPS-страницу GoBot.',
   browser_binding_unavailable: 'Существующую привязку браузера не удалось проверить.',
   browser_voice_status_unavailable: 'Не удалось проверить доступ браузера к разговору.',
   exact_authorized_client_required: 'Разрешение основного разговорного сервера выдано другому устройству. Для этого браузера разговор закрыт.',
@@ -134,11 +137,17 @@ function render() {
   $('mute').textContent = muted ? 'Включить микрофон' : 'Выключить микрофон';
   $('mute').setAttribute('aria-pressed', String(muted));
   $('browserActions').hidden = !usingBrowser;
+  $('browserBinding').textContent = browserStatus?.binding_present === true
+    ? 'Этот браузер подключён как гость. Допуск к разговору проверяется отдельно.'
+    : 'Для этого браузера нужна отдельная гостевая привязка. Прежний Browser Lab и другие устройства её не заменяют.';
+  $('browserConnect').hidden = browserStatus?.binding_present === true;
+  $('browserConnect').disabled = pending > 0 || browserStatus?.binding_present !== false ||
+    !idle(phase) || browser.connected || browser.startRequested || browser.stopPending;
   $('browserStart').disabled = pending > 0 || !usingBrowser || !browserAdmission.allowed || !idle(phase) || browser.startRequested || browser.stopPending || (muted && !browserAdmission.subscriber);
   $('browserStart').textContent = browserAdmission.subscriber && !ready ? 'Вернуться к ответу' : ready ? 'Начать новый вопрос' : 'Начать разговор';
   $('browserFinish').hidden = !usingBrowser || !browser.inputOpen || browser.mode !== 'expert';
   $('modeHint').textContent = usingBrowser
-    ? 'Браузер использует свою существующую привязку. Смена микрофона доступна между репликами.'
+    ? 'У каждого браузера отдельный гостевой профиль. Смена микрофона доступна между репликами.'
     : 'Режим меняется между репликами. Stop и Mute доступны и при закрытом допуске к расходам.';
   $('exampleFast').textContent = usingBrowser ? '«Сколько сейчас времени?»' : '«София, сколько сейчас времени?»';
   $('exampleExpert').textContent = usingBrowser ? '«Спроси у эксперта…»' : '«София, спроси у эксперта…»';
@@ -177,6 +186,23 @@ document.querySelectorAll('[data-mode]').forEach(button => button.addEventListen
 $('browserStart').addEventListener('click', async () => {
   errorText = ''; $('transcriptCard').hidden = true; $('transcript').textContent = '';
   try { await browser.start(browser.mode); } catch (error) { errorText = human(error.name === 'NotAllowedError' ? error.name : error.message); render(); }
+});
+$('browserConnect').addEventListener('click', async () => {
+  if (selected !== 'browser' || !idle(browser.phase) || browser.connected || browser.startRequested || browser.stopPending) return;
+  pending++; errorText = ''; render();
+  try {
+    const response = await fetch('/api/sophia/browser/bind', {method: 'POST',
+      headers: {'Content-Type': 'application/json'}, body: '{}'});
+    const data = await response.json();
+    if (!response.ok) { errorText = human(data.detail || data.code); return; }
+    if (data.created === true) {
+      browser.detach(); browser.session = null;
+      try { sessionStorage.removeItem('gobot.sophia.browser.ids'); } catch {}
+      $('transcriptCard').hidden = true; $('transcript').textContent = '';
+    }
+    await refresh(); // Binding never calls Start, opens audio, or creates a paid grant.
+  } catch { errorText = human('browser_binding_unavailable'); }
+  finally { pending--; render(); }
 });
 $('browserFinish').addEventListener('click', async () => {
   try { await browser.finishInput(); } catch (error) { browser.failure(error.message); }

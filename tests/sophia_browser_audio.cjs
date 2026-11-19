@@ -348,7 +348,7 @@ for (const rate of [44100, 48000, 96000]) test('worklet continuous resampling pr
   assert.equal(result.every((value, i) => Math.abs(value-expected[i]) <= 1), true);
 });
 
-test('page renders physical connection separately from spending and never auto-starts selected browser', async () => {
+test('page renders physical connection and explicitly binds a browser without starting its microphone', async () => {
   const html = fs.readFileSync(path.join(__dirname, '../services/phone/dist/sophia.html'), 'utf8');
   assert.match(html, /<option value="browser">/);
   const elements = new Map();
@@ -356,23 +356,36 @@ test('page renders physical connection separately from spending and never auto-s
     textContent: '', dataset: {}, hidden: false, disabled: false, value: '', listeners: {},
     setAttribute(key, value) { this[key] = value; }, addEventListener(name, fn) { this.listeners[name] = fn; },
   });
-  const get = id => elements.get(id); let starts = 0;
+  const get = id => elements.get(id); let starts = 0, binds = 0, detached = 0, instance;
+  const removed = [];
   get('fast').dataset.mode = 'fast'; get('expert').dataset.mode = 'expert'; get('source').value = 'spotpear';
   class Browser {
-    constructor() { this.mode = 'fast'; this.phase = 'disconnected'; this.connected = false; this.startRequested = false; }
+    constructor() {
+      this.mode = 'fast'; this.phase = 'disconnected'; this.connected = false; this.startRequested = false; this.stopPending = false;
+      this.session = {session_id: 'expired-identity-session'}; instance = this;
+    }
     state() { return {ready: false, state: this.phase, input_mode: this.mode, muted: false}; }
     eligibility(status) { return {allowed: status?.available === true, input: false, code: status?.code}; }
     async start() { starts++; }
-    detach() {}
+    detach() { detached++; }
   }
   const board = {status: 'connected', device: {device_protocol_confirmed: true, cloud_ready: true, generation_allowed: false,
     wake_ui_measurement: 'lvgl_refr_ready_not_panel_dma', last_error: 'realtime_budget_or_consent_required'},
     brain: {sessions: [{ready: true, state: 'ready', generation_allowed: false, input_mode: 'fast'}]}};
-  const browser = {available: false, generation_allowed: false, code: 'browser_binding_missing'};
+  const browser = {binding_present: false, available: false, generation_allowed: false, code: 'browser_binding_missing'};
   const scope = {GoBotSophiaAudio: {BrowserVoice: Browser},
     document: {hidden: false, getElementById: get, querySelectorAll: () => [get('fast'), get('expert')], addEventListener() {}},
     window: {addEventListener() {}}, setInterval() {}, Date, JSON, String, Promise,
-    fetch: async url => ({json: async () => url.includes('/browser/') ? browser : board}),
+    sessionStorage: {removeItem(key) { removed.push(key); }},
+    fetch: async (url, options) => {
+      if (url === '/api/sophia/browser/bind') {
+        assert.equal(options.method, 'POST'); assert.equal(options.body, '{}');
+        binds++;
+        browser.binding_present = true; browser.code = 'exact_authorized_client_required';
+        return {ok: true, json: async () => ({created: true, binding_present: true, guest: true})};
+      }
+      return {ok: true, json: async () => url.includes('/browser/') ? browser : board};
+    },
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../services/phone/dist/sophia.js'), 'utf8'), scope);
   await new Promise(setImmediate);
@@ -384,6 +397,12 @@ test('page renders physical connection separately from spending and never auto-s
   assert.equal(get('alert').textContent.includes('realtime_budget_or_consent_required'), false);
   get('source').value = 'browser'; get('source').listeners.change();
   assert.equal(get('browserActions').hidden, false); assert.equal(get('browserStart').disabled, true);
-  assert.match(get('description').textContent, /нет существующей привязки/);
-  assert.equal(starts, 0);
+  assert.match(get('description').textContent, /Подключите этот браузер/);
+  assert.equal(get('browserConnect').disabled, false); assert.equal(binds, 0); assert.equal(starts, 0);
+  await get('browserConnect').listeners.click();
+  assert.equal(binds, 1); assert.equal(starts, 0); assert.equal(detached, 1);
+  assert.equal(instance.session, null); assert.deepEqual(removed, ['gobot.sophia.browser.ids']);
+  assert.equal(get('browserConnect').hidden, true); assert.equal(get('browserStart').disabled, true);
+  assert.match(get('browserBinding').textContent, /подключён как гость/);
+  assert.match(get('description').textContent, /Разрешение.*другому устройству/);
 });

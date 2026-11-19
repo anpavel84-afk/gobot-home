@@ -116,11 +116,16 @@ Loopback/origin checks prevent cross-site control. Its Browser Lab comparison li
 preserves that existing workflow and its separate metered allowance.
 
 The browser source uses the same Brain direct-voice contract through a bounded
-server proxy. Its identity comes only from the existing browser DeviceStore and
-trusted peer mapping. An absent binding or grant blocks a new operation before
-provider access; no column, PHONE or Browser Lab identity is substituted. Opening
-the page or selecting the browser source never requests a microphone. Explicit
-Start is required, and PCM waits for the server's listening acknowledgement.
+server proxy. The private Serve proxy presents a loopback peer for every browser;
+that peer cannot distinguish individual browser identities. The explicit Connect
+action therefore creates a separate guest row through the existing DeviceStore
+and returns a server-signed host-only cookie. Status/control/WS read only that
+exact binding, with no shared-loopback fallback. Binding creates no spending
+grant, owner/adult profile, personal-memory access or microphone permission.
+An absent binding or grant blocks a new operation before provider access; no
+column, PHONE or Browser Lab identity is substituted. Opening the page or
+selecting the browser source never creates a profile or requests a microphone.
+Explicit Start is required, and PCM waits for the server's listening acknowledgement.
 An existing expert can be reattached as an output-only subscriber without a new
 wake or microphone. Source changes occur only at an idle boundary.
 
@@ -163,3 +168,31 @@ the marin transition, wake quality in a household or human acceptance.
 
 Actual install, physical results, remaining live-test blockers and the exact
 continuation/rollback checkpoint belong in `docs/CURRENT_STATUS.md`.
+
+## Resuming finite provider acceptance
+
+`scripts/sophia_voice_grant.py status --epoch <prepared-epoch>` is read-only.
+The exact prepared proposal and its SHA are recorded only in the current-state
+passport. A disabled proposal is not an authorization. After the owner approves
+that specific scope, `authorize --epoch <prepared-epoch>
+--owner-approved-proposal-sha256 <approved-sha>` starts its one-time validity.
+The operator then uses the explicit `cue --execute` action once and checks the
+resulting fixed cue's text/model/voice/SHA. A missing or failed cue never causes
+an automatic second provider request.
+
+Before mounting the new profile, retain the current mount/config hashes and
+verify idle native/direct sessions and owned process identities. The profile
+mount and the hardware expert-consent flag must change together during this
+controlled update; old B/C/PHONE/Lab ledgers remain unchanged. Fresh status must
+show the actual newly authorized scope and its untouched counters before input.
+
+The finite physical acceptance covers a short fast answer, an accepted expert
+handoff, an explicit expert dictation, streamed marin output, interruption,
+whole-answer DMA receipt and a follow-up using the same temporary context.
+Compare the configured server450 and semantic-high endpointing only within the
+admitted finite response count. Use public test prompts and retain numerical
+timings/usage, without turning private answers or raw microphone audio into
+durable fixtures. Report sample counts and warm/cold cases; proxy DMA or LVGL
+events do not establish acoustic or first-visible-pixel latency. Unknown usage
+retains its reservation and stops retries. Human voice-quality acceptance stays
+separate from these measurements.

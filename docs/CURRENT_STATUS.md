@@ -1,6 +1,23 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — integration in progress, 2026-11-18 (America/Sao_Paulo)
+## HOST-INTEGRATOR — deployed; paid acceptance blocked, 2026-11-19 (America/Sao_Paulo)
+
+### Current installed checkpoint
+
+| Item | Actual state |
+| --- | --- |
+| PLAN runtime source | `e7546bc29d9d6709776716349c1b6c1417e055ff` |
+| Physical Spotpear app | `0.4.16-dev-sophia-unified-v4`, SHA256 `c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102` |
+| Wake basis | Owner-preferred installed V4: unchanged `wn10_sophia`, `DET_MODE_95`, pre-AFE feed/gain/rates |
+| Owner interface | [Existing private HTTPS /sophia](https://plan.tailffc57c.ts.net/sophia), desktop/mobile checks passed |
+| Current physical connection | Protocol2 confirmed; empty cloud transport ready; unmuted; fresh capture packets; zero Gateway errors/encode drops; input-task stack HWM1,312bytes |
+| Paid generation | Forbidden by the unchanged expired B grant; input closed; no active expert |
+| New finite proposal | Prepared disabled; expiry0; no activation record or mount change |
+| Acceptance boundary | Physical free fixture and rollback passed; real marin/Codex/STT conversation and human acceptance remain pending |
+
+The later documentation-only checkpoint records these observations without
+restarting the unchanged runtime. The following implementation history began on
+November18; earlier source/deployment checkpoints are superseded by this table.
 
 The owner authorized implementation and reversible deployment of the unified
 Sophia / B_WS / Codex / marin conversation on the existing PLAN and Spotpear.
@@ -56,7 +73,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Configs and the two Browser Lab entry files are hash-verified; SQLite backups
   use the backup API with WAL and pass quick_check. All Brain/native sessions
   and the Gateway were idle; no Browser Lab client was connected at this check.
-- Source published through commit `0999187bcbf9194b2c6f7bc9eed3c93d002b49ed` in
+- Source published through commit `e7546bc29d9d6709776716349c1b6c1417e055ff` in
   [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
   runtime base is retained; current master is an ancestor, with no merge conflict.
 - Candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
@@ -79,7 +96,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Tests now skip only that unavailable OS capability (Linux cases pass); the
   installer security checks and system privileges are unchanged. The Windows
   installer rerun completed **29 passed, 2 skipped** for that OS capability.
-- Backend/UI **installed** at `1455b7aa0ffc2f58d9e8bcd48aec21525eac8849`, all six
+- Earlier backend/UI checkpoint **installed** at `1455b7aa0ffc2f58d9e8bcd48aec21525eac8849`, all six
   original ports healthy. Existing Browser Lab remains in its original worktree.
   `/sophia` rendered correctly in native PLAN headless Chrome. Fresh Codex offline
   isolation audit: tools[], one local mock HTTP request, zero real model requests,
@@ -143,8 +160,8 @@ superseded by fresh physical evidence below; its architecture requirements remai
   physical-ACK-driven continuation and three finite B starts. PHONE attempts
   remained zero; permanent expert_results remained empty.
 - The same 172-case gate passed on native PLAN Windows in the isolated checkout
-  at `0999187bcbf9194b2c6f7bc9eed3c93d002b49ed`; the running source is still
-  `1455b7a` pending the final UI/streaming checkpoint.
+  at `0999187bcbf9194b2c6f7bc9eed3c93d002b49ed`, before the final UI/streaming
+  checkpoint and the final deployment below.
 - A concrete finite acceptance proposal is now prepared **disabled** on PLAN:
   epoch `sophia-unified-20261118`, SHA256
   `7ab02ebb54bfb3235a7b9549c27c684126e9269f630d4c88e4049fe3af8ef644`.
@@ -176,8 +193,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Actual CLI/provider limits, grant expiry, reservations and counts are unchanged.
 - Final merged Linux source gate: **209 passed**, covering the browser, shared
   Speech/ExpertJobs legacy paths, board admission, cancellation, context retention
-  and direct WS. This includes the above overlapping focused sets. Source is
-  frozen for isolated native Windows checks and the final controlled deployment.
+  and direct WS. This includes the above overlapping focused sets.
 - The first native final gate at `6a4ea48` returned **206 passed, 3 failed** in
   the accelerated deadline tests, before production deployment or source push.
   A bounded PLAN measurement found requested3ms sleeps took8.4-17.0ms; the test's
@@ -186,6 +202,35 @@ superseded by fresh physical evidence below; its architecture requirements remai
   and still require real timeout/cancellation and consumer waits longer than the
   whole synthetic provider budget. The corrected10-case module passes locally;
   runtime90/45/5s limits are unchanged. The failed report remains private on PLAN.
+- **Final native PLAN gate: 209 passed in44.76s**, at `e7546bc`. This same source
+  was then published and installed. Deployment verified idle legacy/board/browser
+  state, preserved dirty-source/config/mount/keys/Lab entry hashes, refreshed the
+  actual Codex offline audit (tools[], one mock HTTP request, zero real model
+  requests), and restarted the six original listeners. Runtime reports the exact
+  target commit. Budget snapshot before/after is identical; firmware was unchanged.
+- **Native PLAN Chrome / real HTTPS verification PASS.** The actual owner URL
+  rendered desktop1100x1400 and mobile390x844 without horizontal overflow or JS
+  errors. The column showed connected / spending disabled, with Stop/Mute usable.
+  Selecting the browser showed the actual `browser_binding_missing` condition
+  and disabled Start; page load and source selection made **0 getUserMedia calls**.
+  No other identity or allowance was substituted. All three screenshots were
+  inspected privately. Review then identified that this Serve proxy presents
+  loopback for all browsers and had no supported initial guest-binding route.
+- That concrete setup gap is source-corrected: explicit **Connect this browser**
+  creates a distinct guest through the existing DeviceStore, with a signed30-day
+  HttpOnly/Secure/SameSite host-only cookie. Status/control/WS use that exact scope
+  without a shared-peer fallback. No owner/adult/private-memory permission or
+  expense grant is created; no microphone/provider starts. Existing valid Connect
+  is idempotent without renewal. Local gate **55 passed**, including18 Node cases;
+  independent implementation review passed. Native follow-up installation and
+  explicit Connect-only verification are the next bounded deployment step.
+- Fresh post-deployment telemetry confirmed protocol2/cloud_ready, increasing
+  physical capture packets, muted=false, input_open=false, generation_allowed=false,
+  expert_active=false and zero Gateway errors/encode drops. All four device queues
+  were empty; stack HWM remained1,312bytes. Protected hashes and the old B snapshot
+  matched again after UI verification. Evidence is private on PLAN:
+  `final-source-deployment.json`, `final-ui-deadlines-windows-tests-e7546bc29d9d.json`
+  and `sophia-final-ui.json` under `HOST-INTEGRATOR-private`.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
   0.4.15 failed physical boot; repaired 0.4.16 built and installed.
   `INSTALLED`: unified backend/UI and V4-derived 0.4.16 on the physical column.
@@ -193,13 +238,33 @@ superseded by fresh physical evidence below; its architecture requirements remai
   fixture and production reconnect. Real provider speech remains pending.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
-Next: verify the frozen source on native PLAN, deploy it and inspect the real
-private HTTPS interface, then present the exact missing paid authorization. The
+Next required owner action: approve the exact disabled proposal above before its
+one-time activation and the missing service-cue / provider / physical conversation
+acceptance. The old B grant expired at **2026-11-18 01:35:47 America/Sao_Paulo**;
+its two nominal unused starts do not remain spendable. Its retained reservation
+estimate is **$0.333333333333**, distinct from the reported response-cost estimate
+**$0.005838**; missing STT finalization is not silently settled. The renewed test
+would be a new two-hour scope, not a renewal or reset of this old allowance.
+
+The prepared operator action is `scripts/sophia_voice_grant.py authorize --epoch
+sophia-unified-20261118 --owner-approved-proposal-sha256 <the exact approved SHA>`.
+Only after that authorization may the operator explicitly generate the one fixed
+cue, verify its cache, back up and mount the new profile while idle, and perform
+the bounded column acceptance. Preparation itself authorizes none of these calls.
+
+The
 Gateway's negotiated new-protocol configuration remains enabled; a V4 rollback
 retains the legacy contract. Exact app images and the install manifest snapshot
 are private on PLAN. No original configuration was overwritten without backup.
 Keep the expired B grant, expert prohibition and C debt unchanged. No paid model
-request has been made by HOST-INTEGRATOR.
+generation/STT/real CLI request has been made by HOST-INTEGRATOR. Real empty
+provider transport setup has been verified and is not described as zero provider
+connections.
+
+---
+
+The dated checkpoint notes below are historical. Their installed-version labels
+are superseded by the HOST-INTEGRATOR checkpoint above.
 
 ## Installed guided calibration — 2026-11-15
 
