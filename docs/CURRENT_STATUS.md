@@ -1,27 +1,76 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — idle recovery correction in progress, 2026-11-19 (America/Sao_Paulo)
+## HOST-INTEGRATOR — installed and free checks passed; paid acceptance blocked, 2026-11-19 (America/Sao_Paulo)
 
 ### Current installed checkpoint
 
 | Item | Actual state |
 | --- | --- |
-| PLAN runtime source | `e7546bc29d9d6709776716349c1b6c1417e055ff` |
+| PLAN runtime source | `9d8d6bb014524f830815152d769d58e9c919331e` |
 | Physical Spotpear app | `0.4.16-dev-sophia-unified-v4`, SHA256 `c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102` |
 | Wake basis | Owner-preferred installed V4: unchanged `wn10_sophia`, `DET_MODE_95`, pre-AFE feed/gain/rates |
-| Owner interface | [Existing private HTTPS /sophia](https://plan.tailffc57c.ts.net/sophia), desktop/mobile checks passed |
-| Current physical connection | At06:18BRT: direct sessions0/inputs0; Gateway disconnected with `logical_conversation_closed`. Earlier healthy04:12UTC observation is historical; idle recovery correction is in progress. Firmware is unchanged. |
+| Owner interface | [Existing private HTTPS /sophia](https://plan.tailffc57c.ts.net/sophia); actual desktop/mobile and explicit guest Connect/reload checks passed |
+| Current physical connection | At06:35BRT: protocol2/cloud ready, one attached session, unmuted, increasing capture packets, reader/maintenance running, all four queues empty; errors/encode drops0; stack HWM1,312bytes |
 | Paid generation | Forbidden by the unchanged expired B grant; input closed; no active expert |
 | New finite proposal | Prepared disabled; expiry0; no activation record or mount change |
 | Acceptance boundary | Physical free fixture and rollback passed; real marin/Codex/STT conversation and human acceptance remain pending |
 
 The following implementation history began on November18; earlier source and
-deployment checkpoints are superseded by this table. Source through `6a44169`
-is published and checked in the isolated PLAN worktree; production remains
-`e7546bc`. The guarded browser-binding deployment stopped before stopping any
-service because it expected one empty attached board session and observed zero.
+deployment checkpoints are superseded by this table. The integration branch and
+[draft PR14](https://github.com/anpavel84-afk/gobot-home/pull/14) contain the actual
+runtime source. A later documentation-only fast-forward records this checkpoint
+without restarting that runtime. The physical column is connected, but its old
+paid grant is expired: saying Sophia can trigger local wake, not a newly permitted
+provider response. Full conversational acceptance is not claimed.
 
-### Long-idle recovery finding, November19 06:18BRT
+### Final deployment and verification, November19 06:35BRT
+
+- Native isolated PLAN Windows gate at `9d8d6bb`: **133 passed in23.21s**.
+  Covers the changed lifecycle/API/direct transport, cancellation, accounting,
+  content-free journal and browser UI. The earlier209-case merged gate at
+  `e7546bc` is historical supporting evidence, not another133 added to a total.
+- Guarded deployment from `e7546bc` passed. Original command/cwd ownership and
+  idle state were checked; all six listeners were absent before the fast-forward.
+  Fresh WAL-aware SQLite backups passed quick_check. **16 discovered usage.sqlite
+  ledgers and51 policy files**, existing browser profiles, protected configs and
+  dirty source hashes matched after restart. No DB backup was restored over live
+  history. Codex offline audit again passed with tools[], one local mock request
+  and zero real model requests. Firmware and grants were unchanged.
+- Actual private HTTPS Chrome check passed at1100x1400 and390x844. Explicit
+  Connect created exactly one isolated guest, preserved all previous profiles,
+  and retained the same Secure/HttpOnly/SameSite cookie after reload. Repeated
+  Connect was idempotent. Start stayed disabled with
+  `exact_authorized_client_required`; **getUserMedia calls0**, JS errors0,
+  horizontal overflow0, browser sessions0. Policy and usage-ledger hashes remained
+  unchanged. All four screenshots were inspected privately.
+- The first UI probe reached a physically connected column while its cloud setup
+  was still pending, then attempted source selection too early. The UI rejected
+  that change. Its failed report was retained; the runner now waits for actual
+  configuration confirmation before switching source. The corrected check passed
+  in9.21s, without changing product code or granting microphone access.
+- One actual Gateway-only restart exercised physical detach/reattach in62.19s.
+  The same logical session and conversation returned; the provider transport
+  remained at epoch1, detached age cleared and maintenance stayed running. No
+  input opened, generation or expert job started, or policy/ledger changed.
+  This confirms physical reconnection, while the13 accelerated lifecycle cases
+  exercise the multi-hour idle and expiry boundary without a multi-hour wait.
+- Final read-only checkpoint observed fresh packets1,419 since that Gateway
+  restart, input/task stack HWM1,312bytes, internal free81,307bytes and PSRAM
+  free3,944,772bytes. Encode/send/decode/output queues were0, encode drops0,
+  Gateway errors0. Physical acoustic onset and underruns are not measured here.
+  The prepared proposal is still disabled/expiry0/no activation/no attempt rows;
+  the exact expert cue remains missing and runtime generation remains false.
+
+Private evidence under `C:\Users\PLAN\gobot\HOST-INTEGRATOR-private`:
+`browser-binding-windows-tests-9d8d6bb01452.json`,
+`final-source-deployment.json` and its immutable `final-source-*/result.json`,
+`sophia-binding-ui.json`, `empty-reconnect-1795080763406623600.json`, and
+`final-checkpoint-1795080911423509600.json`. Only source and this factual record
+are published. No new paid response, STT, narrator/cue generation or real CLI task
+was executed; real empty provider configuration was used and is not called zero
+provider connections or a verified zero invoice.
+
+### Long-idle recovery finding and correction
 
 Read-only content-free journal evidence from PLAN confirms `transport_rotated`
 at05:03:30.335UTC, an error whose preserved code is `other` at05:30:51.133UTC,
@@ -43,8 +92,10 @@ At this check all inputs and expert jobs are inactive; historical B reserve
 No new paid grant is activated. No firmware write is required for this correction.
 The focused lifecycle/API/direct-transport/privacy gate passes42unique tests,
 including13new lifecycle cases and2new API cases. Independent review repeated
-the13lifecycle cases and passed. The new source has not yet passed its native
-PLAN gate or replaced the production runtime; those are the immediate next steps.
+the13lifecycle cases and passed. The correction is installed in `9d8d6bb`, with
+the native133-case and physical reconnect evidence above. The prior guarded
+deployment stopped before touching services when it found the unexpected zero
+session state; investigation and correction preceded the actual update.
 
 The owner authorized implementation and reversible deployment of the unified
 Sophia / B_WS / Codex / marin conversation on the existing PLAN and Spotpear.
@@ -100,7 +151,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Configs and the two Browser Lab entry files are hash-verified; SQLite backups
   use the backup API with WAL and pass quick_check. All Brain/native sessions
   and the Gateway were idle; no Browser Lab client was connected at this check.
-- Source published through commit `e7546bc29d9d6709776716349c1b6c1417e055ff` in
+- Source published through commit `9d8d6bb014524f830815152d769d58e9c919331e` in
   [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
   runtime base is retained; current master is an ancestor, with no merge conflict.
 - Candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
@@ -229,13 +280,13 @@ superseded by fresh physical evidence below; its architecture requirements remai
   and still require real timeout/cancellation and consumer waits longer than the
   whole synthetic provider budget. The corrected10-case module passes locally;
   runtime90/45/5s limits are unchanged. The failed report remains private on PLAN.
-- **Final native PLAN gate: 209 passed in44.76s**, at `e7546bc`. This same source
+- **Earlier native PLAN gate: 209 passed in44.76s**, at `e7546bc`. This same source
   was then published and installed. Deployment verified idle legacy/board/browser
   state, preserved dirty-source/config/mount/keys/Lab entry hashes, refreshed the
   actual Codex offline audit (tools[], one mock HTTP request, zero real model
   requests), and restarted the six original listeners. Runtime reports the exact
   target commit. Budget snapshot before/after is identical; firmware was unchanged.
-- **Native PLAN Chrome / real HTTPS verification PASS.** The actual owner URL
+- **Earlier native PLAN Chrome / real HTTPS verification PASS at e7546bc.** The actual owner URL
   rendered desktop1100x1400 and mobile390x844 without horizontal overflow or JS
   errors. The column showed connected / spending disabled, with Stop/Mute usable.
   Selecting the browser showed the actual `browser_binding_missing` condition
@@ -249,9 +300,10 @@ superseded by fresh physical evidence below; its architecture requirements remai
   without a shared-peer fallback. No owner/adult/private-memory permission or
   expense grant is created; no microphone/provider starts. Existing valid Connect
   is idempotent without renewal. Local gate **55 passed**, including18 Node cases;
-  independent implementation review passed. Native follow-up installation and
-  explicit Connect-only verification are the next bounded deployment step.
-- Fresh post-deployment telemetry confirmed protocol2/cloud_ready, increasing
+  independent implementation review passed. The55-case gate also passed natively
+  at `6a44169`; installation and explicit Connect-only verification passed with
+  the combined `9d8d6bb` release as recorded above.
+- The earlier e7546bc post-deployment telemetry confirmed protocol2/cloud_ready, increasing
   physical capture packets, muted=false, input_open=false, generation_allowed=false,
   expert_active=false and zero Gateway errors/encode drops. All four device queues
   were empty; stack HWM remained1,312bytes. Protected hashes and the old B snapshot
@@ -279,14 +331,71 @@ Only after that authorization may the operator explicitly generate the one fixed
 cue, verify its cache, back up and mount the new profile while idle, and perform
 the bounded column acceptance. Preparation itself authorizes none of these calls.
 
-The
-Gateway's negotiated new-protocol configuration remains enabled; a V4 rollback
+The Gateway's negotiated new-protocol configuration remains enabled; a V4 rollback
 retains the legacy contract. Exact app images and the install manifest snapshot
 are private on PLAN. No original configuration was overwritten without backup.
 Keep the expired B grant, expert prohibition and C debt unchanged. No paid model
 generation/STT/real CLI request has been made by HOST-INTEGRATOR. Real empty
 provider transport setup has been verified and is not described as zero provider
 connections.
+
+### Operator continuation and recovery checkpoint
+
+Production checkout: `C:\Users\PLAN\gobot\GoBotHome`, branch
+`feat/host-integrator-sophia-unified-20261118`; runtime code remains `9d8d6bb` after
+the documentation-only checkpoint. At06:35BRT the six service ports/PIDs were
+18781/24512,18782/27248,18783/10368,18784/6728,18789/25372,18811/19152.
+Gateway and the original Browser Lab keep their recorded cmd/cwd. Re-read process
+ownership before any later stop; these PIDs are evidence, not permanent handles.
+The only primary tracked WIP remains `AGENTS.md` and
+`firmware/spotpear/microwake/record_raw_usb.py`; their content hashes match.
+Original HOST-A/HOST-B worktrees and the64-file HOST-A private source backup remain.
+The next necessary action is the exact new financial authorization above, followed
+by the finite provider/physical acceptance, not another flash or repeated free gate.
+
+Backend recovery: first verify no active input, generation or expert and no
+Browser Lab client; back up current files/ledgers without replacing them. Use the
+owned-process cmd/cwd in `final-source-deployment.json`, stop Gateway and Browser
+Lab plus `scripts/manage.py stop`, and verify all six ports are absent. The
+immediate previous source is `e7546bc29d9d6709776716349c1b6c1417e055ff`; switch to
+that retained commit with `git switch --detach <sha>` while preserving both dirty
+files, refresh `scripts/audit_agents.py`, and restore the same managed stack and
+recorded Gateway/Lab commands. Compare protected/ledger hashes, runtime commit and
+owned listeners. This previous release contains the documented long-idle defect;
+use it only for recovery from a new regression. Do not restore a historical usage
+database or clear unknown cost to roll back source. The guarded deployment helper
+uses this recovery sequence on failure; it did not need rollback for `9d8d6bb`.
+
+Firmware recovery: the exact V4 image below was actually restored and verified
+after the rejected0.4.15. The retained0.4.16→V4 pair and immutable manifest passed
+a fresh **files-only** identity/SHA/size check at this checkpoint. For a necessary
+restore, first quiesce the owned Gateway and all voice input; allow only the one
+installer to own COM3. In PLAN PowerShell use the following exact image arguments
+with `tools/sophia_v4_app_install.py` and the existing project Python:
+
+```powershell
+$privateRoot = 'C:\Users\PLAN\gobot\HOST-INTEGRATOR-private'
+$restoreArgs = @(
+  '--current-image', "$privateRoot\sophia-unified-v4-0.4.16.bin",
+  '--current-sha', 'c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102',
+  '--target-image', "$privateRoot\preflight-20261119T012523Z\recovery\sophia_rc1_aggressive_telemetry_v4_20261117.bin",
+  '--target-sha', '254793df0426fecdfafbe5047674aef896568c236dd58330b6e4a47ff9c311a2',
+  '--expected-current-version', '0.4.16-dev-sophia-unified-v4',
+  '--manifest', "$privateRoot\sophia-unified-v4-0.4.16-manifest.json",
+  '--report-dir', "$privateRoot\restore-v416-to-v4",
+  '--attempt-id', 'restore-v416-to-v4', '--port', 'COM3'
+)
+& 'C:\Users\PLAN\gobot\GoBotHome\.venv\Scripts\python.exe' -X utf8 `
+  'C:\Users\PLAN\gobot\GoBotHome\tools\sophia_v4_app_install.py' @restoreArgs
+```
+
+Without `--execute` this performs the UART/current-ROM/layout preflight. After a
+successful preflight, the same invocation with `--execute` permits one verified
+app-only write at0x20000 and post-boot checks; it never writes NVS, bootloader,
+partitions or OTA selection. An existing attempt marker or unknown current image
+is a stop condition, not permission to retry. Restore the owned Gateway afterward;
+its legacy handler remains available for V4. No new flash was done during this
+checkpoint, and a fresh0.4.16→V4 write is not claimed to have been rehearsed.
 
 ---
 
