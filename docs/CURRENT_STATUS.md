@@ -1,108 +1,163 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — Stop/привязка ответов установлены; найден источник обрывов, 19 ноября 20:38 BRT
+## HOST-INTEGRATOR — завершение разговора и исправление обрывов установлены, 19 ноября 20:54 BRT
 
-**В 20:27:45 BRT на PLAN установлен runtime
-`1b7046ccca0fd6f18c2ddeb7aafc9cee0cd17f24`.** Физическая колонка отвечает
-native receipt `available`, `input_allowed=true`, `notice_rendered=false`,
-revision 7; fast/ready/unmuted, capture подключён, генерация разрешена.
+**На PLAN установлен runtime `61b7d8e0a44494a1c015eefbe17d4458489d71e0`
+в 20:54:10.500 BRT.** Это transport-исправление `96422f8` и тестовая правка
+коротких pytest ID; до него в 20:27:45 установлен `1b7046c` с обработкой
+реплик/Stop. Физическая колонка подтвердила `ready`, capture connected,
+микрофон включён, генерация разрешена; native receipt `available`,
+`input_allowed=true`, `notice_rendered=false`, revision 9.
+
 Прошивка остаётся `0.4.17-dev-sophia-ui-v4`, app SHA256
 `d9c8cbb390da510dc8b94edf990b558cc23110d3d51bc9f1885311b849b39d0f`.
-Предпочтительный V4 wake/feed/gain/DET_MODE95 не менялся.
+Предпочтительный V4 wake, модель, feed, gain и DET_MODE95 сохранены.
+Эти два обновления не перепрошивали колонку.
 
 Постоянный `sophia_owner_terminal` / `sophia-owner-terminal-20261119`
 продолжает работать без даты окончания, общих финансовых, временных,
-токенных и количественных лимитов. SHA существующего proposal:
+токенных и количественных ограничений проекта. SHA существующего proposal:
 `6eca55a9fb812cfcbae2e6d6eefe0b4e2673c42e9ad7625a404c1e0848c24225`;
 owner authorization:
 `02fecda67b966be579198fb292ee7d3f6e6c0c7db0dc4e624e1fba444bdd3dfa`.
-При этом обновлении grant/mount/firmware mutations — 0. Никакого нового
-окна доступности или повторного согласования времени/суммы/SHA нет.
+Grant/mount mutations при последних двух установках — 0. Нового окна
+доступности или повторного согласования времени/суммы/SHA не требуется.
+Технические таймауты зависшего обмена и возможность отмены сохраняются;
+квоты внешнего провайдера проект не меняет.
 
-Установленные исправления:
+### Что установлено и как закончить разговор
 
 - Каждый committed device audio item ждёт собственный final ASR до запроса
   генерации; пустой/failed/timeout и точное завершение не создают ответ.
   Используется имеющаяся транскрипция Realtime, исходный audio item сохраняется.
+  Ожидание ограничено 2 s; это корректностная проверка, её реальный вклад
+  в задержку новой слитной реплики ещё нужно измерить.
 - «Стоп», «София, стоп», «Закончим разговор» во время listening/follow-up
   завершают текущий обмен локально, без сгенерированного прощания; следующий
   явный wake доступен. Во время playback голосовой barge-in не реализован.
-  Панель `/sophia` → «Колонка Spotpear» → «Остановить ответ» завершает и
-  listening, и playback, и follow-up. Короткое касание активной колонки не Stop.
+  [Панель Софии](https://plan.tailffc57c.ts.net/sophia) → «Колонка Spotpear» →
+  «Остановить ответ» завершает listening/playback/follow-up/expert.
+  «Выключить микрофон» дополнительно оставляет колонку muted.
+  Короткое касание активной колонки не Stop.
 - Каждое отправленное `response.create` имеет opaque nonce; ACK/текст/audio/tools
   старого запроса после Stop и нового wake не получают прав новой реплики.
   Старый usage учитывается в первоначальной operation. Отклонение старого ACK
   передаёт telemetry, не сбивает новое воспроизведение сообщением error.
+  ACK ожидается до 5 s, без автоматического платного повторения.
 - Follow-up не отправляет samples раньше максимума прежнего floor,
   полученного capture-end и физического input-task read cursor + 3200 samples.
-  Сохраняется 200-мс wall-clock guard. Это подтверждённая граница capture,
-  а не акустическое доказательство отсутствия эха или RX DMA clock.
+  Сохраняется 200-мс wall-clock guard. Это граница capture, а не акустическое
+  доказательство отсутствия эха или RX DMA clock.
+- Brain явно использует имеющийся SansIO transport через
+  `BrainWebSocketProtocol`. На установленном Uvicorn 0.49 добавлены public
+  pause/resume callbacks, освобождение ожидающей отправки при connection_lost
+  и проверка потери соединения до/после writable wait. Зависимости, остальные
+  workers, firmware и playback pacing не обновлялись.
 - В прежнем явно включённом scoped DPAPI-журнале колонки сохраняются финальные
   ASR-гипотезы и финальные ответы с playback qualifier; raw audio и provider
   payload не сохраняются, retention — 7 дней. Тексты не создают semantic memory.
+  Записываются причины и идентификаторы отправленных provider commands.
 
-Финальный gate первой установки: **386 local PASS, 1 Windows-DPAPI skip /
-21.51 s; 384 Windows PASS, 3 platform/compiler skips / 77.75 s**. Пропуски
-покрыты другой платформой. Независимые проверки включали десять вариантов
-late response correlation и сохранение unknown reservations при Stop/rotation.
-Платных provider/model calls в проверках и установке — 0.
+### Что установлено по старому сбойному эпизоду
 
-Сохранены 72 policy/proposal/activation файла, 23 ledger, профильная БД,
-две конфигурации и WIP трёх деревьев. Backup согласован с SQLite WAL; текущие
-ledger до и после установки логически идентичны. Подготовленный source-only
-откат не выполнялся, поскольку установка прошла. Он сохраняет постоянный mount.
+Старый runtime `532` создал 7 ответов после 3 wake: группы 1/3/3. Четыре
+лишних `response.create` следовали за новыми speech/VAD-фрагментами в
+автоматическом follow-up. `create_response=false`: модель не получала права
+самостоятельно создавать ответы. Пять final ASR приходили на 379–483 ms
+позже уже отправленного `response.create`. Это подтверждает преждевременную
+генерацию; старые content-free записи не позволяют восстановить дословные
+вопросы/ответы или установить, было ли исходным звуком эхо колонки.
 
-**Физический idle-прогон после установки — PASS:** 150.020 s, 30 keepalive,
-31 control message, 2502 capture packets; max control age 5.009 s, без
-channel timeout/fault/reconnect или новых расходов. Native available подтверждён
-28 USB-записями на интервале 135.667 s; COM3 закрыт после наблюдения.
-Окончание observer не выключает терминал. Это проверка связи/receipt, не звучания.
-
-Перед установкой уже был восьмой ответ прежнего `532` runtime: wake 20:19:22,
-first audio 20:19:27, detach 20:19:40, whole playback не подтверждён. За всё
-время нового permanent scope — 1 fast operation, 8 response attempts и 8 usage
-rows, оценка ответов $0.05615752 без неподтверждённой стоимости входной
-транскрипции. Эксперт/STT/TTS/cue attempts — 0. После установки в наблюдённом
-интервале новых обращений не было; provider echo nonce и живой final-text журнал
-ещё не подтверждены настоящей новой репликой владельца.
-
-### Отдельная подтверждённая ошибка транспорта; исправление готовится
-
-При расследовании восьмого ответа найден traceback Brain:
+Восьмой ответ на том же старом runtime начался после wake 20:19:22,
+first audio 20:19:27; whole playback не подтверждён. В Brain найден traceback:
 `websockets.legacy.protocol.transfer_data → read_data_frame → pong →
 write_frame → drain → _drain_helper:308 AssertionError`. Время изменения
 хвоста Brain.log — 20:19:30; detach следует через 10.022 s, а Gateway получает
-close 1011 ещё через 4.755 s. Это согласуется с fatal error и закрытием
-legacy transport при остатке buffered audio. На PLAN установлены pinned
-Uvicorn 0.49.0 и websockets 16.0; `ws=auto` выбирает legacy handler.
-Concurrent paused drain воспроизведён без socket/provider на том же normalized
-исходнике библиотеки. Его `transfer_data` переводит такую ошибку в close 1011.
+close 1011 ещё через 4.755 s. Причина — конфликт paused drain при одновременной
+отправке audio/Pong. Ошибка воспроизведена без socket/provider на точно том же
+normalized исходнике websockets 16.0. Это подтверждённый серверный обрыв;
+Wi-Fi как причина именно этого эпизода не подтверждён.
 
-Подготовлено узкое переключение Brain worker на имеющийся SansIO transport
-через `BrainWebSocketProtocol`. Для 0.49 добавлены public callbacks
-pause/resume, освобождение ожидающей отправки при connection_lost и проверка
-потери соединения до/после writable wait. Простой выбор SansIO без этих
-обработчиков недостаточен. Семь новых проверок настоящего loopback WebSocket
-проходят: auth, binary bounds, Stop/Ping, paused audio с рабочим Pong, точное
-возобновление, штатное и аварийное закрытие. Общий local gate из 32 файлов:
-**393 passed, 1 Windows-DPAPI skip / 27.91 s**; Windows gate и установка
-этого второго исправления ещё pending. Зависимости, firmware и playback
-pacing не обновляются. Опция SansIO документирована в
-[Uvicorn WebSockets](https://uvicorn.dev/concepts/websockets/) и
-[Uvicorn Settings](https://uvicorn.dev/settings/).
+Опция SansIO документирована в [Uvicorn WebSockets](https://uvicorn.dev/concepts/websockets/)
+и [Uvicorn Settings](https://uvicorn.dev/settings/). Для PLAN 0.49 одного
+выбора SansIO недостаточно: необходимые callbacks и disconnect guard включены
+в установленный проектный класс и проверены настоящими loopback-соединениями.
+
+### Проверки и фактический учёт
+
+| Проверка | Результат |
+|---|---|
+| Input/Stop/correlation, первая установка | 386 local PASS, 1 Windows-DPAPI skip / 21.51 s; 384 Windows PASS, 3 platform/compiler skips / 77.75 s |
+| Полный gate с transport, 32 файла | 393 local PASS, 1 Windows-DPAPI skip / 27.91 s; 391 Windows PASS, 3 platform/compiler skips / 77.78 s |
+| Новые transport-сценарии | 7 PASS: auth, PCM bounds, Stop/Ping, Pong при paused audio, точное resume, clean close и abort |
+| Исправление переносимости pytest | Только короткие parameter IDs; 7 local PASS / 1.63 s, затем полный Windows gate PASS |
+| Provider/model calls тестов и deployer | 0 |
+
+Первый Windows запуск второго пакета остановился до тела oversized PCM-теста:
+автоматический pytest ID превысил предел переменной окружения Windows. Это
+исправлено без изменения payload, assertions или production-кода. Неуспешный
+кандидат `96422f8` отдельно не развёртывался; установлен прошедший gate `61b7d8e`.
+Платформенные пропуски покрыты другой платформой; настоящий DPAPI проверен на PLAN.
+
+Обе установки сохранили 72 policy/proposal/activation файла, 23 ledger,
+профильную БД, две конфигурации и WIP трёх деревьев. Backup согласован с
+SQLite WAL; исторические ledger логически неизменны, текущим разрешено только
+добавление учёта/settlement. Source-only откат второго пакета подготовлен к
+`1b7046c` с сохранением постоянного mount и накопленного учёта; при успешной
+установке он не выполнялся. Сохранённый ранее физический rollback описан ниже.
+
+Перед вторым обновлением и после него: **2 fast operation, 8 response attempts,
+8 usage rows**. Восьми ответам соответствует прежняя оценка $0.05615752 без
+неподтверждённой стоимости входной транскрипции. Эксперт/STT/TTS/cue attempts — 0.
+Вторая operation была допущена ещё на `1b7046c` в 20:49:21.807 BRT после
+активации устройства. За 8 s не поступило detected speech/endpoint/ASR;
+в 20:49:30.031 обмен завершился по `silence` с возвратом ready. Ответов и
+usage у этой operation — 0. По журналу нельзя отличить намеренный wake
+от ложного wake/касания. Stage2 deployer её не создавал: до/после установки
+счётчики идентичны. В snapshot нового runtime в 20:54:47 BRT есть только ready,
+telemetry и admission_status; новых provider requests и final-text событий нет.
+Реальный provider echo nonce новым обращением владельца ещё не подтверждён.
+
+Первое idle-наблюдение после `1b7046c` прошло: 150.020 s, 30 keepalive,
+31 control message, 2502 capture packets, max control age 5.009 s;
+28 USB-подтверждений available за 135.667 s.
+
+**Повторный физический idle-прогон на `61b7d8e` — PASS:** 150.002 s,
+30 keepalive, 30 control messages, 2502 capture packets; max control age
+4.952 s, без channel timeout, fault/restart и ошибок. Native available
+подтверждён 28 USB-записями за 135.750 s, revision 9. Owner activity не
+наблюдалась; scope и usage остались прежними. COM3 освобождён.
+Окончание этого read-only observer не выключает терминал.
+
+### Следующая физическая проверка
 
 **Приёмка ещё не завершена:** новый разговор на физической колонке,
-проверка самоответов после паузы, реального echo correlation, плавности и
+проверка самоответов после паузы, реального provider correlation, плавности и
 полная цепочка с Antigravity/ARGON_DEEP → marin → уточнение остаются pending.
-Владелец может проверять в удобное время; журнал работает независимо от
-присутствия исполнителя. Начальная фраза: «София, сколько будет два плюс три?».
+Ни unit-тесты, ни idle receipts не являются подтверждением качества звука.
+Эксперт выбран из установленного Antigravity: `ARGON_DEEP`,
+`gemini-4-argon-medium`, effort `medium`; новые реальные expert calls не делались.
 
-Приватные свидетельства: `turn-recovery-windows-tests-1b7046ccca0f.json`,
+Владелец может проверять в удобное время; журнал работает независимо от
+присутствия исполнителя. Начальная фраза: **«София, сколько будет два плюс три?»**,
+затем около 10 s тишины. Дальше отдельное «София» с паузой и вопросом;
+затем аналитический вопрос эксперту без обязательного свежего веб-поиска.
+Для следующего живого ответа нужны новые метрики wake → endpoint_decided →
+first_audio_packet → playback_started, буфер/underrun и commit контекста после
+`playback_finished`. Старые измерения ниже нельзя выдавать за новые.
+Событие старта драйвера не является акустическим измерением; прямой DMA
+underrun counter не инструментирован, доступны отдельные software queue
+и packet-gap показатели. Их нельзя обозначать как доказанные DMA underruns.
+
+Приватные свидетельства второго пакета:
+`stream-recovery-windows-tests-61b7d8e0a444.json`,
+`stream-recovery-source-deployment-61b7d8e0a444.json`,
+`stream-recovery-source-1795132370347288700/result.json`,
+`stream-recovery-readiness-1795132487890519900.json`,
+`stream-recovery-idle-observation-1795132490883472300.json`.
+Первый пакет: `turn-recovery-windows-tests-1b7046ccca0f.json`,
 `turn-recovery-source-deployment-1b7046ccca0f.json`,
-`turn-recovery-source-1795130785033221500/result.json`,
-`turn-recovery-readiness-1795130903358893400.json`,
-`turn-recovery-idle-observation-1795130906709804700.json`,
-`turn-recovery-prior-source-1795131026737071600.json`.
+`turn-recovery-idle-observation-1795130906709804700.json`.
 
 Ниже — история предыдущих этапов. Старые ожидания нового расходного окна
 заменены постоянным OWNER_DIRECT и не являются текущим блокером.
