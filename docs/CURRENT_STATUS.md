@@ -1,70 +1,162 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — human wake reached real audio; feedback fixes prepared, November19 09:20BRT
+## HOST-INTEGRATOR — feedback fixes installed; original grant expired, November19 09:30BRT
 
-The owner has now used the physical column and confirmed waking and audible
-responses. The earlier synthetic-acoustic blocker below is superseded by this
-human observation. Full conversational acceptance is still **not passed**:
-the owner reported unhelpful/current-fact answers, replies to a different
-question, interrupted speech, a stuck listening display and misleading
-connection errors. The owner subsequently rebooted the column and observed
-the explicit exhausted-conversation-limit message.
+### Current state and acceptance boundary
 
-The current old runtime is `4cf8c73`, with firmware0.4.16/V4 unchanged. Its
-finite Google epoch has consumed all3 B starts and9 responses. Four responses
-have exactly512 output tokens. Content-free events show4 accepted wake events
+Runtime **`2acc142f414247af68aba679a1be77cebeb45631`** is installed on PLAN.
+The guarded deployment passed after the native Windows gate. The physical
+Spotpear remains on **`0.4.16-dev-sophia-unified-v4`**, app SHA256
+`c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102`.
+The owner's preferred V4 wake model, `DET_MODE_95`, pre-AFE path, gain and sample
+rates are unchanged. The post-expiry checkpoint at09:30:05BRT has an attached,
+ready, unmuted column, input closed, no active expert and
+**`generation_allowed=false`**. The original finite Google window ended at
+**09:27:13BRT on November19**. It was not extended, reset or replaced.
+
+The owner used the earlier runtime and confirmed real waking and audible
+responses. That supersedes the earlier synthetic-acoustic blocker below.
+Full conversational acceptance is still **not passed**: the owner reported
+unhelpful/current-fact answers, replies to a different question, interrupted
+speech, a stuck listening display and misleading connection errors. After
+rebooting the column, the owner observed the explicit exhausted-conversation
+message. The newly installed fixes have passed free local/native and actual UI
+checks; a new paid physical conversation on this source has not been performed.
+
+### What the live evidence established
+
+The prior runtime `4cf8c73` consumed all3 B starts and9 responses. Four responses
+have exactly512 output tokens. Content-free events contain4 accepted wake events
 and9 whole physical playback receipts, but only5 completed heard-turn records.
-That mismatch is explained by a code defect: Direct WS has no WebRTC
-`output_buffer_started` marker, so truncated audio was prematurely treated as
-unheard before the actual hardware receipt. A physical receipt does not prove
+Direct WS lacked the WebRTC `output_buffer_started` marker used by the old
+truncated-turn handler, so actual PCM could be prematurely classified as unheard
+before its hardware receipt. The installed correction waits for physical
+completion. Neither a playback receipt nor the corrected accounting proves
 smooth or semantically correct speech.
 
-Current rejection events are `board_estimated_budget_exhausted`, not evidence
-of Wi-Fi failure. A fresh USB checkpoint before the owner's reboot showed
-Wi-Fi/enrollment1, protocol ready, continuous capture, DMA drained, no observed
-fault/boot marker and empty queues. Capture encode_drops11 were observed;
-hardware underrun is not instrumented. After the owner's reboot the old
-transport was detached with a TimeoutError; no extra paid start occurred.
-Historical network or packet-loss causes are not ruled out.
+The repeated refusals were **`board_estimated_budget_exhausted`**, not evidence
+of Wi-Fi failure. Firmware rendered a generic connection notice when the Gateway
+sent an error phase for this financial refusal. The installed Gateway instead
+returns to the ready state and shows the specific allowance reason. It also
+clears terminal input state and the post-playback RAM gate, which otherwise
+could keep suppressing later activation. These are identified code defects;
+not every reported interruption has a proven individual cause.
 
-Actual measured-usage estimate for the9 B responses is$0.05887532. The existing
-single cached cue is$0.0010728; their sum is$0.05994812, excluding unconfirmed
-separate input-transcription billing. The B reserve$1 is not the actual invoice.
-Expert jobs0, direct expertSTT0 and expert narrator0 remain. The original
-window still expires09:27:13BRT; it is not renewed or reset.
+A read-only USB check before the owner's reboot showed Wi-Fi/enrollment1,
+protocol ready, continuous capture, DMA drained, no observed fault/boot marker
+and empty queues. Capture encode_drops11 were observed; hardware underrun is
+not instrumented. After the reboot the old transport was detached with a
+TimeoutError; no extra paid start occurred. The post-deployment checkpoint again
+confirms the attached ready physical path. Historical network or packet-loss
+causes are not ruled out.
 
-The prepared corrections close terminal input deterministically, distinguish
-budget rejection from physical connectivity, preserve a separate expert
-allowance in the panel, fix actual-PCM truncated-turn accounting, and retain
-fixed transport/response stop causes without speech content. A narrow first
-short wake-fragment check waits for existing ASR for at most2s, skips a name-only
-item without another paid response, and preserves the unsent question PCM in
-bounded RAM. Independent race review covered early/late ASR, Stop, expiry,
-overlap, pending-state busy checks and a question already underway. No wake
-model, detector threshold, gain, sample rate or firmware has changed.
+### Installed corrections and verification
 
-The current-fact fallback now selects the exact approved ARGON_DEEP profile,
-instead of being hardcoded to SOL_HIGH. General fresh-fact retrieval remains
-unavailable: Google reasoning is not represented as verified web search, and
-the audited CLI tool isolation stays intact.
+The installed patch closes finite input deterministically, distinguishes budget
+rejection from connectivity, preserves visibility of a separate expert allowance,
+fixes truncated-turn accounting against actual PCM and physical playback, and
+retains bounded transport/response stop causes without speech content.
 
-**Local combined gate:564 passed in18.95s.** One dependency deprecation warning
-does not affect the gate. Native Windows gate and guarded deployment are next;
-these source changes are not yet represented as installed by this checkpoint.
+A narrow first short wake-fragment check waits for the existing ASR for at
+most2s. Only an exact name-only result is skipped, without creating another
+paid response or replaying previously forwarded audio. The following question
+stays in bounded RAM and the original capture cursor. Independent race tests
+cover early/late ASR, Stop, expiry, overlap, pending-state busy checks, input
+arriving during asynchronous turn cleanup and a question already underway.
+Content-free historical events do not prove that a particular early item
+contained only the name; this correction has not yet had a new human voice trial.
 
-A new **disabled** `joint_review` proposal type is implemented and tested:
-3×180s B,12 answers/start,1024 output tokens/answer,100000 observed tokens/start,
-B estimate$2;2 ARGON tasks and2×180s STT with the existing bounded marin narrator,
-speech estimate$1;0 cue generations and an existing verified cache required;
-one2h window, no automatic retries. Total$3 is an estimate, not a provider cap.
-It cannot reuse the old approval or rewrite old counters. Actual PLAN proposal
-preparation and any separate owner approval/activation remain pending.
-See [the concrete joint test](handoffs/sophia-unified-voice-2026-11-18/JOINT_TEST.md).
+The current-fact fallback now selects the exact approved `ARGON_DEEP` profile,
+instead of being hardcoded to `SOL_HIGH`: Antigravity CLI with
+`gemini-4-argon-medium`. General fresh-fact retrieval remains unavailable.
+Google reasoning is not represented as verified web search, and the audited
+CLI tool isolation stays intact. No real Codex or Antigravity inference was
+initiated by this feedback diagnosis and deployment.
 
-Private evidence: `owner-feedback-1795089783421122500.json`,
-`wake-state-1795089882398048600.json`,
-`owner-feedback-1795090651419226900.json`. No microphone recording or real
-provider request was initiated by this diagnostic work.
+| Check | Actual result |
+| --- | --- |
+| Local combined source gate | **564 passed in18.95s** |
+| Same native PLAN Windows gate | **564 passed in52.93s** |
+| Guarded source deployment | `2acc142` installed; owned idle services and preservation checks passed |
+| Existing HTTPS UI | **PASS** at1100x1400 and390x844; actual connected column, confirmed cloud configuration, Gemini identity, closed fast admission and explicit budget notice |
+| UI side effects |0 microphone calls,0 voice WebSockets,0 controls clicked,0 JS/HTTP errors,0 horizontal overflow |
+| UI preservation snapshot |62 policy files,19 ledgers,1 browser profile DB and2 configuration files unchanged |
+| Deployment/final preservation |2 dirty main files,54 old policy files,19 ledgers,1 browser profile DB and5 protected files preserved |
+| New physical conversational acceptance | **Pending**; no new funded trial on `2acc142` |
+
+The installed interface is [the existing private HTTPS Sophia panel](https://plan.tailffc57c.ts.net/sophia).
+Stop and Mute remain available when generation is closed. Before the old window
+expired, the UI showed that the separate expert allowance still existed; after
+expiry that allowance is also inactive. A second read-only UI visit at09:30:55BRT
+passed in6.61s and verified the expired state explicitly: `expert_available=false`,
+`realtime_budget_missing_or_expired`, with the exact notice
+“Для этого источника нет действующего разрешения на платный разговор.”
+The column remained connected, fast admission closed, and all UI side-effect
+counters and preservation checks remained unchanged. The earlier09:24BRT desktop
+and mobile screenshots were visually inspected. The preserved snapshot counts
+refer to their respective scopes and are not additional tests to sum together.
+
+### Actual accounting and prepared next step
+
+| Original Google epoch only | Actual use / state |
+| --- | --- |
+| B conversation starts |3 of3 consumed |
+| B responses with reported usage |9; estimate **$0.05887532** |
+| Existing cached marin cue |1 generation; estimate **$0.0010728** |
+| Combined reported estimate |**$0.05994812**, excluding unconfirmed separate input-transcription billing |
+| B reservation |$1; retained reservation, not the actual invoice |
+| Expert CLI / direct expert STT / expert narrator |0 /0 /0; the unused allowance expired with the original window |
+| Original activation window |07:27:13–09:27:13BRT, November19; now expired |
+
+No counter, old ledger, unknown-cost reserve or expiry was reset. The existing
+verified cue remains cached; no second cue generation was requested. Empty
+Realtime transport setup during restart is not represented as zero provider
+connections, and the reported estimates are not a provider invoice cap.
+
+The exact next joint-review proposal has been prepared on PLAN, **disabled**:
+
+- Epoch: `sophia-joint-review-20261119`; variant `joint_review`.
+- Proposal SHA256: `def4605e26e9030519ec52c062a622222a09df4a153f7c30433d6e6edc8cee51`.
+- State: policy expiry0, no activation, not mounted, no usage ledger.
+- Package:3×180s B,12 answers/start,1024 output tokens/answer and100000 observed
+  tokens/start; B estimate$2. Two ARGON tasks and2×180s STT with the existing
+  bounded marin narrator; speech estimate$1. Zero new cue generations; the
+  existing verified cache is required. One2h window, no automatic paid retries.
+- **The owner's approval of this exact $3 estimate package has not been received.**
+  Earlier approval of the expired $2 package does not activate or refill it.
+
+The remaining action before a new paid physical trial is approval of this
+concrete proposal. Its known public phrases, expected results, ordering and
+stop conditions are documented in
+[JOINT_TEST.md](handoffs/sophia-unified-voice-2026-11-18/JOINT_TEST.md).
+No paid trial should start merely from an ordinary status check or page visit.
+The full fast→Gemini→marin→continuation sequence, long expert dictation and human
+speech-quality acceptance remain pending.
+
+### Evidence and recovery
+
+Private PLAN evidence: `owner-feedback-source-deployment.json`,
+`owner-feedback-windows-tests-2acc142f4142.json`,
+`owner-feedback-final-checkpoint-1795091040446073300.json`,
+`owner-feedback-final-checkpoint-1795091405983000300.json`,
+`wake-state-1795091049144198500.json`,
+`feedback-ui-1795091065563244800/report.json`,
+`feedback-ui-1795091455621459300/report.json`, and
+`sophia-joint-review-proposal-receipt.json`.
+The earlier human-feedback checkpoints remain
+`owner-feedback-1795089783421122500.json`,
+`wake-state-1795089882398048600.json`, and
+`owner-feedback-1795090651419226900.json`.
+No microphone recording, raw household text or credential material was added
+to these published documents.
+
+The guarded deployment retains the previous source/configuration recovery and
+WAL-aware financial backups. A rollback must preserve current financial history;
+no old usage DB may be copied over it. Firmware was not rewritten in this
+feedback deployment. The earlier physically verified V4 application rollback
+and0.4.16 restore history remains below; a new source rollback is not claimed as
+physically exercised by the UI check. Historical sections below describe their
+own checkpoints and do not override this current state.
 
 ## HOST-INTEGRATOR — Google expert installed; physical acoustic activation remains blocked, 2026-11-19 (America/Sao_Paulo)
 
