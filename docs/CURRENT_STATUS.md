@@ -89,15 +89,25 @@ superseded by fresh physical evidence below; its architecture requirements remai
   bounded empty-setup retries. It never replays input or resets paid operations.
   The exact known failed candidate can now use a narrow V4 recovery flag while
   retaining all ROM/layout checks. Focused recovery/backend tests: **82 passed**.
+- Repaired **0.4.16-dev-sophia-unified-v4** built successfully from the same
+  verified V4 basis: 3,687,296 bytes, SHA256
+  `c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102`.
+  The capture packer now lives in task-owned static storage. ELF disassembly
+  confirms `AudioInputTask` frame sizes: V4 592 bytes, failed candidate 2,656,
+  repaired candidate 704. Its original 12,288-byte task stack is unchanged.
+  Device resource telemetry now preserves the actual stack high-water mark in
+  bytes for the physical load check. Final source/native checks: **8 passed**.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
-  0.4.15 firmware built but failed physical boot, 0.4.16 repair pending.
+  0.4.15 failed physical boot; repaired 0.4.16 built, installation pending.
   `INSTALLED`: unified backend/UI; physical column restored to working V4.
   `HARDWARE_TESTED`: failed candidate boot and successful exact V4 rollback.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
-Next: deploy the bounded empty-transport recovery correction, retain the working
-V4 and original Gateway configuration while the 0.4.16 fix builds, then verify
-and install the repaired candidate and perform the finite free hardware fixture.
+Next: deploy the bounded empty-transport recovery correction, verify and install
+the repaired candidate, then perform the finite free hardware fixture. The
+Gateway's negotiated new-protocol configuration remains enabled; restored V4
+continues to use the legacy contract. No original configuration was overwritten
+without its verified deployment backup.
 Keep the expired B grant, expert prohibition and C debt unchanged. No paid model
 request has been made by HOST-INTEGRATOR.
 

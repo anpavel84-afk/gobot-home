@@ -92,6 +92,24 @@ def test_empty_ready_and_denied_wake_never_send_audio_or_open_input():
     asyncio.run(run())
 
 
+def test_device_stack_measurement_survives_numeric_resource_filter():
+    async def run():
+        c = connection()
+        envelope = {'session_id': c.transport, 'epoch': c.epoch}
+        await c.device.queue.put(json.dumps({**envelope, 'type': 'gobot_host_stats',
+            'audio_input_stack_hwm_bytes': 2520, 'audio_input_task_present': True,
+            'input_blocks': 50, 'unrecognized_private_text': 'must not persist'}))
+        await c.device.queue.put(json.dumps({**envelope, 'type': 'end_test'}))
+        with pytest.raises(ValueError, match='unsupported_sophia_control'):
+            await c.receive()
+        resources = c.stats['device_resources']
+        assert resources['audio_input_stack_hwm_bytes'] == 2520
+        assert resources['audio_input_stack_hwm_units'] == 'bytes'
+        assert resources['audio_input_task_present'] is True
+        assert 'unrecognized_private_text' not in resources
+    asyncio.run(run())
+
+
 def test_whole_physical_playback_receipt_required_and_stale_audio_dropped():
     async def run():
         c = connection()

@@ -29,6 +29,14 @@ int main() {
     for(size_t i=1920;i<2880;++i)assert(captured[i]==-9);
     assert(!capture.Feed(input.data(),0,emit));
     assert(!capture.Feed(input.data(),961,emit));
+    capture.Reset(0); // cold task restart must not retain the static packer's epoch
+    assert(capture.Epoch()==0 && capture.NextSample()==0);
+    assert(!capture.Feed(input.data(),160,emit));
+    capture.Reset(6);
+    const auto previous_frames=positions.size();
+    for(int i=0;i<6;++i)assert(capture.Feed(input.data(),160,emit));
+    assert(positions.size()==previous_frames+1 && positions.back().epoch==6 &&
+           positions.back().frame_id==0 && positions.back().sample_start==0);
 
     gobot_host::Rc1Stream stream;
     assert(stream.Ready("session","epoch"));

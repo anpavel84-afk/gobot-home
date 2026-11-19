@@ -5,7 +5,7 @@
  idf_build_set_property(MINIMAL_BUILD ON)
  
 -set(PROJECT_VER "0.4.14-dev-host-b-sophia-mic-v4")
-+set(PROJECT_VER "0.4.15-dev-sophia-unified-v4")
++set(PROJECT_VER "0.4.16-dev-sophia-unified-v4")
  project(xiaozhi)
 --- a/main/application.cc
 +++ b/main/application.cc
@@ -309,7 +309,7 @@
  
 --- a/main/audio/audio_service.cc
 +++ b/main/audio/audio_service.cc
-@@ -267,6 +267,54 @@
+@@ -267,6 +267,58 @@
      gobot_mww::suspended();
      xEventGroupSetBits(event_group_, AS_EVENT_AUDIO_INPUT_STOP_REQUEST);
  }
@@ -350,7 +350,11 @@
 +        ",\"output_in_flight\":"+(output_in_flight_?"true":"false")+
 +        ",\"encode_drops\":"+std::to_string(debug_statistics_.encode_drop_count)+
 +        ",\"input_blocks\":"+std::to_string(debug_statistics_.input_count)+
-+        ",\"encoded_frames\":"+std::to_string(debug_statistics_.encode_count);
++        ",\"encoded_frames\":"+std::to_string(debug_statistics_.encode_count)+
++        ",\"audio_input_task_present\":"+(audio_input_task_handle_?"true":"false")+
++        ",\"audio_input_stack_hwm_bytes\":"+std::to_string(audio_input_task_handle_?
++            uxTaskGetStackHighWaterMark(audio_input_task_handle_):0)+
++        ",\"audio_input_stack_hwm_units\":\"bytes\"";
 +}
 +
 +bool AudioService::HardwareOutputDrained() const {
@@ -364,17 +368,20 @@
  void AudioService::AudioInputTask() {
      // Sophia is the ONLY LOCAL wake source by default. No additional I2S
      // reader, new network client or microphone recording.
-@@ -276,6 +324,9 @@
+@@ -276,6 +328,12 @@
      constexpr size_t kSophiaPrefixSamples=32000; // preserve last 2s + no-gap question
      int16_t *sophia_queue_memory=nullptr;
      gobot::WakeQuestionBuffer sophia_question;
-+    gobot_host::CapturePacker host_packer;
++    // Sole audio-input task owns this fixed buffer. Keep the installed V4's
++    // inference stack headroom: 960 PCM samples must not live on its stack.
++    static gobot_host::CapturePacker host_packer;
++    host_packer.Reset(0);
 +    bool host_wake_was_allowed=false;
 +    gobot_sophia::WakeEvidence sophia_evidence{};
      bool sophia_ready=false;
      uint32_t sophia_epoch=1;
      uint64_t sophia_next_sample=0;
-@@ -288,7 +339,8 @@
+@@ -288,7 +346,8 @@
      uint32_t sophia_meter_peak=0;
      uint32_t sophia_meter_nonzero=0;
      uint32_t sophia_meter_reads_failed=0;
@@ -384,7 +391,7 @@
          ESP_LOGW(TAG,"SOPHIA_LOCAL_DETECTED epoch=%lu sample_end=%llu infer_us=%llu event_device_us=%llu",
              (unsigned long)e.epoch, (unsigned long long)e.sample_end,
              (unsigned long long)e.inference_duration_us,
-@@ -431,6 +483,7 @@
+@@ -431,6 +490,7 @@
              std::vector<int16_t> pcm;
              if (!ReadAudioData(pcm,16000,160) || pcm.empty()) {
                  ++sophia_meter_reads_failed;
@@ -392,7 +399,7 @@
                  gobot_raw_wake::missed_block();gobot_mww::miss();vTaskDelay(pdMS_TO_TICKS(10));continue;
              }
              if(codec_->input_channels()==2){
-@@ -438,16 +491,41 @@
+@@ -438,16 +498,41 @@
                  pcm.resize(pcm.size()/2);
              }
              if(local_generation_.load()!=generation) continue;
@@ -436,7 +443,7 @@
                      sophia_question.Observe(pcm.data(),pcm.size());
                  }
                  // Aggregate 5s windows. No raw speech, samples or transcripts are stored.
-@@ -485,7 +563,7 @@
+@@ -485,7 +570,7 @@
                  if(sophia_cooldown_us && now<sophia_cooldown_us) continue;
                  if(sophia_cooldown_us && now>=sophia_cooldown_us) {
                      sophia.new_stream_epoch();
@@ -445,7 +452,7 @@
                      ++sophia_epoch;
                      sophia_cooldown_us=0;
                  }
-@@ -494,16 +572,21 @@
+@@ -494,16 +579,21 @@
                  // with zero Opus uploads, never in the I2S ISR.
                  const auto before=sophia.accepted_wakes();
                  if(!sophia.ingest_existing_pcm(sophia_epoch,sophia_next_sample,
@@ -470,7 +477,7 @@
                          local_hold_.store(true);
                          sophia_buffer_handoff_.store(true);
                          sophia_wake_pending_.store(true);
-@@ -571,6 +654,8 @@
+@@ -571,6 +661,8 @@
          codec_->OutputData(task.pcm);
          // Driver has accepted the buffer; actual acoustic onset is unverified.
          if(callbacks_.on_driver_output_started)callbacks_.on_driver_output_started();
@@ -479,7 +486,7 @@
  
          /* Update the last output time */
          last_output_time_ = std::chrono::steady_clock::now();
-@@ -601,6 +686,7 @@
+@@ -601,6 +693,7 @@
  }
  
  void AudioService::OpusCodecTask() {
@@ -487,7 +494,7 @@
      while (true) {
          std::unique_lock<std::mutex> lock(audio_queue_mutex_);
          audio_queue_cv_.wait(lock, [this]() {
-@@ -627,6 +713,8 @@
+@@ -627,6 +720,8 @@
              task.timestamp = packet->timestamp;
              task.playback_id = packet->playback_id;
              task.media_position_ms = packet->media_position_ms;
@@ -496,7 +503,7 @@
  
              SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);
              bool decoded = false;
-@@ -696,7 +784,18 @@
+@@ -696,7 +791,18 @@
              packet->sample_rate = 16000;
              packet->timestamp = task.timestamp;
              packet->host_producer_seq = host_encoder_seq_.fetch_add(1);
@@ -516,7 +523,7 @@
              if (opus_encoder_ != nullptr && task.pcm.size() == encoder_frame_size_) {
                  packet->payload.resize(encoder_outbuf_size_);
                  esp_audio_enc_in_frame_t in = {
-@@ -712,6 +811,11 @@
+@@ -712,6 +818,11 @@
                  if (ret == ESP_AUDIO_ERR_OK) {
                      packet->payload.resize(out.encoded_bytes);
  
@@ -528,7 +535,7 @@
                      if (task.type == kAudioTaskTypeEncodeToSendQueue) {
                          {
                              std::lock_guard<std::mutex> lock2(audio_queue_mutex_);
-@@ -793,10 +897,12 @@
+@@ -793,10 +904,12 @@
      }
  }
  
@@ -622,7 +629,7 @@
  #pragma once
  #define GOBOT_BUILD_EPOCH 1794492000
 -#define GOBOT_FIRMWARE_VERSION "0.4.14-dev-host-b-sophia-mic-v4"
-+#define GOBOT_FIRMWARE_VERSION "0.4.15-dev-sophia-unified-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.16-dev-sophia-unified-v4"
 --- /dev/null
 +++ b/main/host_output_receipts.h
 @@ -0,0 +1,53 @@
@@ -1406,7 +1413,7 @@
 -        cJSON_AddNumberToObject(caps,"version",1);
 +        cJSON_AddNumberToObject(caps,"version",2);
 +        cJSON_AddNumberToObject(caps,"protocol",2);
-+        cJSON_AddStringToObject(caps,"firmware","0.4.15-dev-sophia-unified-v4");
++        cJSON_AddStringToObject(caps,"firmware","0.4.16-dev-sophia-unified-v4");
 +        cJSON_AddStringToObject(caps,"pcm_stage","pre_afe");
 +        cJSON_AddBoolToObject(caps,"capture_clock",true);
 +        cJSON_AddBoolToObject(caps,"response_receipts",true);

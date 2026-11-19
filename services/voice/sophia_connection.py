@@ -243,9 +243,15 @@ class SophiaConnection:
                 allowed = ('free_heap', 'min_free_heap', 'free_psram', 'queue_frames',
                            'underrun', 'dropped_frames', 'pcm_samples', 'detector_errors',
                            'encode_pending', 'send_pending', 'decode_pending', 'output_pending',
-                           'internal_free', 'psram_free', 'input_blocks', 'encoded_frames', 'encode_drops')
+                           'internal_free', 'psram_free', 'input_blocks', 'encoded_frames', 'encode_drops',
+                           'audio_input_stack_hwm_bytes')
                 self.stats['device_resources'] = {k: obj[k] for k in allowed
                                                   if type(obj.get(k)) in (int, float)}
+                if type(obj.get('audio_input_task_present')) is bool:
+                    self.stats['device_resources']['audio_input_task_present'] = obj['audio_input_task_present']
+                if 'audio_input_stack_hwm_bytes' in self.stats['device_resources']:
+                    # Pinned ESP-IDF reports this high-water mark in bytes.
+                    self.stats['device_resources']['audio_input_stack_hwm_units'] = 'bytes'
                 self.stats['device_resources']['underrun_measurement'] = obj.get('underrun_measurement', 'not_instrumented')
             else:
                 raise ValueError('unsupported_sophia_control')

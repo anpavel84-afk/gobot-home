@@ -4,6 +4,36 @@ This is a **source-only extension of the firmware actually installed on Spotpear
 0.4.14-dev-host-b-sophia-mic-v4. The earlier V3 audit is not the build base. The public repository
 does not contain the private application, model weights, enrolled configuration or transfer pack.
 
+## Corrected stack allocation after physical rollback
+
+The first candidate, 0.4.15-dev-sophia-unified-v4 (app SHA-256
+9bd0daa300f30db3f3c90686caec0ab4aa4765b278edc1650c2da2e1bed26653), passed the
+compiler and native protocol tests but failed on the physical device. UART repeatedly
+reported `A stack overflow in task audio_input has been detected`, followed by
+`0xc RTC_SW_CPU_RST`. Its new 960-sample capture packer had been allocated on the
+existing microphone task's stack. This physical failure is not treated as acceptance.
+
+Root restored the exact V4 app and confirmed its ROM checksum, unchanged partition/OTA
+metadata, and UART version 0.4.14 with Wi-Fi, enrollment and idle state ready. The failed
+candidate's private source, binary, transfer pack and installation report remain preserved.
+
+Version 0.4.16-dev-sophia-unified-v4 moves only that packer to a fixed, task-owned static
+buffer and explicitly resets it to epoch zero when the input task starts. The original
+12 KiB input-task stack allocation, wake model, detector mode, microphone feed, gain and
+AFE remain unchanged. The native test covers epoch-zero restart and clean re-enablement.
+
+Telemetry now includes `audio_input_stack_hwm_bytes` and `audio_input_task_present`.
+The pinned ESP-IDF 6.0.1 `FreeRTOS-Kernel/include/freertos/task.h` explicitly defines
+`uxTaskGetStackHighWaterMark` as minimum remaining **bytes**, unlike the word units in
+standard FreeRTOS documentation. These values must be observed during the new physical
+acceptance; compilation alone does not establish adequate runtime stack margin.
+
+Disassembly of the three actual ELF files confirms the function-local stack frame:
+V4 uses 592 bytes, the failed 0.4.15 used 2,656 bytes, and corrected 0.4.16 uses 704
+bytes. The packer is now a 1,952-byte BSS symbol. The fix therefore removes exactly
+1,952 bytes from the microphone task stack; the remaining frame increase over V4 is
+112 bytes. The total task stack allocation remains 12,288 bytes.
+
 ## Preserved baseline
 
 The installed V4 app is 3,668,912 bytes, SHA-256
