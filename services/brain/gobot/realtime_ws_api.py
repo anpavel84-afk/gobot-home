@@ -54,8 +54,19 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 'capture_connected': bool(getattr(s, '_duplex_attached', False)),
                 'generation_allowed': bool(s.generation_allowed()),
                 'expert_active': expert_active(s),
+                'lifecycle': s.lifecycle_status() if hasattr(s, 'lifecycle_status') else {},
             } for s in sessions]
-            result = {'source': source, 'transport': 'B_WS', 'status': state, 'sessions': safe}
+            # Closed sessions remain explicit tombstones, including unknown
+            # paid usage. Diagnostics expose no question/audio/provider payload.
+            closed = [s for s in manager.sessions.values() if s.closed and device_id and
+                      s.offer.device_id == device_id and (not client_id or
+                      (s.offer.client_id == client_id and s.offer.owner_test_binding == owner_test_binding))]
+            closed.sort(key=lambda s: getattr(s, 'closed_at', 0) or 0, reverse=True)
+            tombstones = [{'session_id': s.id, 'conversation_id': s.offer.conversation_id,
+                'lifecycle': s.lifecycle_status() if hasattr(s, 'lifecycle_status') else {}}
+                for s in closed[:8]]
+            result = {'source': source, 'transport': 'B_WS', 'status': state, 'sessions': safe,
+                      'closed_sessions': tombstones}
             if client_id:
                 preview = await asyncio.to_thread(manager.admission_preview,
                     client_id=client_id, device_id=device_id,
@@ -119,7 +130,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 raise PermissionError('microphone_source_scope_mismatch')
             async with capture_lock:
                 existing = manager.sessions.get(offer.session_id)
-                if existing and getattr(existing, '_duplex_attached', False):
+                if existing and not existing.closed and getattr(existing, '_duplex_attached', False):
                     raise PermissionError('microphone_source_already_attached')
                 session = await manager.accept(offer)
                 if getattr(session, '_duplex_attached', False):

@@ -87,6 +87,7 @@ CODES = {
     'board_policy_outside_owner_allowance', 'warm_transport_scope_changed',
     'paid_operation_expired_new_wake_required', 'profile_authorization_revoked',
     'expert_transcription_failed', 'expert_tts_failed', 'voice_maintenance_failed',
+    'realtime_transport_disconnected',
     'realtime_background_failed', 'openai_tts_unavailable', 'openai_tts_incomplete',
     'expert_budget_missing_or_expired', 'expert_budget_exhausted',
     'native_experts_disabled', 'expert_quota_consent_required', 'other',

@@ -29,6 +29,9 @@ from .realtime_provider import RealtimeProvider, RealtimeProviderError
 from .realtime_budget import estimate_usd
 
 _tool_transport_epoch = ContextVar('gobot_direct_tool_transport_epoch', default=None)
+_DETACH_REASONS = frozenset({'client_disconnected', 'output_backpressure', 'transport_disconnected'})
+_CLOSE_REASONS = frozenset({'closed', 'setup_failed', 'server_shutdown', 'detached_expired',
+                          'profile_authorization_revoked'})
 
 
 class DirectOffer(RealtimeOffer):
@@ -69,6 +72,10 @@ class DirectSession(NativeSession):
         self._priority_events = deque()
         self._deferred_wire_event = None
         self.attached = True
+        self.detached_at = None
+        self.last_detach_reason = None
+        self.last_transport_failure = None
+        self._closing = False
         self.transport_epoch = 0
         self.transport_started = 0.
         self.transport_lock = asyncio.Lock()
@@ -112,6 +119,10 @@ class DirectSession(NativeSession):
         self._reconnect_attempts = 0
         self._reconnect_after = 0.
         self._empty_setup_failed = False
+        self._empty_detached_expired = False
+        # A cancellation can arrive after a durable reserve but before its
+        # result is assigned locally. Such an operation is not proven empty.
+        self._admission_attempts = set()
         self.automatic_dialogue = True
         self.setup_done = False
         self.hangup_confirmed = True  # Direct WS has no WebRTC REST call to hang up.
@@ -251,7 +262,7 @@ class DirectSession(NativeSession):
         return {'type': 'server_vad', 'threshold': .55, 'prefix_padding_ms': 0,
                 'silence_duration_ms': 450, 'idle_timeout_ms': None, **common}
 
-    async def build_config(self):
+    async def require_transport_scope(self):
         # Expired spending is compatible with a silent pipe; a changed owner or
         # authorization identity is not. Recheck before reading scoped context
         # or publishing any configuration/metadata to a replacement transport.
@@ -263,6 +274,9 @@ class DirectSession(NativeSession):
                 self.policy.model not in current_policy.allowed_models or
                 self.offer.owner_test_binding not in (None, self.offer.client_id)):
             raise PermissionError('warm_transport_scope_changed')
+
+    async def build_config(self):
+        await self.require_transport_scope()
         # Only this scope's RAM dialogue is carried to a new provider session.
         req = self.request('Продолжение текущего разговора', self.id)
         context = await asyncio.to_thread(self.manager.brain.memory.context, req)
@@ -296,23 +310,28 @@ class DirectSession(NativeSession):
         context = self.manager.provider.open(self.policy.model)
         ws = await context.__aenter__()
         try:
-            await ws.send(json.dumps({'type': 'session.update', 'session': config}, ensure_ascii=False))
-            async with asyncio.timeout(10):
-                while True:
-                    obj = json.loads(await ws.recv())
-                    if obj.get('type') == 'error':
-                        raise RealtimeProviderError('realtime_configuration_rejected')
-                    if obj.get('type') == 'session.updated':
-                        actual = obj.get('session', {})
-                        formats = [actual.get('audio', {}).get(lane, {}).get('format', {})
-                                   for lane in ('input', 'output')]
-                        if (not settings_applied(actual, config) or
-                                any(f.get('type') != 'audio/pcm' or f.get('rate') != 24000 for f in formats)):
-                            raise RealtimeProviderError('realtime_settings_not_acknowledged')
-                        return context, ws, config
+            await self.configure_socket(ws, config)
+            await self.require_transport_scope()
+            return context, ws, config
         except BaseException:
             await context.__aexit__(None, None, None)
             raise
+
+    async def configure_socket(self, ws, config):
+        async with asyncio.timeout(10):
+            await ws.send(json.dumps({'type': 'session.update', 'session': config}, ensure_ascii=False))
+            while True:
+                obj = json.loads(await ws.recv())
+                if obj.get('type') == 'error':
+                    raise RealtimeProviderError('realtime_configuration_rejected')
+                if obj.get('type') == 'session.updated':
+                    actual = obj.get('session', {})
+                    formats = [actual.get('audio', {}).get(lane, {}).get('format', {})
+                               for lane in ('input', 'output')]
+                    if (not settings_applied(actual, config) or
+                            any(f.get('type') != 'audio/pcm' or f.get('rate') != 24000 for f in formats)):
+                        raise RealtimeProviderError('realtime_settings_not_acknowledged')
+                    return
 
     async def initialize(self):
         async with self.transport_lock:
@@ -366,9 +385,16 @@ class DirectSession(NativeSession):
         if not explicit_wake:
             raise PermissionError('paid_operation_expired_new_wake_required')
         ident = 'wsop_'+uuid4().hex
-        p = await asyncio.to_thread(self.manager.budget.reserve_session, ident,
-                                    self.offer.consent, self.offer.client_id,
-                                    self.offer.owner_test_binding)
+        self._admission_attempts.add(ident)
+        try:
+            p = await asyncio.to_thread(self.manager.budget.reserve_session, ident,
+                                        self.offer.consent, self.offer.client_id,
+                                        self.offer.owner_test_binding)
+        except PermissionError:
+            # A definite transactional denial created no operation. Unknown
+            # errors/cancellation retain the marker and any durable hold.
+            self._admission_attempts.discard(ident)
+            raise
         self.operation_id = ident
         self.operation_policy = p
         self.operation_started = time.monotonic()
@@ -534,8 +560,15 @@ class DirectSession(NativeSession):
                 await self.handle(json.loads(raw))
         except asyncio.CancelledError:
             raise
-        except Exception:
+        except Exception as error:
             if not self.closed and ws is self.ws:
+                kind = type(error).__name__
+                if kind not in {'ConnectionClosedOK', 'ConnectionClosedError', 'ConnectionError',
+                                'TimeoutError', 'OSError', 'JSONDecodeError', 'ValueError'}:
+                    kind = 'other'
+                code = getattr(getattr(error, 'rcvd', None), 'code', None)
+                self.last_transport_failure = {'kind': kind,
+                    'close_code': code if type(code) is int and 1000 <= code <= 4999 else None}
                 self.emit('error', code='realtime_transport_disconnected', automatic_retry=False)
         finally:
             if not self.closed and ws is self.ws:
@@ -732,7 +765,13 @@ class DirectSession(NativeSession):
         if not self.manager.transcription_authorizer:
             raise PermissionError('expert_transcription_budget_unavailable')
         self.require_input_gate(input_epoch)
-        self._stt_reservation = await maybe_await(self.manager.transcription_authorizer(self))
+        attempt = 'stt_'+uuid4().hex
+        self._admission_attempts.add(attempt)
+        try:
+            self._stt_reservation = await maybe_await(self.manager.transcription_authorizer(self))
+        except PermissionError:
+            self._admission_attempts.discard(attempt)
+            raise
         if not isinstance(self._stt_reservation, dict) or self._stt_reservation.get('paid_consent') is not True:
             raise PermissionError('expert_transcription_budget_unavailable')
         self.require_input_gate(input_epoch)
@@ -1001,6 +1040,11 @@ class DirectSession(NativeSession):
         return {'muted': muted}
 
     async def detach(self, reason='client_disconnected'):
+        if self.closed:
+            return
+        if self.attached or self.detached_at is None:
+            self.detached_at = time.monotonic()
+        self.last_detach_reason = reason if reason in _DETACH_REASONS else 'other'
         self.attached = False
         await self.interrupt()
         self.state = 'detached'
@@ -1014,6 +1058,8 @@ class DirectSession(NativeSession):
         self.emit('transport_detached', reason=reason, expert_job_preserved=True)
 
     async def reattach(self):
+        if self.closed or self._closing:
+            raise ValueError('logical_conversation_closed')
         self.attached = True
         self._wire_overflow = False
         try:
@@ -1021,6 +1067,7 @@ class DirectSession(NativeSession):
                 await maybe_await(self.experts.attach(self))
             if not self.ready:
                 await self.rotate(force=True)
+            self.detached_at = None
             self.state = 'thinking' if self.experts.active() else 'muted' if self.muted else 'ready'
             self.emit('ready', model=self.policy.model, voice='marin',
                       configuration_confirmed=self.ready, input_open=False,
@@ -1033,6 +1080,8 @@ class DirectSession(NativeSession):
             # returned a session. A failed empty reconnect must release its
             # provisional subscriber itself, without cancelling logical jobs.
             self.attached = False
+            if self.detached_at is None:
+                self.detached_at = time.monotonic()
             self.input_open = False
             self.state = 'detached'
             self.experts.detach()
@@ -1044,13 +1093,26 @@ class DirectSession(NativeSession):
 
     async def rotate(self, *, force=False):
         async with self.transport_lock:
-            if self.closed:
+            if self.closed or self._closing:
                 return False
             if not force and (self.input_open or self.generating or self.response_requested or
                               any(not task.done() for task in self.tasks)):
                 return False
-            replacement = self._spare or await self.configured_transport()
-            self._spare = None
+            replacement, self._spare = self._spare, None
+            if replacement is None:
+                replacement = await self.configured_transport()
+            else:
+                context, ws, _ = replacement
+                try:
+                    # The spare was prepared a minute (or more) ago. Confirm
+                    # current scope and current Brain context before adoption.
+                    config = await self.build_config()
+                    await self.configure_socket(ws, config)
+                    await self.require_transport_scope()
+                    replacement = context, ws, config
+                except BaseException:
+                    await context.__aexit__(None, None, None)
+                    raise
             old_context, old_reader = self._provider_context, self.reader
             self._provider_context, self.ws, self.config = replacement
             self.transport_epoch += 1
@@ -1129,11 +1191,15 @@ class DirectSession(NativeSession):
                         # Bounded retry for an empty transport only, never replay input.
                         await asyncio.sleep(5)
                 if self._spare is not None and age >= 51*60:
-                    await self.rotate()
+                    try:
+                        await self.rotate()
+                    except Exception:
+                        self.emit('rotation_pending', reason='replacement_unavailable')
+                        await asyncio.sleep(5)
                 if age >= 55*60 and self.input_open:
                     self.input_open = False
                     self.emit('input_closed', reason='transport_rotation_deadline', automatic_retry=False)
-                if not self.attached and not self.experts.active() and now-self.last_activity > 3600:
+                if self.detached_expired(now):
                     await self.manager.close(self.id, self.offer.device_id, self.offer.client_id,
                                              self.offer.profile_epoch, 'detached_expired')
         except asyncio.CancelledError:
@@ -1141,6 +1207,35 @@ class DirectSession(NativeSession):
         except Exception:
             self.input_open = False
             self.emit('error', code='voice_maintenance_failed', automatic_retry=False)
+
+    def detached_expired(self, now=None):
+        now = time.monotonic() if now is None else now
+        return bool(not self.attached and self.detached_at is not None and
+                    not self.experts.active() and now-self.detached_at > 3600)
+
+    def proven_empty(self):
+        return bool(not self._admission_attempts and self.operation_id is None and
+            self._input_samples == 0 and not self._input_started and
+            self.current is None and not self.turns and not self.experts.jobs and
+            not self.calls and not self.response_operations and not self.response_reservations and
+            self.pending_reservation is None and self._stt_reservation is None and
+            not self._narrator_reservations and self.output_response is None and
+            not self.audio_ever_started and not self.generating and not self.response_requested)
+
+    def lifecycle_status(self):
+        now = time.monotonic()
+        return {'attached': self.attached, 'closing': self._closing,
+                'transport_epoch': self.transport_epoch,
+                'transport_age_seconds': round(max(0, now-self.transport_started), 1) if self.transport_started else None,
+                'detached_seconds': round(max(0, now-self.detached_at), 1) if self.detached_at is not None else None,
+                'last_detach_reason': self.last_detach_reason,
+                'last_transport_failure': self.last_transport_failure,
+                'close_reason': self.close_reason if self.close_reason in _CLOSE_REASONS else
+                                'other' if self.close_reason else None,
+                'reader_running': bool(self.reader and not self.reader.done()),
+                'maintenance_running': bool(self._maintenance and not self._maintenance.done()),
+                'reconnect_attempts': self._reconnect_attempts, 'spare_prepared': self._spare is not None,
+                'empty_restore_eligible': bool(self.closed and (self._empty_setup_failed or self._empty_detached_expired))}
 
 
 class DirectRealtimeManager(RealtimeManager):
@@ -1189,11 +1284,13 @@ class DirectRealtimeManager(RealtimeManager):
                         offer.conversation_id, offer.client_kind,
                         offer.owner_test_binding, offer.developer_acceptance):
                     raise PermissionError('logical_conversation_identity_mismatch')
+                if existing._closing:
+                    raise ValueError('logical_conversation_closed')
                 if existing.closed:
-                    if not existing._empty_setup_failed:
+                    if not (existing._empty_setup_failed or existing._empty_detached_expired):
                         raise ValueError('logical_conversation_closed')
-                    # Only failed initial configuration may be replaced. An
-                    # explicitly ended/used conversation is never revived here.
+                    # Only proven-empty setup failure or detached expiry may
+                    # be replaced. Explicit/used/unknown closes stay tombstones.
                     existing = None
             if existing:
                 if existing.attached:
@@ -1250,18 +1347,19 @@ class DirectRealtimeManager(RealtimeManager):
 
     async def close(self, ident, owner, client, epoch, reason='closed'):
         session = self.owned(ident, owner, client, epoch)
-        if session.closed:
+        if session.closed or session._closing:
             return {'closed': True}
+        # Recheck immediately before claiming cleanup; a fresh attach/active
+        # expert cannot be closed by an earlier maintenance observation.
+        if reason == 'detached_expired' and not session.detached_expired():
+            return {'closed': False}
+        session._closing = True
         # Compute this before stop() changes transient state. The exception is
         # strictly transport-only: no paid reservation, input, response or job
         # can have existed. Usage rows and unknown costs are never reset.
-        session._empty_setup_failed = bool(
-            reason == 'setup_failed' and not session.setup_done and
-            session.operation_id is None and session._input_samples == 0 and
-            not session.experts.jobs and not session.response_operations and
-            not session.response_reservations and session.pending_reservation is None and
-            session._stt_reservation is None and not session._narrator_reservations and
-            session.output_response is None and not session.audio_ever_started)
+        empty = session.proven_empty()
+        session._empty_setup_failed = bool(reason == 'setup_failed' and not session.setup_done and empty)
+        session._empty_detached_expired = bool(reason == 'detached_expired' and empty)
         session.close_reason = reason
         await session.stop()
         await session.experts.close()
@@ -1284,6 +1382,7 @@ class DirectRealtimeManager(RealtimeManager):
                 await turn.photo.close()
             turn.query = turn.answer = ''
             turn.req = None
+        session._closing = False
         return {'closed': True, 'hangup_confirmed': True}
 
     async def shutdown(self):

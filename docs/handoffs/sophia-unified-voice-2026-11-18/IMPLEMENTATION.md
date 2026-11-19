@@ -37,6 +37,23 @@ identity, tools and accounting. An authenticated empty socket waits for the actu
 Input and Responses are admitted separately. Rotation preserves the logical
 conversation and does not replay old tool IDs or create a second expert job.
 
+Detached retention starts at the actual detach, independently of the last input
+or the age of an otherwise healthy idle conversation. Cleanup rechecks that the
+session is still detached and has no active expert before claiming closure. A
+failed initial setup or an expired detached session can be replaced under the
+same identity only when the session is provably empty. Admission-attempt markers
+remain after an uncertain cancellation, so an unknown durable reserve cannot be
+mistaken for an unused pipe. Used or explicitly closed conversations stay closed;
+the existing scoped ledgers are never reset by reconnect. The existing limit of
+three setup attempts per60seconds also bounds these empty replacements.
+
+A prepared spare socket revalidates its owner/model/authorization scope and
+receives current scoped context before adoption; an unusable spare is closed and
+discarded. Socket identity prevents a retiring reader from marking its successor
+disconnected. Authenticated status exposes bounded lifecycle metadata, including
+detach duration, transport epoch, maintenance state and closed-session reason,
+without provider text, audio or exception messages.
+
 `sophia_audio.py` owns bounded RAM PCM history and one capture-clock cursor. The
 v2 Gateway orders Opus before decoding, rejects gaps, drops duplicates, selects
 pre-roll once, and sends burst followed by live audio through one stateful

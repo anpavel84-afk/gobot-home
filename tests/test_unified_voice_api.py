@@ -64,6 +64,51 @@ def setup():
     return app, board, browser
 
 
+def test_closed_lifecycle_diagnostics_are_bounded_and_exactly_scoped():
+    from gobot.realtime_ws import DirectOffer
+    app, board, _ = setup()
+    board.admission_preview = lambda **kwargs: {'allowed': False, 'generation_allowed': False}
+    for index in range(12):
+        data = {**hello()['offer'], 'session_id': 'closed-'+str(index)}
+        if index == 11: data['client_id'] = 'other-client'
+        if index == 10: data['device_id'] = 'other-device'
+        session = Session(DirectOffer.model_validate(data))
+        session.closed = True
+        session.closed_at = index
+        session.lifecycle_status = lambda: {'close_reason': 'detached_expired', 'empty_restore_eligible': True}
+        board.sessions[session.id] = session
+    with TestClient(app) as client:
+        result = client.get('/api/v1/voice-ws/status', params={
+            'source': 'device', 'device_id': 'board', 'client_id': 'board'},
+            headers={'Authorization': 'Bearer '+TOKEN}).json()
+        assert result['sessions'] == []
+        assert [s['session_id'] for s in result['closed_sessions']] == ['closed-'+str(i) for i in range(9, 1, -1)]
+        assert all(s['lifecycle']['empty_restore_eligible'] for s in result['closed_sessions'])
+        anonymous = client.get('/api/v1/voice-ws/status', headers={'Authorization': 'Bearer '+TOKEN}).json()
+        assert anonymous['closed_sessions'] == []
+
+
+def test_closed_old_capture_lease_does_not_prevent_manager_authorized_empty_restore():
+    from gobot.realtime_ws import DirectOffer
+    app, board, _ = setup()
+    old = Session(DirectOffer.model_validate(hello()['offer']))
+    old.closed = True
+    old._duplex_attached = True
+    board.sessions[old.id] = old
+    async def restore(offer):
+        session = Session(offer)
+        board.sessions[session.id] = session
+        return session
+    board.accept = restore  # The real manager owns the tested empty-only admission.
+    with TestClient(app) as client:
+        with client.websocket_connect('/api/v1/voice-ws/stream', headers={'Authorization': 'Bearer '+TOKEN}) as ws:
+            ws.send_json(hello())
+            assert ws.receive_json()['type'] == 'transport_attached'
+            assert board.sessions[old.id] is not old
+            ws.send_json({'type': 'ping'})
+            assert ws.receive_json()['type'] == 'pong'
+
+
 def hello(source='device'):
     return {'type': 'hello', 'source': source, 'offer': {
         'session_id': 'session', 'conversation_id': 'conversation',

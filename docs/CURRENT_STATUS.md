@@ -1,6 +1,6 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — deployed; paid acceptance blocked, 2026-11-19 (America/Sao_Paulo)
+## HOST-INTEGRATOR — idle recovery correction in progress, 2026-11-19 (America/Sao_Paulo)
 
 ### Current installed checkpoint
 
@@ -10,14 +10,41 @@
 | Physical Spotpear app | `0.4.16-dev-sophia-unified-v4`, SHA256 `c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102` |
 | Wake basis | Owner-preferred installed V4: unchanged `wn10_sophia`, `DET_MODE_95`, pre-AFE feed/gain/rates |
 | Owner interface | [Existing private HTTPS /sophia](https://plan.tailffc57c.ts.net/sophia), desktop/mobile checks passed |
-| Current physical connection | Protocol2 confirmed; empty cloud transport ready; unmuted; fresh capture packets; zero Gateway errors/encode drops; input-task stack HWM1,312bytes |
+| Current physical connection | At06:18BRT: direct sessions0/inputs0; Gateway disconnected with `logical_conversation_closed`. Earlier healthy04:12UTC observation is historical; idle recovery correction is in progress. Firmware is unchanged. |
 | Paid generation | Forbidden by the unchanged expired B grant; input closed; no active expert |
 | New finite proposal | Prepared disabled; expiry0; no activation record or mount change |
 | Acceptance boundary | Physical free fixture and rollback passed; real marin/Codex/STT conversation and human acceptance remain pending |
 
-The later documentation-only checkpoint records these observations without
-restarting the unchanged runtime. The following implementation history began on
-November18; earlier source/deployment checkpoints are superseded by this table.
+The following implementation history began on November18; earlier source and
+deployment checkpoints are superseded by this table. Source through `6a44169`
+is published and checked in the isolated PLAN worktree; production remains
+`e7546bc`. The guarded browser-binding deployment stopped before stopping any
+service because it expected one empty attached board session and observed zero.
+
+### Long-idle recovery finding, November19 06:18BRT
+
+Read-only content-free journal evidence from PLAN confirms `transport_rotated`
+at05:03:30.335UTC, an error whose preserved code is `other` at05:30:51.133UTC,
+`transport_disconnected` at05:30:51.175UTC, and `closed` with reason
+`detached_expired` at05:30:51.378UTC. Thus this session expired203ms after the
+disconnect. The code incorrectly measures detached retention from last input or
+creation rather than the time of detachment. The cause of the original transport
+disconnect is not recoverable from this bounded journal and is not attributed to
+the rotation27minutes earlier. The private evidence is
+`HOST-INTEGRATOR-private/idle-lifecycle-diagnostic-1795079936057072100.json`.
+
+The implemented correction measures a full retention period from detach, checks
+for a concurrent reattach, and permits bounded replacement of a closed session
+only when it is provably unused. Used/uncertain/explicitly closed conversations
+must retain their terminal state and reservations. Independent review also found
+that a prewarmed replacement must revalidate the same spending scope before use.
+At this check all inputs and expert jobs are inactive; historical B reserve
+`0.3333333333333333` and reported response estimate `0.005838` are unchanged.
+No new paid grant is activated. No firmware write is required for this correction.
+The focused lifecycle/API/direct-transport/privacy gate passes42unique tests,
+including13new lifecycle cases and2new API cases. Independent review repeated
+the13lifecycle cases and passed. The new source has not yet passed its native
+PLAN gate or replaced the production runtime; those are the immediate next steps.
 
 The owner authorized implementation and reversible deployment of the unified
 Sophia / B_WS / Codex / marin conversation on the existing PLAN and Spotpear.
