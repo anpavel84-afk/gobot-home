@@ -1,5 +1,112 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## HOST-INTEGRATOR — Stop/привязка ответов установлены; найден источник обрывов, 19 ноября 20:38 BRT
+
+**В 20:27:45 BRT на PLAN установлен runtime
+`1b7046ccca0fd6f18c2ddeb7aafc9cee0cd17f24`.** Физическая колонка отвечает
+native receipt `available`, `input_allowed=true`, `notice_rendered=false`,
+revision 7; fast/ready/unmuted, capture подключён, генерация разрешена.
+Прошивка остаётся `0.4.17-dev-sophia-ui-v4`, app SHA256
+`d9c8cbb390da510dc8b94edf990b558cc23110d3d51bc9f1885311b849b39d0f`.
+Предпочтительный V4 wake/feed/gain/DET_MODE95 не менялся.
+
+Постоянный `sophia_owner_terminal` / `sophia-owner-terminal-20261119`
+продолжает работать без даты окончания, общих финансовых, временных,
+токенных и количественных лимитов. SHA существующего proposal:
+`6eca55a9fb812cfcbae2e6d6eefe0b4e2673c42e9ad7625a404c1e0848c24225`;
+owner authorization:
+`02fecda67b966be579198fb292ee7d3f6e6c0c7db0dc4e624e1fba444bdd3dfa`.
+При этом обновлении grant/mount/firmware mutations — 0. Никакого нового
+окна доступности или повторного согласования времени/суммы/SHA нет.
+
+Установленные исправления:
+
+- Каждый committed device audio item ждёт собственный final ASR до запроса
+  генерации; пустой/failed/timeout и точное завершение не создают ответ.
+  Используется имеющаяся транскрипция Realtime, исходный audio item сохраняется.
+- «Стоп», «София, стоп», «Закончим разговор» во время listening/follow-up
+  завершают текущий обмен локально, без сгенерированного прощания; следующий
+  явный wake доступен. Во время playback голосовой barge-in не реализован.
+  Панель `/sophia` → «Колонка Spotpear» → «Остановить ответ» завершает и
+  listening, и playback, и follow-up. Короткое касание активной колонки не Stop.
+- Каждое отправленное `response.create` имеет opaque nonce; ACK/текст/audio/tools
+  старого запроса после Stop и нового wake не получают прав новой реплики.
+  Старый usage учитывается в первоначальной operation. Отклонение старого ACK
+  передаёт telemetry, не сбивает новое воспроизведение сообщением error.
+- Follow-up не отправляет samples раньше максимума прежнего floor,
+  полученного capture-end и физического input-task read cursor + 3200 samples.
+  Сохраняется 200-мс wall-clock guard. Это подтверждённая граница capture,
+  а не акустическое доказательство отсутствия эха или RX DMA clock.
+- В прежнем явно включённом scoped DPAPI-журнале колонки сохраняются финальные
+  ASR-гипотезы и финальные ответы с playback qualifier; raw audio и provider
+  payload не сохраняются, retention — 7 дней. Тексты не создают semantic memory.
+
+Финальный gate первой установки: **386 local PASS, 1 Windows-DPAPI skip /
+21.51 s; 384 Windows PASS, 3 platform/compiler skips / 77.75 s**. Пропуски
+покрыты другой платформой. Независимые проверки включали десять вариантов
+late response correlation и сохранение unknown reservations при Stop/rotation.
+Платных provider/model calls в проверках и установке — 0.
+
+Сохранены 72 policy/proposal/activation файла, 23 ledger, профильная БД,
+две конфигурации и WIP трёх деревьев. Backup согласован с SQLite WAL; текущие
+ledger до и после установки логически идентичны. Подготовленный source-only
+откат не выполнялся, поскольку установка прошла. Он сохраняет постоянный mount.
+
+**Физический idle-прогон после установки — PASS:** 150.020 s, 30 keepalive,
+31 control message, 2502 capture packets; max control age 5.009 s, без
+channel timeout/fault/reconnect или новых расходов. Native available подтверждён
+28 USB-записями на интервале 135.667 s; COM3 закрыт после наблюдения.
+Окончание observer не выключает терминал. Это проверка связи/receipt, не звучания.
+
+Перед установкой уже был восьмой ответ прежнего `532` runtime: wake 20:19:22,
+first audio 20:19:27, detach 20:19:40, whole playback не подтверждён. За всё
+время нового permanent scope — 1 fast operation, 8 response attempts и 8 usage
+rows, оценка ответов $0.05615752 без неподтверждённой стоимости входной
+транскрипции. Эксперт/STT/TTS/cue attempts — 0. После установки в наблюдённом
+интервале новых обращений не было; provider echo nonce и живой final-text журнал
+ещё не подтверждены настоящей новой репликой владельца.
+
+### Отдельная подтверждённая ошибка транспорта; исправление готовится
+
+При расследовании восьмого ответа найден traceback Brain:
+`websockets.legacy.protocol.transfer_data → read_data_frame → pong →
+write_frame → drain → _drain_helper:308 AssertionError`. Время изменения
+хвоста Brain.log — 20:19:30; detach следует через 10.022 s, а Gateway получает
+close 1011 ещё через 4.755 s. Это согласуется с fatal error и закрытием
+legacy transport при остатке buffered audio. На PLAN установлены pinned
+Uvicorn 0.49.0 и websockets 16.0; `ws=auto` выбирает legacy handler.
+Concurrent paused drain воспроизведён без socket/provider на том же normalized
+исходнике библиотеки. Его `transfer_data` переводит такую ошибку в close 1011.
+
+Подготовлено узкое переключение Brain worker на имеющийся SansIO transport
+через `BrainWebSocketProtocol`. Для 0.49 добавлены public callbacks
+pause/resume, освобождение ожидающей отправки при connection_lost и проверка
+потери соединения до/после writable wait. Простой выбор SansIO без этих
+обработчиков недостаточен. Семь новых проверок настоящего loopback WebSocket
+проходят: auth, binary bounds, Stop/Ping, paused audio с рабочим Pong, точное
+возобновление, штатное и аварийное закрытие. Общий local gate из 32 файлов:
+**393 passed, 1 Windows-DPAPI skip / 27.91 s**; Windows gate и установка
+этого второго исправления ещё pending. Зависимости, firmware и playback
+pacing не обновляются. Опция SansIO документирована в
+[Uvicorn WebSockets](https://uvicorn.dev/concepts/websockets/) и
+[Uvicorn Settings](https://uvicorn.dev/settings/).
+
+**Приёмка ещё не завершена:** новый разговор на физической колонке,
+проверка самоответов после паузы, реального echo correlation, плавности и
+полная цепочка с Antigravity/ARGON_DEEP → marin → уточнение остаются pending.
+Владелец может проверять в удобное время; журнал работает независимо от
+присутствия исполнителя. Начальная фраза: «София, сколько будет два плюс три?».
+
+Приватные свидетельства: `turn-recovery-windows-tests-1b7046ccca0f.json`,
+`turn-recovery-source-deployment-1b7046ccca0f.json`,
+`turn-recovery-source-1795130785033221500/result.json`,
+`turn-recovery-readiness-1795130903358893400.json`,
+`turn-recovery-idle-observation-1795130906709804700.json`,
+`turn-recovery-prior-source-1795131026737071600.json`.
+
+Ниже — история предыдущих этапов. Старые ожидания нового расходного окна
+заменены постоянным OWNER_DIRECT и не являются текущим блокером.
+
 ## HOST-INTEGRATOR — постоянный режим включён; расследуется самопродолжение, 19 ноября 19:55 BRT
 
 **Постоянный допуск реально установлен в 19:42 BRT.** PLAN загружает

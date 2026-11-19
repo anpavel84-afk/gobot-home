@@ -30,7 +30,14 @@ def worker(name):
         from gobot.voice_mock import VoiceMock
         asyncio.run(VoiceMock(load(),init()['device_token']).serve(PORTS[name]));return
     factory={'brain':'gobot.brain:create_app','bridge':'gobot.bridge:create_app','images':'gobot.voice_mock:image_app'}[name]
-    uvicorn.run(factory,factory=True,host='127.0.0.1',port=PORTS[name],access_log=False,log_level='warning',server_header=False)
+    # Brain's audio writer and automatic Pong must not share legacy drain
+    # waiters. The supported SansIO protocol retains bounded writes on 0.49.
+    websocket_protocol='auto'
+    if name=='brain':
+        from gobot.websocket_transport import BrainWebSocketProtocol
+        websocket_protocol=BrainWebSocketProtocol
+    uvicorn.run(factory,factory=True,host='127.0.0.1',port=PORTS[name],access_log=False,log_level='warning',server_header=False,
+                ws=websocket_protocol)
 class AdoptedWorker:
     """Existing verified Windows worker; adoption never restarts its media service."""
     def __init__(self,process):self.process=process;self.pid=process.pid
