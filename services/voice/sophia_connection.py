@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 from collections import deque
 from contextlib import suppress
 import json
@@ -89,7 +90,67 @@ class SophiaConnection:
                       'downlink_packets': 0, 'cloud_ready': False, 'generation_allowed': False,
                       'raw_audio_saved': False, 'text_saved': False, 'wake_events': 0,
                       'playback_started': 0, 'playback_finished': 0,
-                      'last_error': None, 'input_open': False}
+                      'last_error': None, 'input_open': False, 'output_metrics': []}
+
+    def new_output_metrics(self, response_id, role):
+        metrics = {'response_sha256': hashlib.sha256(response_id.encode()).hexdigest(),
+            'audio_role': role if role in {'fast_answer', 'expert_answer', 'service_cue'} else 'other',
+            'created_wall': time.time(), 'created_monotonic': time.monotonic(),
+            'packets_sent': 0, 'progress_receipts': 0, 'duplicate_progress_receipts': 0,
+            'invalid_progress_receipts': 0, 'last_packets_consumed': 0,
+            'max_packet_send_gap_ms': 0., 'max_progress_receipt_gap_ms': 0.,
+            'min_decode_pending': None, 'min_output_pending': None,
+            'max_decode_pending': None, 'max_output_pending': None,
+            'empty_software_queue_samples': 0, 'empty_queue_and_idle_writer_samples': 0,
+            'underrun_count': None, 'underrun_measurement': 'not_instrumented',
+            'progress_points': []}
+        self.stats['output_metrics'] = [*self.stats['output_metrics'], metrics][-2:]
+        return metrics
+
+    def output_receipt_metrics(self, state, obj):
+        metrics = state['metrics']
+        kind, now, wall = obj.get('state'), time.monotonic(), time.time()
+        if kind == 'progress':
+            consumed = obj.get('packets_consumed')
+            if type(consumed) is not int or not state['consumed'] <= consumed <= state['seq']:
+                metrics['invalid_progress_receipts'] += 1
+                return
+            if consumed == metrics['last_packets_consumed']:
+                metrics['duplicate_progress_receipts'] += 1
+                return
+            previous = metrics.get('last_progress_monotonic')
+            if previous is not None:
+                metrics['max_progress_receipt_gap_ms'] = max(
+                    metrics['max_progress_receipt_gap_ms'], (now-previous)*1000)
+            metrics['last_progress_monotonic'] = now
+            metrics['last_progress_wall'] = wall
+            metrics['last_packets_consumed'] = consumed
+            metrics['progress_receipts'] += 1
+            point = {'wall': wall, 'plan_monotonic': now, 'packets_consumed': consumed}
+            for key in ('decode_pending', 'output_pending'):
+                value = obj.get(key)
+                if type(value) is int and 0 <= value <= 1024:
+                    point[key] = value
+                    for prefix, choose in (('min_', min), ('max_', max)):
+                        previous_value = metrics[prefix+key]
+                        metrics[prefix+key] = value if previous_value is None else choose(previous_value, value)
+            for key in ('decode_in_flight', 'output_in_flight'):
+                if type(obj.get(key)) is bool:
+                    point[key] = obj[key]
+            if point.get('decode_pending') == point.get('output_pending') == 0:
+                metrics['empty_software_queue_samples'] += 1
+                if point.get('output_in_flight') is False:
+                    metrics['empty_queue_and_idle_writer_samples'] += 1
+            metrics['progress_points'] = [*metrics['progress_points'], point][-64:]
+        elif kind in {'playback_started', 'playback_finished', 'segment_finished', 'stopped'}:
+            # Arrival on PLAN is a transport receipt, not acoustic onset.
+            prefix = {'playback_started': 'driver_submit_receipt', 'playback_finished': 'whole_finish_receipt',
+                      'segment_finished': 'segment_finish_receipt', 'stopped': 'stop_receipt'}[kind]
+            metrics[prefix+'_wall'] = wall
+            metrics[prefix+'_monotonic'] = now
+            if (kind == 'playback_finished' and type(obj.get('sample_floor')) is int
+                    and 0 <= obj['sample_floor'] <= 1e15):
+                metrics['completion_capture_sample_floor'] = obj['sample_floor']
 
     def trace(self, event):
         self.events.append(event)
@@ -420,6 +481,7 @@ class SophiaConnection:
                            'seq': 0, 'started_at': None, 'role': data.get('audio_role', 'fast_answer'),
                            'done': False, 'consumed': 0, 'progress_seen': False,
                            'pcm_samples': 0}
+            self.output['metrics'] = self.new_output_metrics(data['response_id'], self.output['role'])
             await self.send({'type': 'gobot_host_output_start', **self.output_fields(),
                              'kind': 'cue' if self.output['role'] == 'service_cue' else 'answer',
                              'streaming': True, 'packet_count': 0, 'codec': 'opus',
@@ -441,12 +503,15 @@ class SophiaConnection:
                                  'pcm_sample_end': self.output['pcm_samples']})
         elif kind == 'audio_stop':
             if self.output and data.get('response_id') == self.output['response_id']:
+                state = self.output
                 for packet in self.output['encoder'].finish():
                     await self.output_packet(packet)
                 self.output['done'] = True
                 await self.send({'type': 'gobot_host_output_end', **self.output_fields(),
                                  'packet_count': self.output['seq'],
                                  'whole_response': self.output['role'] != 'service_cue'})
+                state['metrics']['output_end_sent_monotonic'] = time.monotonic()
+                state['metrics']['output_end_sent_wall'] = time.time()
         elif kind in ('audio_cancel', 'stopped'):
             await self.clear_output()
             self.forward = False
@@ -503,6 +568,17 @@ class SophiaConnection:
                          'sample_count': 1440}, packet)
         state['seq'] += 1
         self.stats['downlink_packets'] += 1
+        now, wall = time.monotonic(), time.time()
+        metrics = state['metrics']
+        previous = metrics.get('last_packet_sent_monotonic')
+        if previous is not None:
+            metrics['max_packet_send_gap_ms'] = max(metrics['max_packet_send_gap_ms'], (now-previous)*1000)
+        else:
+            metrics['first_packet_sent_monotonic'] = now
+            metrics['first_packet_sent_wall'] = wall
+        metrics['last_packet_sent_monotonic'] = now
+        metrics['last_packet_sent_wall'] = wall
+        metrics['packets_sent'] = state['seq']
 
     async def receipt(self, obj):
         state = self.output
@@ -513,21 +589,25 @@ class SophiaConnection:
         if kind == 'stopped' and state.get('cancel_pending'):
             if obj.get('output_epoch') != state['output_epoch']+1:
                 raise ValueError('cancel_output_epoch_not_confirmed')
+            self.output_receipt_metrics(state, obj)
             self.cancel_finished.set()
         elif state.get('cancel_pending'):
             # DMA completion can cross an already-sent cancel. Keep the owner
             # until the next-generation stopped ACK; never open follow-up here.
             return
         elif kind == 'progress':
+            self.output_receipt_metrics(state, obj)
             consumed = obj.get('packets_consumed')
             if type(consumed) is int and state['consumed'] <= consumed <= state['seq']:
                 state['consumed'] = consumed
                 state['progress_seen'] = True
                 self.output_credit.set()
         elif kind == 'playback_started':
+            self.output_receipt_metrics(state, obj)
             self.stats['playback_started'] += 1
             await self.to_brain({'type': 'playback_started', 'response_id': state['response_id']})
         elif kind == 'segment_finished' and obj.get('segment_id') is not None:
+            self.output_receipt_metrics(state, obj)
             await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
                                  'segment_id': obj['segment_id']})
         elif ((kind == 'playback_finished' and obj.get('whole_response') is True)
@@ -538,6 +618,7 @@ class SophiaConnection:
             floor = obj.get('sample_floor')
             if obj.get('stream_epoch') != self.ring.epoch or type(floor) is not int:
                 raise ValueError('physical_playback_capture_floor_missing')
+            self.output_receipt_metrics(state, obj)
             self.ring.set_blocked(True, sample_floor=max(self.ring.end, floor), reason='playback_guard')
             self.stats['playback_finished'] += 1
             self.output = None

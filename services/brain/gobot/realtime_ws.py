@@ -455,6 +455,7 @@ class DirectSession(NativeSession):
                   max_seconds=p.max_session_seconds, reservation_is_invoice=False)
 
     async def wake(self, wake_id, *, source='device', mode=None, trigger='manual'):
+        wake_received_monotonic = time.monotonic()
         async with self.activation_lock:
             if not isinstance(wake_id, str) or not 1 <= len(wake_id) <= 128:
                 raise ValueError('invalid_wake_id')
@@ -508,7 +509,9 @@ class DirectSession(NativeSession):
                           generation_allowed=self.generation_allowed(),
                           state=self.state, input_open=False, automatic_retry=False)
                 raise
-            self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode)
+            self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode,
+                      wake_received_monotonic=wake_received_monotonic,
+                      plan_monotonic=time.monotonic())
             return {'accepted': True, 'input_open': self.input_open, 'mode': self.selected_mode}
 
     def require_input_gate(self, input_epoch):
@@ -705,6 +708,8 @@ class DirectSession(NativeSession):
                 if fragment['commits']:
                     await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
                     return
+                self.emit('telemetry', event='wake_fragment_question_ready',
+                          plan_monotonic=time.monotonic())
                 # A real question is not silently discarded based on length.
                 # Stop VAD now; the ordinary response uses its committed audio.
                 self._wake_fragment = None
@@ -752,7 +757,7 @@ class DirectSession(NativeSession):
             self._wake_fragment = None
             self.emit('telemetry', event='wake_word_only_skipped',
                       buffered_samples=sum(len(pcm)//2 for pcm in fragment['pcm']),
-                      automatic_retry=False)
+                      automatic_retry=False, plan_monotonic=time.monotonic())
             if fragment['commits']:
                 # A second item can commit before the local pause arrives.
                 # Preserve its event/transcript; never delete this question.
@@ -896,7 +901,8 @@ class DirectSession(NativeSession):
                 if early:
                     await self.handle(early)
                 self.emit('telemetry', event='wake_fragment_pending',
-                          captured_samples=self._input_samples, automatic_retry=False)
+                          captured_samples=self._input_samples, automatic_retry=False,
+                          plan_monotonic=time.monotonic())
                 fragment['task'] = self.spawn(self.resolve_wake_fragment(fragment))
                 return
             token = _response_input_epoch.set(self._input_gate_epoch)
@@ -987,14 +993,26 @@ class DirectSession(NativeSession):
         if not self.output_generation_done or not self.output_started:
             raise ValueError('whole_playback_not_confirmed')
         role = self.output_owner
+        turn = self.response_turn.get(response_id)
+        was_stored = bool(turn and turn.stored)
+        # Timestamp the validated physical receipt BEFORE any heard-context
+        # commit. The final playback_finished notification is intentionally
+        # emitted later, after cleanup, and cannot by itself prove that order.
+        self.emit('telemetry', event='playback_receipt_received',
+                  response_id=response_id, audio_role=role, sample_floor=sample_floor,
+                  whole_response=True, heard=bool(turn and turn.stored and not turn.cancelled),
+                  plan_monotonic=time.monotonic())
         job_id = self._expert_responses.get(response_id)
         if job_id and hasattr(self.experts, 'playback_finished'):
             await maybe_await(self.experts.playback_finished(job_id, response_id))
-        turn = self.response_turn.get(response_id)
         if turn:
             turn.client_stopped = True
             turn.drained = True
             await self.maybe_finish(turn)
+            if not was_stored and turn.stored and not turn.cancelled:
+                self.emit('telemetry', event='heard_context_committed',
+                          response_id=response_id, audio_role=role, heard=True,
+                          plan_monotonic=time.monotonic())
         self.speaking = False
         self.state = 'thinking' if self.experts.active() else 'guarding'
         self.output_response = self.output_owner = None
