@@ -182,6 +182,9 @@ class NativeSession(VoiceVisualSession):
         packet=await asyncio.to_thread(self.manager.brain.context_manager.pack,req.text,context,'FAST_CHAT')
         # Existing ACL/context builder provides bounded, scoped facts. No development instructions.
         seed={k:packet[k] for k in ('messages','summary','facts','topic','active_visual_subject','runtime_environment') if packet.get(k)}
+        from .expert_stream import conversation_binding
+        retained=getattr(self.manager,'expert_conversations',{}).get(conversation_binding(self))
+        if retained:seed['expert_results']=retained.context_items()
         from .settings_tools import device_home_context
         seed['home_context']=await asyncio.to_thread(device_home_context,self.manager.brain.configuration.devices,self.offer.device_id,self.offer.client_id)
         instructions=INSTRUCTIONS+' Личная память в этом нативном режиме пока закрыта: личность говорящего не подтверждена. Не обещай сохранение настроек или личных фактов.\nКонтекст JSON:\n'+json.dumps(seed,ensure_ascii=False)
@@ -786,6 +789,7 @@ class RealtimeManager:
         self.session_factory=session_factory or NativeSession
         self.voice_peers=[]
         self.transition_context={}
+        self.expert_conversations={}
 
     def owned(self,ident,owner,client,epoch):
         s=self.sessions.get(ident)
@@ -881,6 +885,9 @@ class RealtimeManager:
         try:
             answer=await s.initialize()
             if s.closed:raise RuntimeError('realtime_setup_cancelled')
+            from .expert_stream import conversation_binding
+            retained=self.expert_conversations.pop(conversation_binding(s),None)
+            if retained:await retained.attach(s)
             return {'session_id':s.id,'sdp':answer,'model':s.policy.model,'voice':s.policy.voice,'audio_preset':s.offer.audio_preset,'configuration_confirmed':True,
                     'memory_mode':s.access.memory_mode,'private_access':False,'speaker_readiness':await asyncio.to_thread(s.speaker.status)}
         except BaseException:
@@ -889,6 +896,7 @@ class RealtimeManager:
         finally:s.setup_done=True
 
     async def close(self,ident,owner,client,epoch,reason='closed'):
+        transport_only=reason in {'sideband_closed','transport_disconnected','socket_rotation','transport_rotation'}
         async with self.lock:
             s=self.sessions.get(ident)
             if s and (s.offer.device_id,s.offer.client_id,s.offer.profile_epoch)!=(owner,client,epoch):raise KeyError('realtime_session_not_found')
@@ -908,6 +916,7 @@ class RealtimeManager:
                     self.transition_context={k:v for k,v in self.transition_context.items() if time.monotonic()-v['at']<60}
                     if len(self.transition_context)>=32:self.transition_context.pop(next(iter(self.transition_context)))
                     self.transition_context[(owner,client,epoch,s.offer.conversation_id)]={'at':time.monotonic(),'messages':messages}
+            if transport_only:s.experts.detach()
             s.closed=True;s.ready=False
             if not already_closed:s.close_reason=reason
             if not already_closed:s.emit('closed',reason=reason)
@@ -917,7 +926,10 @@ class RealtimeManager:
         if s.ws:
             try:await asyncio.wait_for(s.ws.close(),3)
             except Exception:pass
-        await s.experts.close()
+        await s.experts.close(reason=reason)
+        from .expert_stream import conversation_binding
+        if transport_only:self.expert_conversations[conversation_binding(s)]=s.experts
+        else:self.expert_conversations.pop(conversation_binding(s),None)
         if s.current:self.brain.configuration.cancel(s.settings_request('Завершение разговора',s.current.id))
         for turn in s.turns:await s.finish(turn,False)
         for turn in s.turns:
@@ -938,6 +950,8 @@ class RealtimeManager:
 
     async def shutdown(self):
         for s in list(self.sessions.values()):await self.close(s.id,s.offer.device_id,s.offer.client_id,s.offer.profile_epoch,'server_shutdown')
+        for jobs in list(self.expert_conversations.values()):await jobs.close('server_shutdown')
+        self.expert_conversations.clear()
         for call in list(self.hangups):
             try:
                 await self.provider.hangup(call);self.hangups.pop(call,None)

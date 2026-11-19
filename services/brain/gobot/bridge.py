@@ -11,6 +11,7 @@ from .processes import AgentError
 from .models import ExecutorModel
 from .expert_profiles import ExpertProfileName
 from .telemetry import Trace,scope,CURRENT,mark
+from .expert_stream import AnswerDelta
 class Task(BaseModel):
     model_config=ConfigDict(extra='forbid')
     text:str=Field(min_length=1,max_length=8000)
@@ -21,6 +22,7 @@ class Task(BaseModel):
     model_id:ExecutorModel|None=None
     expert_profile:ExpertProfileName|None=None
     trace_id:str|None=Field(default=None,max_length=100)
+    job_id:str|None=Field(default=None,max_length=100)
 
 def create_app(settings=None):
     if settings is None:
@@ -55,9 +57,10 @@ def create_app(settings=None):
             try:
                 async with asyncio.timeout(settings.timeout):
                     usage={}
-                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage,antigravity_transport=settings.router.antigravity_transport,expert_profile=task.expert_profile)
+                    source = MockAgentAdapter().stream(task.text,task.context) if task.provider in {'mock','auto'} else live_stream(task.provider,task.text,task.context,usage_consent=task.usage_consent,model_id=task.model_id,usage=usage,antigravity_transport=settings.router.antigravity_transport,expert_profile=task.expert_profile,job_id=task.job_id)
                     async for delta in source:
-                        yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{'type':'text_delta','text':delta}),ensure_ascii=False)+'\n';seq+=1
+                        metadata=delta.metadata() if isinstance(delta,AnswerDelta) else {}
+                        yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{'type':'text_delta','text':str(delta),**metadata}),ensure_ascii=False)+'\n';seq+=1
                     yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{"type":"telemetry","trace":trace.snapshot()}))+"\n";seq+=1
                     if usage:
                         yield json.dumps(sign_event(settings.bridge_secret,nonce,seq,{'type':'usage','usage':usage,'billing_kind':'cli_subscription'}))+'\n';seq+=1

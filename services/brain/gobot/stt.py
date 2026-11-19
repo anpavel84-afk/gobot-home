@@ -1,5 +1,5 @@
 """OpenAI STT transports. Completed-file and live-input streaming are distinct."""
-import asyncio,base64,io,json,time,wave
+import asyncio,base64,io,json,time,wave,math
 from contextlib import suppress
 import httpx
 from .processes import AgentError
@@ -39,17 +39,21 @@ class OpenAIRecognition:
         except (AgentError,asyncio.CancelledError):raise
         except Exception:raise AgentError('openai_stt_unavailable') from None
 
-    async def live(self,chunks,*,paid_consent=False):
+    async def live(self,chunks,*,paid_consent=False,max_audio_seconds=60,operation_timeout_seconds=100):
         """chunks: async iterator of 24kHz mono PCM16. EOF commits one stable turn.
         Deltas are UI-only; the caller must never dispatch LLM before stt_final.
         """
+        if type(max_audio_seconds) is not int or not 1<=max_audio_seconds<=300:
+            raise AgentError('invalid_live_stt_audio_limit')
+        if type(operation_timeout_seconds) is not int or not 5<=operation_timeout_seconds<=360:
+            raise AgentError('invalid_live_stt_operation_limit')
         key=await self.key(paid_consent)
         from websockets.asyncio.client import connect
         connector=self.connector or connect
-        started=time.perf_counter();first=None;committed=None;count=0
+        started=time.perf_counter();first=None;committed=None;count=0;committed_item=None
         try:
             mark('stt_live_handshake_start')
-            async with asyncio.timeout(100):
+            async with asyncio.timeout(operation_timeout_seconds):
                 async with connector('wss://api.openai.com/v1/realtime?intent=transcription',
                     additional_headers={'Authorization':'Bearer '+key},proxy=None,open_timeout=5,close_timeout=2,max_size=1048576,max_queue=4) as ws:
                     await ws.send(json.dumps({'type':'session.update','session':{'type':'transcription','audio':{'input':{
@@ -59,13 +63,14 @@ class OpenAIRecognition:
                         if item.get('type')=='error':raise AgentError('openai_live_stt_configuration_rejected')
                         if item.get('type')=='session.updated':break
                     mark('stt_live_handshake_end')
-                    yield {'type':'stt_ready','data':{'provider':'openai','model':LIVE_MODEL}}
+                    yield {'type':'stt_ready','data':{'provider':'openai','model':LIVE_MODEL,
+                        'max_audio_seconds':max_audio_seconds,'operation_timeout_seconds':operation_timeout_seconds}}
                     async def send_audio():
                         nonlocal count,committed
                         async for chunk in chunks:
                             if len(chunk)%2 or len(chunk)>48000:raise AgentError('invalid_pcm_chunk')
                             count+=len(chunk)
-                            if count>24000*2*60:raise AgentError('audio_too_large')
+                            if count>24000*2*max_audio_seconds:raise AgentError('audio_too_large')
                             await ws.send(json.dumps({'type':'input_audio_buffer.append','audio':base64.b64encode(chunk).decode()}))
                         if count<4800:raise AgentError('audio_too_short')
                         mark('stt_live_commit');committed=time.perf_counter()
@@ -81,18 +86,35 @@ class OpenAIRecognition:
                             raw=await receive
                             item=json.loads(raw);kind=item.get('type')
                             if kind=='error':raise AgentError('openai_live_stt_unavailable')
+                            if kind=='input_audio_buffer.committed':
+                                candidate=item.get('item_id')
+                                if not isinstance(candidate,str) or not candidate:raise AgentError('invalid_stt_item_id')
+                                if committed_item is not None and committed_item!=candidate:raise AgentError('unexpected_stt_commit')
+                                committed_item=candidate
                             if kind=='conversation.item.input_audio_transcription.delta':
                                 if first is None:first=(time.perf_counter()-started)*1000;mark('stt_partial')
                                 yield {'type':'stt_partial','data':{'text':item.get('delta',''),'item_id':item.get('item_id'),'stable':False,'first_interim_ms':first}}
                             if kind=='conversation.item.input_audio_transcription.completed':
                                 if committed is None:continue
+                                item_id=item.get('item_id');text=item.get('transcript')
+                                if not isinstance(item_id,str) or not item_id:raise AgentError('invalid_stt_item_id')
+                                if committed_item is not None and item_id!=committed_item:continue
+                                if not isinstance(text,str) or len(text)>8000:raise AgentError('invalid_transcript')
+                                raw_usage=item.get('usage',{});usage={}
+                                if isinstance(raw_usage,dict):
+                                    if raw_usage.get('type') in {'duration','tokens'}:usage['type']=raw_usage['type']
+                                    for name in ('seconds','audio_seconds','input_audio_seconds','input_tokens','output_tokens','total_tokens'):
+                                        value=raw_usage.get(name)
+                                        if type(value) in {int,float} and math.isfinite(value) and value>=0:usage[name]=value
                                 yield {'type':'stt_final','data':{'text':item.get('transcript',''),'item_id':item.get('item_id'),'stable':True,
                                     'first_interim_ms':first,'final_ms':(time.perf_counter()-started)*1000,
-                                    'speech_end_to_final_ms':(time.perf_counter()-committed)*1000,'provider':'openai','model':LIVE_MODEL}}
+                                    'speech_end_to_final_ms':(time.perf_counter()-committed)*1000,'provider':'openai','model':LIVE_MODEL,
+                                    'audio_seconds':count/48000,'usage':usage,'usage_reported':bool(usage)}}
                                 return
                             if kind=='conversation.item.input_audio_transcription.failed':raise AgentError('openai_live_stt_failed')
                     finally:
                         if receive and not receive.done():receive.cancel();await asyncio.gather(receive,return_exceptions=True)
                         sender.cancel();await asyncio.gather(sender,return_exceptions=True)
         except (AgentError,asyncio.CancelledError,GeneratorExit):raise
+        except TimeoutError:raise AgentError('openai_live_stt_timeout') from None
         except Exception:raise AgentError('openai_live_stt_unavailable') from None

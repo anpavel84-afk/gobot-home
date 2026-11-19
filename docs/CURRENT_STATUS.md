@@ -1,5 +1,72 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## HOST-INTEGRATOR — integration in progress, 2026-11-18 (America/Sao_Paulo)
+
+The owner authorized implementation and reversible deployment of the unified
+Sophia / B_WS / Codex / marin conversation on the existing PLAN and Spotpear.
+The owner additionally confirmed that the **currently installed wake behavior is
+the best version and must be retained**. The November 18 handoff's V3 baseline is
+superseded by fresh physical evidence below; its architecture requirements remain.
+
+- PLAN remote execution is available. The only production Gateway listens on
+  the existing LAN port 18789; Brain/Bridge/voice/images retain their loopback
+  ports. Browser Voice Lab remains on its existing HTTPS path and loopback18811.
+- Physical COM3 status: `0.4.14-dev-host-b-sophia-mic-v4`, WiFi1, enrolled1,
+  muted0, phase0, wake_running1, upload0. Three bounded status responses were
+  observed; no personal audio was recorded and no provider call was made.
+- The matching preserved V4 app is **3,668,912 bytes**, SHA256
+  `254793df0426fecdfafbe5047674aef896568c236dd58330b6e4a47ff9c311a2`.
+  The existing builder's matching source/app were located. V4 uses the official
+  `wn10_sophia` with **DET_MODE_95**; published V3 used DET_MODE_90. Do not replace
+  V4's model, sensitivity, microphone gain, sample rate or detector feed with V3.
+  Fresh ROM app verification is still required before a new app write.
+- Private hash-verified source backup on PLAN:
+  `HOST-INTEGRATOR-private/preflight-20261119T012523Z`. Preserved all64 dirty/new
+  HOST-A files, both dirty primary-tree files, and HEAD/status of HOST-B. Source
+  trees were unchanged by backup. Private configs/media/ledgers remain private.
+- Integration branch `feat/host-integrator-sophia-unified-20261118` starts from
+  the actually running backend commit `ec09960836a881e2312d1191a6607b486c997f58`,
+  selectively incorporates HOST-A public transport source and all64 preserved
+  HOST-A WIP source files, and retains HOST-B's Sophia source evidence. The docs
+  launcher branch is **not** the implementation base. Original worktrees remain.
+- Current B status: disabled, `board_budget_inactive`, active_sessions0. C stays
+  disabled, `live_previous_finalization_unconfirmed`, active_sessions0. Historical
+  B/C ledgers and Browser Lab metered-v2 allowance are not interchangeable.
+  No budget/expiry/count has been reset or enlarged. Real paid end-to-end tests
+  require an applicable active grant; accessible implementation/free verification
+  continue while the exact existing policies are checked.
+- Direct B_WS is implemented inside the existing Brain, with separate empty
+  transport and paid-operation admission, original per-source ledgers, bounded
+  pre-roll and one output owner. Expert jobs own their lifecycle, verified answer
+  deltas stream through the existing formatter/narrator, and the physical receipt
+  controls continuation. Stop/Mute drop cancelled audio, including queued audio.
+- Free merged expert/legacy gate: **173 passed**. API/Gateway/private-panel gate:
+  **10 passed**. Budget/direct/audio focused checks also pass; these overlapping
+  sets are not added together. Provider/latency/human acceptance is not inferred
+  from synthetic fixtures. The Linux browser renderer could not launch in this
+  executor; native PLAN browser verification remains to be done after deployment.
+- Exact service cue `Передаю задачу эксперту` is **absent** from the inspected
+  100-entry private PLAN cache. Runtime lookup checks text/model/voice/SHA and
+  reports missing; it never generates a paid clip on cache miss.
+- The new `/sophia` panel is mounted in the existing Browser Lab application;
+  its comparison link preserves the previous Browser Lab and its own budget.
+  The public direct-browser WS contract is implemented, but this comparison
+  link does not imply an installed unified browser-microphone session.
+- Deployment backup on PLAN: `HOST-INTEGRATOR-private/deploy-20261119T020547Z`.
+  Configs and the two Browser Lab entry files are hash-verified; SQLite backups
+  use the backup API with WAL and pass quick_check. All Brain/native sessions
+  and the Gateway were idle; no Browser Lab client was connected at this check.
+- `SOURCE_IMPLEMENTED`: core present, final integration checks in progress.
+  `BUILT`: initial V4-based firmware compiled; cold-network wake responsiveness
+  correction and final build pending. `INSTALLED`: existing V4 only; unified
+  backend/firmware not deployed yet. `HARDWARE_TESTED`: V4 status only.
+  `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
+
+Next: publish the isolated integration source, refresh offline CLI isolation
+evidence on PLAN, deploy backend/UI compatibly, finish the V4-preserving firmware
+build, freshly verify ROM/layout and app-only recovery, then run free physical
+checks. Keep the expired B grant, expert prohibition and C debt unchanged.
+
 ## Installed guided calibration — 2026-11-15
 
 Physical Spotpear now runs **0.4.12-dev-guided-calibration-1**, app SHA

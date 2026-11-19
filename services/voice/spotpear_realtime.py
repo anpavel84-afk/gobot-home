@@ -10,6 +10,7 @@ from aiortc import RTCPeerConnection,RTCConfiguration,RTCSessionDescription
 from spotpear_half_duplex import HalfDuplex
 from spotpear_livekit import LocalMediaRelay
 from gobot.voice_status import voice_status
+from voice_latency import mark as latency_mark
 
 class GatedCapture:
     def __init__(self,capture,state):self.capture=capture;self.state=state
@@ -33,13 +34,17 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
     handoff_result=None
     now=lambda:asyncio.get_running_loop().time()
     setup_started=now();capture.setup_ms={}
-    def mark(stage):capture.setup_ms[stage]=round((now()-setup_started)*1000,2)
+    def mark(stage):
+        capture.setup_ms[stage]=round((now()-setup_started)*1000,2)
+        mapped={'local_relay_ready':'relay_ready','offer_ready':'sdp_ready','provider_answer':'provider_configuration_confirmed','input_ready':'provider_media_ready'}
+        latency_mark(capture,mapped[stage])
     async def command(action,**kw):
         response=await client.post(f'{base}/{ident}/command',headers=headers,
             json={**scope,'command_id':uuid.uuid4().hex,'action':action,**kw})
         response.raise_for_status();return response.json()
     async def delivered(pcm):
         if state.state!='Speaking':return
+        latency_mark(capture,'relay_first_output_audio',kind='provider_reply')
         for packet in encoder.feed(pcm,24000):
             await send_audio(packet);state.packet(now())
     try:
@@ -77,6 +82,7 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                     raw=pcm.to_ndarray().astype('<i2').tobytes()
                     audible=np.max(np.abs(np.frombuffer(raw,'<i2').astype(np.int32)))>=8
                     if audible:
+                        latency_mark(capture,'provider_first_output_audio',kind='provider_reply')
                         last_pcm=now()
                         if not state.response_id:await asyncio.wait_for(response_ready.wait(),.5)
                         if state.state=='Thinking':
@@ -96,9 +102,16 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                     if event.get('session_id')!=ident:raise ValueError('unexpected_hardware_b_session')
                     if event['serial']<=serial:continue
                     serial=event['serial'];kind,data=event['type'],event['data']
-                    if kind=='audio_diagnostic' and data.get('stage')=='server_audio_committed':
+                    if kind=='audio_diagnostic' and data.get('stage')=='server_vad_started':
+                        trace=getattr(capture,'latency',None)
+                        if trace:trace.input_started()
+                    elif kind=='audio_diagnostic' and data.get('stage')=='server_audio_committed':
+                        latency_mark(capture,'provider_audio_committed')
                         state.commit();await send(voice_status('B','thinking'))
                     elif kind=='processing' and data.get('response_id'):
+                        trace=getattr(capture,'latency',None)
+                        if trace:trace.response(data['response_id'])
+                        latency_mark(capture,'provider_response_created')
                         state.response(data['response_id']);flushed=False;started_ack=False;drain_started=0.
                         response_ready.set()
                     elif kind=='generation_done':state.provider_done(data.get('response_id'),generation=True)
@@ -133,6 +146,10 @@ async def realtime_turn(client,config,headers,capture,ident,send,send_audio,enco
                 state.activity(capture.playing,stamp)
                 if state.client_started and not started_ack:
                     await command('playback_started',response_id=state.response_id);started_ack=True
+                trace=getattr(capture,'latency',None)
+                if trace:
+                    trace.gauge('relay_output_queue_frames',relay.output_queue.qsize())
+                    trace.gauge('relay_speaker_queued_ms',max(0.,relay.speaker.queued_duration*1000))
                 queues_empty=relay.output_queue.empty() and relay.speaker.queued_duration<=.001
                 if state.generation_done and state.provider_drained and state.state=='Speaking':
                     if not drain_started:drain_started=now()

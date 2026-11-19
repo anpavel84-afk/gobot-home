@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import time
+from contextlib import AsyncExitStack
 from uuid import uuid4
 
 from .processes import AgentError
@@ -9,6 +10,132 @@ from .speech_formatter import SpeechFormatter
 from .telemetry import scope,mark
 from .conversation_control import closing_intent
 from .quick_intents import resolve_quick
+
+
+async def expert_voiced_events(speech, source, *, job_id, conversation_id, turn_id,
+                              response_id, voice='marin', paid_tts_consent=False,
+                              tts_character_limit=None,usage_sink=None,speech_allowed=None):
+    """Speak verified expert deltas through the existing formatter and SpeechTurn.
+
+    ``audio_stop`` reports generation completion, not physical speaker completion.
+    The transport owns playback ACKs and must keep its microphone gate closed until
+    the whole response has drained. No text/audio is persisted by this iterator.
+    """
+    from .providers import SentenceBuffer
+    from .expert_stream import AnswerDelta
+    if tts_character_limit is not None and (type(tts_character_limit) is not int or not 0<=tts_character_limit<=32000):
+        raise ValueError('invalid_tts_character_limit')
+    output=asyncio.Queue(maxsize=16);sentences=asyncio.Queue(maxsize=4)
+    formatter=SpeechFormatter();chunker=SentenceBuffer()
+    audio_enabled=bool(speech is not None and paid_tts_consent and tts_character_limit!=0)
+
+    def event(kind,**data):
+        return {'type':kind,'conversation_id':conversation_id,'turn_id':turn_id,
+                'job_id':job_id,'response_id':response_id,
+                'data':{'job_id':job_id,'response_id':response_id,**data}}
+
+    async def produce():
+        iterator=source.__aiter__()
+        try:
+            async for delta in iterator:
+                if not isinstance(delta,AnswerDelta) or not delta.speakable:continue
+                if delta.job_id not in {None,job_id}:raise ValueError('expert_delta_job_mismatch')
+                await output.put(event('expert_text_delta',text=str(delta),phase=delta.phase,item_id=delta.item_id))
+                for sentence in chunker.feed(str(delta)):await sentences.put(sentence)
+            for sentence in chunker.feed('',final=True):await sentences.put(sentence)
+            await sentences.put(None)
+        finally:
+            if hasattr(iterator,'aclose'):await iterator.aclose()
+
+    async def consume(synthesizer,prepare=None):
+        seq=0;segment_sequence=0;characters=0;started=False;failed=False;suppressed=False
+        while (sentence:=await sentences.get()) is not None:
+            text=formatter.format(sentence)
+            # Bound individual Speech.synthesize calls after number expansion.
+            pieces=[]
+            while len(text)>1200:
+                cut=text.rfind(' ',0,1200)
+                if cut<1:cut=1200
+                pieces.append(text[:cut].strip());text=text[cut:].strip()
+            if text:pieces.append(text)
+            for piece in pieces:
+                segment_id=f'{response_id}:{segment_sequence}'
+                segment_sequence+=1
+                await output.put(event('expert_sentence',text=piece,segment_id=segment_id,
+                                       segment_sequence=segment_sequence,audio_role='expert_answer'))
+                if speech_allowed is not None and not speech_allowed():suppressed=True
+                if not audio_enabled or failed or suppressed:continue
+                if tts_character_limit is not None and characters+len(piece)>tts_character_limit:
+                    failed=True
+                    await output.put(event('tts_status',status='character_limit_reached',
+                                           limit=tts_character_limit,characters_submitted=characters))
+                    continue
+                characters+=len(piece)
+                try:
+                    if prepare is not None:await prepare
+                    audio=synthesizer.synthesize(piece,'openai',voice,paid_consent=True)
+                    try:
+                        async for pcm,rate in audio:
+                            if speech_allowed is not None and not speech_allowed():
+                                suppressed=True
+                                break
+                            if not started:
+                                await output.put(event('audio_start',audio_id=response_id,provider='openai',
+                                                       voice=voice,audio_role='expert_answer'))
+                                started=True
+                            await output.put(event('audio_chunk',audio_id=response_id,segment_id=segment_id,
+                                segment_sequence=segment_sequence,seq=seq,chunk_seq=seq,sample_rate=rate,
+                                format='pcm_s16le',pcm=base64.b64encode(pcm).decode(),audio_role='expert_answer'))
+                            seq+=1
+                    finally:
+                        if hasattr(audio,'aclose'):await audio.aclose()
+                    if not suppressed:
+                        await output.put(event('audio_segment_done',segment_id=segment_id,
+                                               segment_sequence=segment_sequence,audio_role='expert_answer'))
+                except AgentError as error:
+                    failed=True
+                    await output.put(event('tts_error',code=error.code,provider='openai',fallback_used=False))
+                except Exception:
+                    failed=True
+                    await output.put(event('tts_error',code='expert_tts_failed',provider='openai',fallback_used=False))
+        if audio_enabled:
+            await output.put(event('audio_stop',audio_id=response_id,chunks=seq,
+                reason='interrupted' if suppressed else 'tts_error' if failed else 'finished' if started else 'no_audio',
+                characters_submitted=characters,audio_role='expert_answer'))
+
+    async def consume_with_turn():
+        async with AsyncExitStack() as stack:
+            synthesizer=await stack.enter_async_context(speech.turn()) if audio_enabled and hasattr(speech,'turn') else speech
+            prepare=None
+            if audio_enabled and hasattr(synthesizer,'prepare'):
+                prepare=asyncio.create_task(synthesizer.prepare('openai',voice,paid_consent=True))
+            try:await consume(synthesizer,prepare)
+            finally:
+                records=list(getattr(synthesizer,'usage_records',[]))
+                requests=getattr(synthesizer,'requests_started',0)
+                measured={'responses':records,'requests_started':requests,
+                    'complete':requests>0 and len(records)==requests and all(row.get('usage_reported') for row in records)}
+                if usage_sink is not None:usage_sink.update(measured)
+                if prepare is not None:
+                    prepare.cancel();await asyncio.gather(prepare,return_exceptions=True)
+            if audio_enabled:await output.put(event('narrator_usage',**measured))
+
+    async def run():
+        try:
+            async with asyncio.TaskGroup() as group:
+                group.create_task(produce());group.create_task(consume_with_turn())
+        finally:
+            if asyncio.current_task().cancelling():
+                while not output.empty():output.get_nowait()
+                output.put_nowait(None)
+            else:await output.put(None)
+
+    worker=asyncio.create_task(run())
+    try:
+        while (item:=await output.get()) is not None:yield item
+        await worker
+    finally:
+        worker.cancel();await asyncio.gather(worker,return_exceptions=True)
 
 async def voiced_events(service, speech, request, *, speak=True, tts_provider="openai",
                         tts_voice="marin", paid_tts_consent=False,replay=None,prepared=False,tts_character_limit=None):

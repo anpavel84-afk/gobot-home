@@ -1,0 +1,21 @@
+{
+  "model": "vosk-model-small-ru-0.22",
+  "source": "https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip",
+  "license": "Apache-2.0 per official model catalog",
+  "archive_sha256": "961d5ff98a17f4aa6de69864d0aa71fa5bac682301d2b5d17a3f24c5c99a46d4",
+  "lookup_word_ids": {
+    "гобот": -1,
+    "габот": -1,
+    "гоп": 245961
+  },
+  "required_words_available": false,
+  "grammar_injected": false,
+  "aliases_or_fuzzy_matching": false,
+  "model_load_ms": 802.15,
+  "silence_audio_seconds": 30,
+  "silence_compute_seconds": 1.12,
+  "paid_calls": 0,
+  "microphone_opened": false,
+  "phrase_smoke": "BLOCKED_OOV",
+  "human_accepted": false
+}

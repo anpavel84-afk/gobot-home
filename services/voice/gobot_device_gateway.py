@@ -143,10 +143,15 @@ def validate_hello(message: dict) -> bool:
 
 
 class Gateway:
-    def __init__(self, config: dict, brain_token: str, *, client_factory=httpx.AsyncClient):
+    def __init__(self, config: dict, brain_token: str, *, client_factory=httpx.AsyncClient, host_detector_factory=None):
         self.config = config
         self.auth = {'Authorization': 'Bearer ' + brain_token}
+        self.brain_token = brain_token
+        self.unified_session_id = str(uuid.uuid4())
+        self.unified_conversation_id = str(uuid.uuid4())
         self.client_factory = client_factory
+        self.host_detector_factory = host_detector_factory
+        self.latency = None
         self.active = False
         self.next_packet_at = 0.0
         self.stats = {'accepted': 0, 'completed': 0, 'rejected': 0, 'errors': 0, 'received_packets': 0,
@@ -187,8 +192,69 @@ class Gateway:
             await ws.close(1008, 'Unauthorized device'); return
         if self.active:
             await ws.close(1013, 'Device busy'); return
+        unified = self.config.get('unified_voice', {})
+        if isinstance(unified, dict) and unified.get('enabled') is True:
+            # Negotiate before selecting a transport. Legacy firmware receives
+            # exactly its old handler; a v2 flag alone never starts capture.
+            from sophia_connection import SophiaConnection, PrefetchedSocket, supports_sophia_v2
+            try:
+                first = await asyncio.wait_for(ws.recv(), 8)
+                hello = json.loads(first) if isinstance(first, str) else None
+                if supports_sophia_v2(hello):
+                    self.active = True
+                    self.stats['accepted'] += 1
+                    connection = SophiaConnection(self.config, self.brain_token,
+                        session_id=self.unified_session_id, conversation_id=self.unified_conversation_id,
+                        encoder_factory=OpusOutput, on_status=self.save_stats)
+                    self.stats['unified'] = connection.stats
+                    try:
+                        await connection.run(ws, hello, validate_hello)
+                    except (Exception, asyncio.CancelledError) as error:
+                        self.stats['errors'] += 1
+                        connection.stats['last_error'] = type(error).__name__
+                        with contextlib.suppress(Exception):
+                            await ws.close(1011, 'Sophia transport ended; local wake preserved')
+                        if isinstance(error, asyncio.CancelledError):
+                            raise
+                    finally:
+                        self.active = False
+                        self.save_stats()
+                    return
+                ws = PrefetchedSocket(ws, first)
+            except (ValueError, TypeError, TimeoutError):
+                self.stats['rejected'] += 1
+                await ws.close(1008, 'Invalid voice capability handshake')
+                return
+        host_policy = self.config.get('host_wake', {})
+        if isinstance(host_policy, dict) and host_policy.get('enabled') is True:
+            # Separate, explicit LOCAL->HOST deployment approval. No B/C admission
+            # or reserve is consulted for the free local feedback path.
+            if host_policy.get('lan_stream_consent') is not True or host_policy.get('acceptance_only') is not True:
+                await ws.close(1008, 'Explicit HOST acceptance policy required'); return
+            from host_stream import HostConnection
+            from host_vosk import VoskDetector
+            factory = self.host_detector_factory or (lambda: VoskDetector(host_policy.get('model_path', '')))
+            self.active = True
+            self.stats['accepted'] += 1
+            self.save_stats()
+            connection = HostConnection(factory,allow_free_fixture=host_policy.get('free_downlink_fixture') is True,
+                                        input_level_stats=host_policy.get('input_level_stats') is True,
+                                        fixture_packets_factory=getattr(self,'host_fixture_factory',None),
+                                        local_command_responder=getattr(self,'host_local_command_responder',None),
+                                        monika_trial=host_policy.get('monika_trial') is True,
+                                        streaming_turn_factory=getattr(self,'host_streaming_turn_factory',None))
+            self.stats['host'] = connection.stats
+            try:
+                await connection.run(ws, validate_hello)
+            finally:
+                self.stats['host'] = connection.stats
+                self.active = False
+                self.save_stats()
+            return
         self.active = True
         self.stats['accepted'] += 1
+        from voice_latency import LatencyTrace
+        self.latency = LatencyTrace() if self.config.get('latency_enabled') is True else None
         self.save_stats()
         session = str(uuid.uuid4())
         connection_started=asyncio.get_running_loop().time()
@@ -233,6 +299,9 @@ class Gateway:
                     if isinstance(raw, bytes):
                         if state != 'capture' or decoder is None:
                             raise ValueError('audio_outside_capture')
+                        if self.latency:
+                            self.latency.mark('gateway_first_frame')
+                            self.latency.mark('gateway_last_frame',last=True)
                         decoder.feed(raw); self.stats['received_packets'] += 1
                         if decoder.packets == 1:
                             self.stats['streams_with_audio'] += 1
@@ -280,7 +349,12 @@ class Gateway:
                             await send(voice_status('A' if legacy else 'B' if self.config['mode']=='realtime_b' else 'C','connecting'))
                         else:
                             await send({'type':'gobot_access','allowed':True,'continuous':False})
+                        if self.latency and obj.get('latency_v1') is True:
+                            await send({'type':'gobot_latency_ready','trace_id':self.latency.trace_id,'turn':0})
                         state = 'ready'
+                    elif kind=='gobot_latency' and self.latency and state!='hello':
+                        try:self.latency.device_event(obj,session_id=session)
+                        except ValueError:self.latency.invalid+=1
                     elif kind=='gobot_session_ready' and self.config.get('continuous_live') and obj.get('continuous') is True and state in {'ready','capture'}:
                         session_ready=True
                         deferred_start=obj.get('capture_deferred') is True
@@ -300,6 +374,7 @@ class Gateway:
                                 legacy=await self.active_legacy_flow(client) if self.config['mode'] in {'live_c','realtime_b'} else None
                             if not legacy:
                                 stream=StreamingSpeech()
+                                stream.latency=self.latency
                                 maybe_respond()
                             elif self.config.get('continuous_live'):
                                 decoder=OpusInput(26) # A keeps its approved sample/packet cap, not B's 180s buffer.
@@ -358,6 +433,10 @@ class Gateway:
             self.legacy_turn = None
             self.active = False
             self.stats.update(active_engine=None,voice_phase='idle')
+            if self.latency:
+                self.latency.mark('local_resources_released')
+                self.stats['latency']=self.latency.summary()
+                self.latency.closed=True
             self.save_stats()
 
     def save_stats(self):
@@ -375,6 +454,9 @@ class Gateway:
             await asyncio.sleep(scheduled-now)
         await ws.send(packet)
         self.stats['downlink_packets'] += 1
+        if self.latency:
+            self.latency.gauge('send_pacing_wait_ms',max(0.,scheduled-now)*1000)
+            self.latency.mark('first_output_packet_sent',kind='provider_reply' if self.config['mode'] in {'live_c','realtime_b'} else 'fixture' if self.config['mode'] in {'hardware_test','duplex_test'} else 'unknown')
         self.next_packet_at = scheduled + .060
 
     async def respond(self, ws, send, wav: bytes, turn_id: str):
@@ -570,8 +652,10 @@ async def main():
     if config['brain_url']!='http://127.0.0.1:18781':raise ValueError('brain_must_be_loopback')
     if config['mode'] not in {'hardware_test','legacy_a','live_c','realtime_b','duplex_test'}:
         raise ValueError('explicit_hardware_mode_required')
-    token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' else ''
-    if config.get("continuous_live"):
+    host_policy = config.get('host_wake', {})
+    host_only = isinstance(host_policy, dict) and host_policy.get('enabled') is True
+    token = json.loads((ROOT/'run/keys.json').read_text())['api_token'] if config['mode']!='hardware_test' and not host_only else ''
+    if config.get("continuous_live") and not host_only:
         if config["mode"] not in {"live_c","realtime_b","duplex_test"}:raise ValueError("continuous_live_requires_native_mode")
         config["livekit_settings"]=json.loads((PRIVATE/"livekit/private.json").read_text())
     gateway=Gateway(config,token)

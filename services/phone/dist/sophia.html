@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#111923"><title>София · GoBot</title><link rel="stylesheet" href="/sophia/sophia.css"></head>
+<body><main>
+<header><a href="/" class="brand">GoBot<span>домашний голос</span></a><span class="tag">София</span></header>
+<section class="hero"><p class="eyebrow">ВАША КОЛОНКА</p><div class="orb" id="orb" aria-hidden="true"><span></span><span></span></div><h1 id="title">Проверяю подключение</h1><p class="sub" id="description">Состояние появится после ответа колонки и сервера.</p><p id="alert" class="alert" role="status" hidden></p></section>
+<section class="card" aria-label="Управление разговором"><div class="row"><div><h2>Микрофон</h2><p>Один источник для текущего разговора</p></div><select id="source" aria-label="Источник микрофона"><option value="spotpear">Колонка Spotpear</option value="browser">Этот браузер · Browser Lab</option></select></div>
+<div class="divider"></div><h2>Следующее обращение</h2><div class="modes" role="group" aria-label="Режим разговора"><button id="fast" data-mode="fast" aria-pressed="false"><strong>Быстрый разговор</strong><span>Короткие вопросы и продолжение</span></button><button id="expert" data-mode="expert" aria-pressed="false"><strong>Эксперт Codex</strong><span>Продиктуйте задачу целиком</span></button></div>
+<div class="actions"><button id="stop" class="stop">Остановить ответ</button><button id="mute" aria-pressed="false">Выключить микрофон</button></div><p class="hint" id="modeHint">Режим меняется, когда колонка свободна.</p></section>
+<section class="instructions"><h2>Попробуйте сказать</h2><p>«София, сколько сейчас времени?»</p><p>«София, спроси у эксперта…»</p><small>После ответа можно продолжить без имени. Голос — marin. Примеры требуют действующего разрешения на разговор и эксперта.</small></section>
+<details class="card diagnostics"><summary>Подключение и диагностика</summary><dl><div><dt>Облачное соединение</dt><dd id="cloud">Проверяется</dd></div><div><dt>Разговор разрешён</dt><dd id="admission">Проверяется</dd></div><div><dt>Голос</dt><dd id="voice">—</dd></div><div><dt>Пробуждение</dt><dd>Сохранена основа Sophia V4</dd></div></dl><pre id="details"></pre></details>
+<footer><a href="/">Открыть прежний Browser Lab</a><span id="updated">Ожидаю состояние</span></footer>
+</main><script src="/sophia/sophia.js" defer></script></body></html>

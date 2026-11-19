@@ -8,6 +8,7 @@ from .realtime_budget import RealtimeBudget
 from .models import ChatRequest
 from .providers import bridge_stream
 from .expert_store import ExpertBudget
+from .expert_stream import AnswerDelta,conversation_binding
 
 EXPERT_ACTIVITY={'explicit_request','proposal_requested','proposal_created','start_requested','accepted','blocked','completed','failed','timed_out','cancel_requested'}
 EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','expert_quota_consent_required',
@@ -23,9 +24,9 @@ EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','e
 def explicit_expert_request(text):
     """Only a diagnostic intent signal; never authority or a replacement task."""
     value=' '.join(text.casefold().strip().split())
-    value=re.sub(r'^(?:(?:гобот|го бот|пожалуйста|а)[, ]+)+','',value)
+    value=re.sub(r'^(?:(?:софия|гобот|го бот|пожалуйста|а)[, ]+)+','',value)
     value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|давай)[, ]+','',value)
-    return bool(re.search(r'\b(?:cli|цли|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
+    return bool(re.search(r'\b(?:cli|цли|codex|кодекс[ау]?|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
                 and re.match(r'^(?:передай|передать|адресуй|адресовать|отправь|отправить|спроси|спрашивай|подключи|подключить|делегируй|делегировать|обратись|обратиться|попроси|попросить|пусть)\b',value))
 
 def profile_in_text(text):
@@ -36,8 +37,10 @@ def profile_in_text(text):
 
 def explicit_expert_command(text,profile):
     # Only the actual user's imperative can grant this task. Quoted/narrated commands cannot.
-    value=text.strip()
-    return bool(profile_in_text(value)==profile and re.match(r'^(?:(?:а|пожалуйста|ты)[, ]+)*(?:спроси|спрашивай|подключи|передай|отправь|адресуй|попроси|пусть)\b',value,re.I))
+    value=re.sub(r'^(?:(?:софия|гобот|го бот)[, ]+)+','',text.strip(),flags=re.I)
+    selected=profile_in_text(value)
+    return bool((selected==profile or selected is None and explicit_expert_request(value)) and
+                re.match(r'^(?:(?:а|пожалуйста|ты)[, ]+)*(?:спроси|спрашивай|подключи|передай|отправь|адресуй|попроси|пусть)\b',value,re.I))
 
 def normalize_result(text,profile):
     text=text.strip()
@@ -81,6 +84,21 @@ class ExpertJob:
     usage:dict=field(default_factory=dict)
     timings:dict=field(default_factory=dict)
     clock_origin:float=field(default_factory=time.monotonic)
+    response_id:str=field(default_factory=lambda:uuid4().hex)
+    turn_id:str|None=None
+    speech_text:str=''
+    played_text:str=''
+    spoken_segments:dict=field(default_factory=dict)
+    generated_segments:set=field(default_factory=set)
+    played_segments:set=field(default_factory=set)
+    external_narration:bool=False
+    narration_complete:bool=False
+    playback_complete:bool=False
+    context_recorded:bool=False
+    answer_text:str=''
+    speech_cancelled:bool=False
+    narrator_usage:dict=field(default_factory=dict)
+    grant_authorization:str|None=None
 
 class ExpertJobs:
     def __init__(self,session,*,executor=None,budget=None,admission=None):
@@ -90,6 +108,72 @@ class ExpertJobs:
         self.jobs={};self.pending=None;self.lock=asyncio.Lock()
         self.admission=admission
         self.used_confirmation_turns=set()
+        self.binding=conversation_binding(session)
+        self.detached=False;self.closed=False;self.close_reason=None
+        self.context_versions={}
+
+    def detach(self):
+        """Detach a lost socket, retaining bounded logical tasks and RAM context."""
+        self.detached=True
+
+    async def attach(self,session):
+        if self.closed or conversation_binding(session)!=self.binding:
+            raise PermissionError('expert_conversation_binding_changed')
+        previous=self.session
+        if previous is not session and getattr(previous,'experts',None) is self:
+            retired=ExpertJobs(previous,budget=self.budget,admission=self.admission)
+            retired.closed=True;retired.close_reason='transport_replaced';previous.experts=retired
+        self.session=session;self.detached=False;session.experts=self
+        self.context_versions.clear()
+        await self.sync_context()
+        for job in self.jobs.values():
+            if job.state in {'completed','failed','timed_out'} and not job.returned:
+                await self.return_result(job)
+
+    def context_items(self):
+        """Bounded untrusted data; only this principal/conversation can read it."""
+        return [{'job_id':j.id,'response_id':j.response_id,'task':j.task,
+                 'state':j.state,'result':j.result or {'display_text':j.answer_text,'complete':False},'speech_text':j.speech_text,
+                 'played_text':j.played_text,'playback_complete':j.playback_complete,
+                 'speech_cancelled':j.speech_cancelled,'trusted_as_instructions':False}
+                for j in self.jobs.values() if (j.result or j.answer_text) and self.authorized_owner(j)]
+
+    async def sync_context(self,job=None):
+        s=self.session
+        if self.closed or self.detached or s.closed:return
+        for item in self.context_items():
+            if job is not None and item['job_id']!=job.id:continue
+            version=(item['state'],len(item['result'].get('display_text','')),len(item['speech_text']),len(item['played_text']),item['playback_complete'],item['speech_cancelled'])
+            if self.context_versions.get(item['job_id'])==version:continue
+            try:
+                hook=getattr(s,'expert_context_synced',None)
+                if hook:
+                    if await hook(self.jobs[item['job_id']],item) is False:continue
+                else:
+                    await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,
+                        'type':'message','role':'user','content':[{'type':'input_text','text':json.dumps(
+                        {'kind':'expert_context_snapshot','data':item,'trusted_as_instructions':False},ensure_ascii=False)}]}})
+            except Exception:
+                s.emit('expert_context_pending',job_id=item['job_id'],reason='transport_unavailable')
+                continue
+            self.context_versions[item['job_id']]=version
+            self.jobs[item['job_id']].timings['expert_context_synced']=round((time.monotonic()-self.jobs[item['job_id']].clock_origin)*1000,2)
+
+    async def playback_finished(self,job_id,response_id,segment_id=None):
+        job=self.jobs.get(job_id)
+        if not job or job.response_id!=response_id or not self.authorized_owner(job):return False
+        if job.state=='cancelled' or job.speech_cancelled:return False
+        if segment_id is not None:
+            if segment_id not in job.generated_segments:return False
+            job.played_segments.add(segment_id)
+        else:
+            if not job.narration_complete:return False
+            job.played_segments.update(job.generated_segments)
+            job.playback_complete=True
+        job.played_text=' '.join(text for ident,text in job.spoken_segments.items() if ident in job.played_segments)
+        await self.record_context(job)
+        await self.sync_context(job)
+        return True
 
     def audit(self,stage,reasons=()):
         recorder=getattr(self.session,'expert_audit',None)
@@ -102,7 +186,8 @@ class ExpertJobs:
 
     def authorized_owner(self,job):
         s=self.session
-        if s.closed or job.owner!=s.access.effective_scope or job.profile_id!=getattr(s.access,'confirmed_profile_id',None):return False
+        if self.closed or (s.closed and not self.detached) or conversation_binding(s)!=self.binding or job.owner!=s.access.effective_scope or job.profile_id!=getattr(s.access,'confirmed_profile_id',None):return False
+        if getattr(s,'owner_test_authorized',False) and not s.manager.owner_testing.authorized(s.owner_test_binding):return False
         if job.profile_id:
             return bool(s.manager.identity.family.session_valid(job.profile_id,job.profile_epoch))
         return True # Synthetic unprofiled unit harness; runtime admission requires an adult.
@@ -149,6 +234,7 @@ class ExpertJobs:
         if len(self.jobs)>=8:raise ValueError('expert_job_capacity')
         if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
         job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,self.revision(),self.session.access.effective_scope,self.session.offer.conversation_id)
+        job.turn_id=getattr(turn,'id',None)
         job.profile_id=getattr(self.session.access,'confirmed_profile_id',None)
         job.profile_epoch=getattr(self.session.offer,'confirmed_profile_epoch',None)
         job.remember=bool(getattr(self.session.offer,'remember',False) and job.profile_id and job.profile_epoch)
@@ -190,11 +276,12 @@ class ExpertJobs:
 
     async def start(self,proposal_id,call_id,*,delegation_id=None):
         async with self.lock:
+            if self.closed or self.detached:raise PermissionError('expert_context_changed')
             job=next((j for j in self.jobs.values() if j.proposal_id==proposal_id),None)
             if not job or job.owner!=self.session.access.effective_scope:raise ValueError('expert_proposal_not_found')
             started_key=job.call_id or job.operation_id
             if started_key:
-                if started_key==call_id:return job
+                if started_key==call_id or call_id is None and started_key=='local:'+job.id:return job
                 raise ValueError('expert_job_already_started')
             if job.state!='awaiting_confirmation' or not job.confirmed or time.time()>job.expires or job.revision!=self.revision():raise PermissionError('current_user_confirmation_required')
             if job.confirmation_turn_id and job.confirmation_turn_id!=getattr(self.session.current,'id',None):raise PermissionError('current_user_confirmation_required')
@@ -223,7 +310,9 @@ class ExpertJobs:
             reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session,'owner_test_binding',None))
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
-            if hasattr(self.session,'expert_accepted'):job.operation_id=call_id;job.delegation_id=delegation_id
+            job.grant_authorization=reserved.authorization
+            if call_id is None:job.operation_id='local:'+job.id
+            elif hasattr(self.session,'expert_accepted'):job.operation_id=call_id;job.delegation_id=delegation_id
             else:job.call_id=call_id
             job.state='queued'
             self.audit('accepted')
@@ -232,12 +321,28 @@ class ExpertJobs:
             self.persist(job)
             # Close the real tool call exactly once with accepted, not a fabricated result.
             if hasattr(self.session,'expert_accepted'):await self.session.expert_accepted(job)
-            else:
+            elif call_id is not None:
                 await self.session.send({'type':'conversation.item.create','item':{'type':'function_call_output','call_id':call_id,
                     'output':json.dumps({'accepted':True,'job_id':job.id,'state':'queued','result_available':False})}})
-            job.worker=self.session.spawn(self.run(job))
+            # A transport reader must not own a paid logical job's lifetime.
+            job.worker=asyncio.create_task(self.run(job),name='expert:'+job.id)
             self.session.emit('expert_job',job=self.public(job))
             return job
+
+    async def start_local(self,task,profile,turn):
+        """Application-only entry after explicit, server-owned expert selection.
+
+        No fabricated provider call ID is created. A model proposal cannot set the
+        selection hook; it is implemented by the authenticated input coordinator.
+        """
+        if turn is not self.session.current:raise PermissionError('expert_context_changed')
+        selected=getattr(self.session,'expert_input_authorized',None)
+        if not explicit_expert_command(turn.query,profile) and not (selected and selected(turn)):
+            raise PermissionError('current_user_confirmation_required')
+        proposal=self.propose(task,profile,turn)
+        job=self.pending
+        job.task=turn.query;job.confirmed=True;job.confirmation_turn_id=getattr(turn,'id',None)
+        return await self.start(proposal['proposal_id'],None)
 
     async def prepare_packet(self,job):
         s=self.session
@@ -261,44 +366,150 @@ class ExpertJobs:
                         remember=False,turn_id=job.id,provider=job.profile['provider'],model_id=job.profile['model'],usage_consent=True)
         packet=job.packet or await self.prepare_packet(job)
         result=''
-        async for delta in bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile']):
-            result+=delta
-            if len(result)>job.max_result_characters:raise ValueError('expert_result_limit')
+        async def source():
+            nonlocal result
+            async for delta in bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile']):
+                if not self.authorized_owner(job) or job.state=='cancelled':raise asyncio.CancelledError()
+                if isinstance(delta,AnswerDelta):
+                    if delta.job_id not in {None,job.id}:raise ValueError('expert_delta_job_mismatch')
+                    if not delta.speakable:continue
+                elif job.profile['provider']=='codex':
+                    # A legacy Bridge without verified item metadata cannot grant
+                    # permission to narrate arbitrary stdout.
+                    raise ValueError('expert_answer_metadata_missing')
+                else:
+                    # Non-Codex legacy experts retain their existing text path.
+                    delta=AnswerDelta(str(delta),job_id=job.id,verified=False)
+                result+=str(delta)
+                job.answer_text=result
+                if len(result)>job.max_result_characters:raise ValueError('expert_result_limit')
+                job.timings.setdefault('codex_first_answer_delta',round((time.monotonic()-job.clock_origin)*1000,2))
+                yield delta
+        hook=getattr(s,'expert_stream_started',None)
+        try:options=await hook(job) if hook and not self.detached else None
+        except Exception:
+            options=None
+            s.emit('narration_unavailable',job_id=job.id,reason='narrator_preparation_failed')
+        if options is not None:
+            from .pipeline import expert_voiced_events
+            job.external_narration=bool(options.get('speech') is not None and options.get('paid_tts_consent'))
+            def speech_allowed():
+                target=self.session
+                current=getattr(target,'current',None)
+                return bool(not self.detached and not target.closed and not job.speech_cancelled and
+                    job.revision==self.revision() and current is not None and not current.cancelled and self.authorized_owner(job))
+            async for event in expert_voiced_events(options.get('speech'),source(),job_id=job.id,
+                    conversation_id=job.conversation,turn_id=job.turn_id or job.id,response_id=job.response_id,
+                    voice=options.get('voice','marin'),paid_tts_consent=options.get('paid_tts_consent',False),
+                    tts_character_limit=options.get('tts_character_limit'),usage_sink=job.narrator_usage,
+                    speech_allowed=speech_allowed):
+                data=event['data'];kind=event['type']
+                if kind=='expert_sentence':
+                    job.spoken_segments[data['segment_id']]=data['text']
+                    job.speech_text=' '.join(job.spoken_segments.values())
+                    job.timings.setdefault('first_speakable_chunk',round((time.monotonic()-job.clock_origin)*1000,2))
+                elif kind=='audio_chunk':job.timings.setdefault('narrator_first_audio',round((time.monotonic()-job.clock_origin)*1000,2))
+                elif kind=='audio_segment_done':
+                    job.generated_segments.add(data['segment_id'])
+                    await self.record_context(job)
+                    await self.sync_context(job)
+                elif kind=='audio_stop':
+                    job.narration_complete=data['reason']=='finished'
+                    if data['reason']=='interrupted':job.speech_cancelled=True
+                target=self.session
+                if not self.detached and not target.closed and self.authorized_owner(job):
+                    deliver=getattr(target,'expert_stream_event',None)
+                    if deliver:
+                        try:await deliver(job,event)
+                        except Exception:
+                            # Delivery failure is not permission to repeat the
+                            # paid expert. Retain text, stop narrator output, and
+                            # restore context on the next authenticated attach.
+                            self.detach();job.speech_cancelled=True
+        else:
+            async for _ in source():pass
         job.provider_session=packet.get('_provider_session_id')
-        usage=packet.get('_provider_usage',{})
+        usage=packet.get('_provider_usage')
+        if not isinstance(usage,dict):usage={}
         job.usage={k:v for k,v in usage.items() if type(v) is int and v>=0 and k in {'inputTokens','outputTokens','totalTokens','cachedInputTokens','reasoningOutputTokens','input_tokens','output_tokens','total_tokens'}}
-        if hasattr(self.budget,'record_cli_usage'):await asyncio.to_thread(self.budget.record_cli_usage,job.id,job.usage)
+        if job.usage and hasattr(self.budget,'record_cli_usage'):await asyncio.to_thread(self.budget.record_cli_usage,job.id,job.usage)
         return result
+
+    async def record_context(self,job):
+        """Full answer plus audible extent lives in Brain's existing RAM history."""
+        brain=getattr(getattr(self.session,'manager',None),'brain',None)
+        if not brain or not (job.result or job.answer_text) or not self.authorized_owner(job):return
+        req=ChatRequest(text=job.task,device_id=job.owner,
+            conversation_id=getattr(self.session.access,'context_conversation',job.conversation),
+            profile_epoch=getattr(self.session.offer,'profile_epoch',None),remember=False,
+            turn_id='expert-'+job.id)
+        payload=json.dumps({'kind':'expert_result','job_id':job.id,'result':job.result or {'display_text':job.answer_text,'complete':False},
+                           'speech_text':job.speech_text,'played_text':job.played_text,
+                           'playback_complete':job.playback_complete,'speech_cancelled':job.speech_cancelled,
+                           'trusted_as_instructions':False},ensure_ascii=False)
+        if not job.context_recorded:
+            await asyncio.to_thread(brain.memory.start,req)
+            await asyncio.to_thread(brain.memory.finish,req,'completed',payload,job.profile['provider'],[])
+            job.context_recorded=True
+        else:await asyncio.to_thread(brain.memory.complete_native_continuation,req,payload,job.profile['provider'],[])
 
     async def run(self,job):
         s=self.session
+        watcher=None
         try:
             if not self.authorized_owner(job) or job.state=='cancelled':job.state='cancelled';return
             job.state='running';self.persist(job);s.emit('expert_job',job=self.public(job))
             job.timings['running']=round((time.monotonic()-job.clock_origin)*1000,2)
+            async def watch_authorization():
+                while True:
+                    await asyncio.sleep(.25)
+                    try:
+                        active_policy=await asyncio.to_thread(self.budget.policy)
+                        allowed=bool(active_policy.enabled and active_policy.authorization==job.grant_authorization and
+                                     job.profile['profile'] in getattr(active_policy,'allowed_profiles',[job.profile['profile']]))
+                    except Exception:allowed=False
+                    if not allowed or not self.authorized_owner(job):
+                        job.error='expert_context_changed'
+                        if job.worker:job.worker.cancel()
+                        return
+            watcher=asyncio.create_task(watch_authorization())
             async with asyncio.timeout(job.timeout_seconds):text=await self.executor(job)
-            if s.closed or job.state=='cancelled':return
+            if not self.authorized_owner(job) or job.state=='cancelled':job.state='cancelled';return
             if len(text)>job.max_result_characters:raise ValueError('expert_result_limit')
             job.result=normalize_result(text,job.profile);job.state='completed';job.timings['completed']=round((time.monotonic()-job.clock_origin)*1000,2);self.persist(job)
+            await self.record_context(job)
         except asyncio.CancelledError:job.state='cancelled';raise
         except TimeoutError:job.state='timed_out';job.error='expert_timeout'
         except Exception:job.state='failed';job.error='expert_failed_no_retry'
         finally:
+            if watcher:watcher.cancel();await asyncio.gather(watcher,return_exceptions=True)
+            if job.state=='cancelled':
+                job.speech_cancelled=True
+                await self.record_context(job)
             self.persist(job)
             if self.authorized_owner(job):
                 if job.state in {'completed','failed','timed_out'}:self.audit(job.state)
-                s.emit('expert_job',job=self.public(job))
+                self.session.emit('expert_job',job=self.public(job))
                 await self.return_result(job)
 
     async def return_result(self,job):
+        try:await self._return_result(job)
+        except Exception:
+            # Unknown delivery is not retried as another paid response. The
+            # canonical result remains available through context_items/reattach.
+            job.error='expert_result_delivery_unconfirmed'
+            self.session.emit('expert_result_pending',job_id=job.id,reason='transport_unavailable')
+
+    async def _return_result(self,job):
         s=self.session
-        if job.returned or not (job.call_id or job.operation_id) or s.closed:return
+        if job.returned or not (job.call_id or job.operation_id) or s.closed or self.detached:return
         job.returned=True
         same_owner=self.authorized_owner(job)
         current=(job.revision==self.revision() and same_owner and s.current is not None and not s.current.cancelled)
         if hasattr(s,'expert_voice_current'):current=current and s.expert_voice_current(job)
         if hasattr(s,'expert_completed'):
             if same_owner and job.result:s.emit('expert_result',job=self.public(job),result=job.result,voice_deferred=not current)
+            if same_owner and job.result:await self.sync_context(job)
             await s.expert_completed(job,current)
             return
         output={'job_id':job.id,'state':job.state}
@@ -312,20 +523,42 @@ class ExpertJobs:
                 'content':[{'type':'input_text','text':json.dumps(notice,ensure_ascii=False)}]}})
             job.timings['result_notified']=round((time.monotonic()-job.clock_origin)*1000,2);self.persist(job)
         if same_owner and job.result:s.emit('expert_result',job=self.public(job),result=job.result,voice_deferred=not current)
-        if current:await s.response()
+        if current and not job.external_narration:await s.response()
 
     async def cancel(self,job_id):
         job=self.jobs.get(job_id)
         if not job or job.owner!=self.session.access.effective_scope:raise ValueError('expert_job_not_found')
-        if job.state in {'completed','failed','timed_out','cancelled'}:return self.public(job)
+        if job.state in {'completed','failed','timed_out','cancelled'}:
+            if job.external_narration and not job.playback_complete:
+                job.speech_cancelled=True
+                hook=getattr(self.session,'expert_cancelled',None)
+                if hook and not self.detached and not self.session.closed:await hook(job)
+                await self.record_context(job);await self.sync_context(job)
+            return self.public(job)
         job.state='cancelled'
+        job.speech_cancelled=True
         if job.worker:job.worker.cancel();await asyncio.gather(job.worker,return_exceptions=True)
+        hook=getattr(self.session,'expert_cancelled',None)
+        if hook and not self.detached and not self.session.closed:await hook(job)
+        await self.record_context(job);await self.sync_context(job)
         self.persist(job)
         return self.public(job)
 
-    async def close(self):
+    async def close(self,reason='conversation_closed'):
+        if reason in {'transport_disconnected','sideband_closed','socket_rotation','transport_rotation'}:
+            self.detach();return
+        self.closed=True;self.close_reason=reason
         for job in self.jobs.values():
             if job.state in {'awaiting_confirmation','queued','running'}:
                 job.state='cancelled'
                 if job.worker:job.worker.cancel()
         await asyncio.gather(*(j.worker for j in self.jobs.values() if j.worker),return_exceptions=True)
+        # Permanent data, if explicitly authorized, already lives in ExpertStore.
+        # Clear temporary context when the logical conversation ends.
+        for job in self.jobs.values():
+            if not job.remember:
+                brain=getattr(getattr(self.session,'manager',None),'brain',None)
+                if brain:
+                    with brain.memory.transient_lock:brain.memory.transient.pop('expert-'+job.id,None)
+                job.task='';job.packet.clear();job.result=None;job.answer_text='';job.speech_text='';job.played_text=''
+                job.spoken_segments.clear();job.generated_segments.clear();job.played_segments.clear()

@@ -418,6 +418,17 @@ def create_app(settings=None):
             from .board_wake_test import WakeTestRealtime
             board_realtime=WakeTestRealtime(realtime,board_root.parent/'voice-ab-b-wake-renewal-20261117')
         else:raise ValueError('unknown_board_budget_profile')
+    # Direct audio WS shares the existing Brain, identities, tools and ledgers.
+    # Browser and physical-column authorizations are deliberately separate.
+    from .realtime_ws import DirectRealtimeManager
+    from .realtime_ws_api import attach_brain_direct_voice
+    from .unified_voice_budget import UnifiedVoiceBudget
+    unified_voice_budget=UnifiedVoiceBudget(max_expert_audio_seconds=180,
+                                            expert_operation_timeout_seconds=240)
+    direct_options={'speech':speech,'narrator_authorizer':unified_voice_budget.narrator,
+                    'transcription_authorizer':unified_voice_budget.transcription}
+    direct_browser=DirectRealtimeManager(realtime,**direct_options)
+    direct_board=DirectRealtimeManager(board_realtime,**direct_options) if board_realtime else None
     @asynccontextmanager
     async def lifespan(app):
         await asyncio.to_thread(service.memory.recover)
@@ -429,6 +440,8 @@ def create_app(settings=None):
         await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)
         service.warm_photos.clear()
         for flag in service.running.values():flag.set()
+        await direct_browser.shutdown()
+        if direct_board:await direct_board.shutdown()
         await live.shutdown()
         if board_realtime:await board_realtime.shutdown()
         await realtime.shutdown()
@@ -440,6 +453,9 @@ def create_app(settings=None):
     attach_brain_realtime(app,realtime,auth)
     app.state.live=live;attach_brain_live(app,live,auth)
     app.state.board_realtime=board_realtime
+    app.state.direct_browser=direct_browser
+    app.state.direct_board=direct_board
+    attach_brain_direct_voice(app,direct_browser,direct_board,auth,settings.api_token)
     if board_realtime:
         from .board_realtime_api import attach_board_realtime
         attach_board_realtime(app,board_realtime,auth)
@@ -447,6 +463,8 @@ def create_app(settings=None):
     attach_brain_hybrid(app,service,realtime,live,speech,auth)
     async def invalidate_voice_principal(owner,reason='profile_changed'):
         await realtime.invalidate_principal(owner,reason);await live.invalidate_principal(owner,reason)
+        await direct_browser.invalidate_principal(owner,reason)
+        if direct_board:await direct_board.invalidate_principal(owner,reason)
     attach_family(app,family,identity,speech,auth,on_preferences_changed=invalidate_voice_principal,openings=service.openings)
     @app.get('/healthz')
     async def health():return {'status':'ok','service':'gobot-brain'}
