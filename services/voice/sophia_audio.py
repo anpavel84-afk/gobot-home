@@ -187,13 +187,15 @@ class PcmRing:
                    selected_start=start, clock_domain='capture_16k')
         return True
 
-    def read_available(self, *, max_samples=8000):
+    def read_available(self, *, max_samples=8000, max_chunks=None):
         """Return ordered (sample_start, PCM) chunks, with no real-time pacing."""
         cursor = self.cursor
         if not cursor or self.blocked or self.end < cursor.detector_sample:
             return []
         if max_samples < 1 or max_samples > self.rate:
             raise ValueError('invalid_input_chunk_bound')
+        if max_chunks is not None and (type(max_chunks) is not int or max_chunks < 1):
+            raise ValueError('invalid_input_chunk_count')
         if cursor.position < max(self.floor, self.oldest):
             raise AudioContinuityError('input_cursor_range_missing')
         output = []
@@ -216,6 +218,8 @@ class PcmRing:
             output.append((first, bytes(raw)))
             cursor.position = limit
             cursor.sent_samples += len(raw)//2
+            if max_chunks is not None and len(output) >= max_chunks:
+                break
         return output
 
     def acknowledge_sent(self, sample_end):

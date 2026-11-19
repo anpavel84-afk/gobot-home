@@ -1,5 +1,71 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## HOST-INTEGRATOR — human wake reached real audio; feedback fixes prepared, November19 09:20BRT
+
+The owner has now used the physical column and confirmed waking and audible
+responses. The earlier synthetic-acoustic blocker below is superseded by this
+human observation. Full conversational acceptance is still **not passed**:
+the owner reported unhelpful/current-fact answers, replies to a different
+question, interrupted speech, a stuck listening display and misleading
+connection errors. The owner subsequently rebooted the column and observed
+the explicit exhausted-conversation-limit message.
+
+The current old runtime is `4cf8c73`, with firmware0.4.16/V4 unchanged. Its
+finite Google epoch has consumed all3 B starts and9 responses. Four responses
+have exactly512 output tokens. Content-free events show4 accepted wake events
+and9 whole physical playback receipts, but only5 completed heard-turn records.
+That mismatch is explained by a code defect: Direct WS has no WebRTC
+`output_buffer_started` marker, so truncated audio was prematurely treated as
+unheard before the actual hardware receipt. A physical receipt does not prove
+smooth or semantically correct speech.
+
+Current rejection events are `board_estimated_budget_exhausted`, not evidence
+of Wi-Fi failure. A fresh USB checkpoint before the owner's reboot showed
+Wi-Fi/enrollment1, protocol ready, continuous capture, DMA drained, no observed
+fault/boot marker and empty queues. Capture encode_drops11 were observed;
+hardware underrun is not instrumented. After the owner's reboot the old
+transport was detached with a TimeoutError; no extra paid start occurred.
+Historical network or packet-loss causes are not ruled out.
+
+Actual measured-usage estimate for the9 B responses is$0.05887532. The existing
+single cached cue is$0.0010728; their sum is$0.05994812, excluding unconfirmed
+separate input-transcription billing. The B reserve$1 is not the actual invoice.
+Expert jobs0, direct expertSTT0 and expert narrator0 remain. The original
+window still expires09:27:13BRT; it is not renewed or reset.
+
+The prepared corrections close terminal input deterministically, distinguish
+budget rejection from physical connectivity, preserve a separate expert
+allowance in the panel, fix actual-PCM truncated-turn accounting, and retain
+fixed transport/response stop causes without speech content. A narrow first
+short wake-fragment check waits for existing ASR for at most2s, skips a name-only
+item without another paid response, and preserves the unsent question PCM in
+bounded RAM. Independent race review covered early/late ASR, Stop, expiry,
+overlap, pending-state busy checks and a question already underway. No wake
+model, detector threshold, gain, sample rate or firmware has changed.
+
+The current-fact fallback now selects the exact approved ARGON_DEEP profile,
+instead of being hardcoded to SOL_HIGH. General fresh-fact retrieval remains
+unavailable: Google reasoning is not represented as verified web search, and
+the audited CLI tool isolation stays intact.
+
+**Local combined gate:564 passed in18.95s.** One dependency deprecation warning
+does not affect the gate. Native Windows gate and guarded deployment are next;
+these source changes are not yet represented as installed by this checkpoint.
+
+A new **disabled** `joint_review` proposal type is implemented and tested:
+3×180s B,12 answers/start,1024 output tokens/answer,100000 observed tokens/start,
+B estimate$2;2 ARGON tasks and2×180s STT with the existing bounded marin narrator,
+speech estimate$1;0 cue generations and an existing verified cache required;
+one2h window, no automatic retries. Total$3 is an estimate, not a provider cap.
+It cannot reuse the old approval or rewrite old counters. Actual PLAN proposal
+preparation and any separate owner approval/activation remain pending.
+See [the concrete joint test](handoffs/sophia-unified-voice-2026-11-18/JOINT_TEST.md).
+
+Private evidence: `owner-feedback-1795089783421122500.json`,
+`wake-state-1795089882398048600.json`,
+`owner-feedback-1795090651419226900.json`. No microphone recording or real
+provider request was initiated by this diagnostic work.
+
 ## HOST-INTEGRATOR — Google expert installed; physical acoustic activation remains blocked, 2026-11-19 (America/Sao_Paulo)
 
 ### Owner approval and provider correction, November19

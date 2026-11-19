@@ -162,6 +162,8 @@ class SophiaConnection:
             for task in done:
                 task.result()
         finally:
+            self.stats['input_open_before_cleanup'] = self.stats.get('input_open') is True
+            self.stats['output_active_before_cleanup'] = self.output is not None
             self.closed = True
             self.forward = False
             self.decoder.close()
@@ -207,7 +209,7 @@ class SophiaConnection:
                     self.stats['wake_events'] += 1
                     self.resampler = ContinuousPcm24()
                     self.endpoint.update(started=None, last_voice=None, samples=0)
-                    self.spawn(self.activate(obj))
+                    self.spawn(self.activate(obj, trigger='wake_word'))
             elif kind == 'gobot_host_touch':
                 if obj.get('action') == 'stop':
                     self.forward = False
@@ -218,7 +220,7 @@ class SophiaConnection:
                             'stream_epoch': self.ring.epoch, 'detector_sample': self.ring.end}
                     self.ring.begin(wake, pre_roll_seconds=0.)
                     self.resampler = ContinuousPcm24()
-                    self.spawn(self.activate(wake))
+                    self.spawn(self.activate(wake, trigger='touch'))
             elif kind == 'gobot_host_mute':
                 self.muted = obj.get('muted') is True
                 self.forward = False
@@ -261,7 +263,7 @@ class SophiaConnection:
             else:
                 raise ValueError('unsupported_sophia_control')
 
-    async def activate(self, wake):
+    async def activate(self, wake, *, trigger='manual'):
         try:
             await asyncio.wait_for(self.cloud_ready.wait(), 10)
             if not self.ring.cursor or self.ring.cursor.wake_id != wake['wake_id']:
@@ -269,7 +271,8 @@ class SophiaConnection:
             # Firmware wake counters restart at boot. Deduplication belongs to
             # the capture epoch, while Brain's logical conversation survives it.
             ident = uuid5(NAMESPACE_URL, str(wake['stream_epoch'])+':'+wake['wake_id']).hex
-            await self.to_brain({'type': 'wake', 'wake_id': 'esp_'+ident, 'mode': self.mode})
+            await self.to_brain({'type': 'wake', 'wake_id': 'esp_'+ident,
+                                 'mode': self.mode, 'trigger': trigger})
         except Exception:
             self.ring.stop('activation_failed')
             self.stats['last_error'] = 'cloud_not_ready'
@@ -281,9 +284,11 @@ class SophiaConnection:
             self.input_changed.clear()
             if not self.forward or self.muted or not self.resampler:
                 continue
-            for sample_start, pcm in self.ring.read_available():
-                if not self.forward:
+            while self.forward:
+                available = self.ring.read_available(max_chunks=1)
+                if not available:
                     break
+                sample_start, pcm = available[0]
                 if self.mode == 'expert':
                     remaining = max(0, int(16000*self.expert_audio_limit)-self.endpoint['samples'])
                     pcm = pcm[:remaining*2]
@@ -358,6 +363,8 @@ class SophiaConnection:
         elif kind in ('listening', 'followup'):
             if self.muted:
                 return
+            if data.get('resume_capture') is True and (not self.ring.cursor or not self.resampler):
+                raise ValueError('wake_fragment_capture_cursor_missing')
             if type(data.get('max_audio_seconds')) in (int, float):
                 self.expert_audio_limit = min(self.options.get('expert_max_seconds', 180),
                                               max(1, data['max_audio_seconds']))
@@ -370,20 +377,39 @@ class SophiaConnection:
                 self.resampler = ContinuousPcm24()
             self.forward = True
             self.stats['input_open'] = True
+            self.stats['last_error'] = None
             self.input_changed.set()
             await self.screen('listening', 'Говорите')
         elif kind in ('input_closed', 'followup_closed', 'admission_denied', 'transport_disconnected'):
             self.forward = False
             self.stats['input_open'] = False
-            self.ring.stop(kind)
-            if kind == 'admission_denied':
-                self.stats['last_error'] = data.get('reason', 'admission_denied')[:160]
-                self.stats['generation_allowed'] = False
-                await self.screen('error', 'Разрешение на разговор закончилось. Проверьте панель Софии.')
+            if not (kind == 'input_closed' and data.get('resume_pending') is True):
+                self.ring.stop(kind)
+            if type(data.get('generation_allowed')) is bool:
+                self.stats['generation_allowed'] = data['generation_allowed']
+            reason = data.get('reason', kind)
+            terminal = kind in ('followup_closed', 'admission_denied') or (
+                kind == 'input_closed' and reason not in ('provider_endpoint', 'expert_local_endpoint'))
+            if terminal:
+                # A finite input window can end without an answer. In that
+                # case neither the host busy state nor the post-playback RAM
+                # gate may keep suppressing the owner's next local wake.
+                if self.output is None:
+                    self.ring.set_blocked(self.muted, reason=kind)
+                if kind == 'admission_denied' and 'generation_allowed' not in data:
+                    self.stats['generation_allowed'] = False
+                if reason != 'silence':
+                    self.stats['last_error'] = str(reason)[:160]
+                allowed = self.stats['generation_allowed']
+                text = ('Время этой беседы истекло. Скажите «София» ещё раз.'
+                        if allowed and reason == 'paid_operation_expired_new_wake_required' else
+                        'Скажите «София»' if allowed else
+                        'Допуск к быстрому разговору закрыт. Проверьте доступ к эксперту в панели Софии.')
+                if str(reason).startswith('wake_fragment_'):
+                    text = 'Не удалось разобрать начало вопроса. Скажите «София» и повторите.'
+                await self.screen('muted' if self.muted else 'ready', text)
             elif kind == 'input_closed':
                 await self.screen('thinking')
-            elif kind == 'followup_closed':
-                await self.screen('ready', 'Скажите «София»')
         elif kind == 'audio_start':
             if self.output is not None:
                 raise ValueError('multiple_physical_output_owners')
@@ -424,11 +450,13 @@ class SophiaConnection:
         elif kind in ('audio_cancel', 'stopped'):
             await self.clear_output()
             self.forward = False
+            self.stats['input_open'] = False
             self.ring.set_blocked(self.muted, reason='stop')
             await self.screen('muted' if self.muted else 'ready')
         elif kind == 'muted':
             self.muted = data.get('muted') is True
             self.forward = False
+            self.stats['input_open'] = False
             self.ring.set_blocked(self.muted, reason='mute')
             await self.send({'type': 'gobot_host_mute', 'muted': self.muted})
             await self.screen('muted' if self.muted else 'ready')

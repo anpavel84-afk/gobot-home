@@ -394,6 +394,25 @@ def test_read_only_admission_preview_requires_exact_source_and_preserves_all_cou
     asyncio.run(run())
 
 
+def test_exhausted_fast_starts_do_not_hide_separate_expert_preview(tmp_path, settings):
+    async def run():
+        original, board, manager, session, _ = await setup(tmp_path, settings)
+        try:
+            for index in range(3):
+                board.budget.reserve_session('manual-'+str(index), True, 'board')
+            before = board.budget.status()
+            preview = manager.admission_preview(client_id='board', device_id='board')
+            assert preview['allowed'] is False and preview['generation_allowed'] is False
+            assert preview['code'] == 'realtime_session_budget_exhausted'
+            assert preview['expert_available'] is True
+            assert before == board.budget.status()
+            assert manager.public_expert_budget.status()['sessions_remaining'] == 2
+            assert manager.admission_preview(client_id='other', device_id='other')['expert_available'] is False
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
 def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_path, settings, monkeypatch):
     """Public guest, real Direct/ExpertJobs/pipeline; no phone budget or provider."""
     import gobot.expert_jobs as jobs

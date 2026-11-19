@@ -24,19 +24,51 @@ from .realtime_contract import RealtimePolicy
 
 
 UNIFIED_EXPERT_PROFILES = ('SOL_HIGH', 'ARGON_DEEP')
+UNIFIED_ACCEPTANCE_PRESETS = ('initial', 'joint_review')
+ACCEPTANCE_PRESETS = {
+    'initial': {'limits': (3, 60, 8, 512), 'observed_tokens': 12000, 'realtime_estimate': 1,
+                'cue_generations': 1},
+    'joint_review': {'limits': (3, 180, 12, 1024), 'observed_tokens': 100000,
+                     'realtime_estimate': 2, 'cue_generations': 0},
+}
+
+
+def acceptance_preset_config(name):
+    if not isinstance(name, str) or name not in ACCEPTANCE_PRESETS:
+        raise PermissionError('unified_board_acceptance_preset_outside_allowance')
+    return ACCEPTANCE_PRESETS[name]
+
+
+def acceptance_preset_for_policy(policy):
+    limits = (policy.max_sessions, policy.max_session_seconds,
+              policy.max_responses_per_session, policy.max_output_tokens)
+    for name, preset in ACCEPTANCE_PRESETS.items():
+        if limits == preset['limits'] and policy.observed_token_limit == preset['observed_tokens']:
+            return name
+    raise PermissionError('unified_board_policy_outside_allowance')
 
 
 class UnifiedBoardBudget(TrialBudget):
-    # The former wake package's finite B bounds, never applied to its old ledger.
-    LIMITS = (3, 60, 8, 512)
-    RESERVATION = 1/3
+    # Exact epoch presets only; the original board/phone budget classes stay unchanged.
     EXPERTS = True
+
+    @property
+    def LIMITS(self):
+        return ACCEPTANCE_PRESETS[acceptance_preset_for_policy(self.policy())]['limits']
+
+    @property
+    def ESTIMATED_LIMIT(self):
+        return ACCEPTANCE_PRESETS[acceptance_preset_for_policy(self.policy())]['realtime_estimate']
+
+    @property
+    def RESERVATION(self):
+        preset = ACCEPTANCE_PRESETS[acceptance_preset_for_policy(self.policy())]
+        return preset['realtime_estimate']/preset['limits'][0]
 
     @staticmethod
     def validate_policy(p):
-        if ((p.max_sessions, p.max_session_seconds, p.max_responses_per_session,
-             p.max_output_tokens) != (3, 60, 8, 512) or p.owner_full_test or
-                p.expires_at is None or not p.allowed_client_id or
+        acceptance_preset_for_policy(p)
+        if (p.owner_full_test or p.expires_at is None or not p.allowed_client_id or
                 p.voice != 'marin' or p.model != 'gpt-realtime-2.1-mini' or
                 p.allowed_models != ['gpt-realtime-2.1-mini'] or not p.input_transcription or
                 not p.expert_jobs_allowed or p.image_generation_allowed or p.device_settings_allowed):
@@ -44,7 +76,17 @@ class UnifiedBoardBudget(TrialBudget):
         return p
 
     def policy(self):
-        return self.validate_policy(super().policy())
+        p = self.validate_policy(super().policy())
+        # A larger tuple in an old policy is not a new approval. The new preset
+        # must retain its reviewed disabled-policy SHA and one activation record.
+        if acceptance_preset_for_policy(p) == 'joint_review':
+            _validate_joint_runtime_binding(self.root)
+        return p
+
+    def board_status(self):
+        result = super().board_status()
+        result['estimated_allowance_usd'] = self.ESTIMATED_LIMIT
+        return result
 
 
 class UnifiedPublicExpertBudget(ExpertBudget):
@@ -86,7 +128,7 @@ class BoardSpeechPolicy(BaseModel):
     max_narrator_responses: Literal[12] = 12
     max_narrator_characters: Literal[6000] = 6000
     max_characters_per_job: Literal[3000] = 3000
-    max_cue_generations: Literal[1] = 1
+    max_cue_generations: Literal[0, 1] = 1
     estimate_usd_limit: Literal[1.0] = 1.0
     model: Literal['gpt-realtime-2.1-mini'] = 'gpt-realtime-2.1-mini'
     voice: Literal['marin'] = 'marin'
@@ -225,58 +267,78 @@ def epoch_root(run_root, epoch):
     return Path(run_root)/'voice-sophia-acceptance'/epoch
 
 
-def proposal_summary(expert_profile='SOL_HIGH'):
+def proposal_summary(expert_profile='SOL_HIGH', *, acceptance_preset='initial'):
     from .expert_stream import EXPERT_CUE_TEXT
+    preset = acceptance_preset_config(acceptance_preset)
     if expert_profile not in UNIFIED_EXPERT_PROFILES:
         raise PermissionError('unified_board_expert_profile_outside_allowance')
-    return {'enabled': False, 'expires_at': 0, 'validity_after_approval_seconds': 7200,
-        'realtime': {'sessions': 3, 'seconds_each': 60, 'responses_each': 8,
-                     'output_tokens_each': 512, 'model': 'gpt-realtime-2.1-mini', 'estimated_usd': 1},
+    if acceptance_preset == 'joint_review' and expert_profile != 'ARGON_DEEP':
+        raise PermissionError('joint_review_requires_argon_profile')
+    sessions, seconds, responses, tokens = preset['limits']
+    result = {'enabled': False, 'expires_at': 0, 'validity_after_approval_seconds': 7200,
+        'realtime': {'sessions': sessions, 'seconds_each': seconds, 'responses_each': responses,
+                     'output_tokens_each': tokens, 'model': 'gpt-realtime-2.1-mini',
+                     'estimated_usd': preset['realtime_estimate']},
         'expert': {'jobs': 2, 'profile': expert_profile, 'seconds_each': 90,
                    'context_tokens': 3000, 'result_characters': 6000, 'private_memory': False},
         'speech': {'stt_attempts': 2, 'stt_seconds_each': 180, 'model': 'gpt-live-transcribe',
                    'narrator_responses': 12, 'narrator_characters_total': 6000,
                    'narrator_characters_per_job': 3000, 'estimated_usd': 1,
-                   'cue_generations': 1, 'cue_text': EXPERT_CUE_TEXT,
+                   'cue_generations': preset['cue_generations'], 'cue_text': EXPERT_CUE_TEXT,
                    'cue_model': 'gpt-realtime-2.1-mini', 'cue_voice': 'marin',
                    'cue_characters': len(EXPERT_CUE_TEXT)},
-        'total_api_estimate_usd': 2, 'provider_invoice_cap_guaranteed': False,
+        'total_api_estimate_usd': preset['realtime_estimate']+1, 'provider_invoice_cap_guaranteed': False,
         'paid_requests_made': 0, 'automatic_paid_retries': False}
+    if acceptance_preset == 'joint_review':
+        result['acceptance_preset'] = acceptance_preset
+        result['realtime']['observed_token_limit'] = preset['observed_tokens']
+        result['speech']['existing_ready_cue_required'] = True
+    return result
 
 
-def prepare_proposal(root, board_id, *, expert_profile='SOL_HIGH'):
-    summary = proposal_summary(expert_profile)
+def prepare_proposal(root, board_id, *, expert_profile='SOL_HIGH', acceptance_preset='initial'):
+    summary = proposal_summary(expert_profile, acceptance_preset=acceptance_preset)
+    preset = acceptance_preset_config(acceptance_preset)
     root = Path(root)
     manifest = root/'proposal.json'
     if manifest.exists():
         data = json.loads(manifest.read_text(encoding='utf-8'))
         if data.get('device_id') != board_id:
             raise PermissionError('proposal_device_mismatch')
+        if data.get('acceptance_preset', 'initial') != acceptance_preset:
+            raise PermissionError('proposal_acceptance_preset_mismatch_new_epoch_required')
         if data.get('summary', {}).get('expert', {}).get('profile') != expert_profile:
             raise PermissionError('proposal_expert_profile_mismatch_new_epoch_required')
         expert = UnifiedPublicExpertBudget.validate_policy(ExpertPolicy.model_validate_json(
             (root/'experts/policy.json').read_text(encoding='utf-8')))
         if expert.allowed_profiles != [expert_profile]:
             raise PermissionError('proposal_expert_profile_mismatch_new_epoch_required')
+        if acceptance_preset == 'joint_review':
+            _validate_joint_runtime_binding(root)
         return data
     if root.exists() and any(root.iterdir()):
         raise PermissionError('fresh_proposal_directory_required')
+    sessions, seconds, responses, tokens = preset['limits']
     voice = RealtimePolicy(enabled=False, authorization=uuid4().hex, expires_at=0,
         audience='owner_interactive', allowed_client_id=board_id,
-        max_sessions=3, max_session_seconds=60, max_responses_per_session=8,
-        max_output_tokens=512, input_transcription=True, voice='marin', expert_jobs_allowed=True)
+        max_sessions=sessions, max_session_seconds=seconds, max_responses_per_session=responses,
+        max_output_tokens=tokens, observed_token_limit=preset['observed_tokens'],
+        input_transcription=True, voice='marin', expert_jobs_allowed=True)
     expert = ExpertPolicy(enabled=False, authorization=uuid4().hex, expires_at=0,
         audience='owner_interactive', allowed_client_id=board_id,
         max_sessions=2, allowed_profiles=[expert_profile], job_timeout_seconds=90,
         max_context_tokens=3000, max_result_characters=6000)
     speech = BoardSpeechPolicy(authorization=uuid4().hex, allowed_client_id=board_id,
         parent_authorization_sha256=digest(voice.authorization),
-        expert_authorization_sha256=digest(expert.authorization))
+        expert_authorization_sha256=digest(expert.authorization),
+        max_cue_generations=preset['cue_generations'])
     policies = {'policy.json': voice.model_dump(), 'experts/policy.json': expert.model_dump(),
                 'speech-policy.json': speech.model_dump()}
     fingerprint = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
     data = {'schema': 'sophia-unified-finite-proposal-v1', 'device_id': board_id,
             'proposal_sha256': fingerprint, 'summary': summary}
+    if acceptance_preset == 'joint_review':
+        data['acceptance_preset'] = acceptance_preset
     for relative, policy in policies.items():
         path = root/relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -287,7 +349,54 @@ def prepare_proposal(root, board_id, *, expert_profile='SOL_HIGH'):
     return data
 
 
-def authorize_proposal(root, approved_sha256):
+def _validate_proposal_bundle(data, policies):
+    """Validate either exact reviewed scope without changing its serialized hash."""
+    voice = UnifiedBoardBudget.validate_policy(RealtimePolicy.model_validate(policies['policy.json']))
+    expert = UnifiedPublicExpertBudget.validate_policy(ExpertPolicy.model_validate(policies['experts/policy.json']))
+    speech = BoardSpeechPolicy.model_validate(policies['speech-policy.json'])
+    preset_name = data.get('acceptance_preset', 'initial')
+    preset = acceptance_preset_config(preset_name)
+    # Preserve v1's exact JSON fingerprint: RealtimePolicy serializes the
+    # explicitly provided zero as 0.0; BoardSpeechPolicy's default is integer 0.
+    disabled = {path: policy if not policy['enabled'] and policy['expires_at'] == 0 else
+                {**policy, 'enabled': False, 'expires_at': 0 if path == 'speech-policy.json' else 0.0}
+                for path, policy in policies.items()}
+    fingerprint = digest(json.dumps(disabled, sort_keys=True, separators=(',', ':')))
+    if (data.get('schema') != 'sophia-unified-finite-proposal-v1' or
+            acceptance_preset_for_policy(voice) != preset_name or
+            data.get('summary') != proposal_summary(expert.allowed_profiles[0], acceptance_preset=preset_name) or
+            data.get('proposal_sha256') != fingerprint or
+            speech.max_cue_generations != preset['cue_generations'] or
+            data.get('device_id') != voice.allowed_client_id or
+            voice.allowed_client_id != expert.allowed_client_id or
+            voice.allowed_client_id != speech.allowed_client_id or
+            speech.parent_authorization_sha256 != digest(voice.authorization) or
+            speech.expert_authorization_sha256 != digest(expert.authorization)):
+        raise PermissionError('exact_disabled_owner_proposal_required')
+    return voice, expert, speech
+
+
+def _validate_joint_runtime_binding(root):
+    """A new larger policy cannot borrow the old epoch's approval or accounting."""
+    root = Path(root)
+    try:
+        data = json.loads((root/'proposal.json').read_text(encoding='utf-8'))
+        if data.get('acceptance_preset') != 'joint_review':
+            raise PermissionError('joint_review_proposal_required')
+        policies = {path: json.loads((root/path).read_text(encoding='utf-8'))
+                    for path in ('policy.json', 'experts/policy.json', 'speech-policy.json')}
+        _validate_proposal_bundle(data, policies)
+        if any(policy['enabled'] or policy['expires_at'] != 0 for policy in policies.values()):
+            activation = json.loads((root/'activation.json').read_text(encoding='utf-8'))
+            if (activation.get('approved_proposal_sha256') != data['proposal_sha256'] or
+                    type(activation.get('expires_at')) not in (int, float) or
+                    any(policy['expires_at'] != activation['expires_at'] for policy in policies.values())):
+                raise PermissionError('joint_review_activation_mismatch')
+    except (PermissionError, ValueError, OSError, KeyError, TypeError):
+        raise PermissionError('joint_review_exact_proposal_binding_required') from None
+
+
+def authorize_proposal(root, approved_sha256, *, cache_root=None):
     """Explicit operator action ONLY after the owner approves this exact proposal.
 
     Does not mount the profile, restart services, or open any provider. An
@@ -298,24 +407,17 @@ def authorize_proposal(root, approved_sha256):
     policies = {path: json.loads((root/path).read_text(encoding='utf-8'))
                 for path in ('policy.json', 'experts/policy.json', 'speech-policy.json')}
     fingerprint = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
-    expert = ExpertPolicy.model_validate(policies['experts/policy.json'])
     try:
-        UnifiedPublicExpertBudget.validate_policy(expert)
-    except PermissionError:
+        _validate_proposal_bundle(data, policies)
+    except (PermissionError, ValueError, KeyError, TypeError):
         raise PermissionError('exact_disabled_owner_proposal_required') from None
-    if (data.get('schema') != 'sophia-unified-finite-proposal-v1' or
-            data.get('summary') != proposal_summary(expert.allowed_profiles[0]) or
-            approved_sha256 != data['proposal_sha256'] or fingerprint != approved_sha256 or
+    if (approved_sha256 != data['proposal_sha256'] or fingerprint != approved_sha256 or
             any(p['enabled'] or p['expires_at'] != 0 for p in policies.values())):
         raise PermissionError('exact_disabled_owner_proposal_required')
-    voice = UnifiedBoardBudget.validate_policy(RealtimePolicy.model_validate(policies['policy.json']))
-    speech = BoardSpeechPolicy.model_validate(policies['speech-policy.json'])
-    if (data['device_id'] != voice.allowed_client_id or
-            voice.allowed_client_id != expert.allowed_client_id or
-            voice.allowed_client_id != speech.allowed_client_id or
-            speech.parent_authorization_sha256 != digest(voice.authorization) or
-            speech.expert_authorization_sha256 != digest(expert.authorization)):
-        raise PermissionError('exact_disabled_owner_proposal_required')
+    if data.get('acceptance_preset') == 'joint_review':
+        from .expert_stream import load_expert_service_cue
+        if load_expert_service_cue(cache_root)['status'] != 'ready':
+            raise PermissionError('joint_review_existing_ready_cue_required')
     expires = time.time()+7200
     with (root/'activation.json').open('x', encoding='utf-8') as out:
         json.dump({'approved_proposal_sha256': approved_sha256, 'expires_at': expires,

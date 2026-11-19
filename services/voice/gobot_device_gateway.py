@@ -142,6 +142,38 @@ def validate_hello(message: dict) -> bool:
             and audio.get('channels') == 1 and audio.get('frame_duration') == 60)
 
 
+def sophia_transport_failure(error, stats, *, output_active=False, age_seconds=0):
+    """Keep fixed transport causes for a joint test, never exception payloads."""
+    codes = {'frame_gap_requires_new_epoch', 'sample_gap_requires_new_epoch',
+        'stream_epoch_not_negotiated', 'input_cursor_overrun', 'decoder_epoch_missing',
+        'decoded_sample_count_mismatch', 'sophia_binary_without_frame',
+        'sophia_missing_opus_frame', 'stale_sophia_transport', 'unsupported_sophia_control',
+        'multiple_physical_output_owners', 'physical_response_mismatch',
+        'brain_transport_unavailable', 'cancel_output_epoch_not_confirmed',
+        'playback_finished_before_whole_response_end', 'physical_playback_capture_floor_missing',
+        'input_cursor_range_missing', 'input_cursor_internal_gap'}
+    name = type(error).__name__
+    safe_types = {'AudioContinuityError', 'TimeoutError', 'ConnectionClosedOK',
+                  'ConnectionClosedError', 'CancelledError', 'ValueError', 'RuntimeError',
+                  'PermissionError', 'OSError'}
+    value = {'event': 'sophia_transport_ended', 'time': time.time(),
+        'kind': name if name in safe_types else 'other',
+        'code': str(error) if str(error) in codes else 'other',
+        'output_active': stats.get('output_active_before_cleanup', output_active) is True,
+        'input_open': stats.get('input_open_before_cleanup', stats.get('input_open')) is True,
+        'age_seconds': round(max(0, min(float(age_seconds), 86400)), 2)}
+    for key in ('received_packets', 'downlink_packets', 'wake_events', 'playback_started', 'playback_finished'):
+        if type(stats.get(key)) is int and stats[key] >= 0:
+            value[key] = stats[key]
+    resources = stats.get('device_resources', {})
+    if type(resources.get('encode_drops')) is int and resources['encode_drops'] >= 0:
+        value['encode_drops'] = resources['encode_drops']
+    close_code = getattr(getattr(error, 'rcvd', None), 'code', None)
+    if type(close_code) is int and 1000 <= close_code <= 4999:
+        value['websocket_close_code'] = close_code
+    return value
+
+
 class Gateway:
     def __init__(self, config: dict, brain_token: str, *, client_factory=httpx.AsyncClient, host_detector_factory=None):
         self.config = config
@@ -212,11 +244,17 @@ class Gateway:
                         session_id=self.unified_session_id, conversation_id=self.unified_conversation_id,
                         encoder_factory=OpusOutput, on_status=self.save_stats)
                     self.stats['unified'] = connection.stats
+                    connected_at = time.monotonic()
                     try:
                         await connection.run(ws, hello, validate_hello)
                     except (Exception, asyncio.CancelledError) as error:
                         self.stats['errors'] += 1
-                        connection.stats['last_error'] = type(error).__name__
+                        failure = sophia_transport_failure(error, connection.stats,
+                            output_active=connection.output is not None,
+                            age_seconds=time.monotonic()-connected_at)
+                        connection.stats['last_error'] = failure['code'] if failure['code'] != 'other' else failure['kind']
+                        self.stats['unified_disconnects'] = [*self.stats.get('unified_disconnects', []), failure][-8:]
+                        print(json.dumps(failure), flush=True)
                         with contextlib.suppress(Exception):
                             await ws.close(1011, 'Sophia transport ended; local wake preserved')
                         if isinstance(error, asyncio.CancelledError):

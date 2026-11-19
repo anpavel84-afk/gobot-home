@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'services/brain'))
 
 from gobot.board_unified import (
-    UNIFIED_EXPERT_PROFILES, authorize_proposal, create_service_cue, epoch_root,
+    UNIFIED_ACCEPTANCE_PRESETS, UNIFIED_EXPERT_PROFILES, authorize_proposal, create_service_cue, epoch_root,
     prepare_proposal, proposal_summary,
 )
 from gobot.expert_stream import load_expert_service_cue
@@ -61,6 +61,8 @@ def main(argv=None):
     parser.add_argument('--device-id')
     parser.add_argument('--expert-profile', choices=UNIFIED_EXPERT_PROFILES,
                         help='Preview/prepare only: the single expert profile bound into the new proposal SHA (default SOL_HIGH).')
+    parser.add_argument('--acceptance-preset', choices=UNIFIED_ACCEPTANCE_PRESETS,
+                        help='Preview/prepare only: initial or the separate joint_review scope; never edits an existing epoch.')
     parser.add_argument('--gateway-config', type=Path, default=ROOT/'data/hardware/gobot-v1/gateway.json')
     parser.add_argument('--owner-approved-proposal-sha256')
     parser.add_argument('--cache-root', type=Path)
@@ -71,7 +73,10 @@ def main(argv=None):
         parser.error('--execute is only valid for the explicitly authorized cue action')
     if args.expert_profile and args.command not in {'preview', 'prepare'}:
         parser.error('--expert-profile is only valid for preview/prepare; authorization uses the exact prepared proposal')
-    expert_profile = args.expert_profile or 'SOL_HIGH'
+    if args.acceptance_preset and args.command not in {'preview', 'prepare'}:
+        parser.error('--acceptance-preset is only valid for preview/prepare; authorization uses the exact prepared proposal')
+    acceptance_preset = args.acceptance_preset or 'initial'
+    expert_profile = args.expert_profile or ('ARGON_DEEP' if acceptance_preset == 'joint_review' else 'SOL_HIGH')
     root = epoch_root(args.run_root, args.epoch) if args.epoch else None
     if args.command != 'preview' and root is None:
         parser.error('--epoch is required; existing grants are never reused')
@@ -82,19 +87,20 @@ def main(argv=None):
     if args.command in {'prepare', 'authorize', 'cue'} and enrolled and device != enrolled:
         raise PermissionError('proposal_must_match_enrolled_board')
     if args.command == 'preview':
-        result = {'dry_run': True, 'device_id': device, 'summary': proposal_summary(expert_profile),
+        result = {'dry_run': True, 'device_id': device,
+                  'summary': proposal_summary(expert_profile, acceptance_preset=acceptance_preset),
                   'files_written': 0, 'paid_requests_made': 0}
     elif args.command == 'prepare':
         if not device:
             parser.error('--device-id or an existing enrolled gateway configuration is required')
-        result = prepare_proposal(root, device, expert_profile=expert_profile)
+        result = prepare_proposal(root, device, expert_profile=expert_profile, acceptance_preset=acceptance_preset)
     elif args.command == 'authorize':
         if not args.owner_approved_proposal_sha256:
             parser.error('the exact --owner-approved-proposal-sha256 is required after owner approval')
         manifest = json.loads((root/'proposal.json').read_text(encoding='utf-8'))
         if enrolled and manifest['device_id'] != enrolled:
             raise PermissionError('proposal_must_match_enrolled_board')
-        result = authorize_proposal(root, args.owner_approved_proposal_sha256)
+        result = authorize_proposal(root, args.owner_approved_proposal_sha256, cache_root=args.cache_root)
     elif args.command == 'status':
         result = status(root)
     else:

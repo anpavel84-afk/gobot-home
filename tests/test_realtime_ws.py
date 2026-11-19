@@ -310,6 +310,49 @@ def test_generation_and_segment_end_never_open_followup(tmp_path, settings):
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('has_pcm', [False, True])
+def test_token_limited_direct_audio_waits_for_actual_playback_receipt(tmp_path, settings, has_pcm):
+    async def run():
+        original, board, manager, _ = setup(tmp_path, settings)
+        try:
+            s = await manager.accept(offer())
+            await s.wake('wake-1')
+            await s.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-1'})
+            await asyncio.sleep(.02)
+            ident, turn = s.live_response, s.current
+            assert ident
+            await s.handle({'type': 'response.output_audio.delta', 'response_id': ident,
+                            'delta': base64.b64encode(bytes(2880) if has_pcm else b'').decode()})
+            await s.handle({'type': 'response.done', 'response': {
+                'id': ident, 'status': 'incomplete',
+                'status_details': {'reason': 'max_output_tokens'}}})
+            assert turn.truncated and 'output_buffer_started' not in turn.timings
+            assert not any(e['type'] == 'turn_complete' for e in s.events)
+            assert not s.input_open
+            if has_pcm:
+                assert not turn.stored and not turn.cancelled
+                assert s.response_audio_available(turn)
+                assert not any(e['type'] == 'turn_incomplete' for e in s.events)
+                await s.playback_started(ident)
+                assert not turn.stored
+                await s.playback_finished(ident, sample_floor=42000)
+                assert turn.stored and not turn.cancelled
+                assert any(e['type'] == 'turn_complete' and e['data'].get('heard') is True
+                           and e['data'].get('incomplete') is True for e in s.events)
+            else:
+                assert turn.stored and turn.cancelled
+                assert not s.response_audio_available(turn)
+                assert s.output_owner is None
+                assert not any(e['type'] == 'audio_start' for e in s.events)
+                assert any(e['type'] == 'turn_incomplete' for e in s.events)
+            # There is no automatic retry or budget extension for truncation.
+            assert sum(e['type'] == 'response.create' for e in s.ws.sent) == 1
+            assert board.budget.status()['sessions_reserved'] == 1
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
 def test_followup_speech_start_disarms_silence_deadline(tmp_path, settings):
     async def run():
         original, board, manager, provider = setup(tmp_path, settings)

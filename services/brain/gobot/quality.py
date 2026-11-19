@@ -57,6 +57,8 @@ class RiskAssessment:
             result.factual_uncertainty=3;result.external_verification=True;result.verification_required=True;result.method='external_sources';result.basis='current_deals_require_sources'
         if re.search(r'(?:какой|какие|что за).*сегодня.*(?:праздник|событи)|сегодня.*(?:праздник|дата)',lower):
             result.factual_uncertainty=3;result.external_verification=True;result.verification_required=True;result.method='external_sources';result.basis='current_calendar_requires_source'
+        if re.search(r'\b(?:последн\w*|новейш\w*|сам\w* нов\w*)\s+(?:(?:вышедш\w*|выпущенн\w*|студийн\w*|полнометражн\w*|опубликованн\w*)\s+){0,2}(?:фильм\w*|сериал\w*|альбом\w*|релиз\w*|верси\w*)\b',lower):
+            result.factual_uncertainty=3;result.external_verification=True;result.verification_required=True;result.method='external_sources';result.basis='latest_release_requires_source'
         if arithmetic_expression(lower):return Assessment(1,0,0,False,True,True,'calculator','exact_arithmetic')
         if re.search(r'что (?:мы|я) (?:(?:вчера|раньше|до этого) )?(?:решили|обсуждали|спрашивал)|мо[яию] (?:теплиц|предпочтени)|прошл\w* разговор|как меня зовут',lower):
             return Assessment(0,2,1,False,True,True,'memory_source','personal_history_requires_original_records')

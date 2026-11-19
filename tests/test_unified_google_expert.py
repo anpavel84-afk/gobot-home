@@ -105,3 +105,78 @@ def test_default_gateway_offer_selects_google_before_transcription_and_reports_m
         finally:
             await cleanup(original, board, manager)
     asyncio.run(run())
+
+
+def test_current_fact_source_gap_proposes_google_without_claiming_web_or_spending(tmp_path, settings):
+    async def run():
+        original, board, manager, session = await setup(tmp_path, settings)
+        responses = []
+        async def respond():
+            responses.append(True) # Tool result only; no model or B admission in this fixture.
+        session.response = respond
+        try:
+            query = 'Какой последний фильм с Ди Каприо?'
+            turn = await session.new_turn(query=query)
+            await session.tool('source-check', 'gobot_tool', json.dumps({'query': query}), turn)
+            outputs = [json.loads(event['item']['output']) for event in session.ws.sent
+                       if event.get('item', {}).get('call_id') == 'source-check']
+            assert len(outputs) == 1
+            result = outputs[0]
+            assert result['evidence']['abstained']
+            assert result['source_check'] == {'available': False, 'verified': False,
+                'reason': 'verification_source_unavailable', 'expert_is_fresh_source': False}
+            assert 'Gemini через Antigravity' in result['text'] and 'Sol High' not in result['text']
+            assert result['requires_user_confirmation']
+            assert result['next_action'] == 'await_user_confirmation'
+            job = session.experts.pending
+            assert job.task == query and job.profile['profile'] == 'ARGON_DEEP'
+            assert job.state == 'awaiting_confirmation' and not job.confirmed
+            assert job.worker is None and responses == [True]
+            assert session.experts.budget.status()['sessions_reserved'] == 0
+            assert board.budget.status()['sessions_reserved'] == 0
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_explicit_google_source_gap_keeps_existing_task_confirmation(tmp_path, settings):
+    async def run():
+        original, board, manager, session = await setup(tmp_path, settings)
+        async def respond():
+            pass
+        session.response = respond
+        try:
+            query = 'София, спроси Gemini, какой последний фильм с Ди Каприо?'
+            turn = await session.new_turn(query=query)
+            await session.tool('source-check', 'gobot_tool', json.dumps({'query': query}), turn)
+            result = next(json.loads(event['item']['output']) for event in session.ws.sent
+                          if event.get('item', {}).get('call_id') == 'source-check')
+            assert not result['requires_user_confirmation'] and result['next_action'] == 'expert_start'
+            assert 'Подключить?' not in result['text']
+            job = session.experts.pending
+            assert job.confirmed and job.task == query and job.worker is None
+            assert session.experts.budget.status()['sessions_reserved'] == 0
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_source_gap_does_not_replace_an_explicit_profile_outside_google_grant(tmp_path, settings):
+    async def run():
+        original, board, manager, session = await setup(
+            tmp_path, settings, requested_expert_profile='SOL_HIGH')
+        async def respond():
+            pass
+        session.response = respond
+        try:
+            query = 'Какой последний фильм с Ди Каприо?'
+            turn = await session.new_turn(query=query)
+            await session.tool('source-check', 'gobot_tool', json.dumps({'query': query}), turn)
+            result = next(json.loads(event['item']['output']) for event in session.ws.sent
+                          if event.get('item', {}).get('call_id') == 'source-check')
+            assert result['source_check']['reason'] == 'verification_source_unavailable'
+            assert 'expert_proposal' not in result and not session.experts.jobs
+            assert session.experts.budget.status()['sessions_reserved'] == 0
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())

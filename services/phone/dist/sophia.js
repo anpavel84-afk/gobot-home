@@ -7,6 +7,9 @@ const messages = {
   realtime_policy_disabled: 'Разговор пока не разрешён текущей политикой расходов.',
   realtime_budget_missing_or_expired: 'Для этого источника нет действующего разрешения на платный разговор.',
   realtime_session_budget_exhausted: 'Все разрешённые новые запуски использованы. Уже допущенный разговор можно продолжить, пока действует его лимит.',
+  board_estimated_budget_exhausted: 'Лимит разрешённых быстрых разговоров использован. Резерв расходов не означает, что вся эта сумма потрачена. Допуск эксперта учитывается отдельно.',
+  paid_operation_expired_new_wake_required: 'Время этой беседы истекло. Новое обращение начнётся только при наличии оставшегося допуска; автоматического продления нет.',
+  realtime_response_budget_exhausted: 'В этой беседе использованы разрешённые ответы. Новый разговор требует оставшегося допуска.',
   owner_realtime_daily_limit: 'Сегодня использованы разрешённые ответы. Новая генерация закрыта.',
   owner_api_estimate_limit: 'Достигнут текущий лимит оценки расходов. Новая генерация закрыта.',
   owner_test_not_authorized: 'Для этого источника нет действующего разрешения на расход.',
@@ -127,7 +130,10 @@ function render() {
     title = usingBrowser ? 'Подключаю браузер' : 'Подключаю разговор'; description = 'Готовность появится после подтверждения облачной конфигурации.';
   } else {
     title = usingBrowser ? 'Разговор подключён' : 'София на связи';
-    description = allowed ? (usingBrowser ? 'Начните вопрос кнопкой. Во время ожидания звук в облако не передаётся.' : 'Скажите «София» и задайте вопрос.') : 'Локальный источник подключён. Допуск к платному разговору закрыт.';
+    description = allowed ? (usingBrowser ? 'Начните вопрос кнопкой. Во время ожидания звук в облако не передаётся.' : 'Скажите «София» и задайте вопрос.') :
+      !usingBrowser && current?.brain?.admission?.expert_available
+        ? 'Допуск к новым быстрым беседам закрыт. Отдельный допуск к задачам эксперту ещё действует; выберите экспертный режим для следующего обращения.'
+        : 'Локальный источник подключён. Допуск к платному разговору закрыт.';
   }
   $('sourceLabel').textContent = usingBrowser ? 'МИКРОФОН БРАУЗЕРА' : 'ВАША КОЛОНКА';
   $('title').textContent = title; $('description').textContent = description; $('orb').className = 'orb '+phase;
@@ -158,7 +164,7 @@ function render() {
     : 'Режим меняется между репликами. Stop и Mute доступны и при закрытом допуске к расходам.';
   $('exampleFast').textContent = usingBrowser ? '«Сколько сейчас времени?»' : '«София, сколько сейчас времени?»';
   $('exampleExpert').textContent = usingBrowser ? '«Спроси у эксперта…»' : '«София, спроси у эксперта…»';
-  const reason = usingBrowser ? (!browserAdmission.allowed && browserAdmission.code) : dev.last_error || current?.code;
+  const reason = usingBrowser ? (!browserAdmission.allowed && browserAdmission.code) : dev.last_error || (!allowed && current?.brain?.admission?.code) || current?.code;
   alertText(errorText || (reason ? human(reason) : ready && !allowed ? 'Текущий допуск не разрешает новый расход. Stop, Mute и выбор следующего режима остаются доступны.' : ''));
   $('details').textContent = JSON.stringify({source: selected, browser: usingBrowser ? {availability: browserStatus, session} : undefined,
     transport: current?.brain?.status?.transport, budget: current?.brain?.status?.budget, device: dev}, null, 2);

@@ -30,6 +30,7 @@ from .realtime_provider import RealtimeProvider, RealtimeProviderError
 from .realtime_budget import estimate_usd
 
 _tool_transport_epoch = ContextVar('gobot_direct_tool_transport_epoch', default=None)
+_response_input_epoch = ContextVar('gobot_direct_response_input_epoch', default=None)
 _DETACH_REASONS = frozenset({'client_disconnected', 'output_backpressure', 'transport_disconnected'})
 _CLOSE_REASONS = frozenset({'closed', 'setup_failed', 'server_shutdown', 'detached_expired',
                           'profile_authorization_revoked'})
@@ -121,6 +122,11 @@ class DirectSession(NativeSession):
         self._reconnect_after = 0.
         self._empty_setup_failed = False
         self._empty_detached_expired = False
+        self._wake_fragment_candidate = False
+        self._fast_capture_started = 0.
+        self._wake_fragment = None
+        self._wake_replay_fragment = None
+        self._wake_early_transcripts = {}
         # A cancellation can arrive after a durable reserve but before its
         # result is assigned locally. Such an operation is not proven empty.
         self._admission_attempts = set()
@@ -222,6 +228,14 @@ class DirectSession(NativeSession):
                 continue
             return event
 
+    def response_audio_available(self, turn):
+        # Direct WS never receives the WebRTC output_buffer_started event.
+        # Nonempty PCM may already be queued even when generation hits its
+        # token cap. Keep that turn pending until the real playback receipt;
+        # generated audio is not proof that the owner heard it.
+        return bool(self.output_owner == 'fast_answer' and
+                    self.output_response in turn.response_ids and self.output_sequence)
+
     async def publish_audio(self, pcm, response_id, *, role='fast_answer',
                             chunk_seq=0, segment_id=None, job_id=None):
         if (not self.attached or response_id in self.cancelled_responses or
@@ -229,6 +243,8 @@ class DirectSession(NativeSession):
             return False
         if not isinstance(pcm, bytes) or len(pcm) % 2 or len(pcm) > 131072:
             raise ValueError('invalid_output_pcm')
+        if not pcm:
+            return False
         if self.output_response != response_id:
             if self.output_response is not None:
                 raise RuntimeError('audio_output_owner_conflict')
@@ -438,7 +454,7 @@ class DirectSession(NativeSession):
         self.emit('operation_admitted', operation_id=ident,
                   max_seconds=p.max_session_seconds, reservation_is_invoice=False)
 
-    async def wake(self, wake_id, *, source='device', mode=None):
+    async def wake(self, wake_id, *, source='device', mode=None, trigger='manual'):
         async with self.activation_lock:
             if not isinstance(wake_id, str) or not 1 <= len(wake_id) <= 128:
                 raise ValueError('invalid_wake_id')
@@ -446,6 +462,8 @@ class DirectSession(NativeSession):
                 return {'accepted': False, 'duplicate': True}
             if source != self.source:
                 raise PermissionError('microphone_source_mismatch')
+            if trigger not in {'manual', 'touch', 'wake_word'} or (trigger == 'wake_word' and source != 'device'):
+                raise ValueError('invalid_voice_activation_trigger')
             if self.closed or not self.ready or not self.attached:
                 raise ValueError('cloud_not_ready')
             if self.muted:
@@ -453,7 +471,7 @@ class DirectSession(NativeSession):
             if self._stop_count:
                 raise PermissionError('voice_stopping')
             if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
-                    self.expert_input_busy()):
+                    self.expert_input_busy() or self._wake_fragment is not None):
                 raise ValueError('conversation_busy')
             if mode is not None:
                 await self.select_mode(mode)
@@ -471,6 +489,8 @@ class DirectSession(NativeSession):
                 self.seen_wakes = {wake_id}
             self._input_samples = 0
             self._input_started = False
+            self._wake_fragment_candidate = trigger == 'wake_word' and self.selected_mode == 'fast'
+            self._wake_early_transcripts.clear()
             input_epoch = self._input_gate_epoch
             try:
                 if self.selected_mode == 'expert':
@@ -482,8 +502,11 @@ class DirectSession(NativeSession):
                 self.input_open = False
                 if input_epoch == self._input_gate_epoch:
                     self.state = 'blocked'
+                    self.input_mode = 'idle'
+                    self.followup_deadline = None
                 self.emit('admission_denied', reason=str(error), mode=self.selected_mode,
-                          automatic_retry=False)
+                          generation_allowed=self.generation_allowed(),
+                          state=self.state, input_open=False, automatic_retry=False)
                 raise
             self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode)
             return {'accepted': True, 'input_open': self.input_open, 'mode': self.selected_mode}
@@ -492,6 +515,35 @@ class DirectSession(NativeSession):
         if (input_epoch != self._input_gate_epoch or self.closed or not self.ready or
                 not self.attached or self.muted or self._stop_count):
             raise PermissionError('voice_activation_cancelled')
+
+    async def close_fast_input(self, reason, *, event='input_closed', input_epoch=None):
+        """End an input window without leaving the physical wake gate busy.
+
+        An expired operation has no answer pending. Close the local gate before
+        awaiting provider control ACKs, so concurrent PCM cannot escape or tear
+        down the duplex connection merely because its finite window ended.
+        """
+        if input_epoch is not None and input_epoch != self._input_gate_epoch:
+            return False
+        self.discard_wake_fragment()
+        self._input_gate_epoch += 1
+        self.input_open = False
+        self.input_mode = 'idle'
+        self._input_started = False
+        self.followup_deadline = None
+        self.auto_input_deadline = None
+        allowed = self.generation_allowed()
+        self.state = 'ready' if allowed else 'blocked'
+        self.emit(event, reason=reason, microphone=False, input_open=False,
+                  state=self.state, generation_allowed=allowed, automatic_retry=False)
+        if self.ready:
+            # This helper can run inside the provider reader after a denied
+            # response. Waiting there for session.updated would deadlock that
+            # same reader. The next opener still requires its own exact ACK.
+            await self.send({'type': 'session.update', 'session': {
+                'type': 'realtime', 'audio': {'input': {'turn_detection': None}}}})
+            await self.send({'type': 'input_audio_buffer.clear'})
+        return True
 
     async def start_fast_input(self, *, followup=False, input_epoch=None):
         input_epoch = self._input_gate_epoch if input_epoch is None else input_epoch
@@ -505,12 +557,28 @@ class DirectSession(NativeSession):
         self.state = 'listening'
         self._input_started = False
         self._input_samples = 0
+        self._fast_capture_started = time.monotonic()
+        if followup:
+            self._wake_fragment_candidate = False
         self.followup_deadline = time.monotonic()+8
         self.last_activity = time.monotonic()
         self.emit('followup' if followup else 'listening', seconds=8,
                   active=True, input_open=True, mode='fast')
 
     async def append_pcm(self, pcm, *, turn_id=None):
+        fragment = self._wake_fragment
+        if (fragment is not None and fragment['epoch'] == self._input_gate_epoch and
+                not self.muted and not self.closed and self.attached):
+            if not isinstance(pcm, bytes) or not pcm or len(pcm)%2 or len(pcm)>48000:
+                raise ValueError('invalid_pcm_chunk')
+            # These bytes crossed the local pause in flight but have never
+            # been forwarded to the provider. Hold at most two seconds in RAM.
+            if fragment['bytes']+len(pcm) > 96000:
+                await self.fail_wake_fragment(fragment, 'wake_fragment_buffer_limit')
+                return False
+            fragment['pcm'].append(pcm)
+            fragment['bytes'] += len(pcm)
+            return True
         if not self.input_open or self.muted or self.closed or not self.attached:
             return False
         if not isinstance(pcm, bytes) or not pcm or len(pcm)%2 or len(pcm)>48000:
@@ -539,7 +607,11 @@ class DirectSession(NativeSession):
                 return False
             await asyncio.wait_for(queue.put(pcm), 2)
         else:
-            await self.admission(explicit_wake=False)
+            try:
+                await self.admission(explicit_wake=False)
+            except PermissionError as error:
+                await self.close_fast_input(str(error), input_epoch=input_epoch)
+                return False
             try:
                 self.require_input_gate(input_epoch)
                 if not self.input_open:
@@ -557,6 +629,10 @@ class DirectSession(NativeSession):
 
     async def response(self):
         async with self.response_lock:
+            if _response_input_epoch.get() not in (None, self._input_gate_epoch):
+                return  # Stop/mute superseded this committed input during async cleanup.
+            if self._wake_fragment is not None:
+                return  # The existing transcription decides this one fragment.
             if _tool_transport_epoch.get() not in (None, self.transport_epoch):
                 return
             if self.closed or not self.ready or not self.attached:
@@ -578,14 +654,134 @@ class DirectSession(NativeSession):
                         'realtime', uuid4().hex, estimate=.5,
                         origin='developer' if self.offer.developer_acceptance else 'owner')
             except PermissionError as error:
-                self.input_open = False
                 self.pending_response = False
-                self.emit('admission_denied', reason=str(error), automatic_retry=False)
+                await self.close_fast_input(str(error), event='admission_denied')
                 return
             self.response_requested = True
             self.pending_response = False
             await self.send({'type': 'response.create', 'response': {
                 'output_modalities': ['audio'] if self.offer.speak else ['text']}})
+
+    @staticmethod
+    def wake_word_only(text):
+        return text.strip(' \t\r\n.,!?…:;"\'«»').casefold() in {'софия', 'софья', 'sophia'}
+
+    def discard_wake_fragment(self):
+        self._wake_fragment_candidate = False
+        self._wake_replay_fragment = None
+        self._wake_early_transcripts.clear()
+        fragment, self._wake_fragment = self._wake_fragment, None
+        if fragment:
+            fragment['pcm'].clear()
+            fragment['bytes'] = 0
+            task = fragment.get('task')
+            if task and task is not asyncio.current_task():
+                task.cancel()
+
+    async def fail_wake_fragment(self, fragment, reason):
+        if self._wake_fragment is not fragment:
+            return
+        self._wake_fragment = None
+        fragment['pcm'].clear()
+        fragment['bytes'] = 0
+        task = fragment.get('task')
+        if task and task is not asyncio.current_task():
+            task.cancel()
+        await self.close_fast_input(reason, input_epoch=fragment['epoch'])
+        self.emit('telemetry', event='wake_fragment_rejected', reason=reason,
+                  automatic_retry=False)
+
+    async def resolve_wake_fragment(self, fragment):
+        try:
+            await asyncio.wait_for(fragment['transcript_ready'].wait(), 2.)
+            self.require_input_gate(fragment['epoch'])
+            if self._wake_fragment is not fragment:
+                return
+            if fragment.get('failed') or not fragment.get('text'):
+                await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_failed')
+                return
+            text, turn = fragment['text'], fragment['turn']
+            if not self.wake_word_only(text):
+                if fragment['commits']:
+                    await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
+                    return
+                # A real question is not silently discarded based on length.
+                # Stop VAD now; the ordinary response uses its committed audio.
+                self._wake_fragment = None
+                fragment['pcm'].clear()
+                await self.send({'type': 'session.update', 'session': {
+                    'type': 'realtime', 'audio': {'input': {'turn_detection': None}}}})
+                self.require_input_gate(fragment['epoch'])
+                await self.input_text(turn, text)
+                self.require_input_gate(fragment['epoch'])
+                self.emit('input_closed', reason='provider_endpoint', resume_pending=False)
+                await self.response()
+                return
+            # The first VAD item was only the activation word. Do not ask the
+            # model to answer it, reserve another response, or replay its audio.
+            await self.finish(turn, False)
+            self.require_input_gate(fragment['epoch'])
+            await self.send({'type': 'conversation.item.delete', 'item_id': turn.input_id})
+            self.require_input_gate(fragment['epoch'])
+            await self.admission(explicit_wake=False)
+            self.require_input_gate(fragment['epoch'])
+            self.input_mode = 'followup'
+            self.input_open = True
+            self.state = 'listening'
+            self._input_started = fragment['speech_started']
+            self.followup_deadline = None if self._input_started else time.monotonic()+8
+            # VAD and the provider's trailing buffer were never reset. Flush
+            # only locally held, never-forwarded PCM in original arrival order.
+            while fragment['pcm'] and not fragment['commits']:
+                pcm = fragment['pcm'].popleft()
+                fragment['bytes'] -= len(pcm)
+                await self.admission(explicit_wake=False)
+                self.require_input_gate(fragment['epoch'])
+                await self.send({'type': 'input_audio_buffer.append',
+                    'audio': base64.b64encode(pcm).decode('ascii')},
+                    _input_epoch=fragment['epoch'])
+                self._input_samples += len(pcm)//2
+            self.require_input_gate(fragment['epoch'])
+            if len(fragment['commits']) > 1:
+                await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
+                return
+            # Speech-start may arrive while awaited sends drain the RAM hold.
+            # Do not start an eight-second silence timer on an ongoing question.
+            self._input_started = fragment['speech_started']
+            self.followup_deadline = None if self._input_started else time.monotonic()+8
+            self._wake_fragment = None
+            self.emit('telemetry', event='wake_word_only_skipped',
+                      buffered_samples=sum(len(pcm)//2 for pcm in fragment['pcm']),
+                      automatic_retry=False)
+            if fragment['commits']:
+                # A second item can commit before the local pause arrives.
+                # Preserve its event/transcript; never delete this question.
+                commit = fragment['commits'][0]
+                replay = {'item_id': commit.get('item_id'),
+                          'transcript': fragment['transcripts'].get(commit.get('item_id'))}
+                self._wake_replay_fragment = replay
+                try:
+                    await self.handle(commit)
+                    if (self._wake_replay_fragment is replay and
+                            fragment['epoch'] == self._input_gate_epoch):
+                        self._wake_replay_fragment = None
+                        if replay['transcript']:
+                            await self.handle(replay['transcript'])
+                finally:
+                    if self._wake_replay_fragment is replay:
+                        self._wake_replay_fragment = None
+            else:
+                self.emit('listening', seconds=8, active=True, input_open=True,
+                          mode='fast', resume_capture=True)
+        except asyncio.CancelledError:
+            raise
+        except TimeoutError:
+            await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_timeout')
+        except PermissionError as error:
+            if fragment['epoch'] == self._input_gate_epoch:
+                await self.fail_wake_fragment(fragment, str(error))
+        except Exception:
+            await self.fail_wake_fragment(fragment, 'wake_fragment_failed')
 
     async def read(self):
         ws = self.ws
@@ -621,7 +817,35 @@ class DirectSession(NativeSession):
 
     async def handle(self, obj):
         kind = obj.get('type')
+        if kind in {'conversation.item.input_audio_transcription.completed',
+                    'conversation.item.input_audio_transcription.failed'}:
+            fragment = self._wake_fragment
+            item_id = obj.get('item_id')
+            replay = self._wake_replay_fragment
+            if replay is not None and item_id == replay['item_id']:
+                # Replayed commit processing can await previous-turn cleanup
+                # while the provider reader delivers this item's ASR. Keep the
+                # final locally until its new turn exists; do not lose it.
+                replay['transcript'] = obj
+                return
+            if fragment is not None:
+                if item_id == fragment['item_id']:
+                    transcript = obj.get('transcript', '')
+                    fragment['text'] = transcript[:8000].strip() if isinstance(transcript, str) else ''
+                    fragment['failed'] = kind.endswith('.failed') or not isinstance(transcript, str)
+                    fragment['transcript_ready'].set()
+                    return
+                if isinstance(item_id, str) and len(fragment['transcripts']) < 2:
+                    fragment['transcripts'][item_id] = obj
+                    return
+            elif self._wake_fragment_candidate and not any(t.input_id == item_id for t in self.turns):
+                if isinstance(item_id, str) and len(self._wake_early_transcripts) < 2:
+                    self._wake_early_transcripts[item_id] = obj
+                return
         if kind == 'input_audio_buffer.speech_started':
+            if self._wake_fragment is not None:
+                self._wake_fragment['speech_started'] = True
+                return
             if not self.input_open:
                 return
             self._input_started = True
@@ -632,13 +856,55 @@ class DirectSession(NativeSession):
                       provider_audio_end_ms=obj.get('audio_end_ms'), clock_domain='provider_input')
             self.emit('telemetry', event='endpoint_decided', plan_monotonic=time.monotonic())
         elif kind == 'input_audio_buffer.committed':
+            if self._wake_fragment is not None:
+                fragment = self._wake_fragment
+                if obj.get('item_id') == fragment['item_id']:
+                    return
+                if not any(row.get('item_id') == obj.get('item_id') for row in fragment['commits']):
+                    fragment['commits'].append(obj)
+                    if len(fragment['commits']) > 1:
+                        await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
+                return
             if not self.input_open:
                 if obj.get('item_id'):
                     await self.send({'type': 'conversation.item.delete', 'item_id': obj['item_id']})
                 return
+            candidate = (self._wake_fragment_candidate and
+                         0 < self._input_samples <= 48000 and
+                         time.monotonic()-self._fast_capture_started <= 1.5)
+            self._wake_fragment_candidate = False
             self.input_open = False
             self.state = 'thinking'
-            self.emit('input_closed', reason='provider_endpoint')
+            self.emit('input_closed', reason='provider_endpoint', resume_pending=candidate)
+            if candidate:
+                self.input_mode = 'processing'
+                self._input_started = False
+                fragment = {'epoch': self._input_gate_epoch,
+                    'item_id': obj.get('item_id', ''), 'turn': None,
+                    'transcript_ready': asyncio.Event(), 'text': '', 'failed': False,
+                    'pcm': deque(), 'bytes': 0, 'commits': [], 'transcripts': {},
+                    'speech_started': False}
+                self._wake_fragment = fragment
+                turn = await self.new_turn(fragment['item_id'])
+                if (self._wake_fragment is not fragment or
+                        fragment['epoch'] != self._input_gate_epoch or
+                        self.closed or not self.ready or not self.attached or self.muted):
+                    return
+                fragment['turn'] = turn
+                early = self._wake_early_transcripts.pop(turn.input_id, None)
+                self._wake_early_transcripts.clear()
+                if early:
+                    await self.handle(early)
+                self.emit('telemetry', event='wake_fragment_pending',
+                          captured_samples=self._input_samples, automatic_retry=False)
+                fragment['task'] = self.spawn(self.resolve_wake_fragment(fragment))
+                return
+            token = _response_input_epoch.set(self._input_gate_epoch)
+            try:
+                await super().handle(obj)
+            finally:
+                _response_input_epoch.reset(token)
+            return
         elif kind == 'response.created':
             ident = obj.get('response', {}).get('id')
             if not self.response_requested:
@@ -769,14 +1035,13 @@ class DirectSession(NativeSession):
             self.selected_mode = 'fast'
             await self.start_fast_input(followup=True, input_epoch=input_epoch)
         except PermissionError as error:
-            if input_epoch == self._input_gate_epoch:
-                self.emit('followup_closed', reason=str(error), microphone=False)
+            await self.close_fast_input(str(error), event='followup_closed', input_epoch=input_epoch)
 
     async def select_mode(self, mode):
         if mode not in {'fast', 'expert'}:
             raise ValueError('invalid_voice_mode')
         if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
-                self.expert_input_busy()):
+                self.expert_input_busy() or self._wake_fragment is not None):
             raise ValueError('mode_change_requires_idle')
         if mode != self.selected_mode and self._guard_task and not self._guard_task.done():
             # An explicit idle mode selection must not be silently replaced by
@@ -1020,6 +1285,7 @@ class DirectSession(NativeSession):
 
     async def interrupt(self):
         self._input_gate_epoch += 1
+        self.discard_wake_fragment()
         guard, self._guard_task = self._guard_task, None
         if guard and guard is not asyncio.current_task():
             guard.cancel()
@@ -1135,6 +1401,8 @@ class DirectSession(NativeSession):
         async with self.transport_lock:
             if self.closed or self._closing:
                 return False
+            if self._wake_fragment is not None:
+                return False
             if not force and (self.input_open or self.generating or self.response_requested or
                               any(not task.done() for task in self.tasks)):
                 return False
@@ -1203,25 +1471,14 @@ class DirectSession(NativeSession):
                                   attempt=self._reconnect_attempts)
                 if (self.followup_deadline and now > self.followup_deadline and
                         not self._input_started and self.selected_mode != 'expert'):
-                    self.followup_deadline = None
-                    self.input_open = False
-                    self.input_mode = 'idle'
-                    self.state = 'ready'
-                    if self.ready:
-                        await self.update_input(None)
-                        await self.send({'type': 'input_audio_buffer.clear'})
-                    self.emit('followup_closed', reason='silence', microphone=False)
+                    await self.close_fast_input('silence', event='followup_closed')
                 # Paid input lifetime and empty transport lifetime are independent.
                 if self.input_open and self.selected_mode == 'fast':
+                    input_epoch = self._input_gate_epoch
                     try:
                         await self.admission(explicit_wake=False)
                     except PermissionError as error:
-                        self.input_open = False
-                        self.followup_deadline = None
-                        if self.ready:
-                            await self.update_input(None)
-                            await self.send({'type': 'input_audio_buffer.clear'})
-                        self.emit('input_closed', reason=str(error), microphone=False)
+                        await self.close_fast_input(str(error), input_epoch=input_epoch)
                 age = now-self.transport_started
                 if self.ready and age >= 50*60 and self._spare is None:
                     try:
@@ -1237,8 +1494,7 @@ class DirectSession(NativeSession):
                         self.emit('rotation_pending', reason='replacement_unavailable')
                         await asyncio.sleep(5)
                 if age >= 55*60 and self.input_open:
-                    self.input_open = False
-                    self.emit('input_closed', reason='transport_rotation_deadline', automatic_retry=False)
+                    await self.close_fast_input('transport_rotation_deadline')
                 if self.detached_expired(now):
                     await self.manager.close(self.id, self.offer.device_id, self.offer.client_id,
                                              self.offer.profile_epoch, 'detached_expired')
@@ -1264,6 +1520,7 @@ class DirectSession(NativeSession):
 
     def lifecycle_status(self):
         now = time.monotonic()
+        operation_limit = self.operation_policy.max_session_seconds if self.operation_policy else None
         return {'attached': self.attached, 'closing': self._closing,
                 'transport_epoch': self.transport_epoch,
                 'transport_age_seconds': round(max(0, now-self.transport_started), 1) if self.transport_started else None,
@@ -1274,6 +1531,9 @@ class DirectSession(NativeSession):
                                 'other' if self.close_reason else None,
                 'reader_running': bool(self.reader and not self.reader.done()),
                 'maintenance_running': bool(self._maintenance and not self._maintenance.done()),
+                'operation_age_seconds': round(max(0, now-self.operation_started), 1) if self.operation_id else None,
+                'operation_remaining_seconds': (round(max(0, operation_limit-(now-self.operation_started)), 1)
+                                                if self.operation_id and operation_limit is not None else None),
                 'reconnect_attempts': self._reconnect_attempts, 'spare_prepared': self._spare is not None,
                 'empty_restore_eligible': bool(self.closed and (self._empty_setup_failed or self._empty_detached_expired))}
 
@@ -1458,6 +1718,15 @@ class DirectRealtimeManager(RealtimeManager):
             if self.budget.pending_calls():
                 result['code'] = 'previous_provider_finalization_unconfirmed'
                 return result
+            # The finite CLI grant is separate from new fast-conversation
+            # starts. Exhausting B must not hide an otherwise valid expert
+            # allowance; actual STT/job/narrator admission still checks each
+            # operation without borrowing or renewing any B reservation.
+            if self.public_expert_budget is not None:
+                expert = self.public_expert_budget.policy()
+                result['expert_available'] = bool(p.expert_jobs_allowed and
+                    self.public_expert_budget.active(expert) and expert.allowed_client_id == client_id and
+                    self.public_expert_budget.status().get('sessions_remaining') != 0)
             state = self.budget.board_status() if hasattr(self.budget, 'board_status') else self.budget.status()
             if state.get('sessions_remaining') == 0:
                 result['code'] = 'realtime_session_budget_exhausted'
@@ -1499,12 +1768,7 @@ class DirectRealtimeManager(RealtimeManager):
             result.update(allowed=True, generation_allowed=True, code='manual_activation_available')
             # This is only the public CLI admission preview; provider isolation
             # and task-specific confirmation are still checked by ExpertJobs.
-            if self.public_expert_budget is not None:
-                expert = self.public_expert_budget.policy()
-                result['expert_available'] = bool(p.expert_jobs_allowed and
-                    self.public_expert_budget.active(expert) and expert.allowed_client_id == client_id and
-                    self.public_expert_budget.status().get('sessions_remaining') != 0)
-            elif owner and owner.experts_enabled:
+            if self.public_expert_budget is None and owner and owner.experts_enabled:
                 from .expert_store import ExpertPolicy
                 root = self.budget.root.parent/'realtime-experts'
                 if (root/'policy.json').is_file():

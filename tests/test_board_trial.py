@@ -10,9 +10,11 @@ def synthetic_codex_metadata(monkeypatch):
     # These are offline admission fixtures, not a claim that this test host has
     # a logged-in Codex installation or entitlement to run a real job.
     import gobot.expert_jobs as jobs
+    import gobot.expert_profiles as profiles
     from gobot.expert_profiles import resolve_profile
     metadata=[{'slug':'gpt-6.1-sol','supported_reasoning_levels':[{'effort':'high'}]}]
     monkeypatch.setattr(jobs,'resolve_profile',lambda name:resolve_profile(name,codex_metadata=metadata))
+    monkeypatch.setattr(profiles,'resolve_profile',lambda name:resolve_profile(name,codex_metadata=metadata))
 
 def enable_expert(path):
     from gobot.expert_store import ExpertPolicy

@@ -50,6 +50,26 @@ def test_capability_cannot_silently_enable_old_host_firmware():
                                               'local_wake_enabled': True, 'pcm_stage': 'pre_afe'}})
 
 
+def test_transport_failure_retains_continuity_cause_without_household_content():
+    from gobot_device_gateway import sophia_transport_failure
+    stats = {'input_open': False, 'received_packets': 25, 'downlink_packets': 90,
+             'wake_events': 1, 'playback_started': 1, 'playback_finished': 0,
+             'device_resources': {'encode_drops': 2, 'private': 'household text'},
+             'transcript': 'never record this'}
+    result = sophia_transport_failure(ValueError('frame_gap_requires_new_epoch'), stats,
+                                     output_active=True, age_seconds=18.2)
+    assert result['code'] == 'frame_gap_requires_new_epoch'
+    assert result['output_active'] and not result['input_open']
+    assert result['encode_drops'] == 2 and result['playback_finished'] == 0
+    assert 'private' not in json.dumps(result) and 'household' not in json.dumps(result)
+    hidden = sophia_transport_failure(RuntimeError('Bearer secret and private transcript'), stats)
+    assert hidden['code'] == 'other' and hidden['kind'] == 'RuntimeError'
+    assert 'secret' not in json.dumps(hidden) and 'transcript' not in json.dumps(hidden)
+    cleaned = sophia_transport_failure(TimeoutError(),
+        {**stats, 'input_open_before_cleanup': True, 'output_active_before_cleanup': True})
+    assert cleaned['input_open'] and cleaned['output_active']
+
+
 def test_gateway_restart_preserves_logical_scope_but_device_boot_gets_new_wake():
     from gobot_device_gateway import Gateway
     from types import SimpleNamespace

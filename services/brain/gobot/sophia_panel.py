@@ -348,7 +348,8 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
             config, auth = await asyncio.to_thread(connection)
             async with client_factory(trust_env=False, timeout=4) as client:
                 result = await client.get('http://127.0.0.1:18781/api/v1/voice-ws/status',
-                    headers=auth, params={'source': 'device', 'device_id': config['device_id']})
+                    headers=auth, params={'source': 'device', 'device_id': config['device_id'],
+                                         'client_id': config['device_id']})
             state = result.json()
             try:
                 gateway = json.loads((root/'data/hardware/gobot-v1/gateway-status.json').read_text())

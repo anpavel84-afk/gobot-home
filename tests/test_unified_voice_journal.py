@@ -52,6 +52,16 @@ def test_proxy_never_passes_live_session_or_turn_content_to_recorder():
     assert not proxy.session_event(session, 'B', 'audio_chunk', {'pcm': PRIVATE})
 
 
+def test_name_fragment_diagnostics_do_not_store_question_or_held_pcm():
+    safe = metadata({'event': 'wake_fragment_pending', 'captured_samples': 32000,
+                     'buffered_samples': 1440, 'resume_pending': True,
+                     'text': PRIVATE, 'pcm': PRIVATE, 'transcripts': {'item': PRIVATE}})
+    assert safe == {'event': 'wake_fragment_pending', 'captured_samples': 32000,
+                    'buffered_samples': 1440, 'resume_pending': True}
+    assert metadata({'reason': 'wake_fragment_transcription_timeout'}) == {
+        'reason': 'wake_fragment_transcription_timeout'}
+
+
 def test_physical_receipt_and_clock_events_retain_only_fixed_numeric_metadata():
     records = []
     class Recorder:
@@ -80,6 +90,30 @@ def test_physical_receipt_and_clock_events_retain_only_fixed_numeric_metadata():
     assert PRIVATE not in json.dumps(records, ensure_ascii=False)
     assert metadata({'event': PRIVATE}) == {'event': 'other'}
     assert metadata({'provider_audio_end_ms': float('nan')}) == {}
+
+
+def test_truncated_voice_response_retains_safe_completion_evidence_only():
+    records = []
+    class Recorder:
+        def session_event(self, session, engine, kind, data):
+            records.append((kind, data))
+            return True
+    proxy = ContentFreeJournal(Recorder())
+    session = SimpleNamespace(owner_test_binding='client', id='session',
+        offer=SimpleNamespace(device_id='device', client_id='client', profile_epoch=None),
+        current=SimpleNamespace(id='turn'))
+    for kind in ('response_incomplete', 'turn_incomplete'):
+        assert proxy.session_event(session, 'B', kind, {
+            'reason': 'max_output_tokens', 'audio_available': True,
+            'transcript': PRIVATE, 'text': PRIVATE,
+            'provider_payload': {'output': PRIVATE}})
+    assert proxy.session_event(session, 'B', 'generation_done', {
+        'response_id': 'response-1', 'status': 'incomplete', 'result': PRIVATE})
+    assert [data['reason'] for kind, data in records[:2]] == ['max_output_tokens']*2
+    assert all(data['audio_available'] is True for kind, data in records[:2])
+    assert records[-1][1]['status'] == 'incomplete'
+    assert len(records[-1][1]['response_id']) == 64
+    assert PRIVATE not in json.dumps(records, ensure_ascii=False)
 
 
 def test_full_expert_path_enabled_durable_journal_keeps_private_phrase_only_in_ram(tmp_path, settings, monkeypatch):

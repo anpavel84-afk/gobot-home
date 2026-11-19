@@ -33,6 +33,7 @@ NUMBERS = {
     'output_buffer_started', 'client_playback', 'client_playback_stopped',
     'followup_requested', 'followup_acknowledged', 'call_created',
     'sideband_connected', 'settings_acknowledged', 'lifetime_ms',
+    'captured_samples', 'buffered_samples',
 }
 BOOLEANS = {
     'enabled', 'active', 'ready', 'input_open', 'muted', 'accepted', 'executed',
@@ -42,7 +43,8 @@ BOOLEANS = {
     'automatic_retry', 'generated', 'expert_job_preserved', 'paid_start_consumed',
     'reservation_is_invoice', 'provider_invoice', 'usage_reported', 'complete',
     'stable', 'recovered', 'lost_input_replayed', 'narrated', 'voice_deferred',
-    'final', 'result_available', 'microphone', 'private_access',
+    'final', 'result_available', 'microphone', 'private_access', 'audio_available',
+    'resume_pending', 'resume_capture',
 }
 CONTAINERS = {'timings', 'timings_ms', 'usage', 'input_token_details',
               'output_token_details', 'cached_tokens_details', 'narrator_usage',
@@ -70,7 +72,7 @@ ENUMS = {
 CODES = {
     'closed', 'user_stop', 'client_disconnected', 'output_backpressure',
     'client_detached', 'setup_failed', 'server_shutdown', 'detached_expired',
-    'finished', 'interrupted', 'no_audio', 'tts_error', 'silence',
+    'finished', 'interrupted', 'no_audio', 'tts_error', 'silence', 'max_output_tokens',
     'expert_local_endpoint', 'transport_rotation_deadline',
     'replacement_unavailable', 'transport_unavailable',
     'response_cancel_not_active', 'input_audio_buffer_commit_empty',
@@ -91,6 +93,8 @@ CODES = {
     'realtime_background_failed', 'openai_tts_unavailable', 'openai_tts_incomplete',
     'expert_budget_missing_or_expired', 'expert_budget_exhausted',
     'native_experts_disabled', 'expert_quota_consent_required', 'other',
+    'wake_fragment_buffer_limit', 'wake_fragment_transcription_failed',
+    'wake_fragment_transcription_timeout', 'wake_fragment_overlap', 'wake_fragment_failed',
 }
 EVENTS = {
     'cloud_ready', 'first_audio_packet', 'expert_job_accepted', 'cached_cue_queued',
@@ -98,6 +102,7 @@ EVENTS = {
     'playback_started', 'playback_finished', 'speaker_sound_started', 'last_speech_sample',
     'end_of_speech', 'endpoint_decided',
     'local_endpoint_decision', 'session.update', 'session.updated', 'session.created',
+    'wake_fragment_pending', 'wake_fragment_rejected', 'wake_word_only_skipped',
     'response.create', 'response.created', 'response.done', 'response.cancel',
     'response.output_audio.delta', 'response.output_audio.done',
     'response.output_audio_transcript.delta', 'response.output_audio_transcript.done',
@@ -123,6 +128,7 @@ KINDS = {
     'input_closed', 'followup_closed', 'muted', 'stopped', 'transport_detached',
     'transport_disconnected', 'transport_rotated', 'rotation_pending', 'reconnect_pending',
     'speaking', 'thinking', 'response_created', 'response_done', 'speaker_readiness',
+    'response_incomplete', 'turn_incomplete', 'generation_done',
 }
 
 
