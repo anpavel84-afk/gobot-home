@@ -62,7 +62,9 @@
     "main/sophia_host_capture.h": "038fee8b995e398d5c9af7b0a91cc8b4fc490a13bdcdf6b259a665a2d0db1770"
   },
   "build_status": "passed",
-  "physical_status": "not_flashed",
+  "physical_status_at_build": "not_flashed",
+  "deployment_status_document": "docs/CURRENT_STATUS.md",
+  "ui_ack_evidence": "LV_EVENT_REFR_READY; not first visible pixels or final panel DMA",
   "baseline_app_preserved": true,
   "baseline_source_guards_passed": 29,
   "sdkconfig_unchanged": true,

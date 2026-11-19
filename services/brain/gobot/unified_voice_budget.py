@@ -1,8 +1,9 @@
 """Admission and measured accounting for unified expert speech.
 
-The existing OwnerTesting ledger is the authority.  A board grant is never
+The existing OwnerTesting ledger, or an explicitly bound board speech policy
+in that board's usage.sqlite, is the authority. A board grant is never
 translated into a phone grant, and opening an empty socket never calls this
-module.  The .50 USD provisional hold and web_stt/web_tts origins are the
+module. The .50 USD provisional hold and web_stt/web_tts origins are the
 established hybrid_api admissions.  Each narrator Response gets its own hold
 and existing realtime counter; it is not an unlimited answer-wide allowance.
 """
@@ -104,9 +105,23 @@ class UnifiedVoiceBudget:
 
     @staticmethod
     def _authority(session):
-        ledger = session.manager.owner_testing
         binding = getattr(session, 'owner_test_binding', None)
         current = session.manager.budget.policy()
+        board = getattr(session.manager, 'board_speech_ledger', None)
+        if board is not None:
+            if (getattr(session, 'closed', False) or not session.offer.consent or
+                    session.offer.client_id != session.offer.device_id or
+                    session.offer.owner_test_binding or session.offer.developer_acceptance or
+                    session.offer.remember or session.offer.personalization_mode != 'guest' or
+                    session.offer.speaker_consent or session.offer.profile_epoch or
+                    session.offer.confirmed_profile_epoch or current.owner_full_test or
+                    getattr(session, 'owner_test_authorized', False) or
+                    current.authorization != session.policy.authorization or
+                    not session.scoped_public_expert_allowed()):
+                raise PermissionError('exact_board_public_speech_scope_required')
+            board.require(session.offer.client_id)
+            return board, session.offer.client_id, 'board'
+        ledger = session.manager.owner_testing
         if (getattr(session, 'closed', False) or not session.offer.consent or
                 not getattr(session, 'owner_test_authorized', False) or
                 not binding or binding != session.offer.client_id or
@@ -125,26 +140,39 @@ class UnifiedVoiceBudget:
             raise PermissionError('existing_owner_speech_context_required')
         return ledger, binding, origin
 
-    async def _reserve(self, session, operation, ident):
+    async def _reserve(self, session, operation, ident, *, characters=0, job_id=None, audio_seconds=0):
         ledger, binding, origin = await asyncio.to_thread(self._authority, session)
-        origin = 'developer' if origin == 'developer' else 'web_'+operation
-        # Developer STT has a separately authorized finite allowance. Existing
-        # realtime developer credits cannot substitute for a zero/expired STT
-        # allowance; the ordinary owner web_stt path retains its original kind.
-        kind = 'transcription' if operation == 'stt' and origin == 'developer' else 'realtime'
-        key = await asyncio.to_thread(ledger.reserve, binding, kind, ident,
-                                      estimate=WEB_OPERATION_RESERVE_USD, origin=origin)
+        if origin == 'board':
+            key = await asyncio.to_thread(ledger.reserve, binding, operation, ident,
+                estimate=WEB_OPERATION_RESERVE_USD, characters=characters,
+                job_id=job_id, audio_seconds=audio_seconds)
+        else:
+            origin = 'developer' if origin == 'developer' else 'web_'+operation
+            # Developer STT has a separately authorized finite allowance.
+            # Realtime credits cannot substitute for a zero/expired STT grant.
+            kind = 'transcription' if operation == 'stt' and origin == 'developer' else 'realtime'
+            key = await asyncio.to_thread(ledger.reserve, binding, kind, ident,
+                                          estimate=WEB_OPERATION_RESERVE_USD, origin=origin)
         await asyncio.to_thread(_record, ledger, key, operation, 'pending_provider_usage',
                                 {'reserved_estimate_usd': WEB_OPERATION_RESERVE_USD})
         return ledger, key
 
     async def transcription(self, session):
-        await asyncio.to_thread(self._authority, session)
+        authority, binding, origin = await asyncio.to_thread(self._authority, session)
         policy = await asyncio.to_thread(session.manager.budget.policy)
         maximum = self.max_audio_seconds
         timeout = self.operation_timeout_seconds
-        if policy.max_session_seconds is not None:
+        if origin != 'board' and policy.max_session_seconds is not None:
             maximum = min(maximum, policy.max_session_seconds)
+        if origin == 'board':
+            speech = await asyncio.to_thread(authority.require, binding)
+            # This separate explicitly approved STT duration does not extend
+            # the board's 60s Realtime operation or borrow its paid starts.
+            maximum = min(maximum, speech.max_stt_audio_seconds)
+            # The speech grant may expire before its parent B/CLI grant.
+            remaining = int(speech.expires_at-time.time())
+            maximum = min(maximum, remaining-10)
+            timeout = min(timeout, remaining)
         if policy.expires_at is not None:
             remaining = int(policy.expires_at-time.time())
             # Leave a bounded completion interval before an expiring grant;
@@ -153,7 +181,8 @@ class UnifiedVoiceBudget:
             timeout = min(timeout, remaining)
         if maximum < 1 or timeout < 5:
             raise PermissionError('speech_grant_expiring')
-        ledger, key = await self._reserve(session, 'stt', 'unified-web-stt:'+uuid4().hex)
+        ledger, key = await self._reserve(session, 'stt', 'unified-web-stt:'+uuid4().hex,
+                                          audio_seconds=maximum)
         settled = False
 
         async def validate():
@@ -194,7 +223,11 @@ class UnifiedVoiceBudget:
         limit = getattr(job, 'max_result_characters', 24000)
         if type(limit) is not int or not 1 <= limit <= 32000:
             raise PermissionError('expert_narration_limit_invalid')
-        ledger, key = await self._reserve(session, 'tts', 'unified-web-tts:'+job.id+':0')
+        authority, binding, origin = await asyncio.to_thread(self._authority, session)
+        if origin == 'board':
+            policy = await asyncio.to_thread(authority.require, binding)
+            limit = min(limit, policy.max_characters_per_job)
+        ledger, key = await self._reserve(session, 'tts', 'unified-web-tts:'+job.id+':0', job_id=job.id)
         admission = _NarratorAdmission(self, session, job.id, ledger, key)
         return {'paid_tts_consent': True, 'tts_character_limit': limit,
                 'speech': _BudgetSpeech(session.manager.speech, admission),
@@ -209,16 +242,21 @@ class _NarratorAdmission:
         self.settled = set()
         self.records = {}
 
-    async def next(self):
+    async def next(self, characters):
         # Revocation/expiry is checked for every sentence, including the first.
-        await asyncio.to_thread(self.budget._authority, self.session)
+        authority, _, origin = await asyncio.to_thread(self.budget._authority, self.session)
+        if authority is not self.ledger:
+            raise PermissionError('narrator_ledger_changed')
         index = self.used
         if index:
             ledger, key = await self.budget._reserve(
-                self.session, 'tts', 'unified-web-tts:'+self.job_id+':'+str(index))
+                self.session, 'tts', 'unified-web-tts:'+self.job_id+':'+str(index),
+                characters=characters, job_id=self.job_id)
             if ledger is not self.ledger:
                 raise PermissionError('narrator_ledger_changed')
             self.keys.append(key)
+        elif origin == 'board':
+            await asyncio.to_thread(self.ledger.claim_characters, self.keys[0], characters, self.job_id)
         self.used += 1
         return index
 
@@ -299,7 +337,7 @@ class _BudgetSpeechTurn:
         if not paid_consent or provider != 'openai' or voice != 'marin':
             raise AgentError('unified_narrator_admission_required')
         try:
-            index = await self.admission.next()
+            index = await self.admission.next(len(text))
         except PermissionError:
             raise AgentError('expert_narration_budget_denied') from None
         before_count = self.turn.requests_started

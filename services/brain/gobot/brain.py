@@ -417,6 +417,11 @@ def create_app(settings=None):
             # exhausted original B ledger or previous wake test records.
             from .board_wake_test import WakeTestRealtime
             board_realtime=WakeTestRealtime(realtime,board_root.parent/'voice-ab-b-wake-renewal-20261117')
+        elif board_mount.get('profile')=='sophia_unified_acceptance':
+            # A separately approved finite board epoch only. Preparation leaves
+            # all policies disabled and never changes the historical ledgers.
+            from .board_unified import UnifiedBoardRealtime,epoch_root
+            board_realtime=UnifiedBoardRealtime(realtime,epoch_root(board_root.parent,board_mount.get('epoch')))
         else:raise ValueError('unknown_board_budget_profile')
     # Direct audio WS shares the existing Brain, identities, tools and ledgers.
     # Browser and physical-column authorizations are deliberately separate.

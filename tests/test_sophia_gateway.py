@@ -110,6 +110,22 @@ def test_device_stack_measurement_survives_numeric_resource_filter():
     asyncio.run(run())
 
 
+def test_legacy_ui_visible_wire_ack_is_only_lvgl_refresh_evidence():
+    async def run():
+        c = connection()
+        envelope = {'session_id': c.transport, 'epoch': c.epoch}
+        await c.device.queue.put(json.dumps({**envelope, 'type': 'gobot_host_ack',
+            'event': 'ui_visible', 'callback_monotonic_us': 1000,
+            'device_monotonic_us': 63200}))
+        await c.device.queue.put(json.dumps({**envelope, 'type': 'end_test'}))
+        with pytest.raises(ValueError, match='unsupported_sophia_control'):
+            await c.receive()
+        assert c.stats['last_wake_lvgl_refresh_ready_ms'] == 62.2
+        assert c.stats['wake_ui_measurement'] == 'lvgl_refr_ready_not_panel_dma'
+        assert 'last_wake_ui_visible_ms' not in c.stats
+    asyncio.run(run())
+
+
 def test_whole_physical_playback_receipt_required_and_stale_audio_dropped():
     async def run():
         c = connection()

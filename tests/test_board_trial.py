@@ -5,6 +5,15 @@ from gobot.board_trial import prepare_trial,TrialBudget,TrialRealtime,PublicExpe
 from test_board_realtime import prepared,enable,offer
 from test_realtime_native import tick
 
+@pytest.fixture(autouse=True)
+def synthetic_codex_metadata(monkeypatch):
+    # These are offline admission fixtures, not a claim that this test host has
+    # a logged-in Codex installation or entitlement to run a real job.
+    import gobot.expert_jobs as jobs
+    from gobot.expert_profiles import resolve_profile
+    metadata=[{'slug':'gpt-6.1-sol','supported_reasoning_levels':[{'effort':'high'}]}]
+    monkeypatch.setattr(jobs,'resolve_profile',lambda name:resolve_profile(name,codex_metadata=metadata))
+
 def enable_expert(path):
     from gobot.expert_store import ExpertPolicy
     p=ExpertPolicy.model_validate_json(path.read_text());path.write_text(p.model_copy(update={'enabled':True}).model_dump_json())

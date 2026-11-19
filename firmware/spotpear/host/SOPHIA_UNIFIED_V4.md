@@ -1,8 +1,9 @@
 # Sophia V4 unified firmware integration
 
-This is a **source-only extension of the firmware actually installed on Spotpear**, version
+This is the **source/build definition based on the verified original Spotpear firmware**, version
 0.4.14-dev-host-b-sophia-mic-v4. The earlier V3 audit is not the build base. The public repository
 does not contain the private application, model weights, enrolled configuration or transfer pack.
+Current deployment and acceptance facts are recorded only in `docs/CURRENT_STATUS.md`.
 
 ## Corrected stack allocation after physical rollback
 
@@ -36,7 +37,7 @@ bytes. The packer is now a 1,952-byte BSS symbol. The fix therefore removes exac
 
 ## Preserved baseline
 
-The installed V4 app is 3,668,912 bytes, SHA-256
+The preserved original V4 app is 3,668,912 bytes, SHA-256
 254793df0426fecdfafbe5047674aef896568c236dd58330b6e4a47ff9c311a2.
 The successful candidate is recorded in sophia_unified_v4_manifest.json; that file binds the
 source patch, exact source inputs, pinned ESP-IDF image and the particular built app.
@@ -95,7 +96,7 @@ All controls carry the authenticated transport session_id and epoch.
 | gobot_host_ready_ack | protocol=2, stream_epoch, sample_start=0, frame_samples=960, pcm_stage=pre_afe |
 | gobot_host_frame + binary Opus | stream_epoch, frame_id, sample_start, sample_count=960; strict monotonic source clock |
 | gobot_host_wake | wake_id, stream_epoch, detector_sample, detector_monotonic_us, callback_monotonic_us |
-| gobot_host_ack | event=ui_visible, wake_id, device_monotonic_us, callback_monotonic_us after actual LVGL refresh |
+| gobot_host_ack | Legacy event=ui_visible, wake_id, device_monotonic_us, callback_monotonic_us at LV_EVENT_REFR_READY; this does not prove first visible pixels or final panel DMA |
 | gobot_host_output_start | response_id, playback_id, output_epoch, kind=answer or cue, streaming=true, packet_count=0, Opus 24 kHz, frame_samples=1440 |
 | gobot_host_output_frame + binary Opus | seq, sample_start=seq×1440, sample_count=1440 with the same output owner |
 | gobot_host_output_segment_end | segment_id and cumulative pcm_sample_end at 24 kHz |

@@ -54,6 +54,15 @@ capture sample clock, stream epochs and real I2S DMA fences bind input and outpu
 receipts. Capture is muted during Mute; the control heartbeat remains available.
 The final firmware manifest is the source of build hashes and size evidence.
 
+Display timing has a different evidence boundary from audio completion. The
+existing `host_rc1_render_ack.h::OnNextNativeRefresh` uses `LV_EVENT_REFR_READY`.
+Pinned LVGL can emit that event after submitting the final single-buffer strip
+but before its SPI DMA completes. The installed protocol's legacy `ui_visible`
+name therefore does not establish first visible pixels or final panel transfer.
+The Gateway reports `last_wake_lvgl_refresh_ready_ms` with the explicit basis
+`lvgl_refr_ready_not_panel_dma`; both timestamps are on the ESP clock, so network
+delivery is excluded. No first-pixel target is claimed from this measurement.
+
 `ExpertJobs` owns tasks independently of the transport subscriber. Signed bridge
 deltas preserve item/phase/job metadata. Only verified partial/final assistant
 answers are speakable; unclassified text waits for a completed assistant item.

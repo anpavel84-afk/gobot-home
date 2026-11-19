@@ -121,15 +121,33 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Production subsequently reconnected with protocol2/cloud_ready, zero errors,
   generation_allowed=false. Post-fixture UART confirmed muted0/wake_running1.
 - One public offline PLAN SAPI/Zira utterance `Sophia` produced one physical
-  wake. ESP callback-to-visible-screen ACK measured **62.2 ms**, above the
-  handoff's <50 ms goal; this is a single synthetic timing sample, not a human
-  wake-quality acceptance. Admission correctly returned
+  wake. ESP callback-to-LVGL-refresh-ready measured **62.2 ms**. Inspection of
+  the pinned display implementation confirms that its legacy `ui_visible` wire
+  event is `LV_EVENT_REFR_READY`, not first visible pixels or the final panel
+  DMA completion. The Gateway diagnostic is renamed accordingly; the actual
+  visible-start <50 ms goal remains **unconfirmed**. This is a single synthetic
+  timing sample, not human wake-quality acceptance. Admission correctly returned
   `realtime_budget_or_consent_required`, input stayed closed, the paid budget
   snapshot stayed identical, and the explicit Stop control was acknowledged.
-- Additional source gaps are being closed: preserve the existing board-specific
-  expert admission in B_WS and explicitly account its separate STT/narrator
-  operations; implement the actual browser-microphone leg in the same panel.
-  No existing grant, identity, expiry or ledger is borrowed or reset.
+- Board-admission source correction is complete: B_WS retains the existing
+  board PublicExpertBudget, and separate STT/narrator/cue holds live in the same
+  board usage database. A new acceptance profile and operator proposal helper
+  are disabled by default; no existing grant, identity, expiry or ledger is
+  borrowed or reset. The proposed new STT scope is explicitly 2x180s; historical
+  hardware A remains 26s. No new epoch has yet been activated or mounted.
+- Final board/direct regression gate: **172 passed**, including 24 concurrent
+  cancellation/ownership cases. An independent review reproduced and verified
+  fixes for Stop racing a pending followup and a new expert wake racing the old
+  guard. Late STT cleanup cannot erase a newer input queue. Mock integration
+  covered 61s PCM, both explicit expert entry routes, two CLI jobs, narration,
+  physical-ACK-driven continuation and three finite B starts. PHONE attempts
+  remained zero; permanent expert_results remained empty.
+- Read-only PLAN Codex readiness confirms installed/OAuth/isolation and actual
+  metadata for SOL_HIGH (`gpt-6.1-sol`, high). This is readiness evidence, not
+  spending authorization or proof of a real completed CLI task.
+- The actual browser-microphone leg is being completed in the same panel, with
+  server-owned existing identity, independent admission, bounded PCM and output
+  credit. Its ordinary UI load/source selection does not open a microphone.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
   0.4.15 failed physical boot; repaired 0.4.16 built and installed.
   `INSTALLED`: unified backend/UI and V4-derived 0.4.16 on the physical column.

@@ -232,7 +232,11 @@ class SophiaConnection:
                     callback = obj.get('callback_monotonic_us')
                     visible = obj.get('device_monotonic_us', obj.get('device_mono_us'))
                     if type(callback) is int and type(visible) is int and visible >= callback:
-                        self.stats['last_wake_ui_visible_ms'] = (visible-callback)/1000
+                        # The installed V4-derived callback is LV_EVENT_REFR_READY.
+                        # Its legacy wire name does not prove final panel DMA or
+                        # first visible pixels. Both timestamps are ESP-local.
+                        self.stats['last_wake_lvgl_refresh_ready_ms'] = (visible-callback)/1000
+                        self.stats['wake_ui_measurement'] = 'lvgl_refr_ready_not_panel_dma'
                     self.trace({'event': 'ui_visible', 'wake_id': obj.get('wake_id'),
                                 'device_mono_us': visible, 'callback_monotonic_us': callback,
                                 'clock_domain': 'esp32_monotonic'})

@@ -12,6 +12,7 @@ import base64
 import inspect
 import hashlib
 import json
+import sqlite3
 import time
 from contextlib import suppress
 from contextvars import ContextVar
@@ -61,6 +62,9 @@ class DirectSession(NativeSession):
         profile = profile.model_copy(deep=True)
         profile.voice = profile.voice.model_copy(update={'voice': 'marin'})
         super().__init__(manager, offer, profile, policy)
+        if manager.public_expert_budget is not None:
+            from .expert_jobs import ExpertJobs
+            self.experts = ExpertJobs(self, budget=manager.public_expert_budget)
         self.outgoing = asyncio.Queue(maxsize=128)
         self._priority_events = deque()
         self._deferred_wire_event = None
@@ -70,6 +74,8 @@ class DirectSession(NativeSession):
         self.transport_lock = asyncio.Lock()
         self.activation_lock = asyncio.Lock()
         self.input_open = False
+        self._input_gate_epoch = 0
+        self._stop_count = 0
         self.muted = False
         self.selected_mode = offer.input_mode
         self.source = 'device' if offer.client_kind == 'device' else 'browser'
@@ -96,6 +102,7 @@ class DirectSession(NativeSession):
         self._stt_reservation = None
         self._narrator_reservations = {}
         self._expert_responses = {}
+        self._expert_followup_jobs = set()
         self._cue_finished = {}
         self._cue_response_jobs = {}
         self._context_synced = set()
@@ -108,6 +115,17 @@ class DirectSession(NativeSession):
         self.automatic_dialogue = True
         self.setup_done = False
         self.hangup_confirmed = True  # Direct WS has no WebRTC REST call to hang up.
+
+    def scoped_public_expert_allowed(self):
+        # Reuse the existing finite board public scope. This is expense
+        # authority only; guest identity and private-memory ACL stay unchanged.
+        if self.manager.public_expert_budget is None:
+            return False
+        from .board_trial import TrialSession
+        current = self.manager.budget.policy()
+        return bool(current.authorization == self.policy.authorization and
+                    current.expert_jobs_allowed and
+                    TrialSession.scoped_public_expert_allowed(self))
 
     def emit(self, kind, **data):
         super().emit(kind, **data)
@@ -204,7 +222,7 @@ class DirectSession(NativeSession):
         self.output_sequence += 1
         return True
 
-    async def send(self, event):
+    async def send(self, event, *, _input_epoch=None):
         if (event.get('item', {}).get('type') == 'function_call_output' and
                 _tool_transport_epoch.get() not in (None, self.transport_epoch)):
             raise RuntimeError('stale_tool_transport')
@@ -213,6 +231,8 @@ class DirectSession(NativeSession):
             if self.closed or not self.ws:
                 raise RuntimeError('realtime_transport_unavailable')
             async with self.send_lock:
+                if _input_epoch is not None:
+                    self.require_input_gate(_input_epoch)
                 await self.ws.send(json.dumps(event))
             return
         await super().send(event)
@@ -308,7 +328,8 @@ class DirectSession(NativeSession):
             self.emit('ready', model=self.policy.model, voice=self.policy.voice,
                       configuration_confirmed=True, input_open=False,
                       generation_allowed=self.generation_allowed(),
-                      input_mode=self.selected_mode, source=self.source)
+                      input_mode=self.selected_mode, source=self.source,
+                      expert_active=False, muted=self.muted, state=self.state)
             self.emit('telemetry', event='cloud_ready', plan_monotonic=time.monotonic())
 
     def generation_allowed(self):
@@ -367,34 +388,56 @@ class DirectSession(NativeSession):
                 raise ValueError('cloud_not_ready')
             if self.muted:
                 raise PermissionError('microphone_muted')
-            if self.input_open or self.speaking or self.generating or self.experts.active():
+            if self._stop_count:
+                raise PermissionError('voice_stopping')
+            if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
+                    self.expert_input_busy()):
                 raise ValueError('conversation_busy')
             if mode is not None:
                 await self.select_mode(mode)
+            # A deliberate new activation supersedes the preceding response's
+            # delayed followup, including one already awaiting admission.
+            self._input_gate_epoch += 1
+            guard, self._guard_task = self._guard_task, None
+            if guard and guard is not asyncio.current_task():
+                guard.cancel()
+            self._expert_followup_jobs.clear()
+            self._expert_input_turn = None
             self.seen_wakes.add(wake_id)
             if len(self.seen_wakes) > 512:
                 # Transport-level duplicate protection still scopes the active wake.
                 self.seen_wakes = {wake_id}
             self._input_samples = 0
             self._input_started = False
+            input_epoch = self._input_gate_epoch
             try:
                 if self.selected_mode == 'expert':
-                    await self.start_expert_input()
+                    await self.start_expert_input(input_epoch=input_epoch)
                 else:
                     await self.admission(explicit_wake=True)
-                    await self.start_fast_input()
+                    await self.start_fast_input(input_epoch=input_epoch)
             except Exception as error:
                 self.input_open = False
-                self.state = 'blocked'
+                if input_epoch == self._input_gate_epoch:
+                    self.state = 'blocked'
                 self.emit('admission_denied', reason=str(error), mode=self.selected_mode,
                           automatic_retry=False)
                 raise
             self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode)
             return {'accepted': True, 'input_open': self.input_open, 'mode': self.selected_mode}
 
-    async def start_fast_input(self, *, followup=False):
+    def require_input_gate(self, input_epoch):
+        if (input_epoch != self._input_gate_epoch or self.closed or not self.ready or
+                not self.attached or self.muted or self._stop_count):
+            raise PermissionError('voice_activation_cancelled')
+
+    async def start_fast_input(self, *, followup=False, input_epoch=None):
+        input_epoch = self._input_gate_epoch if input_epoch is None else input_epoch
+        self.require_input_gate(input_epoch)
         await self.send({'type': 'input_audio_buffer.clear'})
+        self.require_input_gate(input_epoch)
         await self.update_input(self.detection())
+        self.require_input_gate(input_epoch)
         self.input_mode = 'followup'
         self.input_open = True
         self.state = 'listening'
@@ -412,25 +455,40 @@ class DirectSession(NativeSession):
             raise ValueError('invalid_pcm_chunk')
         if turn_id is not None and self.current and turn_id != self.current.id:
             raise ValueError('stale_input_turn')
+        input_epoch = self._input_gate_epoch
         if self.selected_mode == 'expert':
-            if self._stt_queue is None:
+            queue = self._stt_queue
+            if queue is None:
                 raise ValueError('expert_input_not_ready')
             validator = (self._stt_reservation or {}).get('validate')
             if validator:
                 try:
                     await maybe_await(validator())
                 except PermissionError as error:
+                    if input_epoch != self._input_gate_epoch or self._stt_queue is not queue:
+                        return False
                     self.input_open = False
                     if self._stt_task:
                         self._stt_task.cancel()
                         await asyncio.gather(self._stt_task, return_exceptions=True)
                     self.emit('admission_denied', mode='expert', reason=str(error), automatic_retry=False)
                     return False
-            await asyncio.wait_for(self._stt_queue.put(pcm), 2)
+            if input_epoch != self._input_gate_epoch or not self.input_open or self._stt_queue is not queue:
+                return False
+            await asyncio.wait_for(queue.put(pcm), 2)
         else:
             await self.admission(explicit_wake=False)
-            await self.send({'type': 'input_audio_buffer.append',
-                             'audio': base64.b64encode(pcm).decode('ascii')})
+            try:
+                self.require_input_gate(input_epoch)
+                if not self.input_open:
+                    return False
+                await self.send({'type': 'input_audio_buffer.append',
+                                 'audio': base64.b64encode(pcm).decode('ascii')},
+                                _input_epoch=input_epoch)
+            except PermissionError:
+                return False
+        if input_epoch != self._input_gate_epoch:
+            return False
         self._input_samples += len(pcm)//2
         self.last_activity = time.monotonic()
         return True
@@ -573,12 +631,14 @@ class DirectSession(NativeSession):
         if turn:
             turn.client_started = True
             self.mark_turn(turn, 'client_playback')
+        evidence = ('device_i2s_proxy_not_acoustic' if self.source == 'device' else
+                    'browser_webaudio_clock_proxy_not_acoustic')
         self.emit('telemetry', event='speaker_sound_started', response_id=response_id,
-                  evidence='device_i2s_proxy_not_acoustic', plan_monotonic=time.monotonic())
+                  evidence=evidence, plan_monotonic=time.monotonic())
         if self.output_owner == 'service_cue':
             self.emit('telemetry', event='cached_cue_started', response_id=response_id,
                       job_id=self._cue_response_jobs.get(response_id),
-                      evidence='device_i2s_proxy_not_acoustic', plan_monotonic=time.monotonic())
+                      evidence=evidence, plan_monotonic=time.monotonic())
         return {'accepted': True}
 
     async def playback_finished(self, response_id, *, sample_floor=None, segment_id=None):
@@ -604,7 +664,8 @@ class DirectSession(NativeSession):
         self.state = 'thinking' if self.experts.active() else 'guarding'
         self.output_response = self.output_owner = None
         self.emit('playback_finished', response_id=response_id, audio_role=role,
-                  sample_floor=sample_floor, evidence='physical_device_receipt')
+                  sample_floor=sample_floor,
+                  evidence='physical_device_receipt' if self.source == 'device' else 'browser_playback_receipt')
         if role == 'service_cue':
             cue_job = self._cue_response_jobs.pop(response_id, None)
             if cue_job in self._cue_finished:
@@ -612,39 +673,69 @@ class DirectSession(NativeSession):
         if self.pending_response and not self.experts.active():
             await self.response()
         elif role != 'service_cue' and not self.experts.active() and not self.muted:
-            self._guard_task = self.spawn(self.open_followup_after_guard())
+            self._guard_task = self.spawn(self.open_followup_after_guard(
+                expert_job_id=job_id if role == 'expert_answer' else None))
         return {'accepted': True, 'whole_response': True}
 
-    async def open_followup_after_guard(self):
+    async def open_followup_after_guard(self, *, expert_job_id=None):
+        input_epoch = self._input_gate_epoch
         await asyncio.sleep(.2)
-        if self.closed or not self.attached or self.muted or self.speaking or self.experts.active():
+        if (input_epoch != self._input_gate_epoch or self.closed or not self.attached or
+                self.muted or self._stop_count or self.speaking or self.experts.active()):
             return
+        continuation = False
+        if expert_job_id in self._expert_followup_jobs:
+            # One continuation of this explicit, accepted task may use a NEW
+            # finite B start. It never extends the old 60s window or replays
+            # paid input. Stop/detach burn this token, and an ACK cannot retry it.
+            self._expert_followup_jobs.discard(expert_job_id)
+            job = self.experts.jobs.get(expert_job_id)
+            continuation = bool(job and job.confirmed and job.playback_complete and
+                not job.speech_cancelled and self.experts.authorized_owner(job) and
+                self.current and job.turn_id == self.current.id)
         try:
-            await self.admission(explicit_wake=False)
+            await self.admission(explicit_wake=continuation)
+            self.require_input_gate(input_epoch)
             # Returning from expert uses the fast conversational socket.
             self.selected_mode = 'fast'
-            await self.start_fast_input(followup=True)
+            await self.start_fast_input(followup=True, input_epoch=input_epoch)
         except PermissionError as error:
-            self.emit('followup_closed', reason=str(error), microphone=False)
+            if input_epoch == self._input_gate_epoch:
+                self.emit('followup_closed', reason=str(error), microphone=False)
 
     async def select_mode(self, mode):
         if mode not in {'fast', 'expert'}:
             raise ValueError('invalid_voice_mode')
-        if self.input_open or self.speaking or self.generating or self.experts.active():
+        if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
+                self.expert_input_busy()):
             raise ValueError('mode_change_requires_idle')
+        if mode != self.selected_mode and self._guard_task and not self._guard_task.done():
+            # An explicit idle mode selection must not be silently replaced by
+            # the preceding answer's delayed automatic fast followup.
+            self._input_gate_epoch += 1
+            guard, self._guard_task = self._guard_task, None
+            guard.cancel()
+            self._expert_followup_jobs.clear()
         self.selected_mode = mode
         self.emit('mode_selected', mode=mode)
         return {'selected_mode': mode}
 
-    async def start_expert_input(self):
+    def expert_input_busy(self):
+        return bool(self._stt_task and not self._stt_task.done() and not self._stt_task.cancelling())
+
+    async def start_expert_input(self, *, input_epoch=None):
+        input_epoch = self._input_gate_epoch if input_epoch is None else input_epoch
+        self.require_input_gate(input_epoch)
         availability = await asyncio.to_thread(self.experts.status, include_profiles=False)
         if not availability['enabled']:
             raise PermissionError('expert_unavailable:'+','.join(availability['blocked_reasons']))
         if not self.manager.transcription_authorizer:
             raise PermissionError('expert_transcription_budget_unavailable')
+        self.require_input_gate(input_epoch)
         self._stt_reservation = await maybe_await(self.manager.transcription_authorizer(self))
         if not isinstance(self._stt_reservation, dict) or self._stt_reservation.get('paid_consent') is not True:
             raise PermissionError('expert_transcription_budget_unavailable')
+        self.require_input_gate(input_epoch)
         self._stt_queue = asyncio.Queue(maxsize=32)
         self._input_samples = 0
         self.input_open = True
@@ -660,7 +751,7 @@ class DirectSession(NativeSession):
         from .stt import OpenAIRecognition
         reservation = self._stt_reservation
         queue = self._stt_queue
-        final_usage = None
+        input_epoch = self._input_gate_epoch
         async def chunks():
             while True:
                 data = await queue.get()
@@ -672,29 +763,41 @@ class DirectSession(NativeSession):
             async for event in recognition.live(chunks(), paid_consent=True,
                     max_audio_seconds=reservation.get('max_audio_seconds', 60),
                     operation_timeout_seconds=reservation.get('operation_timeout_seconds', 100)):
+                self.require_input_gate(input_epoch)
                 kind, data = event['type'], event['data']
                 self.emit(kind, **data)
                 if kind == 'stt_final':
-                    final_usage = data
                     text = data.get('text', '').strip()
                     if not text or not data.get('stable') or not data.get('item_id'):
                         raise ValueError('stable_expert_transcript_required')
+                    # Finish this measured STT operation before the accepted
+                    # job can reserve narrator speech. Unknown usage retains its
+                    # hold; a valid final may release only its measured balance.
+                    settlement = reservation.get('settle') if reservation else None
+                    if settlement:
+                        await maybe_await(settlement(
+                            audio_seconds=data.get('audio_seconds', self._input_samples/24000),
+                            provider_usage=data.get('usage', {}),
+                            usage_reported=data.get('usage_reported', False)))
+                    self.require_input_gate(input_epoch)
                     turn = await self.new_turn(data['item_id'], text)
+                    self.require_input_gate(input_epoch)
                     profile = self.offer.requested_expert_profile or 'SOL_HIGH'
                     self._expert_input_turn = turn.id
                     await self.experts.start_local(text, profile, turn)
-            settlement = reservation.get('settle') if reservation else None
-            if settlement and final_usage is not None:
-                await maybe_await(settlement(audio_seconds=final_usage.get('audio_seconds', self._input_samples/24000),
-                                             provider_usage=final_usage.get('usage', {}),
-                                             usage_reported=final_usage.get('usage_reported', False)))
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            self.emit('error', code='expert_transcription_failed', reason=str(error), automatic_retry=False)
+            if input_epoch == self._input_gate_epoch:
+                self.emit('error', code='expert_transcription_failed', reason=str(error), automatic_retry=False)
         finally:
-            self.input_open = False
-            self._stt_queue = None
+            # A detached recognition socket may finish cancellation after a
+            # new wake has acquired its own input. Retired cleanup owns only
+            # its queue/epoch and cannot close or erase the new capture.
+            if self._stt_queue is queue:
+                self._stt_queue = None
+                if input_epoch == self._input_gate_epoch and self.selected_mode == 'expert':
+                    self.input_open = False
 
     async def finish_input(self):
         if self.selected_mode != 'expert' or self._stt_queue is None:
@@ -716,6 +819,8 @@ class DirectSession(NativeSession):
         self.state = 'thinking'
         self.followup_deadline = None
         self.pending_response = False
+        if getattr(job, 'confirmed', False) and self.experts.authorized_owner(job):
+            self._expert_followup_jobs.add(job.id)
         if self.output_owner == 'fast_answer':
             # Discard a model's optional introduction before acquiring the one
             # physical output owner.  Keep the accepted task/current turn valid.
@@ -826,6 +931,7 @@ class DirectSession(NativeSession):
         self.emit('expert_result_ready', job_id=job.id, narrated=bool(getattr(job, 'narration_complete', False)))
 
     async def expert_cancelled(self, job):
+        self._expert_followup_jobs.discard(job.id)
         if getattr(job, 'response_id', None):
             self.cancelled_responses.add(job.response_id)
         if self.output_response == getattr(job, 'response_id', None):
@@ -834,6 +940,13 @@ class DirectSession(NativeSession):
         self.emit('audio_cancel', response_id=getattr(job, 'response_id', None), job_id=job.id)
 
     async def interrupt(self):
+        self._input_gate_epoch += 1
+        guard, self._guard_task = self._guard_task, None
+        if guard and guard is not asyncio.current_task():
+            guard.cancel()
+        if self._stt_task and self._stt_task is not asyncio.current_task():
+            self._stt_task.cancel()
+        self._expert_followup_jobs.clear()
         self.input_open = False
         self.followup_deadline = None
         self.pending_response = False
@@ -858,23 +971,25 @@ class DirectSession(NativeSession):
             await self.finish(self.current, False)
 
     async def stop(self):
-        for job in self.experts.jobs.values():
-            if not getattr(job, 'playback_complete', False):
-                job.speech_cancelled = True
-        await self.interrupt()
-        if self._guard_task:
-            self._guard_task.cancel()
-        if self._stt_task:
-            self._stt_task.cancel()
-            await asyncio.gather(self._stt_task, return_exceptions=True)
-        for job in list(self.experts.jobs.values()):
-            if (job.state in {'queued', 'running'} or
-                    getattr(job, 'external_narration', False) and not getattr(job, 'playback_complete', False)):
-                await self.experts.cancel(job.id)
-        self.input_mode = 'idle'
-        self.state = 'muted' if self.muted else 'ready' if self.ready else 'disconnected'
-        self.emit('stopped', input_open=False)
-        return {'stopped': True}
+        self._stop_count += 1
+        try:
+            for job in self.experts.jobs.values():
+                if not getattr(job, 'playback_complete', False):
+                    job.speech_cancelled = True
+            await self.interrupt()
+            if self._stt_task and self._stt_task is not asyncio.current_task():
+                await asyncio.gather(self._stt_task, return_exceptions=True)
+            for job in list(self.experts.jobs.values()):
+                if (job.state in {'queued', 'running'} or
+                        getattr(job, 'external_narration', False) and not getattr(job, 'playback_complete', False)):
+                    await self.experts.cancel(job.id)
+            self.input_open = False
+            self.input_mode = 'idle'
+            self.state = 'muted' if self.muted else 'ready' if self.ready else 'disconnected'
+            self.emit('stopped', input_open=False)
+            return {'stopped': True}
+        finally:
+            self._stop_count -= 1
 
     async def mute(self, muted):
         if type(muted) is not bool:
@@ -906,10 +1021,12 @@ class DirectSession(NativeSession):
                 await maybe_await(self.experts.attach(self))
             if not self.ready:
                 await self.rotate(force=True)
-            self.state = 'ready'
+            self.state = 'thinking' if self.experts.active() else 'muted' if self.muted else 'ready'
             self.emit('ready', model=self.policy.model, voice='marin',
                       configuration_confirmed=self.ready, input_open=False,
-                      generation_allowed=self.generation_allowed(), recovered=True)
+                      generation_allowed=self.generation_allowed(), recovered=True,
+                      expert_active=self.experts.active(), input_mode=self.selected_mode,
+                      muted=self.muted, state=self.state, source=self.source)
             return self
         except BaseException:
             # The API cannot release a lease for an accept() which never
@@ -975,7 +1092,9 @@ class DirectSession(NativeSession):
                         self.emit('ready', model=self.policy.model, voice='marin',
                                   configuration_confirmed=True, input_open=False,
                                   generation_allowed=self.generation_allowed(),
-                                  recovered=True, lost_input_replayed=False)
+                                  recovered=True, lost_input_replayed=False,
+                                  expert_active=self.experts.active(), input_mode=self.selected_mode,
+                                  muted=self.muted, state=self.state, source=self.source)
                     except Exception:
                         self._reconnect_after = time.monotonic()+min(30, 2**self._reconnect_attempts)
                         self.emit('reconnect_pending', empty_transport_only=True,
@@ -1041,6 +1160,15 @@ class DirectRealtimeManager(RealtimeManager):
         self.narrator_authorizer = narrator_authorizer
         self.transcription_authorizer = transcription_authorizer
         self.recognition = recognition
+        self.public_expert_budget = None
+        self.board_speech_ledger = None
+        from .board_trial import TrialBudget, PublicExpertBudget
+        if isinstance(self.budget, TrialBudget):
+            factory = getattr(original, 'public_expert_budget_type', PublicExpertBudget)
+            self.public_expert_budget = factory(self.budget.root/'experts')
+            if (self.budget.root/'speech-policy.json').is_file():
+                from .board_unified import BoardSpeechLedger
+                self.board_speech_ledger = BoardSpeechLedger(self.budget, self.public_expert_budget)
         self._empty_setup_attempts = {}
         self.legacy_handoff = None  # Unified expert job stays in this logical conversation.
         self.voice_peers = [original, *original.voice_peers]
@@ -1162,6 +1290,105 @@ class DirectRealtimeManager(RealtimeManager):
         for session in list(self.sessions.values()):
             await self.close(session.id, session.offer.device_id, session.offer.client_id,
                              session.offer.profile_epoch, 'server_shutdown')
+
+    def admission_preview(self, *, client_id, device_id, owner_test_binding=None,
+                          developer_acceptance=False):
+        """Read-only eligibility for a server-owned binding; never an admission.
+
+        The actual activation and every provider response still reserve against
+        current policies. This preview opens no transport and creates no grant,
+        reservation or substitute device identity.
+        """
+        result = {'allowed': False, 'generation_allowed': False,
+                  'code': 'exact_authorized_client_required', 'expert_available': False,
+                  'model': None, 'voice': 'marin', 'private_memory_allowed': False,
+                  'requires_explicit_activation': True, 'reserves_paid_start': False}
+        try:
+            p = self.budget.policy()
+            result['model'] = p.model
+            if (not client_id or not device_id or client_id != p.allowed_client_id or
+                    owner_test_binding not in (None, client_id)):
+                return result
+            if hasattr(self.budget, 'EXPERTS') and (device_id != client_id or
+                    owner_test_binding or developer_acceptance):
+                result['code'] = 'exact_board_guest_offer_required'
+                return result
+            if not self.budget.active(p):
+                result['code'] = 'realtime_budget_missing_or_expired'
+                return result
+            if self.budget.pending_calls():
+                result['code'] = 'previous_provider_finalization_unconfirmed'
+                return result
+            state = self.budget.board_status() if hasattr(self.budget, 'board_status') else self.budget.status()
+            if state.get('sessions_remaining') == 0:
+                result['code'] = 'realtime_session_budget_exhausted'
+                return result
+            if hasattr(self.budget, 'ESTIMATED_LIMIT') and max(
+                    state.get('reserved_estimate_usd', 0),
+                    state.get('reported_response_estimate_usd', 0)) + self.budget.RESERVATION > self.budget.ESTIMATED_LIMIT+1e-9:
+                result['code'] = 'board_estimated_budget_exhausted'
+                return result
+            owner = None
+            if p.owner_full_test:
+                ledger = self.owner_testing
+                if not ledger.authorized(client_id):
+                    result['code'] = 'owner_test_not_authorized'
+                    return result
+                owner = ledger.policy()
+                with ledger.connect() as db:
+                    count, spent = db.execute("""SELECT count(CASE WHEN kind='realtime' THEN 1 END),
+                        coalesce(sum(cost),0) FROM attempts WHERE day=? AND origin NOT LIKE 'hardware:%'""",
+                        (int(time.time()//86400),)).fetchone()
+                    if count >= owner.realtime_responses_per_day:
+                        result['code'] = 'owner_realtime_daily_limit'
+                        return result
+                    if spent+.5 > owner.api_estimate_usd_per_day:
+                        result['code'] = 'owner_api_estimate_limit'
+                        return result
+                    if developer_acceptance:
+                        count, spent = db.execute("""SELECT count(CASE WHEN kind='realtime' THEN 1 END),
+                            coalesce(sum(cost),0) FROM attempts WHERE origin='developer'""").fetchone()
+                        if time.time() > owner.developer_acceptance_expires_at:
+                            result['code'] = 'developer_acceptance_expired'
+                            return result
+                        if count >= owner.developer_realtime_limit:
+                            result['code'] = 'developer_acceptance_limit'
+                            return result
+                        if owner.developer_estimate_usd_limit is not None and spent+.5 > owner.developer_estimate_usd_limit:
+                            result['code'] = 'developer_estimate_limit'
+                            return result
+            result.update(allowed=True, generation_allowed=True, code='manual_activation_available')
+            # This is only the public CLI admission preview; provider isolation
+            # and task-specific confirmation are still checked by ExpertJobs.
+            if self.public_expert_budget is not None:
+                expert = self.public_expert_budget.policy()
+                result['expert_available'] = bool(p.expert_jobs_allowed and
+                    self.public_expert_budget.active(expert) and expert.allowed_client_id == client_id and
+                    self.public_expert_budget.status().get('sessions_remaining') != 0)
+            elif owner and owner.experts_enabled:
+                from .expert_store import ExpertPolicy
+                root = self.budget.root.parent/'realtime-experts'
+                if (root/'policy.json').is_file():
+                    expert = ExpertPolicy.model_validate_json((root/'policy.json').read_text(encoding='utf-8'))
+                    count = 0
+                    if (root/'usage.sqlite').is_file():
+                        with sqlite3.connect('file:'+str(root/'usage.sqlite')+'?mode=ro', uri=True) as db:
+                            count = db.execute('SELECT count(*) FROM sessions WHERE authorization=?',
+                                               (expert.authorization,)).fetchone()[0]
+                    with self.owner_testing.connect() as db:
+                        expert_count = db.execute("""SELECT count(*) FROM attempts WHERE day=?
+                            AND kind='expert' AND origin NOT LIKE 'hardware:%'""",
+                            (int(time.time()//86400),)).fetchone()[0]
+                    result['expert_available'] = bool(p.expert_jobs_allowed and expert.allowed_profiles and
+                        expert_count < owner.expert_jobs_per_day and expert.allowed_client_id == client_id and
+                        (expert.enabled or expert.owner_full_test) and expert.authorization and
+                        (expert.expires_at is None or expert.expires_at > time.time()) and
+                        (expert.max_sessions is None or count < expert.max_sessions))
+            return result
+        except (PermissionError, ValueError, OSError, sqlite3.Error):
+            result.update(allowed=False, generation_allowed=False, expert_available=False,
+                          code='voice_policy_unavailable')
+            return result
 
     def status(self):
         budget = self.budget.board_status() if hasattr(self.budget, 'board_status') else self.budget.status()
