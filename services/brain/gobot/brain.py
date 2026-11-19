@@ -422,6 +422,12 @@ def create_app(settings=None):
             # all policies disabled and never changes the historical ledgers.
             from .board_unified import UnifiedBoardRealtime,epoch_root
             board_realtime=UnifiedBoardRealtime(realtime,epoch_root(board_root.parent,board_mount.get('epoch')))
+        elif board_mount.get('profile')=='sophia_owner_terminal':
+            # The owner's continuing device-only authorization has its own
+            # immutable grant and ledgers; historical finite epochs stay intact.
+            from .board_unified import epoch_root
+            from .owner_terminal import OwnerTerminalBoardRealtime
+            board_realtime=OwnerTerminalBoardRealtime(realtime,epoch_root(board_root.parent,board_mount.get('epoch')))
         else:raise ValueError('unknown_board_budget_profile')
     # Direct audio WS shares the existing Brain, identities, tools and ledgers.
     # Browser and physical-column authorizations are deliberately separate.

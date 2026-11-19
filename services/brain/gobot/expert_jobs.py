@@ -1,6 +1,7 @@
 """Bounded confirmed expert jobs. Model proposals never authorize execution."""
 import asyncio,re,time,json
 from collections import deque
+from contextlib import contextmanager
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
@@ -114,6 +115,18 @@ class ExpertJobs:
         self.binding=conversation_binding(session)
         self.detached=False;self.closed=False;self.close_reason=None
         self.context_versions={}
+        self._context_inflight={}
+
+    @contextmanager
+    def hold_context(self,job):
+        """Pin RAM ownership while a result write/delivery yields to another task."""
+        ident=job.id
+        self._context_inflight[ident]=self._context_inflight.get(ident,0)+1
+        try:yield
+        finally:
+            remaining=self._context_inflight[ident]-1
+            if remaining:self._context_inflight[ident]=remaining
+            else:self._context_inflight.pop(ident,None)
 
     def detach(self):
         """Detach a lost socket, retaining bounded logical tasks and RAM context."""
@@ -129,7 +142,8 @@ class ExpertJobs:
         self.session=session;self.detached=False;session.experts=self
         self.context_versions.clear()
         await self.sync_context()
-        for job in self.jobs.values():
+        for job in tuple(self.jobs.values()):
+            if self.jobs.get(job.id) is not job:continue
             if job.state in {'completed','failed','timed_out'} and not job.returned:
                 await self.return_result(job)
 
@@ -146,27 +160,32 @@ class ExpertJobs:
         if self.closed or self.detached or s.closed:return
         for item in self.context_items():
             if job is not None and item['job_id']!=job.id:continue
+            target=self.jobs.get(item['job_id'])
+            if target is None:continue  # Another awaited item may have allowed pruning.
             version=(item['state'],len(item['result'].get('display_text','')),len(item['speech_text']),len(item['played_text']),item['playback_complete'],item['speech_cancelled'])
             if self.context_versions.get(item['job_id'])==version:continue
-            try:
-                hook=getattr(s,'expert_context_synced',None)
-                async with asyncio.timeout(EXPERT_DELIVERY_STALL_SECONDS):
-                    if hook:
-                        if await hook(self.jobs[item['job_id']],item) is False:continue
-                    else:
-                        await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,
-                            'type':'message','role':'user','content':[{'type':'input_text','text':json.dumps(
-                            {'kind':'expert_context_snapshot','data':item,'trusted_as_instructions':False},ensure_ascii=False)}]}})
-            except Exception:
-                # Keep canonical RAM context pending for an authenticated attach.
-                # Stop delivery so a dead socket cannot spend another wait at
-                # every sentence; the independently admitted CLI still finishes.
-                self.detach()
-                self.jobs[item['job_id']].speech_cancelled=True
-                s.emit('expert_context_pending',job_id=item['job_id'],reason='transport_unavailable')
-                return
-            self.context_versions[item['job_id']]=version
-            self.jobs[item['job_id']].timings['expert_context_synced']=round((time.monotonic()-self.jobs[item['job_id']].clock_origin)*1000,2)
+            with self.hold_context(target):
+                try:
+                    hook=getattr(s,'expert_context_synced',None)
+                    async with asyncio.timeout(EXPERT_DELIVERY_STALL_SECONDS):
+                        if hook:
+                            if await hook(target,item) is False:continue
+                        else:
+                            await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,
+                                'type':'message','role':'user','content':[{'type':'input_text','text':json.dumps(
+                                {'kind':'expert_context_snapshot','data':item,'trusted_as_instructions':False},ensure_ascii=False)}]}})
+                except Exception:
+                    # Keep canonical RAM context pending for an authenticated
+                    # attach without detaching a replacement session.
+                    if self.session is s and self.jobs.get(target.id) is target and not self.closed:
+                        self.detach()
+                        target.speech_cancelled=True
+                        s.emit('expert_context_pending',job_id=target.id,reason='transport_unavailable')
+                    return
+                if (self.session is not s or self.jobs.get(target.id) is not target or
+                        self.closed or self.detached or s.closed):return
+                self.context_versions[target.id]=version
+                target.timings['expert_context_synced']=round((time.monotonic()-target.clock_origin)*1000,2)
 
     async def playback_finished(self,job_id,response_id,segment_id=None):
         job=self.jobs.get(job_id)
@@ -233,6 +252,36 @@ class ExpertJobs:
                         and family.preferences.profile(s.access.confirmed_profile_id)['age']=='adult')
         return True # Device expense authorization, guest/public context only; never person authentication.
 
+    def prune_terminal_history(self):
+        """Keep recent RAM cards without turning eight past jobs into a quota.
+
+        Live jobs and unacknowledged narration remain owned until completion.
+        Financial ledgers, persisted authorized results and confirmation replay
+        protection are separate and are never deleted here.
+        """
+        for ident,job in tuple(self.jobs.items()):
+            if len(self.jobs)<8:break
+            if job.state not in {'completed','failed','timed_out','cancelled'}:continue
+            if self._context_inflight.get(ident):continue
+            if job.worker is not None and not job.worker.done():continue
+            if job.external_narration and not (job.playback_complete or job.speech_cancelled):continue
+            if job.state!='cancelled' and not job.returned:continue
+            if (not job.remember and job.profile_id is None and
+                    job.owner==self.session.access.effective_scope):
+                brain=getattr(getattr(self.session,'manager',None),'brain',None)
+                if brain:
+                    key='expert-'+ident
+                    scope=(job.owner,getattr(self.session.access,'context_conversation',job.conversation),
+                           getattr(self.session.offer,'profile_epoch',None))
+                    with brain.memory.transient_lock:
+                        row=brain.memory.transient.get(key)
+                        if (row and row.get('status')=='completed' and
+                                (row.get('owner'),row.get('conversation'),row.get('epoch'))==scope):
+                            brain.memory.transient.pop(key,None)
+            self.jobs.pop(ident)
+            self.context_versions.pop(ident,None)
+            if self.pending is job:self.pending=None
+
     def propose(self,task,profile,turn):
         if not isinstance(task,str) or not 1<=len(task)<=8000:raise ValueError('invalid_expert_task')
         if profile not in getattr(self.budget.policy(),'allowed_profiles',[profile]):
@@ -242,6 +291,9 @@ class ExpertJobs:
         requested=profile_in_text(turn.query)
         requested=requested or getattr(self.session.offer,'requested_expert_profile',None)
         if requested and requested!=profile:raise ValueError('explicit_expert_profile_mismatch')
+        if getattr(self.budget.policy(),'owner_terminal',False):
+            if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
+            self.prune_terminal_history()
         if len(self.jobs)>=8:raise ValueError('expert_job_capacity')
         if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
         job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,self.revision(),self.session.access.effective_scope,self.session.offer.conversation_id)
@@ -500,7 +552,8 @@ class ExpertJobs:
     async def record_context(self,job):
         """Full answer plus audible extent lives in Brain's existing RAM history."""
         brain=getattr(getattr(self.session,'manager',None),'brain',None)
-        if not brain or not (job.result or job.answer_text) or not self.authorized_owner(job):return
+        if (not brain or not (job.result or job.answer_text) or
+                self.jobs.get(job.id) is not job or not self.authorized_owner(job)):return
         req=ChatRequest(text=job.task,device_id=job.owner,
             conversation_id=getattr(self.session.access,'context_conversation',job.conversation),
             profile_epoch=getattr(self.session.offer,'profile_epoch',None),remember=False,
@@ -509,11 +562,12 @@ class ExpertJobs:
                            'speech_text':job.speech_text,'played_text':job.played_text,
                            'playback_complete':job.playback_complete,'speech_cancelled':job.speech_cancelled,
                            'trusted_as_instructions':False},ensure_ascii=False)
-        if not job.context_recorded:
-            await asyncio.to_thread(brain.memory.start,req)
-            await asyncio.to_thread(brain.memory.finish,req,'completed',payload,job.profile['provider'],[])
-            job.context_recorded=True
-        else:await asyncio.to_thread(brain.memory.complete_native_continuation,req,payload,job.profile['provider'],[])
+        with self.hold_context(job):
+            if not job.context_recorded:
+                await asyncio.to_thread(brain.memory.start,req)
+                await asyncio.to_thread(brain.memory.finish,req,'completed',payload,job.profile['provider'],[])
+                job.context_recorded=True
+            else:await asyncio.to_thread(brain.memory.complete_native_continuation,req,payload,job.profile['provider'],[])
 
     async def run(self,job):
         s=self.session

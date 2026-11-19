@@ -1,8 +1,10 @@
-"""Finite Sophia board acceptance proposal; default is a read-only preview.
+"""Sophia board authorization proposal; default is a read-only preview.
 
 This operator tool never changes existing B/C/phone grants or mounts a profile.
-prepare writes a NEW DISABLED epoch with expiry 0. authorize requires the exact
-owner-approved proposal SHA and starts its one-time two-hour validity. Only the
+prepare writes a NEW DISABLED epoch without a running timer. authorize requires the exact
+owner-approved proposal SHA. Finite acceptance grants have two-hour validity;
+owner_terminal requires the explicit continuing OWNER_DIRECT and has no expiry.
+Only the
 explicit cue --execute action can call a speech provider, at most once per epoch.
 """
 from __future__ import annotations
@@ -62,9 +64,11 @@ def main(argv=None):
     parser.add_argument('--expert-profile', choices=UNIFIED_EXPERT_PROFILES,
                         help='Preview/prepare only: the single expert profile bound into the new proposal SHA (default SOL_HIGH).')
     parser.add_argument('--acceptance-preset', choices=UNIFIED_ACCEPTANCE_PRESETS,
-                        help='Preview/prepare only: initial or the separate joint_review scope; never edits an existing epoch.')
+                        help='Preview/prepare only: initial, joint_review, or owner_terminal; never edits an existing epoch.')
     parser.add_argument('--gateway-config', type=Path, default=ROOT/'data/hardware/gobot-v1/gateway.json')
     parser.add_argument('--owner-approved-proposal-sha256')
+    parser.add_argument('--owner-direct-file', type=Path,
+                        help='Authorize owner_terminal only: UTF-8 file containing the exact explicit owner instruction.')
     parser.add_argument('--cache-root', type=Path)
     parser.add_argument('--execute', action='store_true',
                         help='Only with cue: perform the separately authorized single fixed cache generation.')
@@ -75,8 +79,10 @@ def main(argv=None):
         parser.error('--expert-profile is only valid for preview/prepare; authorization uses the exact prepared proposal')
     if args.acceptance_preset and args.command not in {'preview', 'prepare'}:
         parser.error('--acceptance-preset is only valid for preview/prepare; authorization uses the exact prepared proposal')
+    if args.owner_direct_file and args.command != 'authorize':
+        parser.error('--owner-direct-file is only valid for authorize')
     acceptance_preset = args.acceptance_preset or 'initial'
-    expert_profile = args.expert_profile or ('ARGON_DEEP' if acceptance_preset == 'joint_review' else 'SOL_HIGH')
+    expert_profile = args.expert_profile or ('ARGON_DEEP' if acceptance_preset in {'joint_review','owner_terminal'} else 'SOL_HIGH')
     root = epoch_root(args.run_root, args.epoch) if args.epoch else None
     if args.command != 'preview' and root is None:
         parser.error('--epoch is required; existing grants are never reused')
@@ -100,7 +106,9 @@ def main(argv=None):
         manifest = json.loads((root/'proposal.json').read_text(encoding='utf-8'))
         if enrolled and manifest['device_id'] != enrolled:
             raise PermissionError('proposal_must_match_enrolled_board')
-        result = authorize_proposal(root, args.owner_approved_proposal_sha256, cache_root=args.cache_root)
+        owner_direct = args.owner_direct_file.read_text(encoding='utf-8') if args.owner_direct_file else None
+        result = authorize_proposal(root, args.owner_approved_proposal_sha256,
+                                    cache_root=args.cache_root, owner_direct=owner_direct)
     elif args.command == 'status':
         result = status(root)
     else:
@@ -116,8 +124,11 @@ def main(argv=None):
                       'paid_requests_made': 0, 'requires_explicit_execute': cache['status'] != 'ready'}
     if root is not None:
         result['epoch_root'] = str(root)
+        prepared_preset = (json.loads((root/'proposal.json').read_text(encoding='utf-8')).get('acceptance_preset')
+                           if (root/'proposal.json').is_file() else acceptance_preset)
         result['staging_after_owner_authorization'] = {
-            'mount': {'enabled': True, 'profile': 'sophia_unified_acceptance', 'epoch': args.epoch},
+            'mount': {'enabled': True, 'profile': 'sophia_owner_terminal' if prepared_preset=='owner_terminal'
+                      else 'sophia_unified_acceptance', 'epoch': args.epoch},
             'gateway': {'hardware_expert_consent': True},
             'requires_existing_idle_backup_restart_checks': True,
             'mounted_by_this_command': False}

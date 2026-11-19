@@ -25,8 +25,8 @@ def attach_board_realtime(app,manager,auth):
         state['pending_hangups']=len(unresolved)
         state['admission_reason']=('board_previous_hangup_unconfirmed' if unresolved else
             'board_budget_inactive' if not state['enabled'] else
-            'board_session_limit' if not state['sessions_remaining'] else None)
-        state['enabled']=state['enabled'] and state['sessions_remaining']>0 and not unresolved
+            'board_session_limit' if state['sessions_remaining']==0 else None)
+        state['enabled']=state['enabled'] and (state['sessions_remaining'] is None or state['sessions_remaining']>0) and not unresolved
         coordinator=getattr(manager,'legacy_handoff',None)
         state['legacy_a_handoff']={'implemented':bool(coordinator),'financially_authorized':bool(coordinator and
             coordinator.modes.legacy_allowed(manager.budget.policy().allowed_client_id)),'background_expert_job':False}

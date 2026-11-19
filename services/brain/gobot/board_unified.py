@@ -24,7 +24,7 @@ from .realtime_contract import RealtimePolicy
 
 
 UNIFIED_EXPERT_PROFILES = ('SOL_HIGH', 'ARGON_DEEP')
-UNIFIED_ACCEPTANCE_PRESETS = ('initial', 'joint_review')
+UNIFIED_ACCEPTANCE_PRESETS = ('initial', 'joint_review', 'owner_terminal')
 ACCEPTANCE_PRESETS = {
     'initial': {'limits': (3, 60, 8, 512), 'observed_tokens': 12000, 'realtime_estimate': 1,
                 'cue_generations': 1},
@@ -165,18 +165,29 @@ class BoardSpeechLedger:
     def policy(self):
         if not self.policy_path.exists():
             raise PermissionError('board_speech_grant_required')
+        from .owner_terminal import (OwnerTerminalBoardBudget, OwnerTerminalExpertBudget,
+                                     validate_owner_terminal_binding)
+        if isinstance(self.budget, OwnerTerminalBoardBudget):
+            if (not isinstance(self.expert_budget, OwnerTerminalExpertBudget) or
+                    self.expert_budget.root.resolve() != (self.root/'experts').resolve()):
+                raise PermissionError('owner_terminal_exact_expert_ledger_required')
+            return validate_owner_terminal_binding(self.root)[2]
         return BoardSpeechPolicy.model_validate_json(self.policy_path.read_text(encoding='utf-8'))
 
     def require(self, binding):
         p, voice, expert = self.policy(), self.budget.policy(), self.expert_budget.policy()
-        if (not p.enabled or not p.authorization or p.expires_at <= time.time() or
+        from .owner_terminal import OwnerTerminalSpeechPolicy
+        terminal = isinstance(p, OwnerTerminalSpeechPolicy)
+        expiry_mismatch = ((voice.expires_at is not None or expert.expires_at is not None) if terminal else
+                           (voice.expires_at is None or expert.expires_at is None or
+                            p.expires_at > min(voice.expires_at, expert.expires_at)))
+        if (not p.enabled or not p.authorization or (p.expires_at is not None and p.expires_at <= time.time()) or
                 not self.budget.active(voice) or not self.expert_budget.active(expert) or
                 binding != p.allowed_client_id or binding != voice.allowed_client_id or
                 binding != expert.allowed_client_id or voice.owner_full_test or expert.owner_full_test or
                 digest(voice.authorization) != p.parent_authorization_sha256 or
                 digest(expert.authorization) != p.expert_authorization_sha256 or
-                voice.expires_at is None or expert.expires_at is None or
-                p.expires_at > min(voice.expires_at, expert.expires_at)):
+                expiry_mismatch):
             raise PermissionError('board_speech_grant_inactive_or_scope_mismatch')
         return p
 
@@ -215,10 +226,10 @@ class BoardSpeechLedger:
                 raise PermissionError('board_speech_attempt_already_reserved')
             count = db.execute('SELECT count(*) FROM unified_speech_attempts WHERE kind=?', (kind,)).fetchone()[0]
             cap = {'stt': p.max_stt_attempts, 'tts': p.max_narrator_responses, 'cue': p.max_cue_generations}[kind]
-            if count >= cap:
+            if cap is not None and count >= cap:
                 raise PermissionError('board_'+kind+'_attempts_exhausted')
             spent = db.execute('SELECT coalesce(sum(cost),0) FROM unified_speech_attempts').fetchone()[0]
-            if spent+estimate > p.estimate_usd_limit+1e-9:
+            if p.estimate_usd_limit is not None and spent+estimate > p.estimate_usd_limit+1e-9:
                 raise PermissionError('board_speech_estimate_limit')
             if kind == 'tts':
                 self._characters(db, p, job, characters)
@@ -230,8 +241,8 @@ class BoardSpeechLedger:
     def _characters(db, policy, job, characters):
         total = db.execute("SELECT coalesce(sum(characters),0) FROM unified_speech_attempts WHERE kind='tts'").fetchone()[0]
         per_job = db.execute("SELECT coalesce(sum(characters),0) FROM unified_speech_attempts WHERE kind='tts' AND job=?", (job,)).fetchone()[0]
-        if (not job or total+characters > policy.max_narrator_characters or
-                per_job+characters > policy.max_characters_per_job):
+        if (not job or (policy.max_narrator_characters is not None and total+characters > policy.max_narrator_characters) or
+                (policy.max_characters_per_job is not None and per_job+characters > policy.max_characters_per_job)):
             raise PermissionError('board_narrator_character_limit')
 
     def claim_characters(self, key, characters, job_id):
@@ -268,6 +279,9 @@ def epoch_root(run_root, epoch):
 
 
 def proposal_summary(expert_profile='SOL_HIGH', *, acceptance_preset='initial'):
+    if acceptance_preset == 'owner_terminal':
+        from .owner_terminal import owner_terminal_summary
+        return owner_terminal_summary(expert_profile)
     from .expert_stream import EXPERT_CUE_TEXT
     preset = acceptance_preset_config(acceptance_preset)
     if expert_profile not in UNIFIED_EXPERT_PROFILES:
@@ -297,6 +311,9 @@ def proposal_summary(expert_profile='SOL_HIGH', *, acceptance_preset='initial'):
 
 
 def prepare_proposal(root, board_id, *, expert_profile='SOL_HIGH', acceptance_preset='initial'):
+    if acceptance_preset == 'owner_terminal':
+        from .owner_terminal import prepare_owner_terminal_proposal
+        return prepare_owner_terminal_proposal(root, board_id, expert_profile=expert_profile)
     summary = proposal_summary(expert_profile, acceptance_preset=acceptance_preset)
     preset = acceptance_preset_config(acceptance_preset)
     root = Path(root)
@@ -396,7 +413,7 @@ def _validate_joint_runtime_binding(root):
         raise PermissionError('joint_review_exact_proposal_binding_required') from None
 
 
-def authorize_proposal(root, approved_sha256, *, cache_root=None):
+def authorize_proposal(root, approved_sha256, *, cache_root=None, owner_direct=None):
     """Explicit operator action ONLY after the owner approves this exact proposal.
 
     Does not mount the profile, restart services, or open any provider. An
@@ -404,6 +421,12 @@ def authorize_proposal(root, approved_sha256, *, cache_root=None):
     """
     root = Path(root)
     data = json.loads((root/'proposal.json').read_text(encoding='utf-8'))
+    if data.get('acceptance_preset') == 'owner_terminal':
+        from .owner_terminal import authorize_owner_terminal_proposal
+        return authorize_owner_terminal_proposal(root, approved_sha256,
+                                                owner_direct=owner_direct, cache_root=cache_root)
+    if owner_direct is not None:
+        raise PermissionError('owner_terminal_requires_separate_proposal')
     policies = {path: json.loads((root/path).read_text(encoding='utf-8'))
                 for path in ('policy.json', 'experts/policy.json', 'speech-policy.json')}
     fingerprint = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))

@@ -10,7 +10,42 @@ from __future__ import annotations
 import hashlib
 import inspect
 import math
+import re
 from types import SimpleNamespace
+
+
+PLAYBACK_SUMMARY_COUNTS = {
+    'packets_sent', 'progress_receipts', 'duplicate_progress_receipts',
+    'invalid_progress_receipts', 'min_decode_pending', 'max_decode_pending',
+    'min_output_pending', 'max_output_pending', 'empty_software_queue_samples',
+    'empty_queue_and_idle_writer_samples', 'encode_drops_observed_delta',
+    'dropped_frames_observed_delta',
+}
+PLAYBACK_SUMMARY_GAPS = {'max_packet_send_gap_ms', 'max_progress_receipt_gap_ms'}
+
+
+def playback_buffer_summary(value):
+    """Untrusted device diagnostics only; never a playback or admission receipt."""
+    if (not isinstance(value, dict) or value.get('event') != 'playback_buffer_summary' or
+            not isinstance(value.get('response_id'), str) or
+            not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', value['response_id']) or
+            not isinstance(value.get('audio_role'), str) or
+            value.get('audio_role') not in {'fast_answer', 'expert_answer', 'service_cue'} or
+            not isinstance(value.get('reason'), str) or
+            value.get('reason') not in {'finished', 'interrupted'}):
+        return None
+    result = {key: value[key] for key in ('event', 'response_id', 'audio_role', 'reason')}
+    for key in PLAYBACK_SUMMARY_COUNTS | PLAYBACK_SUMMARY_GAPS:
+        if key not in value:
+            continue
+        item = value[key]
+        if (type(item) not in ((int,) if key in PLAYBACK_SUMMARY_COUNTS else (int, float)) or
+                not 0 <= item <= 1e15 or not math.isfinite(item)):
+            return None
+        result[key] = item
+    result.update(underrun_measurement='not_instrumented', device_reported=True,
+                  not_acoustic_proof=True)
+    return result
 
 
 IDS = {'id', 'session_id', 'conversation_id', 'turn_id', 'job_id', 'response_id',
@@ -35,6 +70,7 @@ NUMBERS = {
     'sideband_connected', 'settings_acknowledged', 'lifetime_ms',
     'captured_samples', 'buffered_samples',
 }
+NUMBERS |= PLAYBACK_SUMMARY_COUNTS | PLAYBACK_SUMMARY_GAPS
 BOOLEANS = {
     'enabled', 'active', 'ready', 'input_open', 'muted', 'accepted', 'executed',
     'configuration_confirmed', 'generation_allowed', 'input_allowed', 'heard', 'incomplete',
@@ -45,6 +81,7 @@ BOOLEANS = {
     'stable', 'recovered', 'lost_input_replayed', 'narrated', 'voice_deferred',
     'final', 'result_available', 'microphone', 'private_access', 'audio_available',
     'resume_pending', 'resume_capture',
+    'device_reported',
 }
 CONTAINERS = {'timings', 'timings_ms', 'usage', 'input_token_details',
               'output_token_details', 'cached_tokens_details', 'narrator_usage',
@@ -68,6 +105,7 @@ ENUMS = {
     'playback': {'client_playback_reported', 'unconfirmed_or_interrupted'},
     'name': {'gobot_tool', 'expert_propose', 'expert_start', 'expert_cancel',
              'expert_status', 'expert_list_profiles', 'visual_query'},
+    'underrun_measurement': {'not_instrumented'},
 }
 CODES = {
     'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
@@ -103,6 +141,7 @@ EVENTS = {
     'playback_started', 'playback_finished', 'speaker_sound_started', 'last_speech_sample',
     'end_of_speech', 'endpoint_decided',
     'local_endpoint_decision', 'session.update', 'session.updated', 'session.created',
+    'playback_buffer_summary',
     'wake_fragment_pending', 'wake_fragment_rejected', 'wake_word_only_skipped',
     'wake_fragment_question_ready', 'playback_receipt_received', 'heard_context_committed',
     'response.create', 'response.created', 'response.done', 'response.cancel',

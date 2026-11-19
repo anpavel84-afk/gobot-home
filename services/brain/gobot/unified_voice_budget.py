@@ -4,8 +4,9 @@ The existing OwnerTesting ledger, or an explicitly bound board speech policy
 in that board's usage.sqlite, is the authority. A board grant is never
 translated into a phone grant, and opening an empty socket never calls this
 module. The .50 USD provisional hold and web_stt/web_tts origins are the
-established hybrid_api admissions.  Each narrator Response gets its own hold
-and existing realtime counter; it is not an unlimited answer-wide allowance.
+established hybrid_api admissions. Each narrator Response keeps its own hold
+and measured usage. An explicitly authorized permanent board terminal has no
+lifetime count or money cap; its accounting and operation resource bounds stay.
 """
 from __future__ import annotations
 
@@ -166,13 +167,15 @@ class UnifiedVoiceBudget:
             maximum = min(maximum, policy.max_session_seconds)
         if origin == 'board':
             speech = await asyncio.to_thread(authority.require, binding)
-            # This separate explicitly approved STT duration does not extend
-            # the board's 60s Realtime operation or borrow its paid starts.
+            # STT has its own operation resource bound. It neither borrows
+            # Realtime starts nor converts a finite profile into a permanent one.
             maximum = min(maximum, speech.max_stt_audio_seconds)
-            # The speech grant may expire before its parent B/CLI grant.
-            remaining = int(speech.expires_at-time.time())
-            maximum = min(maximum, remaining-10)
-            timeout = min(timeout, remaining)
+            # Finite speech may expire before B/CLI. A validated owner-terminal
+            # policy has no grant timer, while maximum/timeout remain bounded.
+            if speech.expires_at is not None:
+                remaining = int(speech.expires_at-time.time())
+                maximum = min(maximum, remaining-10)
+                timeout = min(timeout, remaining)
         if policy.expires_at is not None:
             remaining = int(policy.expires_at-time.time())
             # Leave a bounded completion interval before an expiring grant;
@@ -226,7 +229,8 @@ class UnifiedVoiceBudget:
         authority, binding, origin = await asyncio.to_thread(self._authority, session)
         if origin == 'board':
             policy = await asyncio.to_thread(authority.require, binding)
-            limit = min(limit, policy.max_characters_per_job)
+            if policy.max_characters_per_job is not None:
+                limit = min(limit, policy.max_characters_per_job)
         ledger, key = await self._reserve(session, 'tts', 'unified-web-tts:'+job.id+':0', job_id=job.id)
         admission = _NarratorAdmission(self, session, job.id, ledger, key)
         return {'paid_tts_consent': True, 'tts_character_limit': limit,

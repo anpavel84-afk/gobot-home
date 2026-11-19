@@ -91,6 +91,7 @@ class SophiaConnection:
                       'raw_audio_saved': False, 'text_saved': False, 'wake_events': 0,
                       'playback_started': 0, 'playback_finished': 0,
                       'last_error': None, 'input_open': False, 'output_metrics': [],
+                      'output_summaries_sent': 0, 'output_summaries_dropped': 0,
                       'application_keepalives_sent': 0,
                       'last_application_keepalive_monotonic': None,
                       'device_control_messages': 0,
@@ -111,9 +112,39 @@ class SophiaConnection:
             'max_decode_pending': None, 'max_output_pending': None,
             'empty_software_queue_samples': 0, 'empty_queue_and_idle_writer_samples': 0,
             'underrun_count': None, 'underrun_measurement': 'not_instrumented',
+            'drop_counters_start': {key: value for key in ('encode_drops', 'dropped_frames')
+                if type(value := self.stats.get('device_resources', {}).get(key)) is int and value >= 0},
             'progress_points': []}
         self.stats['output_metrics'] = [*self.stats['output_metrics'], metrics][-2:]
         return metrics
+
+    def queue_output_summary(self, state, reason):
+        metrics = state['metrics']
+        if metrics.get('summary_queued'):
+            return
+        metrics['summary_queued'] = True
+        fields = ('packets_sent', 'progress_receipts', 'duplicate_progress_receipts',
+            'invalid_progress_receipts', 'min_decode_pending', 'max_decode_pending',
+            'min_output_pending', 'max_output_pending', 'empty_software_queue_samples',
+            'empty_queue_and_idle_writer_samples', 'max_packet_send_gap_ms',
+            'max_progress_receipt_gap_ms')
+        summary = {'type': 'telemetry', 'event': 'playback_buffer_summary',
+            'response_id': state['response_id'], 'audio_role': metrics['audio_role'], 'reason': reason,
+            **{key: metrics[key] for key in fields if metrics.get(key) is not None}}
+        # These are sampled counter differences, not proof of DMA underruns.
+        for key, before in metrics['drop_counters_start'].items():
+            after = self.stats.get('device_resources', {}).get(key)
+            if type(after) is int and after >= before:
+                summary[key+'_observed_delta'] = after-before
+        self.spawn(self.send_output_summary(summary))
+
+    async def send_output_summary(self, summary):
+        try:
+            await self.to_brain(summary)
+            self.stats['output_summaries_sent'] += 1
+        except Exception:
+            # A diagnostic write failure must never disturb audio/control.
+            self.stats['output_summaries_dropped'] += 1
 
     def output_receipt_metrics(self, state, obj):
         metrics = state['metrics']
@@ -715,20 +746,27 @@ class SophiaConnection:
             self.ring.set_blocked(True, sample_floor=max(self.ring.end, floor), reason='playback_guard')
             self.stats['playback_finished'] += 1
             self.output = None
-            await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
-                                 'sample_floor': floor})
+            try:
+                await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
+                                     'sample_floor': floor})
+            finally:
+                self.queue_output_summary(state, 'finished')
 
     async def clear_output(self):
         async with self.cancel_lock:
             if self.output:
-                self.cancelled.append(self.output['response_id'])
-                self.output['cancel_pending'] = True
+                state = self.output
+                self.cancelled.append(state['response_id'])
+                state['cancel_pending'] = True
                 self.cancel_finished.clear()
-                await self.send({'type': 'gobot_host_output_cancel', **self.output_fields()})
-                self.output_credit.set()
-                await asyncio.wait_for(self.cancel_finished.wait(), 2)
-                self.output_epoch += 1
-                self.output = None
+                try:
+                    await self.send({'type': 'gobot_host_output_cancel', **self.output_fields()})
+                    self.output_credit.set()
+                    await asyncio.wait_for(self.cancel_finished.wait(), 2)
+                    self.output_epoch += 1
+                    self.output = None
+                finally:
+                    self.queue_output_summary(state, 'interrupted')
 
     async def stop(self, reason):
         self.forward = False

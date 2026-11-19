@@ -472,15 +472,16 @@ class DirectSession(NativeSession):
             (policy.max_session_seconds is None or
              time.monotonic()-self.operation_started < policy.max_session_seconds) and
             self.operation_has_response_capacity(policy))
+        estimated_limit = getattr(budget, 'ESTIMATED_LIMIT', None)
         if current:
-            if (hasattr(budget, 'ESTIMATED_LIMIT') and
-                    state.get('reported_response_estimate_usd', 0) >= budget.ESTIMATED_LIMIT):
+            if (estimated_limit is not None and
+                    state.get('reported_response_estimate_usd', 0) >= estimated_limit):
                 return False, 'starts_exhausted'
             return True, 'available'
         if state.get('sessions_remaining') == 0:
             return False, 'starts_exhausted'
-        if (hasattr(budget, 'ESTIMATED_LIMIT') and max(state.get('reserved_estimate_usd', 0),
-                state.get('reported_response_estimate_usd', 0))+budget.RESERVATION > budget.ESTIMATED_LIMIT+1e-9):
+        if (estimated_limit is not None and max(state.get('reserved_estimate_usd', 0),
+                state.get('reported_response_estimate_usd', 0))+budget.RESERVATION > estimated_limit+1e-9):
             return False, 'starts_exhausted'
         return True, 'available'
 
@@ -513,9 +514,12 @@ class DirectSession(NativeSession):
         maximum, timeout = authority.max_audio_seconds, authority.operation_timeout_seconds
         if origin == 'board':
             speech = ledger.require(binding)
-            remaining = int(speech.expires_at-time.time())
-            maximum = min(maximum, speech.max_stt_audio_seconds, remaining-10)
-            timeout = min(timeout, remaining)
+            if speech.max_stt_audio_seconds is not None:
+                maximum = min(maximum, speech.max_stt_audio_seconds)
+            if speech.expires_at is not None:
+                remaining = int(speech.expires_at-time.time())
+                maximum = min(maximum, remaining-10)
+                timeout = min(timeout, remaining)
             with ledger.connect() as db:
                 from .board_unified import digest
                 if db.execute('SELECT 1 FROM unified_speech_attempts WHERE authorization<>?',
@@ -523,7 +527,9 @@ class DirectSession(NativeSession):
                     return False, 'unavailable'
                 count = db.execute("SELECT count(*) FROM unified_speech_attempts WHERE kind='stt'").fetchone()[0]
                 spent = db.execute('SELECT coalesce(sum(cost),0) FROM unified_speech_attempts').fetchone()[0]
-            if count >= speech.max_stt_attempts or spent+WEB_OPERATION_RESERVE_USD > speech.estimate_usd_limit+1e-9:
+            if ((speech.max_stt_attempts is not None and count >= speech.max_stt_attempts) or
+                    (speech.estimate_usd_limit is not None and
+                     spent+WEB_OPERATION_RESERVE_USD > speech.estimate_usd_limit+1e-9)):
                 return False, 'starts_exhausted'
         else:
             if policy.max_session_seconds is not None:
@@ -1950,9 +1956,10 @@ class DirectRealtimeManager(RealtimeManager):
             if state.get('sessions_remaining') == 0:
                 result['code'] = 'realtime_session_budget_exhausted'
                 return result
-            if hasattr(self.budget, 'ESTIMATED_LIMIT') and max(
+            estimated_limit = getattr(self.budget, 'ESTIMATED_LIMIT', None)
+            if estimated_limit is not None and max(
                     state.get('reserved_estimate_usd', 0),
-                    state.get('reported_response_estimate_usd', 0)) + self.budget.RESERVATION > self.budget.ESTIMATED_LIMIT+1e-9:
+                    state.get('reported_response_estimate_usd', 0)) + self.budget.RESERVATION > estimated_limit+1e-9:
                 result['code'] = 'board_estimated_budget_exhausted'
                 return result
             owner = None

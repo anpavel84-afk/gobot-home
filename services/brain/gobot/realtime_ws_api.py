@@ -7,6 +7,7 @@ import asyncio
 import contextlib
 import hmac
 import json
+from collections import deque
 
 import anyio
 from fastapi import Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -143,6 +144,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 'source': hello['source'], 'sample_rate': 24000, 'protocol': 2}})
 
             async def commands():
+                buffer_summaries = deque(maxlen=128)
                 while True:
                     message = await ws.receive()
                     if message['type'] == 'websocket.disconnect':
@@ -182,6 +184,16 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                         await session.select_mode(obj['mode'])
                     elif kind == 'input_end':
                         await session.finish_input()
+                    elif kind == 'telemetry' and hello['source'] == 'device':
+                        from .unified_voice_journal import playback_buffer_summary
+                        summary = playback_buffer_summary(obj)
+                        if summary and summary['response_id'] not in buffer_summaries:
+                            buffer_summaries.append(summary['response_id'])
+                            # Existing opted-in content-free journal only. This
+                            # cannot complete playback, open input or call a model.
+                            # Do not echo it into the bounded audio/control queue.
+                            with contextlib.suppress(Exception):
+                                manager.journal.session_event(session, 'B', 'telemetry', summary)
                     elif kind == 'ping':
                         session.emit('pong')
                     else:
