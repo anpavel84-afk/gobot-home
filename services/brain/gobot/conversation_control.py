@@ -3,7 +3,7 @@ import re,time
 
 def closing_intent(text,context=None):
     value=' '.join(re.sub(r'[,.!?:;—–-]+',' ',text.casefold().replace('ё','е')).split())
-    value=re.sub(r'^(?:гобот|го бот)\s+','',value)
+    value=re.sub(r'^(?:гобот|го бот|софия|софья|sophia)\s+','',value)
     if len(value)>120:return None
     direct={
         'нет спасибо','нет благодарю','не надо спасибо','спасибо не надо',

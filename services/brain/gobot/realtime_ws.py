@@ -35,6 +35,10 @@ _DETACH_REASONS = frozenset({'client_disconnected', 'output_backpressure', 'tran
 _CLOSE_REASONS = frozenset({'closed', 'setup_failed', 'server_shutdown', 'detached_expired',
                           'profile_authorization_revoked'})
 _FAST_INPUT_MAX_SECONDS = 30.
+_FAST_TRANSCRIPT_TIMEOUT_SECONDS = 2.
+_RESPONSE_CREATED_TIMEOUT_SECONDS = 5.
+_RESPONSE_REQUEST_RETENTION_SECONDS = 120.
+_RESPONSE_REQUEST_LIMIT = 128
 
 
 class DirectOffer(RealtimeOffer):
@@ -93,6 +97,10 @@ class DirectSession(NativeSession):
         self.operation_started = 0.
         self.operation_policy = None
         self.response_operations = {}
+        self._response_attempted = False
+        self._response_requests = {}
+        self._pending_response_request = None
+        self._active_response_scope = None
         self.seen_wakes = set()
         self.output_owner = None
         self.output_response = None
@@ -125,6 +133,8 @@ class DirectSession(NativeSession):
         self._empty_detached_expired = False
         self._wake_fragment_candidate = False
         self._fast_capture_started = 0.
+        self._fast_input_trigger = 'unknown'
+        self._fast_input_wake_id = None
         self._wake_fragment = None
         self._wake_replay_fragment = None
         self._wake_early_transcripts = {}
@@ -280,7 +290,7 @@ class DirectSession(NativeSession):
         self.output_sequence += 1
         return True
 
-    async def send(self, event, *, _input_epoch=None):
+    async def send(self, event, *, _input_epoch=None, _response_gate=None):
         if (event.get('item', {}).get('type') == 'function_call_output' and
                 _tool_transport_epoch.get() not in (None, self.transport_epoch)):
             raise RuntimeError('stale_tool_transport')
@@ -293,7 +303,106 @@ class DirectSession(NativeSession):
                     self.require_input_gate(_input_epoch)
                 await self.ws.send(json.dumps(event))
             return
+        if event.get('type') == 'response.create':
+            if _response_gate is None:
+                raise RuntimeError('response_scope_required')
+            epoch, turn, reservation, reason, operation = _response_gate
+            async with self.send_lock:
+                if not self.response_scope_current(epoch, turn):
+                    return False
+                # Stop may have run while this send waited for the lock. Only
+                # the still-current turn may claim the pending provider reply.
+                self.pending_reservation = reservation
+                self._response_attempted = True
+                self.response_requested = True
+                self.pending_response = False
+                self.live_response = None
+                self._active_response_scope = None
+                # The provider echoes response.metadata. An opaque per-send
+                # nonce binds its ACK to this exact turn, including after Stop
+                # and another wake. Client event_id is not an ACK correlation.
+                request_id = uuid4().hex
+                event = {**event, 'response': {**event['response'],
+                         'metadata': {'gobot_request_id': request_id}}}
+                self._pending_response_request = request_id
+                request = {'epoch': epoch, 'transport_epoch': self.transport_epoch,
+                           'turn': turn, 'operation': operation, 'reservation': reservation}
+                self._response_requests[request_id] = request
+                while len(self._response_requests) > _RESPONSE_REQUEST_LIMIT:
+                    self.forget_response_request(next(iter(self._response_requests)))
+                request['task'] = self.spawn(self.expire_response_request(request_id, request))
+                self.manager.journal.session_event(self, 'B', 'provider_command',
+                    {'event_type': 'response.create', 'event': event, 'reason': reason,
+                     'trigger': getattr(turn, 'direct_input_trigger', 'unknown'),
+                     'turn_id': turn.id, 'item_id': turn.input_id,
+                     'wake_id': getattr(turn, 'direct_wake_id', None)})
+                await self.ws.send(json.dumps(event, ensure_ascii=False))
+                return True
         await super().send(event)
+
+    def forget_response_request(self, request_id):
+        request = self._response_requests.pop(request_id, None)
+        task = request.get('task') if request else None
+        if task and task is not asyncio.current_task():
+            task.cancel()
+        return request
+
+    async def expire_response_request(self, request_id, request):
+        await asyncio.sleep(_RESPONSE_CREATED_TIMEOUT_SECONDS)
+        if (self._response_requests.get(request_id) is request and
+                self._pending_response_request == request_id and
+                self.response_scope_current(request['epoch'], request['turn'])):
+            self.emit('error', code='response_acknowledgement_timeout', automatic_retry=False)
+            # No blind regeneration and no refund of a sent/unknown attempt.
+            # Stop is bounded and leaves the warm conversation ready for wake.
+            await self.stop()
+        await asyncio.sleep(max(0, _RESPONSE_REQUEST_RETENTION_SECONDS-
+                                _RESPONSE_CREATED_TIMEOUT_SECONDS))
+        if self._response_requests.get(request_id) is request:
+            self._response_requests.pop(request_id)
+
+    def response_event_current(self, response_id):
+        scope = self._active_response_scope
+        return bool(scope and response_id == scope[0] and
+                    scope[2] == self.transport_epoch and
+                    self.response_scope_current(scope[1], scope[3]))
+
+    async def response_created(self, obj):
+        response = obj.get('response') or {}
+        ident = response.get('id')
+        if not isinstance(ident, str) or not ident:
+            return False
+        # Duplicate ACKs must neither rebind a turn nor cancel its good output.
+        if ident in self.response_operations or ident in self.cancelled_responses:
+            return False
+        metadata = response.get('metadata')
+        request_id = metadata.get('gobot_request_id') if isinstance(metadata, dict) else None
+        request = self._response_requests.get(request_id) if isinstance(request_id, str) else None
+        if request is not None:
+            self.forget_response_request(request_id)
+            self.response_operations[ident] = request['operation']
+            if request['reservation']:
+                self.response_reservations[ident] = request['reservation']
+        if (request is not None and request_id == self._pending_response_request and
+                request['transport_epoch'] == self.transport_epoch and
+                self.response_requested and
+                self.response_scope_current(request['epoch'], request['turn'])):
+            self._pending_response_request = None
+            self.pending_reservation = request['reservation']
+            self._active_response_scope = (ident, request['epoch'],
+                                           request['transport_epoch'], request['turn'])
+            return True
+        # A late old ACK may still settle its own operation. It has no input,
+        # tool, output, pending-reservation or generation authority in this turn.
+        self.cancelled_responses.add(ident)
+        cancel_id = 'cancel_'+uuid4().hex
+        self.cancel_event_ids.add(cancel_id)
+        with suppress(Exception):
+            await asyncio.wait_for(self.send({'type': 'response.cancel',
+                'response_id': ident, 'event_id': cancel_id}), 1)
+        self.emit('telemetry', event='response_correlation_rejected',
+                  reason='stale_or_unknown_request', response_id=ident, automatic_retry=False)
+        return False
 
     async def tool(self, call_id, name, arguments, turn):
         token = _tool_transport_epoch.set(self.transport_epoch)
@@ -671,6 +780,8 @@ class DirectSession(NativeSession):
             self._input_samples = 0
             self._input_started = False
             self._wake_fragment_candidate = trigger == 'wake_word' and self.selected_mode == 'fast'
+            self._fast_input_trigger = trigger
+            self._fast_input_wake_id = wake_id
             self._wake_early_transcripts.clear()
             input_epoch = self._input_gate_epoch
             try:
@@ -744,6 +855,8 @@ class DirectSession(NativeSession):
         self._fast_capture_started = time.monotonic()
         if followup:
             self._wake_fragment_candidate = False
+            self._fast_input_trigger = 'followup'
+            self._fast_input_wake_id = None
         self.followup_deadline = time.monotonic()+8
         self.last_activity = time.monotonic()
         self.emit('followup' if followup else 'listening', seconds=8,
@@ -812,9 +925,16 @@ class DirectSession(NativeSession):
         return True
 
     async def response(self):
+        input_epoch = _response_input_epoch.get()
+        input_epoch = self._input_gate_epoch if input_epoch is None else input_epoch
+        turn = self.current
+        reason = ('tool_result' if _tool_transport_epoch.get() is not None else
+                  'pending_continuation' if self.pending_response else
+                  'input_final_transcript' if self.source == 'device' and turn and not turn.response_ids else
+                  'input_audio_commit' if turn and not turn.response_ids else 'native_continuation')
         async with self.response_lock:
-            if _response_input_epoch.get() not in (None, self._input_gate_epoch):
-                return  # Stop/mute superseded this committed input during async cleanup.
+            if not self.response_scope_current(input_epoch, turn):
+                return
             if self._wake_fragment is not None:
                 return  # The existing transcription decides this one fragment.
             if _tool_transport_epoch.get() not in (None, self.transport_epoch):
@@ -830,21 +950,84 @@ class DirectSession(NativeSession):
                 return
             try:
                 await self.admission(explicit_wake=False)
+                if not self.response_scope_current(input_epoch, turn):
+                    return
+                operation = self.operation_id
                 await asyncio.to_thread(self.manager.budget.reserve_response,
-                                         self.operation_id, self.operation_policy)
+                                         operation, self.operation_policy)
+                if not self.response_scope_current(input_epoch, turn):
+                    return  # Durable unknown attempt stays spent; never retry/refund.
+                reservation = None
                 if self.owner_test_authorized:
-                    self.pending_reservation = await asyncio.to_thread(
+                    reservation = await asyncio.to_thread(
                         self.manager.owner_testing.reserve, self.owner_test_binding,
                         'realtime', uuid4().hex, estimate=.5,
                         origin='developer' if self.offer.developer_acceptance else 'owner')
             except PermissionError as error:
-                self.pending_response = False
-                await self.close_fast_input(str(error), event='admission_denied')
+                if self.response_scope_current(input_epoch, turn):
+                    self.pending_response = False
+                    await self.close_fast_input(str(error), event='admission_denied', input_epoch=input_epoch)
                 return
-            self.response_requested = True
-            self.pending_response = False
+            if not self.response_scope_current(input_epoch, turn):
+                return
             await self.send({'type': 'response.create', 'response': {
-                'output_modalities': ['audio'] if self.offer.speak else ['text']}})
+                'output_modalities': ['audio'] if self.offer.speak else ['text']}},
+                _response_gate=(input_epoch, turn, reservation, reason, operation))
+
+    def response_scope_current(self, input_epoch, turn):
+        return bool(input_epoch == self._input_gate_epoch and turn is self.current and
+                    turn is not None and not turn.cancelled and not turn.local_control and
+                    not self.closed and self.ready and self.attached and not self.muted and
+                    not self._stop_count)
+
+    async def input_text(self, turn, text):
+        # Direct Stop ends the current exchange, keeping the existing warm
+        # transport and permanent permission ready for a later explicit wake.
+        if (turn is not self.current or turn.cancelled or turn.local_control or
+                self.closed or not self.attached or self.muted or self._stop_count):
+            return
+        from .conversation_control import closing_intent
+        control = closing_intent(text)
+        if control in {'stop_output', 'end_conversation'}:
+            input_epoch = self._input_gate_epoch
+            # Preserve the existing meaning of a refusal to a pending action.
+            proposal = self.experts.pending
+            pending = {'pending_action': {'kind': 'expert_proposal', 'expires': proposal.expires}} \
+                if proposal and proposal.state == 'awaiting_confirmation' else {}
+            settings = await asyncio.to_thread(self.manager.brain.memory.context,
+                                               self.settings_request(text, turn.id))
+            action = settings.get('pending_action')
+            if action and action['kind'].startswith('weather_'):
+                pending = {'pending_action': action}
+            if not self.response_scope_current(input_epoch, turn):
+                return
+            control = closing_intent(text, pending)
+            if control in {'stop_output', 'end_conversation'}:
+                turn.query = text
+                turn.input_ready.set()
+                turn.consent_ready.set()
+                turn.local_control = True
+                self.emit('input_transcript', text=text, final=True, confirm_text_allowed=False)
+                await self.stop()
+                if turn.input_id and self.ready:
+                    await self.send({'type': 'conversation.item.delete', 'item_id': turn.input_id})
+                self.emit('telemetry', event='local_voice_stop', automatic_retry=False)
+                return
+        await super().input_text(turn, text)
+
+    async def finish(self, turn, heard):
+        stored = turn.stored
+        await super().finish(turn, heard)
+        if not stored and turn.stored:
+            # Explicit identity matters when a late result closes an older
+            # turn. Only the separately authorized diagnostic wrapper accepts
+            # this hook; the default content-free journal ignores its kind.
+            self.manager.journal.session_event(self, 'B', 'direct_dialogue_turn', {
+                'turn_id': turn.id, 'item_id': turn.input_id,
+                'response_id': turn.active_response_id,
+                'answer_transcript': turn.answer,
+                'playback': 'client_playback_reported' if heard else 'unconfirmed_or_interrupted',
+                'truncated': bool(turn.truncated), 'not_acoustic_proof': True})
 
     @staticmethod
     def wake_word_only(text):
@@ -871,25 +1054,37 @@ class DirectSession(NativeSession):
         task = fragment.get('task')
         if task and task is not asyncio.current_task():
             task.cancel()
+        if fragment.get('turn') and self.current is fragment['turn']:
+            await self.finish(fragment['turn'], False)
+        if fragment['epoch'] != self._input_gate_epoch:
+            return
+        if fragment.get('item_id') and self.ready:
+            await self.send({'type': 'conversation.item.delete', 'item_id': fragment['item_id']})
         await self.close_fast_input(reason, input_epoch=fragment['epoch'])
-        self.emit('telemetry', event='wake_fragment_rejected', reason=reason,
+        self.emit('telemetry', event='wake_fragment_rejected' if fragment['wake_resume']
+                  else 'input_transcript_rejected', reason=reason,
                   automatic_retry=False)
 
     async def resolve_wake_fragment(self, fragment):
         try:
-            await asyncio.wait_for(fragment['transcript_ready'].wait(), 2.)
+            await asyncio.wait_for(fragment['transcript_ready'].wait(), _FAST_TRANSCRIPT_TIMEOUT_SECONDS)
             self.require_input_gate(fragment['epoch'])
             if self._wake_fragment is not fragment:
                 return
-            if fragment.get('failed') or not fragment.get('text'):
-                await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_failed')
+            if fragment.get('failed') or not any(c.isalnum() for c in fragment.get('text', '')):
+                await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_failed'
+                    if fragment['wake_resume'] else 'input_transcription_failed_or_empty')
                 return
             text, turn = fragment['text'], fragment['turn']
+            if self.wake_word_only(text) and not fragment['wake_resume']:
+                await self.fail_wake_fragment(fragment, 'input_wake_word_only')
+                return
             if not self.wake_word_only(text):
                 if fragment['commits']:
                     await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
                     return
-                self.emit('telemetry', event='wake_fragment_question_ready',
+                self.emit('telemetry', event='wake_fragment_question_ready' if fragment['wake_resume']
+                          else 'input_transcript_ready',
                           plan_monotonic=time.monotonic())
                 # A real question is not silently discarded based on length.
                 # Stop VAD now; the ordinary response uses its committed audio.
@@ -952,11 +1147,17 @@ class DirectSession(NativeSession):
                 self._wake_replay_fragment = replay
                 try:
                     await self.handle(commit)
+                    continuation = self._wake_fragment
                     if (self._wake_replay_fragment is replay and
                             fragment['epoch'] == self._input_gate_epoch):
                         self._wake_replay_fragment = None
                         if replay['transcript']:
                             await self.handle(replay['transcript'])
+                            if continuation is not None and continuation.get('task'):
+                                # The preserved second item now has its own
+                                # final-ASR gate. Join that existing work; do
+                                # not create another input or Response.
+                                await continuation['task']
                 finally:
                     if self._wake_replay_fragment is replay:
                         self._wake_replay_fragment = None
@@ -966,7 +1167,8 @@ class DirectSession(NativeSession):
         except asyncio.CancelledError:
             raise
         except TimeoutError:
-            await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_timeout')
+            await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_timeout'
+                if fragment['wake_resume'] else 'input_transcription_timeout')
         except PermissionError as error:
             if fragment['epoch'] == self._input_gate_epoch:
                 await self.fail_wake_fragment(fragment, str(error))
@@ -1007,6 +1209,10 @@ class DirectSession(NativeSession):
 
     async def handle(self, obj):
         kind = obj.get('type')
+        if (isinstance(kind, str) and kind.startswith('response.') and
+                kind not in {'response.created', 'response.done'} and
+                not self.response_event_current(obj.get('response_id'))):
+            return
         if kind in {'conversation.item.input_audio_transcription.completed',
                     'conversation.item.input_audio_transcription.failed'}:
             fragment = self._wake_fragment
@@ -1028,7 +1234,9 @@ class DirectSession(NativeSession):
                 if isinstance(item_id, str) and len(fragment['transcripts']) < 2:
                     fragment['transcripts'][item_id] = obj
                     return
-            elif self._wake_fragment_candidate and not any(t.input_id == item_id for t in self.turns):
+            elif (self._wake_fragment_candidate or
+                    self.source == 'device' and self.input_open and self.selected_mode == 'fast') \
+                    and not any(t.input_id == item_id for t in self.turns):
                 if isinstance(item_id, str) and len(self._wake_early_transcripts) < 2:
                     self._wake_early_transcripts[item_id] = obj
                 return
@@ -1059,7 +1267,9 @@ class DirectSession(NativeSession):
                     if len(fragment['commits']) > 1:
                         await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
                 return
-            if not self.input_open:
+            if obj.get('item_id') and any(t.input_id == obj['item_id'] for t in self.turns):
+                return
+            if not self.input_open or self.selected_mode != 'fast':
                 if obj.get('item_id'):
                     await self.send({'type': 'conversation.item.delete', 'item_id': obj['item_id']})
                 return
@@ -1071,10 +1281,11 @@ class DirectSession(NativeSession):
             self.auto_input_deadline = None
             self.state = 'thinking'
             self.emit('input_closed', reason='provider_endpoint', resume_pending=candidate)
-            if candidate:
+            if candidate or self.source == 'device':
                 self.input_mode = 'processing'
                 self._input_started = False
                 fragment = {'epoch': self._input_gate_epoch,
+                    'wake_resume': candidate,
                     'item_id': obj.get('item_id', ''), 'turn': None,
                     'transcript_ready': asyncio.Event(), 'text': '', 'failed': False,
                     'pcm': deque(), 'bytes': 0, 'commits': [], 'transcripts': {},
@@ -1086,11 +1297,14 @@ class DirectSession(NativeSession):
                         self.closed or not self.ready or not self.attached or self.muted):
                     return
                 fragment['turn'] = turn
+                turn.direct_input_trigger = self._fast_input_trigger
+                turn.direct_wake_id = self._fast_input_wake_id
                 early = self._wake_early_transcripts.pop(turn.input_id, None)
                 self._wake_early_transcripts.clear()
                 if early:
                     await self.handle(early)
-                self.emit('telemetry', event='wake_fragment_pending',
+                self.emit('telemetry', event='wake_fragment_pending' if candidate
+                          else 'input_transcript_pending',
                           captured_samples=self._input_samples, automatic_retry=False,
                           plan_monotonic=time.monotonic())
                 fragment['task'] = self.spawn(self.resolve_wake_fragment(fragment))
@@ -1102,14 +1316,8 @@ class DirectSession(NativeSession):
                 _response_input_epoch.reset(token)
             return
         elif kind == 'response.created':
-            ident = obj.get('response', {}).get('id')
-            if not self.response_requested:
-                if ident:
-                    self.cancelled_responses.add(ident)
-                await self.send({'type': 'response.cancel'})
-                self.emit('error', code='unsolicited_response_cancelled', automatic_retry=False)
+            if not await self.response_created(obj):
                 return
-            self.response_operations[ident] = self.operation_id
         elif kind == 'response.output_audio.delta':
             ident = obj.get('response_id')
             if (ident in self.cancelled_responses or ident not in self.response_operations or
@@ -1132,14 +1340,18 @@ class DirectSession(NativeSession):
                         await asyncio.to_thread(self.manager.owner_testing.settle,
                                                 self.response_reservations[ident], cost)
                     self.emit('usage', model=self.policy.model, estimated_usd=cost,
-                              transcription_included=False, provider_invoice=False)
+                              transcription_included=False, provider_invoice=False,
+                              response_id=ident)
                     if (self.policy.observed_token_limit is not None and
                             await asyncio.to_thread(self.manager.budget.total_tokens, operation) >= self.policy.observed_token_limit):
-                        self.operation_started = 0.
-                        self.input_open = False
+                        if operation == self.operation_id and self.response_event_current(ident):
+                            self.operation_started = 0.
+                            self.input_open = False
                 else:
                     self.emit('accounting_unknown', reason='unsolicited_response_usage',
                               response_id=ident, automatic_retry=False)
+            if not self.response_event_current(ident):
+                return
             # Native handler's record(self.id) would use the transport identity.
             obj = {**obj, 'response': {k: v for k, v in response.items() if k != 'usage'}}
             await super().handle(obj)
@@ -1509,6 +1721,16 @@ class DirectSession(NativeSession):
         self.auto_input_deadline = None
         self.pending_response = False
         should_cancel_provider = self.generating or self.response_requested
+        # Clearing live reply ownership is not proof that no paid/unknown
+        # attempt ever existed. Keep that evidence beyond Stop and RAM expiry.
+        if self.pending_reservation is not None or self.response_requested:
+            self._response_attempted = True
+        self._pending_response_request = None
+        self._active_response_scope = None
+        self.pending_reservation = None
+        if self.live_response:
+            self.cancelled_responses.add(self.live_response)
+        self.live_response = None
         if self.output_response:
             self.cancelled_responses.add(self.output_response)
         # Physical cancellation is local and must not wait for provider flow
@@ -1638,6 +1860,10 @@ class DirectSession(NativeSession):
             old_context, old_reader = self._provider_context, self.reader
             self._provider_context, self.ws, self.config = replacement
             self.transport_epoch += 1
+            for request_id in tuple(self._response_requests):
+                self.forget_response_request(request_id)
+            self._pending_response_request = None
+            self._active_response_scope = None
             self.transport_started = time.monotonic()
             self._reconnect_attempts = 0
             self.ready = True
@@ -1735,7 +1961,7 @@ class DirectSession(NativeSession):
                     not self.experts.active() and now-self.detached_at > 3600)
 
     def proven_empty(self):
-        return bool(not self._admission_attempts and self.operation_id is None and
+        return bool(not self._admission_attempts and not self._response_attempted and self.operation_id is None and
             self._input_samples == 0 and not self._input_started and
             self.current is None and not self.turns and not self.experts.jobs and
             not self.calls and not self.response_operations and not self.response_reservations and
@@ -1768,11 +1994,11 @@ class DirectRealtimeManager(RealtimeManager):
 
     def __init__(self, original, *, speech=None, narrator_authorizer=None,
                  transcription_authorizer=None, recognition=None, provider=None):
-        from .unified_voice_journal import ContentFreeJournal
+        from .unified_voice_journal import direct_journal
         self.original = original
         super().__init__(original.brain, provider=provider or DirectProvider(),
                          budget=original.budget, profile_loader=original.profile_loader,
-                         identity=original.identity, journal=ContentFreeJournal(original.journal),
+                         identity=original.identity, journal=direct_journal(original),
                          owner_testing=original.owner_testing, session_factory=DirectSession)
         self.lock = original.lock
         self.expert_store = original.expert_store

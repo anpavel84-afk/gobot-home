@@ -8,7 +8,8 @@ import sys
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'services/voice'))
-from sophia_connection import SophiaConnection, PrefetchedSocket, supports_sophia_v2
+from sophia_connection import (SophiaConnection, PrefetchedSocket, supports_sophia_v2,
+                              POST_PLAYBACK_CAPTURE_GUARD_SAMPLES)
 
 
 class Socket:
@@ -172,7 +173,8 @@ def test_whole_physical_playback_receipt_required_and_stale_audio_dropped():
         assert [x['type'] for x in brain] == ['playback_started', 'playback_finished']
         # Only Brain's post-playback guard may now open followup.
         await c.cloud_event({'type': 'followup', 'data': {'mode': 'fast'}})
-        assert c.forward and not c.ring.blocked and c.ring.cursor.position == 0
+        assert c.forward and not c.ring.blocked
+        assert c.ring.cursor.position == POST_PLAYBACK_CAPTURE_GUARD_SAMPLES
         await c.cloud_event({'type': 'audio_start', 'data': {'response_id': 'r2'}})
         fields = c.output_fields()
         cancel = asyncio.create_task(c.cloud_event({'type': 'audio_cancel', 'data': {'response_id': 'r2'}}))

@@ -6,7 +6,7 @@ import json
 import pytest
 
 from gobot.unified_voice_journal import metadata
-from test_realtime_ws import setup, offer, cleanup
+from test_realtime_ws import setup, offer, cleanup, complete_input
 from test_sophia_wake_fragment import begin, transcript
 
 
@@ -19,6 +19,7 @@ def test_receipt_precedes_heard_context_and_stale_or_segment_receipts_do_not_pro
             wake = next(e['data'] for e in session.events if e['type'] == 'wake_accepted')
             assert 0 < wake['wake_received_monotonic'] <= wake['plan_monotonic']
             await session.handle({'type': 'input_audio_buffer.committed', 'item_id': 'known-question'})
+            await complete_input(session, 'known-question', 'Сколько будет два плюс три?')
             await asyncio.sleep(.02)
             response, turn = session.live_response, session.current
             await session.handle({'type': 'response.output_audio.delta', 'response_id': response,
@@ -91,6 +92,7 @@ def test_retry_after_failed_context_finish_never_claims_a_successful_commit(tmp_
             session = await manager.accept(offer())
             await session.wake('known-human-wake')
             await session.handle({'type': 'input_audio_buffer.committed', 'item_id': 'known-question'})
+            await complete_input(session, 'known-question', 'Сколько будет два плюс три?')
             await asyncio.sleep(.02)
             response, turn = session.live_response, session.current
             await session.handle({'type': 'response.output_audio.delta', 'response_id': response,

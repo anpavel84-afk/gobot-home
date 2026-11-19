@@ -127,12 +127,16 @@ def test_pending_name_fragment_fails_closed_without_guess_or_paid_retry(tmp_path
 
 
 @pytest.mark.parametrize('trigger', ['touch', 'manual'])
-def test_manual_or_touch_activation_does_not_apply_wake_word_gate(tmp_path, settings, trigger):
+def test_manual_or_touch_activation_uses_final_asr_without_name_resume(tmp_path, settings, trigger):
     async def run():
         original, board, manager, _ = setup(tmp_path, settings)
         try:
             session = await manager.accept(offer())
-            assert await begin(session, trigger=trigger) is None
+            gate = await begin(session, trigger=trigger)
+            assert gate is not None and not gate['wake_resume']
+            assert response_count(session) == 0
+            await transcript(session, 'Который час?')
+            await gate['task']
             assert response_count(session) == 1
         finally:
             await cleanup(original, board, manager)
@@ -156,6 +160,8 @@ def test_gateway_pause_retains_unsent_burst_and_stateful_resampler():
         resampler = gateway.resampler = Resampler()
         sent = []
         async def send(pcm):
+            if not isinstance(pcm, bytes):
+                return  # Independent capture-boundary diagnostics are not PCM.
             sent.append(pcm)
             if len(sent) == 1:
                 await gateway.cloud_event({'type': 'input_closed', 'data': {

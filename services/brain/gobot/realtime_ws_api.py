@@ -145,6 +145,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
 
             async def commands():
                 buffer_summaries = deque(maxlen=128)
+                capture_boundaries = deque(maxlen=128)
                 while True:
                     message = await ws.receive()
                     if message['type'] == 'websocket.disconnect':
@@ -185,7 +186,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                     elif kind == 'input_end':
                         await session.finish_input()
                     elif kind == 'telemetry' and hello['source'] == 'device':
-                        from .unified_voice_journal import playback_buffer_summary
+                        from .unified_voice_journal import capture_boundary, playback_buffer_summary
                         summary = playback_buffer_summary(obj)
                         if summary and summary['response_id'] not in buffer_summaries:
                             buffer_summaries.append(summary['response_id'])
@@ -194,6 +195,16 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                             # Do not echo it into the bounded audio/control queue.
                             with contextlib.suppress(Exception):
                                 manager.journal.session_event(session, 'B', 'telemetry', summary)
+                        boundary = capture_boundary(obj)
+                        if boundary:
+                            key = (boundary['stream_epoch'], boundary['stage'],
+                                   boundary.get('wake_id'), boundary.get('response_id'))
+                            if key not in capture_boundaries:
+                                capture_boundaries.append(key)
+                                # Numeric diagnostics only. An opaque cursor or
+                                # floor never authorizes microphone/audio state.
+                                with contextlib.suppress(Exception):
+                                    manager.journal.session_event(session, 'B', 'telemetry', boundary)
                     elif kind == 'ping':
                         session.emit('pong')
                     else:

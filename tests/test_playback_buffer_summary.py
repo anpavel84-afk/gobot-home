@@ -56,12 +56,12 @@ def test_gateway_finished_and_cancelled_summaries_are_once_and_preserve_receipt_
         c.queue_output_summary(state, 'finished')  # Duplicate callback is harmless.
         await asyncio.gather(*list(c.tasks))
         messages = [json.loads(item) for item in c.brain.sent]
-        finished = next(item for item in messages if item['type'] == 'telemetry')
+        finished = next(item for item in messages if item.get('event') == 'playback_buffer_summary')
         assert messages.index(next(item for item in messages if item['type'] == 'playback_finished')) < messages.index(finished)
         assert finished['reason'] == 'finished' and finished['packets_sent'] == 1
         assert finished['encode_drops_observed_delta'] == 3
         assert finished['empty_queue_and_idle_writer_samples'] == 1
-        assert len([item for item in messages if item['type'] == 'telemetry']) == 1
+        assert len([item for item in messages if item.get('event') == 'playback_buffer_summary']) == 1
         assert c.output is None and c.stats['playback_finished'] == 1
 
         await c.cloud_event({'type': 'audio_start', 'data': {'response_id': 'cancelled-output'}})

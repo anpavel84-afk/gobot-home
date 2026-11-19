@@ -20,6 +20,12 @@ from websockets.asyncio.client import connect
 from sophia_audio import PcmRing, OrderedOpus, ContinuousPcm24
 
 
+# The Brain's existing 200 ms wall-clock guard does not discard microphone
+# packets that arrive late. Keep its equivalent in the device's 16 kHz capture
+# coordinate too. This is read-progress evidence, never an acoustic DMA clock.
+POST_PLAYBACK_CAPTURE_GUARD_SAMPLES = 3200
+
+
 class PrefetchedSocket:
     """Preserve the original legacy receive contract after capability routing."""
     def __init__(self, socket, first):
@@ -83,6 +89,8 @@ class SophiaConnection:
         self.cancelled = deque(maxlen=128)
         self.tasks = set()
         self.closed = False
+        self.capture_completion = None
+        self.first_uplink_cursor = None
         self.endpoint = {'started': None, 'last_voice': None, 'noise': 80., 'samples': 0}
         self.stats = {'protocol': 2, 'mode': 'B_WS', 'pcm_stage': 'pre_afe',
                       'selected_mode': self.mode,
@@ -92,6 +100,8 @@ class SophiaConnection:
                       'playback_started': 0, 'playback_finished': 0,
                       'last_error': None, 'input_open': False, 'output_metrics': [],
                       'output_summaries_sent': 0, 'output_summaries_dropped': 0,
+                      'capture_boundaries': {}, 'capture_boundaries_sent': 0,
+                      'capture_boundaries_dropped': 0,
                       'application_keepalives_sent': 0,
                       'last_application_keepalive_monotonic': None,
                       'device_control_messages': 0,
@@ -100,6 +110,28 @@ class SophiaConnection:
                       'admission_status': {'known': False, 'mode': self.mode},
                       'invalid_admission_status': 0, 'stale_admission_status': 0,
                       'admission_receipt': None, 'discarded_admission_receipts': 0}
+
+    def queue_capture_boundary(self, stage, **fields):
+        data = {'type': 'telemetry', 'event': 'capture_boundary', 'stage': stage,
+                'stream_epoch': self.ring.epoch, 'ring_end': self.ring.end,
+                'sample_floor': self.ring.floor, 'plan_monotonic': time.monotonic(), **fields}
+        # Exactly one bounded snapshot per stage. Persistent stats contain no
+        # raw identifiers; the journal separately hashes the wire identifiers.
+        snapshot = {key: value for key, value in data.items()
+                    if key not in ('type', 'stream_epoch', 'response_id', 'wake_id')}
+        for key in ('stream_epoch', 'response_id', 'wake_id'):
+            if isinstance(data.get(key), str):
+                snapshot[key+'_sha256'] = hashlib.sha256(data[key].encode()).hexdigest()
+        self.stats['capture_boundaries'][stage] = snapshot
+        self.spawn(self.send_capture_boundary(data))
+
+    async def send_capture_boundary(self, data):
+        try:
+            await self.to_brain(data)
+            self.stats['capture_boundaries_sent'] += 1
+        except Exception:
+            # Diagnostic failure must never change input, playback or admission.
+            self.stats['capture_boundaries_dropped'] += 1
 
     def new_output_metrics(self, response_id, role):
         metrics = {'response_sha256': hashlib.sha256(response_id.encode()).hexdigest(),
@@ -470,16 +502,23 @@ class SophiaConnection:
                 available = self.ring.read_available(max_chunks=1)
                 if not available:
                     break
+                cursor, resampler = self.ring.cursor, self.resampler
                 sample_start, pcm = available[0]
                 if self.mode == 'expert':
                     remaining = max(0, int(16000*self.expert_audio_limit)-self.endpoint['samples'])
                     pcm = pcm[:remaining*2]
-                out = self.resampler.feed(pcm)
+                out = resampler.feed(pcm)
                 if out:
                     await self.to_brain(out)
-                if self.ring.cursor:
-                    sent_end = self.ring.cursor.selected_start+self.resampler.output_samples*16000//24000
-                    self.ring.acknowledge_sent(min(sample_start+len(pcm)//2, sent_end))
+                if self.ring.cursor is not cursor or self.resampler is not resampler:
+                    continue  # Stop/new input also supersedes the old local expert endpoint.
+                sent_end = cursor.selected_start+resampler.output_samples*16000//24000
+                self.ring.acknowledge_sent(min(sample_start+len(pcm)//2, sent_end))
+                if out and self.first_uplink_cursor is not cursor:
+                    self.first_uplink_cursor = cursor
+                    self.queue_capture_boundary('first_uplink', wake_id=cursor.wake_id,
+                        selected_start=cursor.selected_start, source_sample_start=sample_start,
+                        source_sample_end=sample_start+len(pcm)//2)
                 if self.mode == 'expert':
                     await self.expert_endpoint(pcm, sample_start)
 
@@ -561,6 +600,12 @@ class SophiaConnection:
                         'detector_sample': max(self.ring.end, self.ring.floor)}
                 self.ring.begin(wake, pre_roll_seconds=0.)
                 self.resampler = ContinuousPcm24()
+                fields = {'wake_id': wake['wake_id'], 'selected_start': self.ring.cursor.selected_start}
+                if self.capture_completion and self.capture_completion['stream_epoch'] == self.ring.epoch:
+                    fields.update(response_id=self.capture_completion['response_id'],
+                        physical_sample_floor=self.capture_completion['physical_sample_floor'],
+                        guard_samples=POST_PLAYBACK_CAPTURE_GUARD_SAMPLES)
+                self.queue_capture_boundary('followup_opened', **fields)
             self.forward = True
             self.stats['input_open'] = True
             self.stats['last_error'] = None
@@ -740,10 +785,19 @@ class SophiaConnection:
             if not state['done']:
                 raise ValueError('playback_finished_before_whole_response_end')
             floor = obj.get('sample_floor')
-            if obj.get('stream_epoch') != self.ring.epoch or type(floor) is not int:
+            if (obj.get('stream_epoch') != self.ring.epoch or type(floor) is not int
+                    or not 0 <= floor <= 1e15-POST_PLAYBACK_CAPTURE_GUARD_SAMPLES):
                 raise ValueError('physical_playback_capture_floor_missing')
             self.output_receipt_metrics(state, obj)
-            self.ring.set_blocked(True, sample_floor=max(self.ring.end, floor), reason='playback_guard')
+            self.ring.set_blocked(True, sample_floor=max(
+                self.ring.end, self.ring.floor, floor+POST_PLAYBACK_CAPTURE_GUARD_SAMPLES),
+                reason='playback_guard')
+            self.capture_completion = {'response_id': state['response_id'],
+                'stream_epoch': self.ring.epoch, 'physical_sample_floor': floor}
+            boundary = {'response_id': state['response_id'], 'physical_sample_floor': floor,
+                'guard_samples': POST_PLAYBACK_CAPTURE_GUARD_SAMPLES,
+                'stream_epoch': self.ring.epoch, 'ring_end': self.ring.end,
+                'sample_floor': self.ring.floor, 'plan_monotonic': time.monotonic()}
             self.stats['playback_finished'] += 1
             self.output = None
             try:
@@ -751,6 +805,7 @@ class SophiaConnection:
                                      'sample_floor': floor})
             finally:
                 self.queue_output_summary(state, 'finished')
+                self.queue_capture_boundary('playback_finished', **boundary)
 
     async def clear_output(self):
         async with self.cancel_lock:

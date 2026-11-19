@@ -37,7 +37,8 @@ class Socket:
         elif event['type'] == 'response.create':
             self.serial += 1
             await self.queue.put({'type': 'response.created',
-                                  'response': {'id': 'response-'+str(self.serial)}})
+                                  'response': {'id': 'response-'+str(self.serial),
+                                               'metadata': event['response'].get('metadata')}})
 
     async def recv(self):
         value = await self.queue.get()
@@ -109,6 +110,15 @@ async def cleanup(original, board, manager):
     await manager.shutdown()
     await board.shutdown()
     await original.shutdown()
+
+
+async def complete_input(session, item_id='input-1', text='Сколько будет два плюс три?'):
+    """Deliver the existing provider ASR final, required by physical input."""
+    gate = session._wake_fragment
+    await session.handle({'type': 'conversation.item.input_audio_transcription.completed',
+                          'item_id': item_id, 'transcript': text})
+    if gate is not None:
+        await gate['task']
 
 
 def test_empty_ready_and_rotation_consume_no_starts_or_pcm(tmp_path, settings):
@@ -267,6 +277,7 @@ def test_paid_usage_is_recorded_against_operation_not_empty_socket(tmp_path, set
             s = await manager.accept(offer())
             await s.wake('wake-1')
             await s.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-1'})
+            await complete_input(s)
             await asyncio.sleep(.02)
             ident = s.live_response
             assert ident and not s.input_open
@@ -288,6 +299,7 @@ def test_generation_and_segment_end_never_open_followup(tmp_path, settings):
             s = await manager.accept(offer())
             await s.wake('wake-1')
             await s.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-1'})
+            await complete_input(s)
             await asyncio.sleep(.02)
             ident = s.live_response
             await s.handle({'type': 'response.output_audio.delta', 'response_id': ident,
@@ -318,6 +330,7 @@ def test_token_limited_direct_audio_waits_for_actual_playback_receipt(tmp_path, 
             s = await manager.accept(offer())
             await s.wake('wake-1')
             await s.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-1'})
+            await complete_input(s)
             await asyncio.sleep(.02)
             ident, turn = s.live_response, s.current
             assert ident
@@ -405,6 +418,7 @@ def test_mute_and_stop_reject_late_audio_and_input(tmp_path, settings):
             s = await manager.accept(offer())
             await s.wake('wake-1')
             await s.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-1'})
+            await complete_input(s)
             await asyncio.sleep(.02)
             ident = s.live_response
             await s.publish_audio(bytes(2880), ident)
