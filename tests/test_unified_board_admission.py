@@ -440,7 +440,10 @@ def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_p
         assert job.state == 'completed' and job.narration_complete and not job.playback_complete
         await session.playback_started(job.response_id)
         await session.playback_finished(job.response_id)
-        await asyncio.sleep(.25)
+        # The real guard includes 200ms plus async policy/SQLite admission.
+        # Waiting only 250ms races normal Windows file/thread scheduling.
+        # Await its actual completion; still fail if it hangs or rejects input.
+        await asyncio.wait_for(asyncio.shield(session._guard_task), 3)
         assert job.playback_complete and session.input_open and session.selected_mode == 'fast'
     async def run():
         original, board, manager, session, auth = await setup(tmp_path, settings, recognition=Recognition())
@@ -517,7 +520,8 @@ def test_physical_ack_cannot_reopen_after_stop_expiry_or_count_exhaustion(tmp_pa
             await session.playback_finished(job.response_id)
             # A duplicate late receipt cannot retry the consumed continuation.
             assert not (await session.playback_finished(job.response_id))['accepted']
-            await asyncio.sleep(.25)
+            if session._guard_task and not session._guard_task.cancelled():
+                await asyncio.wait_for(asyncio.shield(session._guard_task), 3)
             assert not session.input_open and board.budget.status()['sessions_reserved'] == expected
             assert not session._expert_followup_jobs
             assert await session.append_pcm(bytes(4800)) is False
