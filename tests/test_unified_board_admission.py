@@ -11,7 +11,7 @@ import pytest
 
 from gobot.board_unified import (
     BoardSpeechLedger, UnifiedBoardBudget, UnifiedBoardRealtime, UnifiedPublicExpertBudget,
-    authorize_proposal, create_service_cue, epoch_root, prepare_proposal, proposal_summary,
+    authorize_proposal, create_service_cue, digest, epoch_root, prepare_proposal, proposal_summary,
 )
 from gobot.expert_stream import AnswerDelta, EXPERT_CUE_TEXT, EXPERT_CUE_ID, load_expert_service_cue
 from gobot.realtime_ws import DirectRealtimeManager
@@ -19,6 +19,17 @@ from gobot.unified_voice_budget import UnifiedVoiceBudget
 from test_realtime_native import configured
 from test_realtime_ws import Provider, offer, cleanup
 from test_unified_voice_budget import SpeechFixture
+
+
+@pytest.fixture(autouse=True)
+def offline_expert_registry(monkeypatch):
+    """The existing SOL fixture has explicit model metadata before paid STT."""
+    import gobot.expert_profiles as profiles
+    original = profiles.resolve_profile
+    rows = [{'slug': 'gpt-6.1-sol', 'supported_reasoning_levels': [{'effort': 'high'}]}]
+    def resolve(name, *, codex_metadata=None):
+        return original(name, codex_metadata=rows if codex_metadata is None else codex_metadata)
+    monkeypatch.setattr(profiles, 'resolve_profile', resolve)
 
 
 def finite(root, *, enabled=True):
@@ -43,27 +54,107 @@ async def setup(tmp_path, settings, *, enabled=True, recognition=None):
     return original, board, manager, session, authorization
 
 
-def test_proposal_is_disabled_has_no_running_expiry_and_cannot_renew(tmp_path):
+@pytest.mark.parametrize('expert_profile', ['SOL_HIGH', 'ARGON_DEEP'])
+def test_proposal_is_disabled_has_no_running_expiry_and_cannot_renew(tmp_path, expert_profile):
     root = epoch_root(tmp_path, 'acceptance-fixture')
-    first = prepare_proposal(root, 'board')
+    first = prepare_proposal(root, 'board', expert_profile=expert_profile)
     before = {p.relative_to(root): p.read_bytes() for p in root.rglob('*.json')}
-    assert first['summary'] == proposal_summary()
+    assert first['summary'] == proposal_summary(expert_profile)
     assert first['summary']['speech']['cue_text'] == EXPERT_CUE_TEXT
+    assert json.loads(before[Path('experts/policy.json')])['allowed_profiles'] == [expert_profile]
     assert all(json.loads(before[p])['expires_at'] == 0 for p in before if p.name == 'policy.json' or p.name == 'speech-policy.json')
-    assert prepare_proposal(root, 'board') == first
+    assert prepare_proposal(root, 'board', expert_profile=expert_profile) == first
+    other_profile = 'SOL_HIGH' if expert_profile == 'ARGON_DEEP' else 'ARGON_DEEP'
+    with pytest.raises(PermissionError, match='proposal_expert_profile_mismatch_new_epoch_required'):
+        prepare_proposal(root, 'board', expert_profile=other_profile)
     assert before == {p.relative_to(root): p.read_bytes() for p in root.rglob('*.json')}
     with pytest.raises(PermissionError, match='device_mismatch'):
-        prepare_proposal(root, 'phone')
+        prepare_proposal(root, 'phone', expert_profile=expert_profile)
     with pytest.raises(PermissionError, match='exact_disabled_owner_proposal'):
         authorize_proposal(root, '0'*64)
     approved_at = time.time()
     result = authorize_proposal(root, first['proposal_sha256'])
     assert approved_at+7200 <= result['expires_at'] <= time.time()+7200
     assert result['paid_requests_made'] == 0 and result['mounted'] is False
-    assert prepare_proposal(root, 'board') == first
+    assert prepare_proposal(root, 'board', expert_profile=expert_profile) == first
     with pytest.raises((PermissionError, FileExistsError)):
         authorize_proposal(root, first['proposal_sha256'])
     assert not list(root.rglob('usage.sqlite'))
+
+
+def test_argon_proposal_has_its_own_approval_and_preserves_the_sol_proposal(tmp_path):
+    old = epoch_root(tmp_path, 'previous-sol')
+    previous = prepare_proposal(old, 'board')
+    before = {p.relative_to(old): p.read_bytes() for p in old.rglob('*.json')}
+    root = epoch_root(tmp_path, 'new-argon')
+    prepared = prepare_proposal(root, 'board', expert_profile='ARGON_DEEP')
+    expected = proposal_summary()
+    expected['expert']['profile'] = 'ARGON_DEEP'
+    assert prepared['summary'] == expected
+    with pytest.raises(PermissionError, match='exact_disabled_owner_proposal'):
+        authorize_proposal(root, previous['proposal_sha256'])
+    assert not (root/'activation.json').exists()
+    authorize_proposal(root, prepared['proposal_sha256'])
+    expert = UnifiedPublicExpertBudget(root/'experts')
+    policy = expert.policy()
+    assert policy.allowed_profiles == ['ARGON_DEEP']
+    assert (policy.max_sessions, policy.job_timeout_seconds, policy.max_context_tokens,
+            policy.max_result_characters) == (2, 90, 3000, 6000)
+    expert.reserve_session('first', True, 'board')
+    expert.reserve_session('second', True, 'board')
+    with pytest.raises(PermissionError, match='session_budget_exhausted'):
+        expert.reserve_session('third', True, 'board')
+    ledger = BoardSpeechLedger(UnifiedBoardBudget(root), expert)
+    speech = ledger.require('board')
+    assert speech.estimate_usd_limit == 1 and speech.max_stt_attempts == 2
+    assert ledger.status()['operations'] == {}
+    assert before == {p.relative_to(old): p.read_bytes() for p in old.rglob('*.json')}
+
+
+@pytest.mark.parametrize('profiles', [[], ['ASTRA_HIGH'], ['SOL_HIGH', 'ARGON_DEEP'],
+                                     ['ARGON_DEEP', 'ARGON_DEEP']])
+def test_profile_scope_is_rejected_even_with_a_rehashed_proposal(tmp_path, profiles):
+    data = prepare_proposal(tmp_path, 'board', expert_profile='ARGON_DEEP')
+    paths = ('policy.json', 'experts/policy.json', 'speech-policy.json')
+    policies = {path: json.loads((tmp_path/path).read_text()) for path in paths}
+    policies['experts/policy.json']['allowed_profiles'] = profiles
+    (tmp_path/'experts/policy.json').write_text(json.dumps(policies['experts/policy.json']))
+    data['proposal_sha256'] = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
+    (tmp_path/'proposal.json').write_text(json.dumps(data))
+    with pytest.raises(PermissionError, match='expert_policy_outside_allowance'):
+        prepare_proposal(tmp_path, 'board', expert_profile='ARGON_DEEP')
+    with pytest.raises(PermissionError, match='exact_disabled_owner_proposal'):
+        authorize_proposal(tmp_path, data['proposal_sha256'])
+    assert not (tmp_path/'activation.json').exists()
+    expert = UnifiedPublicExpertBudget(tmp_path/'experts')
+    with pytest.raises(PermissionError, match='expert_policy_outside_allowance'):
+        expert.policy()
+    with expert.connect() as db:
+        assert db.execute('SELECT count(*) FROM sessions').fetchone()[0] == 0
+
+
+def test_profile_change_is_bound_to_both_policy_hash_and_reviewed_summary(tmp_path):
+    data = prepare_proposal(tmp_path, 'board')
+    paths = ('policy.json', 'experts/policy.json', 'speech-policy.json')
+    policies = {path: json.loads((tmp_path/path).read_text()) for path in paths}
+    policies['experts/policy.json']['allowed_profiles'] = ['ARGON_DEEP']
+    (tmp_path/'experts/policy.json').write_text(json.dumps(policies['experts/policy.json']))
+    with pytest.raises(PermissionError, match='exact_disabled_owner_proposal'):
+        authorize_proposal(tmp_path, data['proposal_sha256'])
+    # Even a new matching SHA cannot approve a policy whose displayed profile disagrees.
+    data['proposal_sha256'] = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
+    (tmp_path/'proposal.json').write_text(json.dumps(data))
+    with pytest.raises(PermissionError, match='exact_disabled_owner_proposal'):
+        authorize_proposal(tmp_path, data['proposal_sha256'])
+    assert not (tmp_path/'activation.json').exists()
+
+
+@pytest.mark.parametrize('profile', ['ASTRA_HIGH', ['SOL_HIGH', 'ARGON_DEEP'], None])
+def test_prepare_rejects_nonapproved_profiles_without_creating_an_epoch(tmp_path, profile):
+    root = tmp_path/'not-created'
+    with pytest.raises(PermissionError, match='expert_profile_outside_allowance'):
+        prepare_proposal(root, 'board', expert_profile=profile)
+    assert not root.exists()
 
 
 def test_expiry_or_limit_tampering_is_not_authorization(tmp_path):
@@ -79,7 +170,8 @@ def test_expiry_or_limit_tampering_is_not_authorization(tmp_path):
         epoch_root(tmp_path, '../old-grant')
 
 
-def test_operator_preview_and_cue_preview_are_read_only(tmp_path, capsys):
+@pytest.mark.parametrize('expert_profile', ['SOL_HIGH', 'ARGON_DEEP'])
+def test_operator_preview_and_cue_preview_are_read_only(tmp_path, capsys, expert_profile):
     path = Path(__file__).resolve().parents[1]/'scripts/sophia_voice_grant.py'
     spec = importlib.util.spec_from_file_location('sophia_grant_fixture', path)
     module = importlib.util.module_from_spec(spec)
@@ -87,11 +179,29 @@ def test_operator_preview_and_cue_preview_are_read_only(tmp_path, capsys):
     run = tmp_path/'new-run'
     base = ['--run-root', str(run), '--epoch', 'new', '--device-id', 'board',
             '--gateway-config', str(tmp_path/'not-installed.json')]
-    result = module.main(['preview', *base])
+    result = module.main(['preview', *base, '--expert-profile', expert_profile])
     assert result['dry_run'] and result['paid_requests_made'] == 0 and not run.exists()
+    assert result['summary']['expert']['profile'] == expert_profile
     result = module.main(['cue', *base, '--cache-root', str(tmp_path/'missing-cache')])
     assert result['requires_explicit_execute'] and result['paid_requests_made'] == 0
     assert not run.exists() and not (tmp_path/'missing-cache').exists()
+    capsys.readouterr()
+
+
+def test_operator_prepares_only_the_explicit_argon_profile(tmp_path, capsys):
+    path = Path(__file__).resolve().parents[1]/'scripts/sophia_voice_grant.py'
+    spec = importlib.util.spec_from_file_location('sophia_grant_fixture', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = module.main(['prepare', '--run-root', str(tmp_path), '--epoch', 'argon',
+                          '--device-id', 'board', '--gateway-config', str(tmp_path/'absent.json'),
+                          '--expert-profile', 'ARGON_DEEP'])
+    root = epoch_root(tmp_path, 'argon')
+    policy = json.loads((root/'experts/policy.json').read_text())
+    assert result['summary']['expert']['profile'] == 'ARGON_DEEP'
+    assert policy['allowed_profiles'] == ['ARGON_DEEP'] and not policy['enabled']
+    assert policy['expires_at'] == 0 and not (root/'activation.json').exists()
+    assert not list(root.rglob('usage.sqlite'))
     capsys.readouterr()
 
 

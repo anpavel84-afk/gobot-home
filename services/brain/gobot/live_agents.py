@@ -218,6 +218,7 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         from .expert_profiles import resolve_profile
         profile=resolve_profile(expert_profile)
         if not profile['metadata_verified'] or profile['provider']!=provider or profile['model']!=model_id:raise AgentError('expert_model_effort_unavailable')
+        if provider=='antigravity' and antigravity_transport!='stream_json':raise AgentError('expert_answer_transport_not_verified')
         if provider=='codex':extra={'model_reasoning_effort':profile['effort']}
     if provider=='codex':adapter=CodexLiveAdapter()
     elif provider=='antigravity':
@@ -230,7 +231,12 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         else:raise AgentError('unsupported_antigravity_transport')
     else:raise AgentError('gemini_cli_retired' if provider=='gemini' else 'unknown_provider')
     async with asyncio.timeout(90):
-        stream=adapter.stream(text,context,model_id=model_id,extra_config=extra,job_id=job_id) if provider=='codex' else adapter.stream(text,context,model_id=model_id)
+        if provider=='codex':
+            stream=adapter.stream(text,context,model_id=model_id,extra_config=extra,job_id=job_id)
+        elif antigravity_transport=='stream_json':
+            stream=adapter.stream(text,context,model_id=model_id,strict_answers=bool(expert_profile),job_id=job_id)
+        else:
+            stream=adapter.stream(text,context,model_id=model_id)
         async for delta in stream:
             yield delta
         if usage is not None and getattr(adapter,'usage',None):usage.update(adapter.usage)

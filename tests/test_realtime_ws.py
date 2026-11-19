@@ -577,7 +577,12 @@ def test_partial_expert_context_updates_without_second_reply(tmp_path, settings)
     asyncio.run(run())
 
 
-def test_selected_expert_transcription_keeps_explicit_duration_and_usage(tmp_path, settings):
+def test_selected_expert_transcription_keeps_explicit_duration_and_usage(tmp_path, settings, monkeypatch):
+    from gobot.expert_store import ExpertPolicy
+    import gobot.expert_profiles as profiles
+    resolve = profiles.resolve_profile
+    monkeypatch.setattr(profiles, 'resolve_profile', lambda name: resolve(name, codex_metadata=[{
+        'slug': 'gpt-6.1-sol', 'supported_reasoning_levels': [{'effort': 'high'}]}]))
     async def run():
         original, board, manager, provider = setup(tmp_path, settings)
         observed = {}
@@ -599,6 +604,7 @@ def test_selected_expert_transcription_keeps_explicit_duration_and_usage(tmp_pat
             'operation_timeout_seconds': 240, 'settle': settle}
         try:
             s = await manager.accept(offer())
+            s.experts.budget.policy_path.write_text(ExpertPolicy(allowed_profiles=['SOL_HIGH']).model_dump_json())
             s.experts.status = lambda **kw: {'enabled': True, 'blocked_reasons': []}
             async def start_local(text, profile, turn):
                 assert s.expert_input_authorized(turn)

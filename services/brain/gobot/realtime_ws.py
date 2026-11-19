@@ -17,6 +17,7 @@ import time
 from contextlib import suppress
 from contextvars import ContextVar
 from collections import deque
+from copy import deepcopy
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
@@ -137,6 +138,32 @@ class DirectSession(NativeSession):
         return bool(current.authorization == self.policy.authorization and
                     current.expert_jobs_allowed and
                     TrialSession.scoped_public_expert_allowed(self))
+
+    def selected_expert(self):
+        """Select within this source's existing policy, never another grant."""
+        from .expert_profiles import resolve_profile
+        allowed = self.experts.budget.policy().allowed_profiles
+        profile = self.offer.requested_expert_profile
+        if profile:
+            if profile not in allowed:
+                raise PermissionError('expert_profile_not_in_budget')
+        elif len(allowed) == 1:
+            profile = allowed[0]
+        elif self.source == 'browser' and 'SOL_HIGH' in allowed:
+            # Preserve the existing browser default only inside its own grant.
+            profile = 'SOL_HIGH'
+        else:
+            raise PermissionError('expert_profile_selection_required')
+        selected = resolve_profile(profile)
+        if not selected['metadata_verified']:
+            raise PermissionError('expert_profile_unavailable')
+        return {key: selected[key] for key in ('profile', 'provider', 'model', 'effort', 'requested_label')}
+
+    def selected_expert_status(self):
+        try:
+            return self.selected_expert()
+        except (PermissionError, ValueError):
+            return None
 
     def emit(self, kind, **data):
         super().emit(kind, **data)
@@ -298,7 +325,16 @@ class DirectSession(NativeSession):
         instructions += '\nСерверный допуск эксперта: '+json.dumps(
             {k: availability[k] for k in ('enabled', 'blocked_reasons', 'allowed_profiles', 'jobs_remaining')},
             ensure_ascii=False)
-        tools = TOOLS if availability['enabled'] else [t for t in TOOLS if t['name'] != 'expert_start']
+        # The fast model sees only profiles from the current source's grant.
+        # Clone shared definitions so a board policy cannot alter the browser.
+        tools = deepcopy(TOOLS)
+        allowed_profiles = availability['allowed_profiles']
+        for tool in tools:
+            if tool['name'] == 'expert_propose':
+                tool['parameters']['properties']['profile']['enum'] = list(allowed_profiles)
+        tools = [tool for tool in tools if
+                 (tool['name'] != 'expert_start' or availability['enabled']) and
+                 (tool['name'] != 'expert_propose' or allowed_profiles)]
         result = session_config(self.policy, instructions, tools, speak=self.offer.speak,
                                 audio_preset=self.offer.audio_preset)
         result['audio']['input']['format'] = {'type': 'audio/pcm', 'rate': 24000}
@@ -762,6 +798,9 @@ class DirectSession(NativeSession):
         availability = await asyncio.to_thread(self.experts.status, include_profiles=False)
         if not availability['enabled']:
             raise PermissionError('expert_unavailable:'+','.join(availability['blocked_reasons']))
+        # Resolve before STT admission: the Gateway need not name a profile,
+        # and a stale explicit Codex choice cannot spend this Google grant.
+        expert = await asyncio.to_thread(self.selected_expert)
         if not self.manager.transcription_authorizer:
             raise PermissionError('expert_transcription_budget_unavailable')
         self.require_input_gate(input_epoch)
@@ -781,12 +820,12 @@ class DirectSession(NativeSession):
         self.state = 'listening'
         self.input_mode = 'expert'
         self.followup_deadline = None
-        self._stt_task = self.spawn(self.transcribe_expert())
+        self._stt_task = self.spawn(self.transcribe_expert(expert['profile']))
         self.emit('listening', active=True, mode='expert', endpoint_owner='gateway_local',
                   max_audio_seconds=self._stt_reservation.get('max_audio_seconds', 60),
                   operation_timeout_seconds=self._stt_reservation.get('operation_timeout_seconds', 100))
 
-    async def transcribe_expert(self):
+    async def transcribe_expert(self, profile):
         from .stt import OpenAIRecognition
         reservation = self._stt_reservation
         queue = self._stt_queue
@@ -821,7 +860,8 @@ class DirectSession(NativeSession):
                     self.require_input_gate(input_epoch)
                     turn = await self.new_turn(data['item_id'], text)
                     self.require_input_gate(input_epoch)
-                    profile = self.offer.requested_expert_profile or 'SOL_HIGH'
+                    if (await asyncio.to_thread(self.selected_expert))['profile'] != profile:
+                        raise PermissionError('expert_profile_changed_during_input')
                     self._expert_input_turn = turn.id
                     await self.experts.start_local(text, profile, turn)
         except asyncio.CancelledError:

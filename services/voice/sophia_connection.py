@@ -84,6 +84,7 @@ class SophiaConnection:
         self.closed = False
         self.endpoint = {'started': None, 'last_voice': None, 'noise': 80., 'samples': 0}
         self.stats = {'protocol': 2, 'mode': 'B_WS', 'pcm_stage': 'pre_afe',
+                      'selected_mode': self.mode,
                       'wake_location': 'ESP', 'voice': 'marin', 'received_packets': 0,
                       'downlink_packets': 0, 'cloud_ready': False, 'generation_allowed': False,
                       'raw_audio_saved': False, 'text_saved': False, 'wake_events': 0,
@@ -433,6 +434,7 @@ class SophiaConnection:
             await self.screen('muted' if self.muted else 'ready')
         elif kind == 'mode_selected':
             self.mode = data['mode']
+            self.stats['selected_mode'] = self.mode
         elif kind == 'stt_ready' and type(data.get('max_audio_seconds')) in (int, float):
             self.expert_audio_limit = min(self.options.get('expert_max_seconds', 180),
                                           max(1, data['max_audio_seconds']))

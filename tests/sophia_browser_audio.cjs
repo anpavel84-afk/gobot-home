@@ -371,7 +371,8 @@ test('page renders physical connection and explicitly binds a browser without st
   }
   const board = {status: 'connected', device: {device_protocol_confirmed: true, cloud_ready: true, generation_allowed: false,
     wake_ui_measurement: 'lvgl_refr_ready_not_panel_dma', last_error: 'realtime_budget_or_consent_required'},
-    brain: {sessions: [{ready: true, state: 'ready', generation_allowed: false, input_mode: 'fast'}]}};
+    brain: {sessions: [{ready: true, state: 'ready', generation_allowed: false, input_mode: 'fast',
+      selected_expert: {provider: 'antigravity', model: 'gemini-4-argon-medium', requested_label: 'Argon Deep'}}]}};
   const browser = {binding_present: false, available: false, generation_allowed: false, code: 'browser_binding_missing'};
   const scope = {GoBotSophiaAudio: {BrowserVoice: Browser},
     document: {hidden: false, getElementById: get, querySelectorAll: () => [get('fast'), get('expert')], addEventListener() {}},
@@ -391,11 +392,15 @@ test('page renders physical connection and explicitly binds a browser without st
   await new Promise(setImmediate);
   assert.equal(get('stop').disabled, false); assert.equal(get('mute').disabled, false);
   assert.equal(get('fast').disabled, false); assert.equal(get('expert').disabled, false);
+  assert.equal(get('expertLabel').textContent, 'Эксперт Gemini');
+  assert.equal(get('expertModel').textContent, 'Antigravity CLI · gemini-4-argon-medium');
   assert.match(get('deviceConnection').textContent, /подключена/);
   assert.match(get('sourceAdmission').textContent, /допуск закрыт/);
   assert.match(get('alert').textContent, /Нет действующего разрешения/);
   assert.equal(get('alert').textContent.includes('realtime_budget_or_consent_required'), false);
   get('source').value = 'browser'; get('source').listeners.change();
+  assert.equal(get('expertLabel').textContent, 'Эксперт');
+  assert.equal(get('expertModel').textContent, 'Продиктуйте задачу целиком');
   assert.equal(get('browserActions').hidden, false); assert.equal(get('browserStart').disabled, true);
   assert.match(get('description').textContent, /Подключите этот браузер/);
   assert.equal(get('browserConnect').disabled, false); assert.equal(binds, 0); assert.equal(starts, 0);

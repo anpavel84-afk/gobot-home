@@ -23,6 +23,9 @@ from .expert_store import ExpertBudget, ExpertPolicy
 from .realtime_contract import RealtimePolicy
 
 
+UNIFIED_EXPERT_PROFILES = ('SOL_HIGH', 'ARGON_DEEP')
+
+
 class UnifiedBoardBudget(TrialBudget):
     # The former wake package's finite B bounds, never applied to its old ledger.
     LIMITS = (3, 60, 8, 512)
@@ -45,14 +48,17 @@ class UnifiedBoardBudget(TrialBudget):
 
 
 class UnifiedPublicExpertBudget(ExpertBudget):
-    def policy(self):
-        p = super().policy()
+    @staticmethod
+    def validate_policy(p):
         if (p.owner_full_test or not p.allowed_client_id or p.expires_at is None or
                 (p.max_sessions, p.job_timeout_seconds, p.max_context_tokens,
                  p.max_result_characters) != (2, 90, 3000, 6000) or
-                p.allowed_profiles != ['SOL_HIGH']):
+                len(p.allowed_profiles) != 1 or p.allowed_profiles[0] not in UNIFIED_EXPERT_PROFILES):
             raise PermissionError('unified_board_expert_policy_outside_allowance')
         return p
+
+    def policy(self):
+        return self.validate_policy(super().policy())
 
 
 class UnifiedBoardSession(TrialSession):
@@ -219,12 +225,14 @@ def epoch_root(run_root, epoch):
     return Path(run_root)/'voice-sophia-acceptance'/epoch
 
 
-def proposal_summary():
+def proposal_summary(expert_profile='SOL_HIGH'):
     from .expert_stream import EXPERT_CUE_TEXT
+    if expert_profile not in UNIFIED_EXPERT_PROFILES:
+        raise PermissionError('unified_board_expert_profile_outside_allowance')
     return {'enabled': False, 'expires_at': 0, 'validity_after_approval_seconds': 7200,
         'realtime': {'sessions': 3, 'seconds_each': 60, 'responses_each': 8,
                      'output_tokens_each': 512, 'model': 'gpt-realtime-2.1-mini', 'estimated_usd': 1},
-        'expert': {'jobs': 2, 'profile': 'SOL_HIGH', 'seconds_each': 90,
+        'expert': {'jobs': 2, 'profile': expert_profile, 'seconds_each': 90,
                    'context_tokens': 3000, 'result_characters': 6000, 'private_memory': False},
         'speech': {'stt_attempts': 2, 'stt_seconds_each': 180, 'model': 'gpt-live-transcribe',
                    'narrator_responses': 12, 'narrator_characters_total': 6000,
@@ -236,13 +244,20 @@ def proposal_summary():
         'paid_requests_made': 0, 'automatic_paid_retries': False}
 
 
-def prepare_proposal(root, board_id):
+def prepare_proposal(root, board_id, *, expert_profile='SOL_HIGH'):
+    summary = proposal_summary(expert_profile)
     root = Path(root)
     manifest = root/'proposal.json'
     if manifest.exists():
         data = json.loads(manifest.read_text(encoding='utf-8'))
         if data.get('device_id') != board_id:
             raise PermissionError('proposal_device_mismatch')
+        if data.get('summary', {}).get('expert', {}).get('profile') != expert_profile:
+            raise PermissionError('proposal_expert_profile_mismatch_new_epoch_required')
+        expert = UnifiedPublicExpertBudget.validate_policy(ExpertPolicy.model_validate_json(
+            (root/'experts/policy.json').read_text(encoding='utf-8')))
+        if expert.allowed_profiles != [expert_profile]:
+            raise PermissionError('proposal_expert_profile_mismatch_new_epoch_required')
         return data
     if root.exists() and any(root.iterdir()):
         raise PermissionError('fresh_proposal_directory_required')
@@ -252,7 +267,7 @@ def prepare_proposal(root, board_id):
         max_output_tokens=512, input_transcription=True, voice='marin', expert_jobs_allowed=True)
     expert = ExpertPolicy(enabled=False, authorization=uuid4().hex, expires_at=0,
         audience='owner_interactive', allowed_client_id=board_id,
-        max_sessions=2, allowed_profiles=['SOL_HIGH'], job_timeout_seconds=90,
+        max_sessions=2, allowed_profiles=[expert_profile], job_timeout_seconds=90,
         max_context_tokens=3000, max_result_characters=6000)
     speech = BoardSpeechPolicy(authorization=uuid4().hex, allowed_client_id=board_id,
         parent_authorization_sha256=digest(voice.authorization),
@@ -261,7 +276,7 @@ def prepare_proposal(root, board_id):
                 'speech-policy.json': speech.model_dump()}
     fingerprint = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
     data = {'schema': 'sophia-unified-finite-proposal-v1', 'device_id': board_id,
-            'proposal_sha256': fingerprint, 'summary': proposal_summary()}
+            'proposal_sha256': fingerprint, 'summary': summary}
     for relative, policy in policies.items():
         path = root/relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -283,20 +298,21 @@ def authorize_proposal(root, approved_sha256):
     policies = {path: json.loads((root/path).read_text(encoding='utf-8'))
                 for path in ('policy.json', 'experts/policy.json', 'speech-policy.json')}
     fingerprint = digest(json.dumps(policies, sort_keys=True, separators=(',', ':')))
+    expert = ExpertPolicy.model_validate(policies['experts/policy.json'])
+    try:
+        UnifiedPublicExpertBudget.validate_policy(expert)
+    except PermissionError:
+        raise PermissionError('exact_disabled_owner_proposal_required') from None
     if (data.get('schema') != 'sophia-unified-finite-proposal-v1' or
-            data.get('summary') != proposal_summary() or
+            data.get('summary') != proposal_summary(expert.allowed_profiles[0]) or
             approved_sha256 != data['proposal_sha256'] or fingerprint != approved_sha256 or
             any(p['enabled'] or p['expires_at'] != 0 for p in policies.values())):
         raise PermissionError('exact_disabled_owner_proposal_required')
     voice = UnifiedBoardBudget.validate_policy(RealtimePolicy.model_validate(policies['policy.json']))
-    expert = ExpertPolicy.model_validate(policies['experts/policy.json'])
     speech = BoardSpeechPolicy.model_validate(policies['speech-policy.json'])
     if (data['device_id'] != voice.allowed_client_id or
             voice.allowed_client_id != expert.allowed_client_id or
-            voice.allowed_client_id != speech.allowed_client_id or expert.owner_full_test or
-            (expert.max_sessions, expert.job_timeout_seconds, expert.max_context_tokens,
-             expert.max_result_characters) != (2, 90, 3000, 6000) or
-            expert.allowed_profiles != ['SOL_HIGH'] or
+            voice.allowed_client_id != speech.allowed_client_id or
             speech.parent_authorization_sha256 != digest(voice.authorization) or
             speech.expert_authorization_sha256 != digest(expert.authorization)):
         raise PermissionError('exact_disabled_owner_proposal_required')

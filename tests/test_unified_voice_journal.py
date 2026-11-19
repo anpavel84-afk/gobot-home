@@ -52,6 +52,36 @@ def test_proxy_never_passes_live_session_or_turn_content_to_recorder():
     assert not proxy.session_event(session, 'B', 'audio_chunk', {'pcm': PRIVATE})
 
 
+def test_physical_receipt_and_clock_events_retain_only_fixed_numeric_metadata():
+    records = []
+    class Recorder:
+        def session_event(self, session, engine, kind, data):
+            records.append((kind, data))
+            return True
+    proxy = ContentFreeJournal(Recorder())
+    session = SimpleNamespace(owner_test_binding='client', id='session',
+        offer=SimpleNamespace(device_id='device', client_id='client', profile_epoch=None),
+        current=SimpleNamespace(id='turn'))
+    assert proxy.session_event(session, 'B', 'playback_finished', {
+        'response_id': 'response-1', 'audio_role': 'expert_answer', 'sample_floor': 24000,
+        'text': PRIVATE, 'audio': PRIVATE, 'evidence': PRIVATE})
+    for event in ('speaker_sound_started', 'end_of_speech', 'endpoint_decided'):
+        assert proxy.session_event(session, 'B', 'telemetry', {
+            'event': event, 'response_id': 'response-1', 'plan_monotonic': 12.5,
+            'provider_audio_end_ms': 1350, 'clock_domain': PRIVATE, 'text': PRIVATE})
+    assert records[0][0] == 'playback_finished'
+    assert records[0][1]['audio_role'] == 'expert_answer'
+    assert records[0][1]['sample_floor'] == 24000
+    assert [row[1]['event'] for row in records[1:]] == [
+        'speaker_sound_started', 'end_of_speech', 'endpoint_decided']
+    assert all(row[1]['response_id'] == records[0][1]['response_id'] for row in records[1:])
+    assert all(row[1]['provider_audio_end_ms'] == 1350 for row in records[1:])
+    assert all(row[1]['plan_monotonic'] == 12.5 for row in records[1:])
+    assert PRIVATE not in json.dumps(records, ensure_ascii=False)
+    assert metadata({'event': PRIVATE}) == {'event': 'other'}
+    assert metadata({'provider_audio_end_ms': float('nan')}) == {}
+
+
 def test_full_expert_path_enabled_durable_journal_keeps_private_phrase_only_in_ram(tmp_path, settings, monkeypatch):
     import test_realtime_native as native_fixture
     import test_owner_testing as owner_fixture
@@ -101,6 +131,10 @@ def test_full_expert_path_enabled_durable_journal_keeps_private_phrase_only_in_r
         tmp_path, settings, monkeypatch)
     assert generated and all(PRIVATE in text for text in generated)
     assert durable_calls and any(kind == 'expert_text_delta' for kind, _ in durable_calls)
+    assert any(kind == 'playback_finished' and data.get('audio_role') == 'expert_answer'
+               for kind, data in durable_calls)
+    assert any(kind == 'telemetry' and data.get('event') == 'speaker_sound_started'
+               for kind, data in durable_calls)
     assert PRIVATE not in json.dumps(durable_calls, ensure_ascii=False)
     journal = journals[0]
     assert journal.enabled('client-1') and journal.written > 0

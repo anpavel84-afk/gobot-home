@@ -1,6 +1,48 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — installed and free checks passed; paid acceptance blocked, 2026-11-19 (America/Sao_Paulo)
+## HOST-INTEGRATOR — Google expert integration and approved acceptance in preparation, 2026-11-19 (America/Sao_Paulo)
+
+### Owner approval and provider correction, November19
+
+The owner approved the separately prepared finite acceptance package: $2 local
+API estimate, two CLI expert operations, and one two-hour window. Before
+activation, the owner reported an exhausted Codex subscription weekly quota and
+requested that expert routing use the project's existing Google CLI experience.
+No Codex inference or newly approved paid operation has been performed at this
+checkpoint. The activation window has not started.
+
+Fresh native metadata on PLAN confirms that the existing operational Google
+route is project-local Antigravity CLI1.5.3 with `ARGON_DEEP`:
+`gemini-4-argon-medium`, effort `medium`, transport `stream_json`. Its current
+account catalog contains that exact model. Direct Gemini CLI0.67.0 repeats
+`gemini_account_ineligible`; it is not revived or used as a fallback. The
+requested Pro tier is not presented as an exact model identifier: this account's
+verified model is Gemini4 Argon. Metadata proves registration and OAuth state,
+not remaining quota or live answer quality.
+
+The old disabled SOL_HIGH proposal remains immutable and unactivated. A separate
+`sophia-unified-gemini-20261119` proposal will bind only `ARGON_DEEP`, with the
+same approved operation, time, token, character and dollar limits. Preparing,
+activating, mounting and spending are separate audited steps. Existing B/C/phone
+policies, ledgers and HOST-A work are preserved. The installed physical app and
+the owner's preferred V4 wake path remain unchanged.
+
+Current source corrections under free verification bind explicit expert STT and
+fast handoff to the server-approved profile; admit only verified Antigravity
+answer events to the narrator; show the actual expert identity in Sophia; and
+retain content-free whole-device playback completion evidence. The complete
+physical public-stimulus acceptance is pending installation and activation.
+Earlier “paid acceptance blocked” entries below describe the previous checkpoint,
+not a new permission request.
+
+The combined local mock gate passes **204 tests in9.78s**, including Antigravity
+stream framing, exact expert admission, STT cancellation races, accounting,
+physical playback metadata, Gateway mode confirmation and browser controls.
+Independent review found no remaining blocker. The first combined run exposed
+10 older fixtures without explicit offline Codex metadata; those fixtures were
+corrected without weakening the production admission check. Native PLAN tests,
+fresh native isolation evidence and paid physical acceptance remain pending.
+
 
 ### Current installed checkpoint
 

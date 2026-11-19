@@ -29,7 +29,7 @@ def explicit_expert_request(text):
     value=' '.join(text.casefold().strip().split())
     value=re.sub(r'^(?:(?:софия|гобот|го бот|пожалуйста|а)[, ]+)+','',value)
     value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|давай)[, ]+','',value)
-    return bool(re.search(r'\b(?:cli|цли|codex|кодекс[ау]?|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
+    return bool(re.search(r'\b(?:cli|цли|codex|кодекс[ау]?|gemini|джемини|гемини|google|гугл|эксперт\w*|argon|аргон|astra|астр[ауы]|sol|сол[уя]?)\b',value)
                 and re.match(r'^(?:передай|передать|адресуй|адресовать|отправь|отправить|спроси|спрашивай|подключи|подключить|делегируй|делегировать|обратись|обратиться|попроси|попросить|пусть)\b',value))
 
 def profile_in_text(text):
@@ -235,6 +235,8 @@ class ExpertJobs:
 
     def propose(self,task,profile,turn):
         if not isinstance(task,str) or not 1<=len(task)<=8000:raise ValueError('invalid_expert_task')
+        if profile not in getattr(self.budget.policy(),'allowed_profiles',[profile]):
+            raise PermissionError('expert_profile_not_in_budget')
         chosen=resolve_profile(profile)
         if not chosen['metadata_verified']:raise ValueError('expert_profile_unavailable')
         requested=profile_in_text(turn.query)
@@ -399,7 +401,7 @@ class ExpertJobs:
                             if not delta.speakable:continue
                             if delta.item_id is not None and (not isinstance(delta.item_id,str) or len(delta.item_id)>200):
                                 raise ValueError('expert_delta_metadata_invalid')
-                        elif job.profile['provider']=='codex':
+                        elif job.profile['provider'] in {'codex','antigravity'}:
                             raise ValueError('expert_answer_metadata_missing')
                         else:delta=AnswerDelta(str(delta),job_id=job.id,verified=False)
                         if not delta:continue

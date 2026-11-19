@@ -54,6 +54,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 'capture_connected': bool(getattr(s, '_duplex_attached', False)),
                 'generation_allowed': bool(s.generation_allowed()),
                 'expert_active': expert_active(s),
+                'selected_expert': s.selected_expert_status() if hasattr(s, 'selected_expert_status') else None,
                 'lifecycle': s.lifecycle_status() if hasattr(s, 'lifecycle_status') else {},
             } for s in sessions]
             # Closed sessions remain explicit tombstones, including unknown

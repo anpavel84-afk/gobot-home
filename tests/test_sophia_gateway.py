@@ -85,6 +85,12 @@ def test_empty_ready_and_denied_wake_never_send_audio_or_open_input():
         c = connection()
         await c.cloud_event({'type': 'ready', 'data': {'generation_allowed': False}})
         assert c.cloud_ready.is_set() and not c.forward
+        assert c.stats['selected_mode'] == 'fast'
+        await c.cloud_event({'type': 'mode_selected', 'data': {'mode': 'expert'}})
+        assert c.stats['selected_mode'] == c.mode == 'expert'
+        assert c.brain.sent == [] and not c.forward and c.ring.cursor is None
+        await c.cloud_event({'type': 'mode_selected', 'data': {'mode': 'fast'}})
+        assert c.stats['selected_mode'] == c.mode == 'fast'
         await c.cloud_event({'type': 'admission_denied', 'data': {'reason': 'board_budget_inactive'}})
         assert c.brain.sent == [] and not c.forward
         assert c.stats['last_error'] == 'board_budget_inactive'

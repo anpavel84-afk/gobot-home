@@ -4,7 +4,7 @@ import asyncio
 import pytest
 
 from test_realtime_ws import cleanup
-from test_unified_board_admission import setup
+from test_unified_board_admission import setup, offline_expert_registry
 
 
 class Recognition:

@@ -87,6 +87,13 @@ function render() {
   const dev = current?.device || {}, board = boardSession(), usingBrowser = selected === 'browser';
   const browserAdmission = browser.eligibility(browserStatus);
   const session = usingBrowser ? browser.state() : board;
+  const expert = (usingBrowser ? browserAdmission.existing : board)?.selected_expert;
+  $('expertLabel').textContent = expert
+    ? 'Эксперт '+(expert.provider === 'antigravity' && expert.model?.startsWith('gemini-') ? 'Gemini' : expert.provider === 'codex' ? 'Codex' : expert.requested_label)
+    : 'Эксперт';
+  $('expertModel').textContent = expert
+    ? (expert.provider === 'antigravity' ? 'Antigravity CLI' : expert.requested_label)+' · '+expert.model
+    : 'Продиктуйте задачу целиком';
   const active = usingBrowser ? (browser.connected || browser.startRequested || !!browser.capture?.stream || !!browserStatus?.brain?.sessions?.length) : !!board;
   const ready = session?.ready === true;
   const muted = usingBrowser && !browser.connected && browserAdmission.existing
