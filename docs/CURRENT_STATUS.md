@@ -1,6 +1,6 @@
 # GoBot Home — единый паспорт фактического состояния
 
-## HOST-INTEGRATOR — Google expert integration and approved acceptance in preparation, 2026-11-19 (America/Sao_Paulo)
+## HOST-INTEGRATOR — Google expert installed; physical acoustic activation remains blocked, 2026-11-19 (America/Sao_Paulo)
 
 ### Owner approval and provider correction, November19
 
@@ -8,8 +8,10 @@ The owner approved the separately prepared finite acceptance package: $2 local
 API estimate, two CLI expert operations, and one two-hour window. Before
 activation, the owner reported an exhausted Codex subscription weekly quota and
 requested that expert routing use the project's existing Google CLI experience.
-No Codex inference or newly approved paid operation has been performed at this
-checkpoint. The activation window has not started.
+No Codex inference has been performed. The new Google allowance was activated
+once at07:27:13BRT and expires at09:27:13BRT. The exact fixed marin cue was
+generated once and cached; its measured-usage estimate is$0.0010728, pending0.
+No expert job or B response has run at this checkpoint.
 
 Fresh native metadata on PLAN confirms that the existing operational Google
 route is project-local Antigravity CLI1.5.3 with `ARGON_DEEP`:
@@ -20,18 +22,19 @@ requested Pro tier is not presented as an exact model identifier: this account's
 verified model is Gemini4 Argon. Metadata proves registration and OAuth state,
 not remaining quota or live answer quality.
 
-The old disabled SOL_HIGH proposal remains immutable and unactivated. A separate
-`sophia-unified-gemini-20261119` proposal will bind only `ARGON_DEEP`, with the
-same approved operation, time, token, character and dollar limits. Preparing,
+The old disabled SOL_HIGH proposal remains immutable and unactivated. The separate
+`sophia-unified-gemini-20261119` proposal binds only `ARGON_DEEP`, with the
+same approved operation, time, token, character and dollar limits. Its exact SHA
+is`b1dfd8a1973188a21a5dd525492fa01b6a291d8286c4ca9435c09fa4d58903f6`. Preparing,
 activating, mounting and spending are separate audited steps. Existing B/C/phone
 policies, ledgers and HOST-A work are preserved. The installed physical app and
 the owner's preferred V4 wake path remain unchanged.
 
-Current source corrections under free verification bind explicit expert STT and
+The installed source corrections bind explicit expert STT and
 fast handoff to the server-approved profile; admit only verified Antigravity
 answer events to the narrator; show the actual expert identity in Sophia; and
-retain content-free whole-device playback completion evidence. The complete
-physical public-stimulus acceptance is pending installation and activation.
+retain content-free whole-device playback completion evidence. The public-stimulus physical acceptance did not pass: no wake was accepted,
+so the real expert/STT/conversational narrator paths have not yet run.
 Earlier “paid acceptance blocked” entries below describe the previous checkpoint,
 not a new permission request.
 
@@ -40,30 +43,113 @@ stream framing, exact expert admission, STT cancellation races, accounting,
 physical playback metadata, Gateway mode confirmation and browser controls.
 Independent review found no remaining blocker. The first combined run exposed
 10 older fixtures without explicit offline Codex metadata; those fixtures were
-corrected without weakening the production admission check. Native PLAN tests,
-fresh native isolation evidence and paid physical acceptance remain pending.
+corrected without weakening the production admission check. The same native PLAN gate passes**204 tests in31.84s**. Source
+`4cf8c73b27a2b4690ae8200be20ed4be50076d70` is installed after WAL-aware
+backups and preservation checks. Fresh Antigravity native `/permissions` evidence
+confirms the required denies with0model turns/tokens; the Codex isolation check
+used one local mock request and0real model requests. Firmware is unchanged.
+The approved mount passed. The bounded physical attempts and their blocking
+result are recorded below.
 
 
 ### Current installed checkpoint
 
 | Item | Actual state |
 | --- | --- |
-| PLAN runtime source | `9d8d6bb014524f830815152d769d58e9c919331e` |
+| PLAN runtime source | `4cf8c73b27a2b4690ae8200be20ed4be50076d70` |
 | Physical Spotpear app | `0.4.16-dev-sophia-unified-v4`, SHA256 `c6a50457a7aeec8ade964c4fb83781a6e7610ad9558343a7f72d595a40e41102` |
 | Wake basis | Owner-preferred installed V4: unchanged `wn10_sophia`, `DET_MODE_95`, pre-AFE feed/gain/rates |
 | Owner interface | [Existing private HTTPS /sophia](https://plan.tailffc57c.ts.net/sophia); actual desktop/mobile and explicit guest Connect/reload checks passed |
-| Current physical connection | At06:35BRT: protocol2/cloud ready, one attached session, unmuted, increasing capture packets, reader/maintenance running, all four queues empty; errors/encode drops0; stack HWM1,312bytes |
-| Paid generation | Forbidden by the unchanged expired B grant; input closed; no active expert |
-| New finite proposal | Prepared disabled; expiry0; no activation record or mount change |
-| Acceptance boundary | Physical free fixture and rollback passed; real marin/Codex/STT conversation and human acceptance remain pending |
+| Current physical connection | At08:03BRT: protocol2/cloud ready, one attached session, unmuted, fast mode, input closed, no active expert;33,225 capture packets received |
+| Paid generation | New finite Google scope mounted; B0/3 starts, expert0/2 jobs, STT0; cue1 settled at$0.0010728 |
+| New finite proposal | Google ARGON_DEEP; mounted, activated07:27:13BRT, expires09:27:13BRT |
+| Acceptance boundary | Physical free fixture and earlier app rollback passed; exact marin cue cached; three public acoustic stimuli produced no accepted wake. Real Gemini conversation/STT/narration and human acceptance remain unverified |
 
-The following implementation history began on November18; earlier source and
-deployment checkpoints are superseded by this table. The integration branch and
-[draft PR14](https://github.com/anpavel84-afk/gobot-home/pull/14) contain the actual
-runtime source. A later documentation-only fast-forward records this checkpoint
-without restarting that runtime. The physical column is connected, but its old
-paid grant is expired: saying Sophia can trigger local wake, not a newly permitted
-provider response. Full conversational acceptance is not claimed.
+The [integration branch / draft PR14](https://github.com/anpavel84-afk/gobot-home/pull/14)
+contains the running source. Google source deployment and guarded mount passed,
+with old policies, financial history, work-in-progress and firmware preserved.
+The earlier deployment history below is superseded by this current checkpoint.
+
+Actual private HTTPS Chrome validation at07:34BRT passed on1100x1400 and390x844:
+“Эксперт Gemini”, exact`Antigravity CLI · gemini-4-argon-medium`, connected/ready
+column and active finite admission. No controls were clicked, microphone and
+voice-WebSocket attempts were0, JS/HTTP errors0, overflow0. All58 discovered
+policies,19 usage ledgers,1 browser profile DB and2 configuration files matched
+before/after. Both screenshots were inspected. Private receipt:
+`HOST-INTEGRATOR-private/google-ui-1795084472298201700/report.json`.
+
+### Physical acceptance blocker and exact next action, November19 08:03BRT
+
+Three bounded public acoustic attempts produced **no accepted wake** and no new
+B/CLI/STT operation:
+
+1. Combined offline Zira/Denis WAV, with an immediate question.
+2. The previously successful native SAPI Zira configuration, Rate-1/Volume60,
+   through the current default output; the default was an HDMI monitor endpoint.
+3. One separately pinned SAPI.SpVoice instance using the existing Speakers
+   endpoint, with no change to Windows default audio, master volume or firmware.
+
+The second and third attempts were allowed only after exact immutable evidence
+that all previous attempts had0 wake and unchanged0 B/CLI/STT/narrator usage.
+They are distinct local acoustic checks, not paid provider retries. Fixed
+one-shot markers, both old failed reports and their SHA values are preserved.
+The speaker-specific attempt also failed; the default HDMI route is therefore
+not established as the sole cause. No further synthetic variants remain running.
+
+Fresh read-only USB status confirms the installed app0.4.16, Wi-Fi/enrolled1,
+muted0, phase0, wake_running1, continuous LAN capture and `dma_drained=1`, with
+no boot marker or fault. The existing five-second `SOPHIA_PCM_TELEM` reports
+mode95, initialized feed and increasing frame totals (156–157 frames/window),
+gaps0 and read_fail0. All four output/capture queues are empty and encode drops0.
+These observations establish a live capture/KWS input path; they do not prove
+that the synthetic word was acoustically recognized or heard clearly. No
+microphone PCM, personal transcript or training sample was recorded.
+
+**The next required action is one live utterance by the owner near the physical
+column:** “София, сколько будет два плюс три?” Then report whether its display
+reacted and whether a spoken answer followed. The current panel is already in
+fast mode and unmuted. This distinguishes the remote synthetic stimulus limitation
+from a real owner wake failure. Firmware model, DET_MODE95, gain/rates and the
+owner-preferred V4 wake behavior have not been retuned in response to these tests.
+The complete fast→Gemini→marin→followup and92-second expert dictation scenarios
+remain pending; neither technical nor human conversational acceptance is claimed.
+
+### Accounting and preservation at the checkpoint
+
+| New finite scope only | Actual use | Remaining |
+| --- | --- | --- |
+| B conversation starts |0|3×60s|
+| Expert CLI jobs |0|2×90s, ARGON_DEEP only|
+| Explicit expert STT |0|2×180s|
+| Conversational narrator responses |0|12, total6000chars|
+| Exact fixed marin cue |1,23chars|0 new generations|
+| Measured cue usage estimate |$0.0010728|pending speech reservations0|
+
+The new window was activated once at07:27:13BRT and expires at09:27:13BRT on
+November19. Limits are local estimates, not a provider invoice cap. No grant,
+expiry, attempt or unknown-cost reserve was reset. No real Codex inference or
+Antigravity task has been executed in this acceptance. Empty Realtime transport
+configuration occurred and is not represented as zero provider connections.
+
+Final read-only preservation check passed: both dirty main-tree files, all51
+previous policy files,16 previous usage ledgers, the existing browser profile DB
+and five mounted/protected files match their saved expected state. The old
+SOL_HIGH proposal remains disabled, expiry0, without activation. The installed
+runtime is `4cf8c73`; the later documentation checkpoint does not restart it.
+
+Private evidence on PLAN:
+`google-source-deployment.json`, `google-mount-deployment.json`,
+`google-source-windows-tests-4cf8c73b27a2.json`,
+`google-final-checkpoint-1795086191158039100.json`,
+`wake-state-1795085310298176700.json`,
+`sophia-meter-baseline-1795085649022412700.json`,
+`sophia-meter-senary-1795086033403267400.json`, and the three immutable
+`paid-acceptance/sophia-unified-gemini-20261119-fast_handoff-*.json` reports.
+Raw audio, private keys and these private runtime files are not published.
+Existing firmware recovery below retains the actual verified V4 rollback and
+0.4.16 restore pair. Backend/mount backups retain old configuration bytes and
+WAL-aware database copies; a recovery must preserve current financial history,
+not copy an old ledger over it.
 
 ### Final deployment and verification, November19 06:35BRT
 
