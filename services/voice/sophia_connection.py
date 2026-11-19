@@ -90,7 +90,12 @@ class SophiaConnection:
                       'downlink_packets': 0, 'cloud_ready': False, 'generation_allowed': False,
                       'raw_audio_saved': False, 'text_saved': False, 'wake_events': 0,
                       'playback_started': 0, 'playback_finished': 0,
-                      'last_error': None, 'input_open': False, 'output_metrics': []}
+                      'last_error': None, 'input_open': False, 'output_metrics': [],
+                      'application_keepalives_sent': 0,
+                      'last_application_keepalive_monotonic': None,
+                      'device_control_messages': 0,
+                      'last_device_control_monotonic': None,
+                      'device_control_age_seconds': None}
 
     def new_output_metrics(self, response_id, role):
         metrics = {'response_sha256': hashlib.sha256(response_id.encode()).hexdigest(),
@@ -238,9 +243,23 @@ class SophiaConnection:
 
     async def status_tick(self):
         while True:
+            next_tick = time.monotonic()+5
+            # Installed V4 uses application-data age in IsAudioChannelOpened.
+            # WebSocket Ping/Pong does not refresh that clock: after a quiet
+            # interval HostControl silently stops, although PCM still flows.
+            # This scoped, no-op frame keeps the control path live without
+            # changing the board phase, admitting input, or calling Brain.
+            # Use the same lock as metadata+Opus so that pair stays atomic.
+            await self.send({'type': 'gobot_host_keepalive'})
+            now = time.monotonic()
+            self.stats['application_keepalives_sent'] += 1
+            self.stats['last_application_keepalive_monotonic'] = now
+            last_control = self.stats['last_device_control_monotonic']
+            self.stats['device_control_age_seconds'] = (
+                max(0., now-last_control) if last_control is not None else None)
             if self.on_status:
                 self.on_status()
-            await asyncio.sleep(5)
+            await asyncio.sleep(max(0., next_tick-time.monotonic()))
 
     async def receive(self):
         pending = None
@@ -260,6 +279,12 @@ class SophiaConnection:
             if pending is not None:
                 raise ValueError('sophia_missing_opus_frame')
             kind = obj.get('type')
+            if kind in {'gobot_host_wake', 'gobot_host_touch', 'gobot_host_mute',
+                        'gobot_host_playback', 'gobot_host_ack', 'gobot_host_finish',
+                        'gobot_host_telemetry', 'gobot_host_stats'}:
+                self.stats['device_control_messages'] += 1
+                self.stats['last_device_control_monotonic'] = time.monotonic()
+                self.stats['device_control_age_seconds'] = 0.
             if kind == 'gobot_host_frame':
                 pending = obj
             elif kind == 'gobot_host_wake':

@@ -34,6 +34,7 @@ _response_input_epoch = ContextVar('gobot_direct_response_input_epoch', default=
 _DETACH_REASONS = frozenset({'client_disconnected', 'output_backpressure', 'transport_disconnected'})
 _CLOSE_REASONS = frozenset({'closed', 'setup_failed', 'server_shutdown', 'detached_expired',
                           'profile_authorization_revoked'})
+_FAST_INPUT_MAX_SECONDS = 30.
 
 
 class DirectOffer(RealtimeOffer):
@@ -560,6 +561,7 @@ class DirectSession(NativeSession):
         self.state = 'listening'
         self._input_started = False
         self._input_samples = 0
+        self.auto_input_deadline = None
         self._fast_capture_started = time.monotonic()
         if followup:
             self._wake_fragment_candidate = False
@@ -735,6 +737,8 @@ class DirectSession(NativeSession):
             self.state = 'listening'
             self._input_started = fragment['speech_started']
             self.followup_deadline = None if self._input_started else time.monotonic()+8
+            self.auto_input_deadline = (fragment['speech_started_at']+_FAST_INPUT_MAX_SECONDS
+                                        if self._input_started else None)
             # VAD and the provider's trailing buffer were never reset. Flush
             # only locally held, never-forwarded PCM in original arrival order.
             while fragment['pcm'] and not fragment['commits']:
@@ -754,6 +758,8 @@ class DirectSession(NativeSession):
             # Do not start an eight-second silence timer on an ongoing question.
             self._input_started = fragment['speech_started']
             self.followup_deadline = None if self._input_started else time.monotonic()+8
+            self.auto_input_deadline = (fragment['speech_started_at']+_FAST_INPUT_MAX_SECONDS
+                                        if self._input_started else None)
             self._wake_fragment = None
             self.emit('telemetry', event='wake_word_only_skipped',
                       buffered_samples=sum(len(pcm)//2 for pcm in fragment['pcm']),
@@ -849,12 +855,16 @@ class DirectSession(NativeSession):
                 return
         if kind == 'input_audio_buffer.speech_started':
             if self._wake_fragment is not None:
+                if not self._wake_fragment['speech_started']:
+                    self._wake_fragment['speech_started_at'] = time.monotonic()
                 self._wake_fragment['speech_started'] = True
                 return
             if not self.input_open:
                 return
             self._input_started = True
             self.followup_deadline = None
+            if self.selected_mode == 'fast' and self.auto_input_deadline is None:
+                self.auto_input_deadline = time.monotonic()+_FAST_INPUT_MAX_SECONDS
         elif kind == 'input_audio_buffer.speech_stopped':
             # Provider position and local decision time are different clocks.
             self.emit('telemetry', event='end_of_speech',
@@ -879,6 +889,7 @@ class DirectSession(NativeSession):
                          time.monotonic()-self._fast_capture_started <= 1.5)
             self._wake_fragment_candidate = False
             self.input_open = False
+            self.auto_input_deadline = None
             self.state = 'thinking'
             self.emit('input_closed', reason='provider_endpoint', resume_pending=candidate)
             if candidate:
@@ -888,7 +899,7 @@ class DirectSession(NativeSession):
                     'item_id': obj.get('item_id', ''), 'turn': None,
                     'transcript_ready': asyncio.Event(), 'text': '', 'failed': False,
                     'pcm': deque(), 'bytes': 0, 'commits': [], 'transcripts': {},
-                    'speech_started': False}
+                    'speech_started': False, 'speech_started_at': None}
                 self._wake_fragment = fragment
                 turn = await self.new_turn(fragment['item_id'])
                 if (self._wake_fragment is not fragment or
@@ -1312,6 +1323,7 @@ class DirectSession(NativeSession):
         self._expert_followup_jobs.clear()
         self.input_open = False
         self.followup_deadline = None
+        self.auto_input_deadline = None
         self.pending_response = False
         should_cancel_provider = self.generating or self.response_requested
         if self.output_response:
@@ -1493,10 +1505,17 @@ class DirectSession(NativeSession):
                 # Paid input lifetime and empty transport lifetime are independent.
                 if self.input_open and self.selected_mode == 'fast':
                     input_epoch = self._input_gate_epoch
-                    try:
-                        await self.admission(explicit_wake=False)
-                    except PermissionError as error:
-                        await self.close_fast_input(str(error), input_epoch=input_epoch)
+                    # The native provider handler arms this speech limit, but
+                    # Direct WS does not run NativeSession.expire(). A missing
+                    # endpoint must not leave the physical wake gate listening
+                    # until the much longer paid operation finally expires.
+                    if self.auto_input_deadline and now > self.auto_input_deadline:
+                        await self.close_fast_input('input_time_limit', input_epoch=input_epoch)
+                    else:
+                        try:
+                            await self.admission(explicit_wake=False)
+                        except PermissionError as error:
+                            await self.close_fast_input(str(error), input_epoch=input_epoch)
                 age = now-self.transport_started
                 if self.ready and age >= 50*60 and self._spare is None:
                     try:
