@@ -13,6 +13,7 @@ from fastapi import Depends, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import JSONResponse
 
 from .realtime_api import bounded_json
+from .realtime_provider import RealtimeProviderError
 
 
 def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_token):
@@ -29,14 +30,22 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
         return [s for s in manager.sessions.values()
                 if not s.closed and s.offer.device_id == device]
 
+    def expert_active(session):
+        active = getattr(getattr(session, 'experts', None), 'active', False)
+        return bool(active() if callable(active) else active)
+
     @app.get('/api/v1/voice-ws/status', dependencies=[Depends(auth)])
-    async def status(source: str = 'device', device_id: str = ''):
+    async def status(source: str = 'device', device_id: str = '', client_id: str = '',
+                     owner_test_binding: str | None = None):
         try:
             manager = manager_for(source)
             state = manager.status()
             if asyncio.iscoroutine(state):
                 state = await state
             sessions = sessions_for(manager, device_id) if device_id else []
+            if client_id:
+                sessions = [s for s in sessions if s.offer.client_id == client_id and
+                            s.offer.owner_test_binding == owner_test_binding]
             safe = [{
                 'session_id': s.id, 'conversation_id': s.offer.conversation_id,
                 'ready': bool(s.ready), 'state': s.state,
@@ -44,9 +53,15 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 'muted': bool(getattr(s, 'muted', False)),
                 'capture_connected': bool(getattr(s, '_duplex_attached', False)),
                 'generation_allowed': bool(s.generation_allowed()),
+                'expert_active': expert_active(s),
             } for s in sessions]
-            return JSONResponse({'source': source, 'transport': 'B_WS',
-                                 'status': state, 'sessions': safe},
+            result = {'source': source, 'transport': 'B_WS', 'status': state, 'sessions': safe}
+            if client_id:
+                preview = await asyncio.to_thread(manager.admission_preview,
+                    client_id=client_id, device_id=device_id,
+                    owner_test_binding=owner_test_binding, developer_acceptance=False)
+                result['admission'] = await preview if asyncio.iscoroutine(preview) else preview
+            return JSONResponse(result,
                                 headers={'Cache-Control': 'no-store'})
         except PermissionError as error:
             return JSONResponse({'source': source, 'ready': False, 'code': str(error)},
@@ -55,11 +70,14 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
     @app.post('/api/v1/voice-ws/control', dependencies=[Depends(auth)])
     async def control(request: Request):
         data = await bounded_json(request, 2000)
-        if set(data) - {'source', 'device_id', 'action', 'mode', 'muted'}:
+        if set(data) - {'source', 'device_id', 'client_id', 'owner_test_binding', 'action', 'mode', 'muted'}:
             raise HTTPException(422, 'invalid_voice_control')
         try:
             manager = manager_for(data.get('source'))
             active = sessions_for(manager, data.get('device_id'))
+            if 'client_id' in data:
+                active = [s for s in active if s.offer.client_id == data['client_id'] and
+                          s.offer.owner_test_binding == data.get('owner_test_binding')]
             if len(active) != 1:
                 raise HTTPException(409, 'voice_device_not_connected')
             session = active[0]
@@ -170,6 +188,13 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
         except (PermissionError, ValueError) as error:
             with contextlib.suppress(Exception):
                 await ws.send_json({'type': 'error', 'data': {'code': str(error)[:160]}})
+        except RealtimeProviderError as error:
+            code = str(error)
+            if code not in {'openai_key_missing', 'realtime_network_error',
+                            'realtime_configuration_rejected', 'realtime_settings_not_acknowledged'}:
+                code = 'direct_voice_transport_failed'
+            with contextlib.suppress(Exception):
+                await ws.send_json({'type': 'error', 'data': {'code': code}})
         except Exception:
             with contextlib.suppress(Exception):
                 await ws.send_json({'type': 'error', 'data': {'code': 'direct_voice_transport_failed'}})

@@ -1,5 +1,6 @@
 """Bounded confirmed expert jobs. Model proposals never authorize execution."""
 import asyncio,re,time,json
+from collections import deque
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
@@ -9,6 +10,8 @@ from .models import ChatRequest
 from .providers import bridge_stream
 from .expert_store import ExpertBudget
 from .expert_stream import AnswerDelta,conversation_binding
+
+EXPERT_DELIVERY_STALL_SECONDS = 5.0
 
 EXPERT_ACTIVITY={'explicit_request','proposal_requested','proposal_created','start_requested','accepted','blocked','completed','failed','timed_out','cancel_requested'}
 EXPERT_BLOCKERS={'native_experts_disabled','confirmed_adult_profile_required','expert_quota_consent_required',
@@ -147,15 +150,21 @@ class ExpertJobs:
             if self.context_versions.get(item['job_id'])==version:continue
             try:
                 hook=getattr(s,'expert_context_synced',None)
-                if hook:
-                    if await hook(self.jobs[item['job_id']],item) is False:continue
-                else:
-                    await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,
-                        'type':'message','role':'user','content':[{'type':'input_text','text':json.dumps(
-                        {'kind':'expert_context_snapshot','data':item,'trusted_as_instructions':False},ensure_ascii=False)}]}})
+                async with asyncio.timeout(EXPERT_DELIVERY_STALL_SECONDS):
+                    if hook:
+                        if await hook(self.jobs[item['job_id']],item) is False:continue
+                    else:
+                        await s.send({'type':'conversation.item.create','item':{'id':uuid4().hex,
+                            'type':'message','role':'user','content':[{'type':'input_text','text':json.dumps(
+                            {'kind':'expert_context_snapshot','data':item,'trusted_as_instructions':False},ensure_ascii=False)}]}})
             except Exception:
+                # Keep canonical RAM context pending for an authenticated attach.
+                # Stop delivery so a dead socket cannot spend another wait at
+                # every sentence; the independently admitted CLI still finishes.
+                self.detach()
+                self.jobs[item['job_id']].speech_cancelled=True
                 s.emit('expert_context_pending',job_id=item['job_id'],reason='transport_unavailable')
-                continue
+                return
             self.context_versions[item['job_id']]=version
             self.jobs[item['job_id']].timings['expert_context_synced']=round((time.monotonic()-self.jobs[item['job_id']].clock_origin)*1000,2)
 
@@ -364,33 +373,64 @@ class ExpertJobs:
         s=self.session
         req=ChatRequest(text=job.task,device_id=s.access.effective_scope,conversation_id=s.access.context_conversation,
                         remember=False,turn_id=job.id,provider=job.profile['provider'],model_id=job.profile['model'],usage_consent=True)
-        packet=job.packet or await self.prepare_packet(job)
+        cli_deadline=asyncio.get_running_loop().time()+job.timeout_seconds
+        # Admission normally supplies this packet before reserving quota. Keep
+        # a fallback preparation inside the same original CLI deadline too.
+        async with asyncio.timeout_at(cli_deadline):
+            packet=job.packet or await self.prepare_packet(job)
         result=''
+        # The producer owns the original CLI deadline. A slow speaker never
+        # stretches the CLI request or blocks reading its already-paid result.
+        # Both text copies are bounded by max_result_characters; every queued
+        # element contains >=1 character and <=200 identifier characters.
+        pending=deque();changed=asyncio.Event();producer_done=False;producer_error=None
+        async def produce():
+            nonlocal result,producer_done,producer_error
+            iterator=bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile'])
+            received=0
+            try:
+                async with asyncio.timeout_at(cli_deadline):
+                    async for delta in iterator:
+                        received+=1
+                        if received%64==0:await asyncio.sleep(0)
+                        if not self.authorized_owner(job) or job.state=='cancelled':raise asyncio.CancelledError()
+                        if isinstance(delta,AnswerDelta):
+                            if delta.job_id not in {None,job.id}:raise ValueError('expert_delta_job_mismatch')
+                            if not delta.speakable:continue
+                            if delta.item_id is not None and (not isinstance(delta.item_id,str) or len(delta.item_id)>200):
+                                raise ValueError('expert_delta_metadata_invalid')
+                        elif job.profile['provider']=='codex':
+                            raise ValueError('expert_answer_metadata_missing')
+                        else:delta=AnswerDelta(str(delta),job_id=job.id,verified=False)
+                        if not delta:continue
+                        if len(result)+len(delta)>job.max_result_characters:raise ValueError('expert_result_limit')
+                        # Copy only verified bounded fields, not arbitrary
+                        # attributes attached by a transport implementation.
+                        safe=AnswerDelta(str(delta),item_id=delta.item_id,phase=delta.phase,
+                            job_id=job.id,verified=delta.verified,completed=bool(delta.completed))
+                        result+=str(safe);job.answer_text=result;pending.append(safe);changed.set()
+                        job.timings.setdefault('codex_first_answer_delta',round((time.monotonic()-job.clock_origin)*1000,2))
+                job.timings['codex_result_complete']=round((time.monotonic()-job.clock_origin)*1000,2)
+            except BaseException as error:
+                producer_error=error
+                raise
+            finally:
+                producer_done=True;changed.set()
+                if hasattr(iterator,'aclose'):await iterator.aclose()
         async def source():
-            nonlocal result
-            async for delta in bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile']):
-                if not self.authorized_owner(job) or job.state=='cancelled':raise asyncio.CancelledError()
-                if isinstance(delta,AnswerDelta):
-                    if delta.job_id not in {None,job.id}:raise ValueError('expert_delta_job_mismatch')
-                    if not delta.speakable:continue
-                elif job.profile['provider']=='codex':
-                    # A legacy Bridge without verified item metadata cannot grant
-                    # permission to narrate arbitrary stdout.
-                    raise ValueError('expert_answer_metadata_missing')
-                else:
-                    # Non-Codex legacy experts retain their existing text path.
-                    delta=AnswerDelta(str(delta),job_id=job.id,verified=False)
-                result+=str(delta)
-                job.answer_text=result
-                if len(result)>job.max_result_characters:raise ValueError('expert_result_limit')
-                job.timings.setdefault('codex_first_answer_delta',round((time.monotonic()-job.clock_origin)*1000,2))
-                yield delta
-        hook=getattr(s,'expert_stream_started',None)
-        try:options=await hook(job) if hook and not self.detached else None
-        except Exception:
-            options=None
-            s.emit('narration_unavailable',job_id=job.id,reason='narrator_preparation_failed')
-        if options is not None:
+            while True:
+                if producer_error is not None:raise producer_error
+                if pending:
+                    yield pending.popleft()
+                    continue
+                if producer_done:return
+                changed.clear()
+                await changed.wait()
+
+        async def render(options):
+            if options is None:
+                async for _ in source():pass
+                return
             from .pipeline import expert_voiced_events
             job.external_narration=bool(options.get('speech') is not None and options.get('paid_tts_consent'))
             def speech_allowed():
@@ -398,36 +438,56 @@ class ExpertJobs:
                 current=getattr(target,'current',None)
                 return bool(not self.detached and not target.closed and not job.speech_cancelled and
                     job.revision==self.revision() and current is not None and not current.cancelled and self.authorized_owner(job))
-            async for event in expert_voiced_events(options.get('speech'),source(),job_id=job.id,
-                    conversation_id=job.conversation,turn_id=job.turn_id or job.id,response_id=job.response_id,
-                    voice=options.get('voice','marin'),paid_tts_consent=options.get('paid_tts_consent',False),
-                    tts_character_limit=options.get('tts_character_limit'),usage_sink=job.narrator_usage,
-                    speech_allowed=speech_allowed):
-                data=event['data'];kind=event['type']
-                if kind=='expert_sentence':
-                    job.spoken_segments[data['segment_id']]=data['text']
-                    job.speech_text=' '.join(job.spoken_segments.values())
-                    job.timings.setdefault('first_speakable_chunk',round((time.monotonic()-job.clock_origin)*1000,2))
-                elif kind=='audio_chunk':job.timings.setdefault('narrator_first_audio',round((time.monotonic()-job.clock_origin)*1000,2))
-                elif kind=='audio_segment_done':
-                    job.generated_segments.add(data['segment_id'])
-                    await self.record_context(job)
-                    await self.sync_context(job)
-                elif kind=='audio_stop':
-                    job.narration_complete=data['reason']=='finished'
-                    if data['reason']=='interrupted':job.speech_cancelled=True
-                target=self.session
-                if not self.detached and not target.closed and self.authorized_owner(job):
-                    deliver=getattr(target,'expert_stream_event',None)
-                    if deliver:
-                        try:await deliver(job,event)
-                        except Exception:
-                            # Delivery failure is not permission to repeat the
-                            # paid expert. Retain text, stop narrator output, and
-                            # restore context on the next authenticated attach.
-                            self.detach();job.speech_cancelled=True
-        else:
-            async for _ in source():pass
+            events=expert_voiced_events(options.get('speech'),source(),job_id=job.id,
+                conversation_id=job.conversation,turn_id=job.turn_id or job.id,response_id=job.response_id,
+                voice=options.get('voice','marin'),paid_tts_consent=options.get('paid_tts_consent',False),
+                tts_character_limit=options.get('tts_character_limit'),usage_sink=job.narrator_usage,
+                speech_allowed=speech_allowed)
+            try:
+                async for event in events:
+                    data=event['data'];kind=event['type']
+                    if kind=='expert_sentence':
+                        job.spoken_segments[data['segment_id']]=data['text']
+                        job.speech_text=' '.join(job.spoken_segments.values())
+                        job.timings.setdefault('first_speakable_chunk',round((time.monotonic()-job.clock_origin)*1000,2))
+                    elif kind=='audio_chunk':job.timings.setdefault('narrator_first_audio',round((time.monotonic()-job.clock_origin)*1000,2))
+                    elif kind=='audio_segment_done':
+                        job.generated_segments.add(data['segment_id'])
+                        await self.record_context(job)
+                        await self.sync_context(job)
+                    elif kind=='audio_stop':
+                        job.narration_complete=data['reason']=='finished'
+                        if data['reason']=='interrupted':job.speech_cancelled=True
+                    target=self.session
+                    if not self.detached and not target.closed and self.authorized_owner(job):
+                        deliver=getattr(target,'expert_stream_event',None)
+                        if deliver:
+                            try:await asyncio.wait_for(deliver(job,event),EXPERT_DELIVERY_STALL_SECONDS)
+                            except Exception:
+                                # No client can indefinitely retain a producer
+                                # or narrator. Preserve the paid CLI result,
+                                # suppress speech, and never retry either call.
+                                self.detach();job.speech_cancelled=True
+            finally:await events.aclose()
+
+        producer=asyncio.create_task(produce(),name='expert-source:'+job.id)
+        renderer=None
+        try:
+            hook=getattr(s,'expert_stream_started',None)
+            try:options=await asyncio.wait_for(hook(job),EXPERT_DELIVERY_STALL_SECONDS) if hook and not self.detached else None
+            except Exception:
+                options=None
+                s.emit('narration_unavailable',job_id=job.id,reason='narrator_preparation_failed')
+            renderer=asyncio.create_task(render(options),name='expert-narrator:'+job.id)
+            done,_=await asyncio.wait({producer,renderer},return_when=asyncio.FIRST_COMPLETED)
+            if producer in done:await producer  # Fail/timeout stops narration immediately.
+            await renderer
+            await producer
+        finally:
+            for task in (producer,renderer):
+                if task and not task.done():task.cancel()
+            await asyncio.gather(*(t for t in (producer,renderer) if t),return_exceptions=True)
+            pending.clear()
         job.provider_session=packet.get('_provider_session_id')
         usage=packet.get('_provider_usage')
         if not isinstance(usage,dict):usage={}
@@ -473,7 +533,14 @@ class ExpertJobs:
                         if job.worker:job.worker.cancel()
                         return
             watcher=asyncio.create_task(watch_authorization())
-            async with asyncio.timeout(job.timeout_seconds):text=await self.executor(job)
+            if self.executor==self.execute:
+                # execute() independently bounds its CLI reader; its bounded
+                # narrator may continue after a successful CLI has finished.
+                text=await self.executor(job)
+            else:
+                # Existing non-streaming custom executors keep their original
+                # request deadline. No admission or model allowance is widened.
+                async with asyncio.timeout(job.timeout_seconds):text=await self.executor(job)
             if not self.authorized_owner(job) or job.state=='cancelled':job.state='cancelled';return
             if len(text)>job.max_result_characters:raise ValueError('expert_result_limit')
             job.result=normalize_result(text,job.profile);job.state='completed';job.timings['completed']=round((time.monotonic()-job.clock_origin)*1000,2);self.persist(job)

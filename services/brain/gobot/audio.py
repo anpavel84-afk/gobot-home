@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[3]
 OPENAI_VOICES = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo",
                  "sage", "shimmer", "verse"]
 TTS_MODEL = "gpt-realtime-2.1-mini"
+TTS_PROVIDER_TIMEOUT_SECONDS = 45.0
 
 class Speech:
     def __init__(self, api_key=None, connector=None):
@@ -146,7 +147,7 @@ class Speech:
         connector = self.connector or connect
         # Server-owned connection: the browser never receives the API credential.
         try:
-            async with asyncio.timeout(45):
+            async with asyncio.timeout(TTS_PROVIDER_TIMEOUT_SECONDS) as provider_deadline:
                 connection=_turn.connection(voice,paid_consent) if _turn is not None else connector("wss://api.openai.com/v1/realtime?model=" + TTS_MODEL,
                                      additional_headers={"Authorization": "Bearer " + key,
                                                          "OpenAI-Safety-Identifier": "gobot-home-owner"},
@@ -176,7 +177,15 @@ class Speech:
                                     raise AgentError("tts_audio_limit")
                                 count = len(pending) // 2 * 2
                                 if count:
-                                    yield pending[:count], 24000
+                                    # Keep the original cumulative provider-I/O
+                                    # budget. A client playing this PCM slowly
+                                    # must not spend that budget while the
+                                    # generator is suspended at its yield.
+                                    loop=asyncio.get_running_loop()
+                                    remaining=max(0,provider_deadline.when()-loop.time())
+                                    provider_deadline.reschedule(None)
+                                    try:yield pending[:count],24000
+                                    finally:provider_deadline.reschedule(loop.time()+remaining)
                                     pending = pending[count:]
                             elif kind == "error":
                                 raise AgentError("openai_tts_unavailable")

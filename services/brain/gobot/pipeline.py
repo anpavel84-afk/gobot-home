@@ -20,6 +20,8 @@ async def expert_voiced_events(speech, source, *, job_id, conversation_id, turn_
     ``audio_stop`` reports generation completion, not physical speaker completion.
     The transport owns playback ACKs and must keep its microphone gate closed until
     the whole response has drained. No text/audio is persisted by this iterator.
+    ExpertJobs supplies a separate bounded text producer with its own CLI deadline;
+    these small queues may apply playback backpressure without extending that call.
     """
     from .providers import SentenceBuffer
     from .expert_stream import AnswerDelta

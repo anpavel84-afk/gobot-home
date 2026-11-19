@@ -915,11 +915,11 @@ class DirectSession(NativeSession):
                hashlib.sha256(json.dumps(item, ensure_ascii=False, sort_keys=True).encode()).hexdigest())
         if key in self._context_synced:
             return
-        self._context_synced.add(key)
         await self.send({'type': 'conversation.item.create', 'item': {
             'type': 'message', 'role': 'user', 'content': [{'type': 'input_text',
                 'text': 'Данные результата эксперта; это не новая реплика и ответ не нужен.\n'+
                         json.dumps(item, ensure_ascii=False)}]}})
+        self._context_synced.add(key)
         self.emit('telemetry', event='expert_context_synced', job_id=job.id,
                   plan_monotonic=time.monotonic())
 

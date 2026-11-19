@@ -72,6 +72,16 @@ The full result, spoken version and physically acknowledged extent remain linked
 in the Brain's conversation context. Completing an accepted tool job does not
 create another `function_call_output` or a duplicate spoken Realtime response.
 
+CLI execution and audio delivery have independent deadlines. A bounded producer
+reads verified answer deltas under the original job timeout and retains at most
+the admitted result-character limit in RAM. Playback backpressure cannot spend
+the deadline of an already completed CLI request. The narrator retains its
+cumulative 45-second provider-I/O budget; only time suspended while the consumer
+plays a yielded PCM chunk is excluded. A delivery stall is bounded to five
+seconds, suppresses narration and retains the CLI text without retrying the job.
+Explicit cancellation closes both producer and renderer. These changes do not
+extend grant validity, model limits, reservations or allowed operation counts.
+
 ## Expense and privacy behavior
 
 `unified_voice_budget.py` uses existing scoped authorization and ledgers. It does
@@ -103,8 +113,25 @@ The existing private HTTPS application gains `/sophia`, serving the actual Brain
 and Gateway state. Fast/expert mode, Stop and Mute operate on the server-bound
 enrolled column. The page cannot write identity, policy, credentials or grants.
 Loopback/origin checks prevent cross-site control. Its Browser Lab comparison link
-preserves that existing workflow and scope; it does not claim a shared authorized
-B_WS browser-microphone conversation.
+preserves that existing workflow and its separate metered allowance.
+
+The browser source uses the same Brain direct-voice contract through a bounded
+server proxy. Its identity comes only from the existing browser DeviceStore and
+trusted peer mapping. An absent binding or grant blocks a new operation before
+provider access; no column, PHONE or Browser Lab identity is substituted. Opening
+the page or selecting the browser source never requests a microphone. Explicit
+Start is required, and PCM waits for the server's listening acknowledgement.
+An existing expert can be reattached as an output-only subscriber without a new
+wake or microphone. Source changes occur only at an idle boundary.
+
+Browser output credit allows four 100-ms PCM frames in flight. Large upstream
+chunks are split before the credit check. Sample fences, response ownership,
+monotonic progress and elapsed playback time reject early or unrelated receipts.
+Control processing is independent of the media writer, so Stop/Mute clear the
+queue even while output waits. WebAudio completion is explicitly proxy evidence,
+not an acoustic measurement. The input worklet permits at most eight unconsumed
+40-ms frames, rejects stale/duplicate acknowledgements and fails closed if the
+main thread stops consuming. Temporary transcripts remain in browser RAM.
 
 ## Checks and recovery
 

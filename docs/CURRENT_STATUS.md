@@ -56,7 +56,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Configs and the two Browser Lab entry files are hash-verified; SQLite backups
   use the backup API with WAL and pass quick_check. All Brain/native sessions
   and the Gateway were idle; no Browser Lab client was connected at this check.
-- Source published through commit `1455b7aa0ffc2f58d9e8bcd48aec21525eac8849` in
+- Source published through commit `0999187bcbf9194b2c6f7bc9eed3c93d002b49ed` in
   [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
   runtime base is retained; current master is an ancestor, with no merge conflict.
 - Candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
@@ -142,12 +142,42 @@ superseded by fresh physical evidence below; its architecture requirements remai
   covered 61s PCM, both explicit expert entry routes, two CLI jobs, narration,
   physical-ACK-driven continuation and three finite B starts. PHONE attempts
   remained zero; permanent expert_results remained empty.
+- The same 172-case gate passed on native PLAN Windows in the isolated checkout
+  at `0999187bcbf9194b2c6f7bc9eed3c93d002b49ed`; the running source is still
+  `1455b7a` pending the final UI/streaming checkpoint.
+- A concrete finite acceptance proposal is now prepared **disabled** on PLAN:
+  epoch `sophia-unified-20261118`, SHA256
+  `7ab02ebb54bfb3235a7b9549c27c684126e9269f630d4c88e4049fe3af8ef644`.
+  It proposes 3x60s mini/marin B starts, 2 SOL_HIGH jobs up to90s, 2x180s Live
+  Transcribe, 12 narrator Responses/6000 characters total (3000/job), and one
+  exact service-cue generation. The proposed API estimate is $2 ($1 B + $1
+  STT/narrator/cue), not an existing allowance or guaranteed provider invoice
+  ceiling. All three policies remain disabled with expiry0; no activation record
+  exists. Existing mount/Gateway hashes and the board budget snapshot matched
+  before/after preparation. Only a separately approved exact proposal can start
+  its one-time two-hour validity; nothing is activated by this preparation.
 - Read-only PLAN Codex readiness confirms installed/OAuth/isolation and actual
   metadata for SOL_HIGH (`gpt-6.1-sol`, high). This is readiness evidence, not
   spending authorization or proof of a real completed CLI task.
-- The actual browser-microphone leg is being completed in the same panel, with
-  server-owned existing identity, independent admission, bounded PCM and output
-  credit. Its ordinary UI load/source selection does not open a microphone.
+- The actual browser-microphone leg is source-complete in the same panel, with
+  server-owned existing identity, independent admission and explicit Start.
+  A 60-second synthetic answer passed with output credit capped at four100ms
+  frames; control processing remains independent of a blocked media writer.
+  The input worklet caps unconsumed audio at eight40ms frames, then fails closed.
+  Page load/source selection does not open a microphone. Browser-specific gate:
+  **35 passed**, including18 Node scenarios; independent review passed.
+- Long-output review also found that the existing expert/speech timeouts counted
+  consumer playback waits. CLI production now retains its original deadline,
+  independently of playback, with a bounded RAM text spool. Narrator provider I/O
+  retains its cumulative45s budget, paused only across consumer yield. Delivery
+  and context-send stalls are bounded to5s; unsuccessful sends do not mark the
+  context delivered. Stop closes both tasks. **10 focused cases passed**, and an
+  independent review reproduced the context-stall fix without remaining tasks.
+  Actual CLI/provider limits, grant expiry, reservations and counts are unchanged.
+- Final merged Linux source gate: **209 passed**, covering the browser, shared
+  Speech/ExpertJobs legacy paths, board admission, cancellation, context retention
+  and direct WS. This includes the above overlapping focused sets. Source is
+  frozen for isolated native Windows checks and the final controlled deployment.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
   0.4.15 failed physical boot; repaired 0.4.16 built and installed.
   `INSTALLED`: unified backend/UI and V4-derived 0.4.16 on the physical column.
@@ -155,8 +185,8 @@ superseded by fresh physical evidence below; its architecture requirements remai
   fixture and production reconnect. Real provider speech remains pending.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
-Next: finish the board-admission/browser source corrections and their free
-acceptance, then present the exact missing paid acceptance authorization. The
+Next: verify the frozen source on native PLAN, deploy it and inspect the real
+private HTTPS interface, then present the exact missing paid authorization. The
 Gateway's negotiated new-protocol configuration remains enabled; a V4 rollback
 retains the legacy contract. Exact app images and the install manifest snapshot
 are private on PLAN. No original configuration was overwritten without backup.
