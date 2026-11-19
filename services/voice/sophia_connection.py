@@ -12,7 +12,7 @@ from contextlib import suppress
 import json
 import time
 from urllib.parse import urlparse
-from uuid import uuid4
+from uuid import uuid4, uuid5, NAMESPACE_URL
 
 from websockets.asyncio.client import connect
 
@@ -255,7 +255,10 @@ class SophiaConnection:
             await asyncio.wait_for(self.cloud_ready.wait(), 10)
             if not self.ring.cursor or self.ring.cursor.wake_id != wake['wake_id']:
                 return
-            await self.to_brain({'type': 'wake', 'wake_id': wake['wake_id'], 'mode': self.mode})
+            # Firmware wake counters restart at boot. Deduplication belongs to
+            # the capture epoch, while Brain's logical conversation survives it.
+            ident = uuid5(NAMESPACE_URL, str(wake['stream_epoch'])+':'+wake['wake_id']).hex
+            await self.to_brain({'type': 'wake', 'wake_id': 'esp_'+ident, 'mode': self.mode})
         except Exception:
             self.ring.stop('activation_failed')
             self.stats['last_error'] = 'cloud_not_ready'

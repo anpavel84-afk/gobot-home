@@ -104,6 +104,7 @@ class DirectSession(NativeSession):
         self.closed_at = None
         self._reconnect_attempts = 0
         self._reconnect_after = 0.
+        self._empty_setup_failed = False
         self.automatic_dialogue = True
         self.setup_done = False
         self.hangup_confirmed = True  # Direct WS has no WebRTC REST call to hang up.
@@ -900,15 +901,29 @@ class DirectSession(NativeSession):
     async def reattach(self):
         self.attached = True
         self._wire_overflow = False
-        if hasattr(self.experts, 'attach'):
-            await maybe_await(self.experts.attach(self))
-        if not self.ready:
-            await self.rotate(force=True)
-        self.state = 'ready'
-        self.emit('ready', model=self.policy.model, voice='marin',
-                  configuration_confirmed=self.ready, input_open=False,
-                  generation_allowed=self.generation_allowed(), recovered=True)
-        return self
+        try:
+            if hasattr(self.experts, 'attach'):
+                await maybe_await(self.experts.attach(self))
+            if not self.ready:
+                await self.rotate(force=True)
+            self.state = 'ready'
+            self.emit('ready', model=self.policy.model, voice='marin',
+                      configuration_confirmed=self.ready, input_open=False,
+                      generation_allowed=self.generation_allowed(), recovered=True)
+            return self
+        except BaseException:
+            # The API cannot release a lease for an accept() which never
+            # returned a session. A failed empty reconnect must release its
+            # provisional subscriber itself, without cancelling logical jobs.
+            self.attached = False
+            self.input_open = False
+            self.state = 'detached'
+            self.experts.detach()
+            while not self.outgoing.empty():
+                self.outgoing.get_nowait()
+            self._priority_events.clear()
+            self._deferred_wire_event = None
+            raise
 
     async def rotate(self, *, force=False):
         async with self.transport_lock:
@@ -1026,6 +1041,7 @@ class DirectRealtimeManager(RealtimeManager):
         self.narrator_authorizer = narrator_authorizer
         self.transcription_authorizer = transcription_authorizer
         self.recognition = recognition
+        self._empty_setup_attempts = {}
         self.legacy_handoff = None  # Unified expert job stays in this logical conversation.
         self.voice_peers = [original, *original.voice_peers]
         for peer in self.voice_peers:
@@ -1046,7 +1062,12 @@ class DirectRealtimeManager(RealtimeManager):
                         offer.owner_test_binding, offer.developer_acceptance):
                     raise PermissionError('logical_conversation_identity_mismatch')
                 if existing.closed:
-                    raise ValueError('logical_conversation_closed')
+                    if not existing._empty_setup_failed:
+                        raise ValueError('logical_conversation_closed')
+                    # Only failed initial configuration may be replaced. An
+                    # explicitly ended/used conversation is never revived here.
+                    existing = None
+            if existing:
                 if existing.attached:
                     raise ValueError('microphone_source_already_attached')
                 reconnect = existing
@@ -1081,6 +1102,13 @@ class DirectRealtimeManager(RealtimeManager):
                     store = DeviceStore(Path(self.brain.settings.db).resolve().parent/'browser-devices')
                     owner = await asyncio.to_thread(store.scoped_owner, offer.device_id, offer.client_id)
                     profile = await asyncio.to_thread(store.profile, owner)
+                now = time.monotonic()
+                attempts = self._empty_setup_attempts.setdefault(offer.session_id, deque())
+                while attempts and now-attempts[0] >= 60:
+                    attempts.popleft()
+                if len(attempts) >= 3:
+                    raise ValueError('empty_setup_retry_rate_limited')
+                attempts.append(now)
                 session = self.session_factory(self, offer, profile, p)
                 self.sessions[session.id] = session
         if reconnect:
@@ -1096,6 +1124,17 @@ class DirectRealtimeManager(RealtimeManager):
         session = self.owned(ident, owner, client, epoch)
         if session.closed:
             return {'closed': True}
+        # Compute this before stop() changes transient state. The exception is
+        # strictly transport-only: no paid reservation, input, response or job
+        # can have existed. Usage rows and unknown costs are never reset.
+        session._empty_setup_failed = bool(
+            reason == 'setup_failed' and not session.setup_done and
+            session.operation_id is None and session._input_samples == 0 and
+            not session.experts.jobs and not session.response_operations and
+            not session.response_reservations and session.pending_reservation is None and
+            session._stt_reservation is None and not session._narrator_reservations and
+            session.output_response is None and not session.audio_ever_started)
+        session.close_reason = reason
         await session.stop()
         await session.experts.close()
         session.closed = True

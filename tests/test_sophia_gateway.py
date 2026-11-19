@@ -50,6 +50,24 @@ def test_capability_cannot_silently_enable_old_host_firmware():
                                               'local_wake_enabled': True, 'pcm_stage': 'pre_afe'}})
 
 
+def test_gateway_restart_preserves_logical_scope_but_device_boot_gets_new_wake():
+    from gobot_device_gateway import Gateway
+    from types import SimpleNamespace
+    config={'mode':'realtime_b','device_id':'board','conversation_id':'conversation'}
+    first,second=Gateway(config,'token'),Gateway(config,'token')
+    assert first.unified_session_id==second.unified_session_id
+    assert first.unified_conversation_id==second.unified_conversation_id
+    assert first.unified_session_id!=Gateway({**config,'device_id':'other'},'token').unified_session_id
+    async def run():
+        c=connection();c.cloud_ready.set()
+        c.ring.cursor=SimpleNamespace(wake_id='sophia-1')
+        for epoch in ('first-boot','first-boot','second-boot'):
+            await c.activate({'wake_id':'sophia-1','stream_epoch':epoch})
+        ids=[json.loads(item)['wake_id'] for item in c.brain.sent]
+        assert ids[0]==ids[1] and ids[1]!=ids[2]
+    asyncio.run(run())
+
+
 def test_legacy_prefetch_keeps_first_message_and_original_socket():
     async def run():
         ws = Socket()

@@ -59,26 +59,47 @@ superseded by fresh physical evidence below; its architecture requirements remai
 - Source published as commit `84237c80655622f9a9dc8778d0f778104ccb4004` in
   [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
   runtime base is retained; current master is an ancestor, with no merge conflict.
-- Final candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
+- Candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
   **3,687,984 bytes**, SHA256
   `9bd0daa300f30db3f3c90686caec0ab4aa4765b278edc1650c2da2e1bed26653`.
   Slot reserve **440,784 bytes**. Original V4/model/SDK/AFE/partition inputs remain
   byte-identical; cold connection setup now uses a bounded worker so wake/UI do
   not wait for the handshake. No bootloader/partition/NVS write is needed.
+  **REJECTED on physical boot:** the added 1,920-byte capture packer exhausted
+  the existing `audio_input` task stack. UART repeatedly reported stack overflow
+  and reset `0xc / RTC_SW_CPU_RST`; Wi-Fi did not become ready. This was not a
+  model/threshold change. The failed app, source and logs are preserved privately.
+- **Actual rollback PASS:** exact V4 `254793df...` was restored app-only after
+  fresh current-image ROM verification. Target ROM verification, unchanged table
+  and OTA metadata, and V4 UART Wi-Fi1/enrolled1/idle all passed. No NVS, assets,
+  inactive app, bootloader or partition write was performed. The repaired
+  0.4.16 candidate moves the new packer off the task stack; its build is pending.
 - Fresh isolated Windows check on PLAN: **125 passed**; two symlink creation
   cases hit Windows privilege error 1314 before reaching application code.
   Tests now skip only that unavailable OS capability (Linux cases pass); the
-  installer security checks and system privileges are unchanged. The rerun of
-  those installer tests remains part of the deployment gate.
-- `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend tests and
-  final V4-preserving firmware pass. `INSTALLED`: existing V4 only; unified
-  backend/firmware not deployed yet. `HARDWARE_TESTED`: V4 status only.
+  installer security checks and system privileges are unchanged. The Windows
+  installer rerun completed **29 passed, 2 skipped** for that OS capability.
+- Backend/UI **installed** at `ea93bf414a1ee56b9777fac974920c610a92850e`, all six
+  original ports healthy. Existing Browser Lab remains in its original worktree.
+  `/sophia` rendered correctly in native PLAN headless Chrome. Fresh Codex offline
+  isolation audit: tools[], one local mock HTTP request, zero real model requests,
+  OAuth present and current source policy digest verified.
+- A follow-up recovery correction keeps the Gateway logical conversation stable
+  across restarts, scopes wake deduplication to capture epochs, and permits only
+  bounded empty-setup retries. It never replays input or resets paid operations.
+  The exact known failed candidate can now use a narrow V4 recovery flag while
+  retaining all ROM/layout checks. Focused recovery/backend tests: **82 passed**.
+- `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
+  0.4.15 firmware built but failed physical boot, 0.4.16 repair pending.
+  `INSTALLED`: unified backend/UI; physical column restored to working V4.
+  `HARDWARE_TESTED`: failed candidate boot and successful exact V4 rollback.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
-Next: publish the isolated integration source, refresh offline CLI isolation
-evidence on PLAN, deploy backend/UI compatibly, finish the V4-preserving firmware
-build, freshly verify ROM/layout and app-only recovery, then run free physical
-checks. Keep the expired B grant, expert prohibition and C debt unchanged.
+Next: deploy the bounded empty-transport recovery correction, retain the working
+V4 and original Gateway configuration while the 0.4.16 fix builds, then verify
+and install the repaired candidate and perform the finite free hardware fixture.
+Keep the expired B grant, expert prohibition and C debt unchanged. No paid model
+request has been made by HOST-INTEGRATOR.
 
 ## Installed guided calibration — 2026-11-15
 

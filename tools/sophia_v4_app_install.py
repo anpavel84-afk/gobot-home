@@ -8,6 +8,9 @@ runtime setting, gateway configuration or provider request is supported.
 For an ordinary restore reverse current/target images and SHA values, and use
 the installed candidate as --expected-current-version. A partial/unknown flash
 cannot pass the current-image ROM verification and is never blindly retried.
+--recover-known-boot-failure is limited to this exact candidate -> V4 restore:
+it skips only the unhealthy candidate's UART-ready check. ROM image verification,
+fresh partition/OTA gates and the restored V4's UART-ready check remain mandatory.
 """
 from __future__ import annotations
 
@@ -218,9 +221,13 @@ def perform(args):
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',args.attempt_id):fail('invalid_attempt_id')
     if args.files_only and args.execute:fail('files_only_cannot_execute')
     report=validate_images(args)
+    recover_boot=bool(getattr(args,'recover_known_boot_failure',False))
+    if recover_boot and report['direction']!='restore_v4':
+        fail('known_boot_failure_recovery_requires_exact_candidate_to_v4_restore')
     report.update(schema='sophia_v4_app_install_v1',execute=bool(args.execute),app_write_started=False,
                   app_write_verified=False,automatic_retry=False,non_app_write_allowed=False,
-                  nvs_read=False,whole_flash_read=False,backend_quiescence_checked_by_installer=False)
+                  nvs_read=False,whole_flash_read=False,backend_quiescence_checked_by_installer=False,
+                  recover_known_boot_failure=recover_boot)
     if args.files_only:
         print(json.dumps({'files_only':'PASS',**report}),flush=True)
         return report
@@ -234,7 +241,11 @@ def perform(args):
     app_info(current,args.current_sha);app_info(target,args.target_sha)
     write_attempted=False
     try:
-        report['uart_before']=uart_status(args.port,args.expected_current_version)
+        if recover_boot:
+            report['uart_before']={'skipped':True,
+                'reason':'exact_manifest_candidate_boot_failure_restore_only'}
+        else:
+            report['uart_before']=uart_status(args.port,args.expected_current_version)
         for name in READ_REGIONS:
             run_esptool(args.port,'read',run_dir,'read-'+name+'-before',image=run_dir/(name+'-before.bin'),region=name)
         report['before']=audit_metadata((run_dir/'partition-before.bin').read_bytes(),(run_dir/'ota-before.bin').read_bytes())
@@ -287,6 +298,8 @@ def parser():
     value.add_argument('--attempt-id',default='install')
     value.add_argument('--files-only',action='store_true')
     value.add_argument('--execute',action='store_true')
+    value.add_argument('--recover-known-boot-failure',action='store_true',
+        help='Exact manifest candidate -> V4 only; skip candidate UART-ready, retain ROM/metadata and post-V4 UART gates')
     return value
 
 

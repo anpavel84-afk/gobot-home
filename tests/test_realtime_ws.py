@@ -75,6 +75,21 @@ class Provider:
             await socket.close()
 
 
+class CredentialGateProvider(Provider):
+    def __init__(self):
+        super().__init__()
+        self.available = False
+        self.attempts = 0
+
+    @asynccontextmanager
+    async def open(self, model):
+        self.attempts += 1
+        if not self.available:
+            raise RuntimeError('realtime_key_missing')
+        async with super().open(model) as socket:
+            yield socket
+
+
 def offer(**changes):
     return DirectOffer(session_id='direct-1', conversation_id='conversation-1',
                        device_id='board', client_id='board', consent=True,
@@ -391,13 +406,116 @@ def test_detach_reattach_preserves_identity_and_does_not_repeat_reservation(tmp_
         try:
             s = await manager.accept(offer())
             await s.wake('wake-1')
+            experts = s.experts
+            operation = s.operation_id
             await s.detach()
             assert not s.closed and s.experts.detached
             restored = await manager.accept(offer())
             assert restored is s and not s.experts.detached
+            assert s.experts is experts and s.operation_id == operation
+            assert not s.input_open and len(provider.sockets) == 1
+            assert not await s.append_pcm(bytes(4800))
             assert board.budget.status()['sessions_reserved'] == 1
             with pytest.raises(ValueError, match='already_attached'):
                 await manager.accept(offer())
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_stable_identity_reopens_only_empty_failed_setup_when_credentials_return(tmp_path, settings):
+    async def run():
+        original, board, manager, _ = setup(tmp_path, settings)
+        provider = manager.provider = CredentialGateProvider()
+        try:
+            with pytest.raises(RuntimeError, match='realtime_key_missing'):
+                await manager.accept(offer())
+            failed = manager.sessions['direct-1']
+            assert failed.closed and failed.close_reason == 'setup_failed'
+            assert failed._empty_setup_failed and not failed.setup_done
+            assert board.budget.status()['sessions_reserved'] == 0
+            provider.available = True
+            session = await manager.accept(offer())
+            assert session is not failed and session.ready and not session.input_open
+            assert provider.attempts == 2 and len(manager.sessions) == 1
+            assert board.budget.status()['sessions_reserved'] == 0
+            assert not any(e['type'] in {'response.create', 'input_audio_buffer.append'}
+                           for socket in provider.sockets for e in socket.sent)
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_empty_setup_retry_is_scoped_and_rate_bounded_without_changing_paid_ledger(tmp_path, settings):
+    async def run():
+        original, board, manager, _ = setup(tmp_path, settings)
+        provider = manager.provider = CredentialGateProvider()
+        try:
+            for _ in range(3):
+                with pytest.raises(RuntimeError, match='realtime_key_missing'):
+                    await manager.accept(offer())
+            with pytest.raises(ValueError, match='empty_setup_retry_rate_limited'):
+                await manager.accept(offer())
+            assert provider.attempts == 3
+            with pytest.raises(PermissionError, match='identity_mismatch'):
+                await manager.accept(offer().model_copy(update={'conversation_id': 'another-conversation'}))
+            assert provider.attempts == 3
+            # This advances only the empty-transport rate window; grants and
+            # monetary counters are untouched and no microphone byte is replayed.
+            attempts = manager._empty_setup_attempts['direct-1']
+            for index in range(len(attempts)):
+                attempts[index] -= 61
+            provider.available = True
+            session = await manager.accept(offer())
+            assert session.ready and not session.input_open and provider.attempts == 4
+            assert board.budget.status()['sessions_reserved'] == 0
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_used_or_explicitly_closed_stable_conversation_cannot_use_setup_retry(tmp_path, settings):
+    async def run():
+        original, board, manager, provider = setup(tmp_path, settings)
+        try:
+            session = await manager.accept(offer())
+            await session.wake('paid-wake')
+            operation = session.operation_id
+            await manager.close(session.id, 'board', 'board', None, 'setup_failed')
+            assert not session._empty_setup_failed
+            with pytest.raises(ValueError, match='logical_conversation_closed'):
+                await manager.accept(offer())
+            assert board.budget.status()['sessions_reserved'] == 1
+            assert session.operation_id == operation and len(provider.sockets) == 1
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_failed_empty_reattach_releases_subscriber_without_cancelling_logical_jobs(tmp_path, settings):
+    async def run():
+        original, board, manager, _ = setup(tmp_path, settings)
+        provider = manager.provider = CredentialGateProvider()
+        provider.available = True
+        try:
+            session = await manager.accept(offer())
+            experts = session.experts
+            gate = asyncio.Event()
+            worker = asyncio.create_task(gate.wait())
+            session.experts.active = lambda: not worker.done()
+            await session.detach()
+            session.ready = False
+            provider.available = False
+            with pytest.raises(RuntimeError, match='realtime_key_missing'):
+                await manager.accept(offer())
+            assert not session.attached and session.experts.detached and not session.closed
+            assert not worker.done() and session.experts is experts
+            provider.available = True
+            restored = await manager.accept(offer())
+            assert restored is session and session.attached and not session.experts.detached
+            assert not worker.done() and board.budget.status()['sessions_reserved'] == 0
+            gate.set()
+            await worker
         finally:
             await cleanup(original, board, manager)
     asyncio.run(run())

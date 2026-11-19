@@ -147,8 +147,13 @@ class Gateway:
         self.config = config
         self.auth = {'Authorization': 'Bearer ' + brain_token}
         self.brain_token = brain_token
-        self.unified_session_id = str(uuid.uuid4())
-        self.unified_conversation_id = str(uuid.uuid4())
+        # Brain owns this logical conversation across Gateway process restarts.
+        # Each paid operation still gets a separate, newly reserved operation ID.
+        device = str(config.get('device_id', 'unconfigured'))
+        self.unified_conversation_id = str(config.get('conversation_id') or
+            uuid.uuid5(uuid.NAMESPACE_URL, 'gobot:sophia:conversation:'+device))
+        self.unified_session_id = str(uuid.uuid5(uuid.NAMESPACE_URL,
+            'gobot:sophia:session:'+device+':'+self.unified_conversation_id))
         self.client_factory = client_factory
         self.host_detector_factory = host_detector_factory
         self.latency = None

@@ -135,6 +135,49 @@ def test_exact_images_can_reverse_for_restore(images):
     assert installer.validate_images(images)['direction']=='restore_v4'
 
 
+def boot_failure_restore(images):
+    images.current_image,images.target_image=images.target_image,images.current_image
+    images.current_sha,images.target_sha=images.target_sha,images.current_sha
+    images.expected_current_version='0.4.15-dev-sophia-unified-v4'
+    images.recover_known_boot_failure=True
+    images.execute=True
+
+
+def test_known_boot_failure_recovery_denies_install_direction(images):
+    images.recover_known_boot_failure=True
+    with pytest.raises(ValueError,match='requires_exact_candidate_to_v4_restore'):
+        installer.perform(images)
+    assert not images.report_dir.exists()
+
+
+def test_known_boot_failure_restore_keeps_candidate_rom_gate(simulated_device,monkeypatch):
+    images,events,original=simulated_device
+    boot_failure_restore(images)
+    def mismatch(*args,**kwargs):
+        if args[3]=='verify-current-app':raise ValueError('candidate_rom_mismatch')
+        return original(*args,**kwargs)
+    monkeypatch.setattr(installer,'run_esptool',mismatch)
+    with pytest.raises(ValueError,match='candidate_rom_mismatch'):installer.perform(images)
+    assert [event[0] for event in events]==['read','read']
+    assert not list(images.report_dir.glob('attempt-*.json'))
+
+
+def test_known_boot_failure_restore_still_requires_post_v4_uart(simulated_device,monkeypatch):
+    images,events,_=simulated_device
+    boot_failure_restore(images)
+    def unavailable(port,version):
+        assert version==installer.BASELINE_VERSION
+        events.append(('uart',version))
+        raise ValueError('restored_v4_uart_not_ready')
+    monkeypatch.setattr(installer,'uart_status',unavailable)
+    with pytest.raises(ValueError,match='restored_v4_uart_not_ready'):installer.perform(images)
+    assert [event[0] for event in events]==['read','read','verify','write','verify','read','read','uart']
+    report=json.loads(next(images.report_dir.glob('preflight-*/report.json')).read_text())
+    assert report['uart_before']=={'skipped':True,'reason':'exact_manifest_candidate_boot_failure_restore_only'}
+    assert report['app_write_verified'] is True and report['before']==report['after']
+    assert report['status']=='failed'
+
+
 @pytest.mark.parametrize('change,reason',[
     ('wrong_current_sha','images_must_be_exact'),
     ('same_images','images_must_be_exact'),
