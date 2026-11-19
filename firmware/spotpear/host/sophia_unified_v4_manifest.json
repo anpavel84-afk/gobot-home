@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "baseline_version": "0.4.14-dev-host-b-sophia-mic-v4",
+  "candidate_version": "0.4.15-dev-sophia-unified-v4",
+  "baseline_app_sha256": "254793df0426fecdfafbe5047674aef896568c236dd58330b6e4a47ff9c311a2",
+  "baseline_app_size": 3668912,
+  "app_offset": "0x20000",
+  "app_slot_capacity": 4128768,
+  "model": "wn10_sophia",
+  "detector_mode": "DET_MODE_95",
+  "pcm_stage": "pre_afe",
+  "sdkconfig_sha256": "a7c620848fe34d7778085cc5fb2ed9ba531bf82900a5d5da1c6420cd68eff8f8",
+  "idf_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "patch_sha256": "8bf5ecfe538f537cd2e495d6e6c13a1e48d6dd4354b0783af22ee41f536ac6ee",
+  "baseline_sources": {
+    "CMakeLists.txt": "f5edf346a7e24f1ab52e24469b1ae8346075d6bcf7965b4f55d07e438a5cbc1f",
+    "dependencies.lock": "de99f290516aa942bd0cdd6f2e3c9bd8291e68d7bc200611706392e3af756889",
+    "main/CMakeLists.txt": "badc4b4fd9197627f4daa41a318885213b7395dbe1ea25bafa20f519dcb84776",
+    "main/application.cc": "85d4aa0806b7a5ad37840d2e17f30d7b910436f45ef5eab374734f40a52b35f5",
+    "main/application.h": "a2939e418009c598be117ee8aeda0938085f75d06a6e8bef42f24eb9d5030b7f",
+    "main/audio/audio_codec.cc": "2dafab53ce88f6aa66ff0cc51eb23da73dac8f034276636c3cf491e304443072",
+    "main/audio/audio_codec.h": "6f6d681762a9f5c556fe45de69df92f29c39b116dad82e8a9f7ea5c88cd95858",
+    "main/audio/audio_engine.h": "7f7fa667c17612f2b96177dfd473bb9625fbd3ac6c532186954172ac7728f9cb",
+    "main/audio/audio_service.cc": "c281750574f7b2510c9f34bb0157e90fcb2e6c2ff09c7ada8a3978684f38c98a",
+    "main/audio/audio_service.h": "02918d0a2c9391eebfcb7fd3b7e3501ca94a3e1f974242b2fea4e32032ea4f1c",
+    "main/audio/codecs/box_audio_codec.cc": "fb2d3a5cb85f007f00ed5391badeee6cdef79211ebd2a01ed37b6d4c7eb42888",
+    "main/audio/codecs/box_audio_codec.h": "caec700dfb4ab6caacf5023b945f3285c7d5cc919c10b4582e847ba3026bfc88",
+    "main/audio/codecs/es8311_audio_codec.cc": "63aa07240b7d1d556ef11532907bd90ea91e1a9e9d531fa8f60f1a5e4e968fcd",
+    "main/audio/codecs/es8311_audio_codec.h": "56b607824cda48004b0f7aa5b37e0a9b359bd16f80521bb9df4dcdd3aa43a212",
+    "main/audio/engines/afe_audio_engine.cc": "3ed86cf7a9cb781bef3090164ae21f5af757ae85cf4ef49c53ab4e7122a42a5d",
+    "main/audio/engines/afe_audio_engine.h": "7246afc757c47fe11b4994308a26970155a3af228b000202d8665cd16c5fd995",
+    "main/audio/engines/lite_audio_engine.cc": "2fd910544cfd3968746a258630c5eda5b0a4b2d02b5b34a174797154fce9c1b5",
+    "main/audio/engines/lite_audio_engine.h": "3bcadfb0c3733d16d2c3322f91ea0298218f34650bb78a67ee415bea4bbad3d3",
+    "main/embedded_sophia_engine.hpp": "9c278e69d0e7ef5d6c9914e25e28779dbe325a34127076320e4187dd475e8cb3",
+    "main/gobot_build_info.h": "b720178b9286961580c7edfe838a639014d7a8e7cf9925a599c72020be5287df",
+    "main/host_client_state.h": "1f9382cf9838511500318d5b9cb05b04f55eb3add24b8cbdff9508781baf8e38",
+    "main/host_rc1_app.inc": "9f249be08c2022af6cdbd42cb73f568789cdf9cd276c5bee4f89643bab7af71e",
+    "main/host_rc1_render_ack.h": "e0d1019903da8ab6eb0d5cbf99d0ba619e1ae8ee53a7b7d920468df4f5ae4ad4",
+    "main/host_rc1_state.h": "104674adb43fc26c84e188f08b1ecc305e0b090360bd9315addc8d1ef8bdc3e3",
+    "main/protocols/protocol.h": "50087af2cd37da3c334a253d7fdc6c057c9fdec1668fc1caa2245d48423f81f4",
+    "main/protocols/websocket_protocol.cc": "a4d5e3eff4dc7b0dd2da63080c9c694ebd949ca1647127e96bb88bf6adbfb032",
+    "main/protocols/websocket_protocol.h": "9957293bce284262de060d590af4dcc4cbd57e697983852a484686fa413fca9c",
+    "main/sophia_pcm_tap.hpp": "02e9e73536d28f1d958cce222a5b9a49dab340384ecee378c1fb7963c4a958cc",
+    "main/wake_question_buffer.h": "1d1082ad91783dbd4a303987c69d38026ab2ac7143018e26a337a5274d1c442c"
+  },
+  "candidate_sources": {
+    "CMakeLists.txt": "d9b5f1e447943f0196cf2e446018c57a567191f2031aad58a1cd329bef8545c8",
+    "main/application.cc": "2253599d431bcf4fa090c22c8d7ddf437a9c5ece4da493cdb25248fc5bb5c56d",
+    "main/application.h": "25a2ec4ccb0b1a88aed4297546fcc0ae198c7bbcb58c82bc545990a909c44704",
+    "main/audio/audio_codec.cc": "44ebaabf12d6c1baefb39e6d698793863842821b47f25c927c31a5c7e81b1870",
+    "main/audio/audio_codec.h": "1d57d342eed82ff8b5c52e20542c545812d6190bf3a6202a8fe7c266359d06bc",
+    "main/audio/audio_service.cc": "f1445b6d9bfcc9533648242eaa9089a85732f81b964be865b87ca4f37644fa1d",
+    "main/audio/audio_service.h": "c02c90cea66c5a3828a903f99c5a1097ef182dbcb6212ce0e85b88306bdd521e",
+    "main/audio/codecs/es8311_audio_codec.cc": "a47777b69b9a6175c88b96b6e6bbe0701ce98916c8fd892c7515fa173849cc28",
+    "main/gobot_build_info.h": "1ec189257d02fbbeb4ba586953277d73e002a700d2802dec5568cf290952816c",
+    "main/host_output_receipts.h": "8632dae79d029bed1b40afa7ac9133330db8ede08ec430b1a07053f9a2f9c794",
+    "main/host_rc1_app.inc": "310d843634dbf1d685b19de98dc4f8040beae90c5023b377232cd17b9cde7d71",
+    "main/host_rc1_state.h": "b2c1d414e5ac261fdc00d434f96804ffa9dd7c152aad470e0f46217e8f587315",
+    "main/protocols/protocol.h": "63a6b9cd9cd33ef812e422c042ce56478308555d5d16d1bd80d67ae9241f7062",
+    "main/protocols/websocket_protocol.cc": "c833005df12534a46fb1f41340f75be890d972f6724739e37d976aaee224539a",
+    "main/protocols/websocket_protocol.h": "a3525384114a223d95653fa7ceb6c799bd0b0f021733d51d7a749d01415d632c",
+    "main/sophia_host_capture.h": "038fee8b995e398d5c9af7b0a91cc8b4fc490a13bdcdf6b259a665a2d0db1770"
+  },
+  "build_status": "passed",
+  "physical_status": "not_flashed",
+  "candidate_app_sha256": "9bd0daa300f30db3f3c90686caec0ab4aa4765b278edc1650c2da2e1bed26653",
+  "candidate_app_size": 3687984,
+  "app_slot_free": 440784,
+  "baseline_app_preserved": true,
+  "baseline_source_guards_passed": 29,
+  "candidate_source_guards_passed": 16,
+  "sdkconfig_unchanged": true,
+  "sophia_model_sha256": "f3aaf5c6017dc7460e8acd58e2204b85692747b9b5d42e6a54ee831d9fdad415",
+  "sophia_model_size": 383508,
+  "sophia_model_embedded_exact_once": true,
+  "immutable_binary_assets_verified": [
+    "main/sophia_srmodels.bin",
+    "main/gobot_mww.tflite",
+    "build/partition_table/partition-table.bin",
+    "build/ota_data_initial.bin",
+    "build/bootloader/bootloader.bin",
+    "build/generated_assets.bin"
+  ],
+  "native_test": "python tests/test_sophia_firmware_native.py",
+  "cold_connection_worker": {
+    "task": "sophia_connect",
+    "stack_bytes": 8192,
+    "priority": 1,
+    "maximum_concurrent": 1,
+    "second_socket": false,
+    "v2_server_hello_timeout_ms": 2500
+  },
+  "playback_completion_basis": "i2s_dma_sent",
+  "acoustic_onset_verified": false,
+  "hardware_validation_owner": "HOST-INTEGRATOR root",
+  "protected_binary_hashes": {
+    "main/sophia_srmodels.bin": {
+      "sha256": "f3aaf5c6017dc7460e8acd58e2204b85692747b9b5d42e6a54ee831d9fdad415",
+      "size": 383508
+    },
+    "main/gobot_mww.tflite": {
+      "sha256": "cd71ebf787d9af060f5fefab01123d3a03b0152420cf143973c85206c59556a5",
+      "size": 131072
+    },
+    "build/partition_table/partition-table.bin": {
+      "sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+      "size": 3072
+    },
+    "build/ota_data_initial.bin": {
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "size": 8192
+    },
+    "build/bootloader/bootloader.bin": {
+      "sha256": "539b46b8147ce409b55dbff928afc86f0004b89e427cfc6cc3a46482ae269f98",
+      "size": 16496
+    },
+    "build/generated_assets.bin": {
+      "sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0",
+      "size": 3732985
+    }
+  }
+}

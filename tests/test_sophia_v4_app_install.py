@@ -1,4 +1,5 @@
 """Installer safety gates. All images, metadata, UART and esptool are local mocks."""
+import errno
 import hashlib
 import importlib.util
 import json
@@ -18,6 +19,14 @@ SPEC.loader.exec_module(installer)
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
+
+
+def symlink_or_skip(link,target,**kwargs):
+    try:link.symlink_to(target,**kwargs)
+    except OSError as error:
+        if getattr(error,'winerror',None)==1314 or error.errno==errno.ENOTSUP:
+            pytest.skip('OS symlink creation capability unavailable (WinError 1314 or ENOTSUP); installer security unchanged')
+        raise
 
 
 def app_bytes(version,*,size=512,chip=9):
@@ -159,7 +168,7 @@ def test_app_file_integrity_and_partition_bound(tmp_path,kind,reason):
     if kind=='oversize':
         with path.open('r+b') as output:output.truncate(installer.APP_CAPACITY+1)
     if kind=='symlink':
-        link=tmp_path/'link.bin';link.symlink_to(path);path=link
+        link=tmp_path/'link.bin';symlink_or_skip(link,path);path=link
     with pytest.raises(ValueError,match=reason):installer.app_info(path,expected)
 
 
@@ -232,7 +241,7 @@ def test_command_whitelist_has_only_exact_regions_and_app_offset():
 
 def test_private_report_directory_rejects_symlink_parent(tmp_path):
     destination=tmp_path/'actual';destination.mkdir()
-    link=tmp_path/'link';link.symlink_to(destination,target_is_directory=True)
+    link=tmp_path/'link';symlink_or_skip(link,destination,target_is_directory=True)
     with pytest.raises(ValueError,match='private_report_directory_symlink_denied'):
         installer.private_directory(link/'child')
 

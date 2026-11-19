@@ -56,9 +56,22 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Configs and the two Browser Lab entry files are hash-verified; SQLite backups
   use the backup API with WAL and pass quick_check. All Brain/native sessions
   and the Gateway were idle; no Browser Lab client was connected at this check.
-- `SOURCE_IMPLEMENTED`: core present, final integration checks in progress.
-  `BUILT`: initial V4-based firmware compiled; cold-network wake responsiveness
-  correction and final build pending. `INSTALLED`: existing V4 only; unified
+- Source published as commit `84237c80655622f9a9dc8778d0f778104ccb4004` in
+  [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
+  runtime base is retained; current master is an ancestor, with no merge conflict.
+- Final candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
+  **3,687,984 bytes**, SHA256
+  `9bd0daa300f30db3f3c90686caec0ab4aa4765b278edc1650c2da2e1bed26653`.
+  Slot reserve **440,784 bytes**. Original V4/model/SDK/AFE/partition inputs remain
+  byte-identical; cold connection setup now uses a bounded worker so wake/UI do
+  not wait for the handshake. No bootloader/partition/NVS write is needed.
+- Fresh isolated Windows check on PLAN: **125 passed**; two symlink creation
+  cases hit Windows privilege error 1314 before reaching application code.
+  Tests now skip only that unavailable OS capability (Linux cases pass); the
+  installer security checks and system privileges are unchanged. The rerun of
+  those installer tests remains part of the deployment gate.
+- `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend tests and
+  final V4-preserving firmware pass. `INSTALLED`: existing V4 only; unified
   backend/firmware not deployed yet. `HARDWARE_TESTED`: V4 status only.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
