@@ -134,7 +134,8 @@ def test_real_brain_route_auth_binary_stop_and_clean_disconnect():
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('frame', [b'\x00', bytes(48002)])
+@pytest.mark.parametrize('frame', [b'\x00', bytes(48002)],
+                         ids=['odd-byte', 'oversized-frame'])
 def test_real_brain_route_keeps_pcm_frame_bounds(frame):
     async def run():
         app, board, _ = setup()
