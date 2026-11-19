@@ -11,7 +11,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
 - PLAN remote execution is available. The only production Gateway listens on
   the existing LAN port 18789; Brain/Bridge/voice/images retain their loopback
   ports. Browser Voice Lab remains on its existing HTTPS path and loopback18811.
-- Physical COM3 status: `0.4.14-dev-host-b-sophia-mic-v4`, WiFi1, enrolled1,
+- Initial baseline COM3 status: `0.4.14-dev-host-b-sophia-mic-v4`, WiFi1, enrolled1,
   muted0, phase0, wake_running1, upload0. Three bounded status responses were
   observed; no personal audio was recorded and no provider call was made.
 - The matching preserved V4 app is **3,668,912 bytes**, SHA256
@@ -43,8 +43,8 @@ superseded by fresh physical evidence below; its architecture requirements remai
 - Free merged expert/legacy gate: **173 passed**. API/Gateway/private-panel gate:
   **10 passed**. Budget/direct/audio focused checks also pass; these overlapping
   sets are not added together. Provider/latency/human acceptance is not inferred
-  from synthetic fixtures. The Linux browser renderer could not launch in this
-  executor; native PLAN browser verification remains to be done after deployment.
+  from synthetic fixtures. Native PLAN headless Chrome subsequently verified
+  the installed desktop panel; the Linux renderer was unavailable.
 - Exact service cue `Передаю задачу эксперту` is **absent** from the inspected
   100-entry private PLAN cache. Runtime lookup checks text/model/voice/SHA and
   reports missing; it never generates a paid clip on cache miss.
@@ -56,7 +56,7 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Configs and the two Browser Lab entry files are hash-verified; SQLite backups
   use the backup API with WAL and pass quick_check. All Brain/native sessions
   and the Gateway were idle; no Browser Lab client was connected at this check.
-- Source published as commit `84237c80655622f9a9dc8778d0f778104ccb4004` in
+- Source published through commit `1455b7aa0ffc2f58d9e8bcd48aec21525eac8849` in
   [draft PR #14](https://github.com/anpavel84-afk/gobot-home/pull/14). The actual
   runtime base is retained; current master is an ancestor, with no merge conflict.
 - Candidate **0.4.15-dev-sophia-unified-v4** built from the exact V4 tree:
@@ -73,13 +73,13 @@ superseded by fresh physical evidence below; its architecture requirements remai
   fresh current-image ROM verification. Target ROM verification, unchanged table
   and OTA metadata, and V4 UART Wi-Fi1/enrolled1/idle all passed. No NVS, assets,
   inactive app, bootloader or partition write was performed. The repaired
-  0.4.16 candidate moves the new packer off the task stack; its build is pending.
+  0.4.16 moves the new packer off the task stack and is now installed below.
 - Fresh isolated Windows check on PLAN: **125 passed**; two symlink creation
   cases hit Windows privilege error 1314 before reaching application code.
   Tests now skip only that unavailable OS capability (Linux cases pass); the
   installer security checks and system privileges are unchanged. The Windows
   installer rerun completed **29 passed, 2 skipped** for that OS capability.
-- Backend/UI **installed** at `ea93bf414a1ee56b9777fac974920c610a92850e`, all six
+- Backend/UI **installed** at `1455b7aa0ffc2f58d9e8bcd48aec21525eac8849`, all six
   original ports healthy. Existing Browser Lab remains in its original worktree.
   `/sophia` rendered correctly in native PLAN headless Chrome. Fresh Codex offline
   isolation audit: tools[], one local mock HTTP request, zero real model requests,
@@ -97,17 +97,51 @@ superseded by fresh physical evidence below; its architecture requirements remai
   repaired candidate 704. Its original 12,288-byte task stack is unchanged.
   Device resource telemetry now preserves the actual stack high-water mark in
   bytes for the physical load check. Final source/native checks: **8 passed**.
+- **0.4.16 installed:** fresh current-V4 ROM match, app-only write and target
+  ROM verification passed; live partition/OTA metadata remained unchanged.
+  UART confirmed Wi-Fi1, enrolled1, muted0, wake_running1. The initial 24-second
+  observation had zero reset/overflow/fault markers. Negotiated v2 capture and
+  the empty B_WS configuration became ready, with generation forbidden by the
+  expired grant. At 667 received packets, encode drops were zero, queues empty,
+  and the measured input-task stack high-water mark was **1,312 bytes**.
+- The first 120-second free fixture completed whole/segment DMA playback,
+  guard-then-capture, cancel, mute and fresh-epoch unmute. Its overall result was
+  **FAIL** because deadline shutdown was classified as an unexpected TCP close.
+  That report is retained. A second bounded run records explicit close codes;
+  normal server-initiated deadline shutdown is distinguished from early loss.
+  Closure guard cases: **22 passed**. The production Gateway is restored in the
+  runner's finalizer. No cloud/provider is available to the fixture.
+- **Repeated 120-second hardware fixture PASS:** all six physical steps passed,
+  24,456 real capture samples reached the local fake peer at 24 kHz, and two
+  distinct capture epochs were confirmed. The final close was explicitly sent
+  by the server with code1001; the device supplied no close frame. No unexpected
+  error remained. Under capture/output/mute/reconnect load, encode drops were
+  zero and the input-task stack high-water mark stayed **1,312 bytes**. Actual
+  acoustic onset/underruns are not measured by this DMA-based fixture.
+  Production subsequently reconnected with protocol2/cloud_ready, zero errors,
+  generation_allowed=false. Post-fixture UART confirmed muted0/wake_running1.
+- One public offline PLAN SAPI/Zira utterance `Sophia` produced one physical
+  wake. ESP callback-to-visible-screen ACK measured **62.2 ms**, above the
+  handoff's <50 ms goal; this is a single synthetic timing sample, not a human
+  wake-quality acceptance. Admission correctly returned
+  `realtime_budget_or_consent_required`, input stayed closed, the paid budget
+  snapshot stayed identical, and the explicit Stop control was acknowledged.
+- Additional source gaps are being closed: preserve the existing board-specific
+  expert admission in B_WS and explicitly account its separate STT/narrator
+  operations; implement the actual browser-microphone leg in the same panel.
+  No existing grant, identity, expiry or ledger is borrowed or reset.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
-  0.4.15 failed physical boot; repaired 0.4.16 built, installation pending.
-  `INSTALLED`: unified backend/UI; physical column restored to working V4.
-  `HARDWARE_TESTED`: failed candidate boot and successful exact V4 rollback.
+  0.4.15 failed physical boot; repaired 0.4.16 built and installed.
+  `INSTALLED`: unified backend/UI and V4-derived 0.4.16 on the physical column.
+  `HARDWARE_TESTED`: exact V4 rollback, successful repaired boot, complete free
+  fixture and production reconnect. Real provider speech remains pending.
   `HUMAN_ACCEPTED`: owner-reported V4 wake quality; unified conversation pending.
 
-Next: deploy the bounded empty-transport recovery correction, verify and install
-the repaired candidate, then perform the finite free hardware fixture. The
-Gateway's negotiated new-protocol configuration remains enabled; restored V4
-continues to use the legacy contract. No original configuration was overwritten
-without its verified deployment backup.
+Next: finish the board-admission/browser source corrections and their free
+acceptance, then present the exact missing paid acceptance authorization. The
+Gateway's negotiated new-protocol configuration remains enabled; a V4 rollback
+retains the legacy contract. Exact app images and the install manifest snapshot
+are private on PLAN. No original configuration was overwritten without backup.
 Keep the expired B grant, expert prohibition and C debt unchanged. No paid model
 request has been made by HOST-INTEGRATOR.
 

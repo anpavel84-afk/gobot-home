@@ -110,6 +110,17 @@ async def wait_until(predicate,timeout=10):
         while not predicate():await asyncio.sleep(.05)
 
 
+def expected_close_reason(*,unmute_requested,stopping,sent_code,received_code,
+                          received_before_sent=None):
+    # An explicit peer error never becomes success because local cleanup also
+    # sent a normal close. Early unsolicited clean closes are failures too.
+    if received_code not in (None,1000,1001):return None
+    if unmute_requested:return 'expected_unmute_disconnect'
+    if stopping and sent_code==1001 and received_before_sent is not True:
+        return 'expected_fixture_shutdown'
+    return None
+
+
 async def run(args):
     if not args.execute:raise ValueError('explicit_execute_required_for_local_physical_sound')
     if not 20<=args.seconds<=180:raise ValueError('bounded_fixture_duration_required')
@@ -123,6 +134,7 @@ async def run(args):
         'capture_floors':[],'connections':[],'steps':[],'errors':[]}
     active=False
     first=True
+    stopping=False
     unmute_from_epoch=None
     deadline=time.monotonic()+args.seconds
     async def handler(ws):
@@ -202,12 +214,24 @@ async def run(args):
                 await task
             else:task.result()
         except ConnectionClosed as error:
+            record['close_sent_code']=error.sent.code if error.sent else None
+            record['close_received_code']=error.rcvd.code if error.rcvd else None
+            record['close_received_before_sent']=error.rcvd_then_sent
+            record['fixture_deadline_reached']=stopping
             # ESP unmute deliberately destroys the old websocket without a
             # goodbye frame. This alone is NOT a reconnect PASS: the next
             # authenticated epoch must deliver real capture frames below.
-            if record.get('unmute_requested') and (not error.rcvd or error.rcvd.code in (1000,1001)):
-                record['expected_unmute_disconnect']=True
-            elif not error.rcvd or error.rcvd.code not in (1000,1001):
+            reason=expected_close_reason(unmute_requested=record.get('unmute_requested',False),
+                stopping=stopping,sent_code=record['close_sent_code'],
+                received_code=record['close_received_code'],
+                received_before_sent=record['close_received_before_sent'])
+            if reason:
+                # The finite server initiated its own deadline shutdown. ESP
+                # closes TCP without a websocket reply, even when the sent
+                # close frame was normal. An earlier/unsolicited loss still
+                # fails; record both codes rather than treating all 1006 as OK.
+                record[reason]=True
+            else:
                 report['errors'].append('unexpected_device_disconnect')
         except Exception as error:
             report['errors'].append(type(error).__name__+':'+str(error)[:100])
@@ -225,6 +249,7 @@ async def run(args):
     async with serve(handler,config['bind'],18789,ssl=tls,max_size=16384,max_queue=8,
                      ping_interval=20,ping_timeout=10,close_timeout=2,compression=None):
         while time.monotonic()<deadline:await asyncio.sleep(.2)
+        stopping=True
     report['distinct_capture_epochs']=len({x.get('stream_epoch') for x in report['connections'] if x.get('stream_epoch')})
     report['pass']=all(step in report['steps'] for step in (
         'whole_response_dma_receipt','post_receipt_guard_then_real_capture',
