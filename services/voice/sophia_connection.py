@@ -95,7 +95,10 @@ class SophiaConnection:
                       'last_application_keepalive_monotonic': None,
                       'device_control_messages': 0,
                       'last_device_control_monotonic': None,
-                      'device_control_age_seconds': None}
+                      'device_control_age_seconds': None,
+                      'admission_status': {'known': False, 'mode': self.mode},
+                      'invalid_admission_status': 0, 'stale_admission_status': 0,
+                      'admission_receipt': None, 'discarded_admission_receipts': 0}
 
     def new_output_metrics(self, response_id, role):
         metrics = {'response_sha256': hashlib.sha256(response_id.encode()).hexdigest(),
@@ -190,6 +193,66 @@ class SophiaConnection:
         async with self.brain_send_lock:
             await asyncio.wait_for(self.brain.send(obj if isinstance(obj, bytes)
                                                  else json.dumps(obj, ensure_ascii=False)), 3)
+
+    def selected_input_mode(self, mode):
+        if mode not in ('fast', 'expert'):
+            raise ValueError('invalid_selected_input_mode')
+        if mode != self.mode:
+            # A permit for the previous mode must not describe the new one.
+            # Only Brain's following typed status can make it known again.
+            self.stats['admission_status'] = {'known': False, 'mode': mode}
+            self.stats['admission_receipt'] = None
+        self.mode = mode
+        self.stats['selected_mode'] = mode
+
+    async def admission_status(self, data):
+        codes = {'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable'}
+        if (not isinstance(data, dict) or data.get('mode') not in ('fast', 'expert')
+                or type(data.get('input_allowed')) is not bool
+                or type(data.get('generation_allowed')) is not bool
+                or type(data.get('code')) is not str or data['code'] not in codes
+                or (data['code'] == 'available') != data['input_allowed']):
+            self.stats['invalid_admission_status'] += 1
+            return
+        if data['mode'] != self.mode:
+            self.stats['stale_admission_status'] += 1
+            return
+        state = {key: data[key] for key in ('mode', 'input_allowed', 'generation_allowed', 'code')}
+        current = {'known': True, **state}
+        if self.stats['admission_status'] != current:
+            self.stats['admission_receipt'] = None
+        self.stats['admission_status'] = current
+        self.stats['generation_allowed'] = state['generation_allowed']
+        # UI information only. Never reset ready/busy, capture, output, or the
+        # actual server admission. Older host-v2 firmware safely ignores this
+        # scoped no-op; newer native UI can explain a closed allowance.
+        await self.send({'type': 'gobot_host_admission',
+                         **{key: state[key] for key in ('input_allowed', 'code', 'mode')}})
+
+    def admission_receipt(self, obj):
+        state = self.stats['admission_status']
+        revision = obj.get('render_revision')
+        evidence = obj.get('render_evidence')
+        previous = self.stats['admission_receipt']
+        valid = (state.get('known') is True and obj.get('admission_known') is True
+                 and type(obj.get('input_allowed')) is bool
+                 and obj['input_allowed'] == state['input_allowed']
+                 and obj.get('mode') == state['mode'] and obj.get('code') == state['code']
+                 and type(obj.get('notice_rendered')) is bool
+                 and not (obj['input_allowed'] and obj['notice_rendered'])
+                 and type(revision) is int and 0 <= revision <= 10**15
+                 and type(evidence) is str
+                 and evidence in {'native_framebuffer_invalidated', 'native_framebuffer_unchanged'}
+                 and (previous is None or revision >= previous['render_revision']))
+        if not valid:
+            self.stats['discarded_admission_receipts'] += 1
+            return
+        # At most one receipt, matching the current typed status. This is a
+        # native framebuffer callback, never panel DMA or human-visible proof.
+        self.stats['admission_receipt'] = {key: obj[key] for key in (
+            'admission_known', 'input_allowed', 'mode', 'code', 'notice_rendered',
+            'render_revision', 'render_evidence')}
+        self.stats['admission_receipt']['receipt_plan_monotonic'] = time.monotonic()
 
     async def screen(self, phase, text=''):
         self.stats['voice_phase'] = phase
@@ -329,6 +392,8 @@ class SophiaConnection:
                     self.trace({'event': 'ui_visible', 'wake_id': obj.get('wake_id'),
                                 'device_mono_us': visible, 'callback_monotonic_us': callback,
                                 'clock_domain': 'esp32_monotonic'})
+                elif obj.get('event') == 'admission_rendered':
+                    self.admission_receipt(obj)
             elif kind == 'gobot_host_finish':
                 # v1 firmware endpointing is not a second controller for B_WS.
                 self.stats['ignored_device_endpoints'] = self.stats.get('ignored_device_endpoints', 0) + 1
@@ -441,7 +506,11 @@ class SophiaConnection:
 
     async def cloud_event(self, event):
         kind, data = event.get('type'), event.get('data', {})
-        if kind == 'ready':
+        if kind == 'admission_status':
+            await self.admission_status(data)
+        elif kind == 'ready':
+            if data.get('input_mode') in ('fast', 'expert'):
+                self.selected_input_mode(data['input_mode'])
             self.cloud_ready.set()
             self.stats.update(cloud_ready=True, generation_allowed=data.get('generation_allowed') is True)
             await self.screen('ready', 'Скажите «София»' if self.stats['generation_allowed']
@@ -456,7 +525,7 @@ class SophiaConnection:
                                               max(1, data['max_audio_seconds']))
             if kind == 'followup':
                 self.ring.set_blocked(False, reason='playback_guard_finished')
-                self.mode = 'fast'
+                self.selected_input_mode('fast')
                 wake = {'wake_id': 'followup_'+uuid4().hex, 'stream_epoch': self.ring.epoch,
                         'detector_sample': max(self.ring.end, self.ring.floor)}
                 self.ring.begin(wake, pre_roll_seconds=0.)
@@ -551,8 +620,7 @@ class SophiaConnection:
             await self.send({'type': 'gobot_host_mute', 'muted': self.muted})
             await self.screen('muted' if self.muted else 'ready')
         elif kind == 'mode_selected':
-            self.mode = data['mode']
-            self.stats['selected_mode'] = self.mode
+            self.selected_input_mode(data['mode'])
         elif kind == 'stt_ready' and type(data.get('max_audio_seconds')) in (int, float):
             self.expert_audio_limit = min(self.options.get('expert_max_seconds', 180),
                                           max(1, data['max_audio_seconds']))

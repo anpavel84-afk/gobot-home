@@ -216,13 +216,20 @@ def save_json(path,value,*,exclusive=False):
         json.dump(value,target,ensure_ascii=False,indent=2);target.flush();os.fsync(target.fileno())
 
 
-def perform(args):
+def perform(args, *, validator=None, recovery_direction='restore_v4'):
+    """Run the unchanged app-write sequence with a version-pinned validator.
+
+    The original CLI always uses validate_images and restore_v4. A successor's
+    separate installer may supply its own exact predecessor/candidate pair;
+    UART, ROM rollback proof, partition gates and the single write stay here.
+    There is no CLI option to select a validator or bypass these gates.
+    """
     if not re.fullmatch(r'COM[1-9][0-9]*',args.port,re.I):fail('explicit_windows_usb_port_required')
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}',args.attempt_id):fail('invalid_attempt_id')
     if args.files_only and args.execute:fail('files_only_cannot_execute')
-    report=validate_images(args)
+    report=(validate_images if validator is None else validator)(args)
     recover_boot=bool(getattr(args,'recover_known_boot_failure',False))
-    if recover_boot and report['direction']!='restore_v4':
+    if recover_boot and report['direction']!=recovery_direction:
         fail('known_boot_failure_recovery_requires_exact_candidate_to_v4_restore')
     report.update(schema='sophia_v4_app_install_v1',execute=bool(args.execute),app_write_started=False,
                   app_write_verified=False,automatic_retry=False,non_app_write_allowed=False,

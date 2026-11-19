@@ -5,7 +5,7 @@ import time
 import pytest
 
 from test_realtime_ws import cleanup, offer, setup
-from test_unified_board_admission import setup as expert_setup
+from test_unified_board_admission import offline_expert_registry, setup as expert_setup
 
 
 async def expire_detached(manager, session):

@@ -37,7 +37,7 @@ NUMBERS = {
 }
 BOOLEANS = {
     'enabled', 'active', 'ready', 'input_open', 'muted', 'accepted', 'executed',
-    'configuration_confirmed', 'generation_allowed', 'heard', 'incomplete',
+    'configuration_confirmed', 'generation_allowed', 'input_allowed', 'heard', 'incomplete',
     'truncated', 'not_acoustic_proof', 'physical_playback_pending', 'whole_response',
     'playback_complete', 'narration_complete', 'speech_cancelled', 'remember',
     'automatic_retry', 'generated', 'expert_job_preserved', 'paid_start_consumed',
@@ -70,6 +70,7 @@ ENUMS = {
              'expert_status', 'expert_list_profiles', 'visual_query'},
 }
 CODES = {
+    'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
     'closed', 'user_stop', 'client_disconnected', 'output_backpressure',
     'client_detached', 'setup_failed', 'server_shutdown', 'detached_expired',
     'finished', 'interrupted', 'no_audio', 'tts_error', 'silence', 'max_output_tokens',
@@ -84,7 +85,7 @@ CODES = {
     'owner_api_estimate_limit', 'owner_realtime_daily_limit', 'owner_transcription_daily_limit',
     'speech_grant_expiring', 'expert_narration_budget_denied',
     'expert_transcription_budget_unavailable', 'realtime_budget_or_consent_required',
-    'realtime_budget_expired', 'realtime_session_budget_exhausted',
+    'realtime_budget_expired', 'realtime_consent_required', 'realtime_session_budget_exhausted',
     'realtime_response_budget_exhausted', 'board_estimated_budget_exhausted',
     'board_policy_outside_owner_allowance', 'warm_transport_scope_changed',
     'paid_operation_expired_new_wake_required', 'profile_authorization_revoked',
@@ -125,7 +126,7 @@ KINDS = {
     'narrator_usage', 'narration_unavailable', 'tts_status', 'tts_error',
     'stt_ready', 'stt_interim', 'stt_final', 'stt_error', 'stt_status',
     'cue_missing', 'cue_failed', 'wake_accepted', 'mode_selected',
-    'operation_admitted', 'admission_denied', 'listening', 'followup',
+    'operation_admitted', 'admission_denied', 'admission_status', 'listening', 'followup',
     'input_closed', 'followup_closed', 'muted', 'stopped', 'transport_detached',
     'transport_disconnected', 'transport_rotated', 'rotation_pending', 'reconnect_pending',
     'speaking', 'thinking', 'response_created', 'response_done', 'speaker_readiness',

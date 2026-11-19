@@ -128,6 +128,9 @@ class DirectSession(NativeSession):
         self._wake_fragment = None
         self._wake_replay_fragment = None
         self._wake_early_transcripts = {}
+        self._admission_status_lock = asyncio.Lock()
+        self._admission_checked_at = -1.
+        self._last_admission_status = None
         # A cancellation can arrive after a durable reserve but before its
         # result is assigned locally. Such an operation is not proven empty.
         self._admission_attempts = set()
@@ -403,17 +406,179 @@ class DirectSession(NativeSession):
                       input_mode=self.selected_mode, source=self.source,
                       expert_active=False, muted=self.muted, state=self.state)
             self.emit('telemetry', event='cloud_ready', plan_monotonic=time.monotonic())
+            await self.publish_admission_status(force=True)
 
     def generation_allowed(self):
-        p = self.manager.budget.policy()
-        if not self.manager.budget.active(p):
+        try:
+            return self.fast_input_availability()[0]
+        except (PermissionError, ValueError, OSError, sqlite3.Error):
             return False
-        if self.operation_id and self.operation_policy and p.authorization == self.operation_policy.authorization:
-            if ((p.max_session_seconds is None or time.monotonic()-self.operation_started < p.max_session_seconds)
-                    and self.operation_has_response_capacity(p)):
-                return True
-        state = self.manager.budget.status()
-        return state.get('sessions_remaining') is None or state.get('sessions_remaining', 0) > 0
+
+    @staticmethod
+    def scope_expired(policy):
+        return bool(policy.enabled and policy.authorization and policy.expires_at is not None and
+                    policy.expires_at <= time.time())
+
+    def owner_operation_availability(self, kind='realtime'):
+        """Read the existing owner counters without reserving or settling them."""
+        ledger = self.manager.owner_testing
+        if not self.owner_test_authorized or not ledger.authorized(self.owner_test_binding):
+            return False, 'unavailable'
+        policy = ledger.policy()
+        developer = self.offer.developer_acceptance
+        with ledger.connect() as db:
+            if developer:
+                if time.time() > policy.developer_acceptance_expires_at:
+                    return False, 'scope_expired'
+                count = db.execute("SELECT count(*) FROM attempts WHERE kind=? AND origin='developer'",
+                                   (kind,)).fetchone()[0]
+                spent = db.execute("SELECT coalesce(sum(cost),0) FROM attempts WHERE origin='developer'").fetchone()[0]
+                if (count >= getattr(policy, 'developer_'+kind+'_limit') or
+                        policy.developer_estimate_usd_limit is not None and
+                        spent+.5 > policy.developer_estimate_usd_limit):
+                    return False, 'starts_exhausted'
+            count = db.execute("SELECT count(*) FROM attempts WHERE day=? AND kind=? AND origin NOT LIKE 'hardware:%'",
+                               (int(time.time()//86400), kind)).fetchone()[0]
+            spent = db.execute("SELECT coalesce(sum(cost),0) FROM attempts WHERE day=? AND origin NOT LIKE 'hardware:%'",
+                               (int(time.time()//86400),)).fetchone()[0]
+        limit = policy.realtime_responses_per_day if kind == 'realtime' else 2
+        if count >= limit or spent+.5 > policy.api_estimate_usd_per_day:
+            return False, 'starts_exhausted'
+        return True, 'available'
+
+    def fast_input_availability(self):
+        """Expense preview only; actual session/response reservations remain authoritative."""
+        if self.offer.consent is not True:
+            return False, 'consent_required'
+        budget = self.manager.budget
+        policy = budget.policy()
+        if (policy.authorization != self.policy.authorization or
+                policy.allowed_client_id != self.offer.client_id or
+                self.policy.model not in policy.allowed_models):
+            return False, 'unavailable'
+        if self.scope_expired(policy):
+            return False, 'scope_expired'
+        if not budget.active(policy) or budget.pending_calls():
+            return False, 'unavailable'
+        if policy.owner_full_test:
+            allowed, code = self.owner_operation_availability()
+            if not allowed:
+                return allowed, code
+        state = budget.board_status() if hasattr(budget, 'board_status') else budget.status()
+        # The final start can still have unused responses. New-start capacity
+        # must not hide that already admitted, still-live operation.
+        current = bool(self.operation_id and self.operation_policy and
+            policy.authorization == self.operation_policy.authorization and
+            (policy.max_session_seconds is None or
+             time.monotonic()-self.operation_started < policy.max_session_seconds) and
+            self.operation_has_response_capacity(policy))
+        if current:
+            if (hasattr(budget, 'ESTIMATED_LIMIT') and
+                    state.get('reported_response_estimate_usd', 0) >= budget.ESTIMATED_LIMIT):
+                return False, 'starts_exhausted'
+            return True, 'available'
+        if state.get('sessions_remaining') == 0:
+            return False, 'starts_exhausted'
+        if (hasattr(budget, 'ESTIMATED_LIMIT') and max(state.get('reserved_estimate_usd', 0),
+                state.get('reported_response_estimate_usd', 0))+budget.RESERVATION > budget.ESTIMATED_LIMIT+1e-9):
+            return False, 'starts_exhausted'
+        return True, 'available'
+
+    def expert_input_availability(self):
+        """Preview the registered expert and existing STT authority, never call it."""
+        if self.offer.consent is not True or self.offer.expert_quota_consent is not True:
+            return False, 'consent_required'
+        policy = self.manager.budget.policy()
+        expert_policy = self.experts.budget.policy()
+        if (policy.authorization != self.policy.authorization or
+                policy.allowed_client_id != self.offer.client_id):
+            return False, 'unavailable'
+        if self.scope_expired(policy) or self.scope_expired(expert_policy):
+            return False, 'scope_expired'
+        availability = self.experts.status(include_profiles=False)
+        if not availability['enabled']:
+            if 'expert_quota_consent_required' in availability['blocked_reasons']:
+                return False, 'consent_required'
+            if 'expert_budget_exhausted' in availability['blocked_reasons']:
+                return False, 'starts_exhausted'
+            return False, 'unavailable'
+        self.selected_expert()  # Registered metadata only; no CLI/model invocation.
+        from .unified_voice_budget import UnifiedVoiceBudget, WEB_OPERATION_RESERVE_USD
+        authorize = self.manager.transcription_authorizer
+        authority = getattr(authorize, '__self__', None)
+        if (not isinstance(authority, UnifiedVoiceBudget) or
+                getattr(authorize, '__func__', None) is not UnifiedVoiceBudget.transcription):
+            return False, 'unavailable'  # Unknown authorizers have no read-only preview contract.
+        ledger, binding, origin = authority._authority(self)
+        maximum, timeout = authority.max_audio_seconds, authority.operation_timeout_seconds
+        if origin == 'board':
+            speech = ledger.require(binding)
+            remaining = int(speech.expires_at-time.time())
+            maximum = min(maximum, speech.max_stt_audio_seconds, remaining-10)
+            timeout = min(timeout, remaining)
+            with ledger.connect() as db:
+                from .board_unified import digest
+                if db.execute('SELECT 1 FROM unified_speech_attempts WHERE authorization<>?',
+                              (digest(speech.authorization),)).fetchone():
+                    return False, 'unavailable'
+                count = db.execute("SELECT count(*) FROM unified_speech_attempts WHERE kind='stt'").fetchone()[0]
+                spent = db.execute('SELECT coalesce(sum(cost),0) FROM unified_speech_attempts').fetchone()[0]
+            if count >= speech.max_stt_attempts or spent+WEB_OPERATION_RESERVE_USD > speech.estimate_usd_limit+1e-9:
+                return False, 'starts_exhausted'
+        else:
+            if policy.max_session_seconds is not None:
+                maximum = min(maximum, policy.max_session_seconds)
+            allowed, code = self.owner_operation_availability(
+                'transcription' if self.offer.developer_acceptance else 'realtime')
+            if not allowed:
+                return allowed, code
+        if policy.expires_at is not None:
+            remaining = int(policy.expires_at-time.time())
+            maximum = min(maximum, remaining-10)
+            timeout = min(timeout, remaining)
+        if maximum < 1 or timeout < 5:
+            return False, 'unavailable'
+        return True, 'available'
+
+    def admission_status(self):
+        mode = self.selected_mode
+        try:
+            generation_allowed, code = self.fast_input_availability()
+        except (PermissionError, ValueError, OSError, sqlite3.Error):
+            generation_allowed, code = False, 'unavailable'
+        allowed = generation_allowed
+        if mode == 'expert':
+            try:
+                allowed, code = self.expert_input_availability()
+            except (PermissionError, ValueError, OSError, sqlite3.Error):
+                allowed, code = False, 'unavailable'
+        return {'mode': mode, 'input_allowed': allowed,
+                'generation_allowed': generation_allowed, 'code': code}
+
+    async def publish_admission_status(self, *, force=False):
+        if self.closed or not self.attached:
+            return
+        async with self._admission_status_lock:
+            now = time.monotonic()
+            if not force and now-self._admission_checked_at < 1:
+                return
+            self._admission_checked_at = now
+            version = (self.selected_mode, self._input_gate_epoch, self.transport_epoch)
+            try:
+                status = await asyncio.to_thread(self.admission_status)
+            except Exception:
+                # This is a read-only display preview. An unexpected local
+                # inspection error must not close capture or end maintenance.
+                # Cancellation still propagates; the version guard below
+                # also rejects this fallback if the mode changed meanwhile.
+                status = {'mode': version[0], 'input_allowed': False,
+                          'generation_allowed': False, 'code': 'unavailable'}
+            if (self.closed or not self.attached or
+                    version != (self.selected_mode, self._input_gate_epoch, self.transport_epoch)):
+                return
+            if force or status != self._last_admission_status:
+                self._last_admission_status = status
+                self.emit('admission_status', **status)
 
     def operation_has_response_capacity(self, policy):
         if not self.operation_id:
@@ -428,6 +593,10 @@ class DirectSession(NativeSession):
 
     async def admission(self, *, explicit_wake):
         p = await asyncio.to_thread(self.manager.budget.policy)
+        if self.offer.consent is not True:
+            raise PermissionError('realtime_consent_required')
+        if self.scope_expired(p):
+            raise PermissionError('realtime_budget_expired')
         valid = bool(self.operation_id and self.operation_policy and
                      p.authorization == self.operation_policy.authorization and
                      self.manager.budget.active(p) and
@@ -443,10 +612,14 @@ class DirectSession(NativeSession):
             p = await asyncio.to_thread(self.manager.budget.reserve_session, ident,
                                         self.offer.consent, self.offer.client_id,
                                         self.offer.owner_test_binding)
-        except PermissionError:
+        except PermissionError as error:
             # A definite transactional denial created no operation. Unknown
             # errors/cancellation retain the marker and any durable hold.
             self._admission_attempts.discard(ident)
+            if str(error) == 'realtime_budget_or_consent_required':
+                current = await asyncio.to_thread(self.manager.budget.policy)
+                if self.offer.consent is True and self.scope_expired(current):
+                    raise PermissionError('realtime_budget_expired') from None
             raise
         self.operation_id = ident
         self.operation_policy = p
@@ -1063,6 +1236,7 @@ class DirectSession(NativeSession):
             # Returning from expert uses the fast conversational socket.
             self.selected_mode = 'fast'
             await self.start_fast_input(followup=True, input_epoch=input_epoch)
+            await self.publish_admission_status(force=True)
         except PermissionError as error:
             await self.close_fast_input(str(error), event='followup_closed', input_epoch=input_epoch)
 
@@ -1079,8 +1253,11 @@ class DirectSession(NativeSession):
             guard, self._guard_task = self._guard_task, None
             guard.cancel()
             self._expert_followup_jobs.clear()
+        changed = mode != self.selected_mode
         self.selected_mode = mode
         self.emit('mode_selected', mode=mode)
+        if changed:
+            await self.publish_admission_status(force=True)
         return {'selected_mode': mode}
 
     def expert_input_busy(self):
@@ -1410,6 +1587,7 @@ class DirectSession(NativeSession):
                       generation_allowed=self.generation_allowed(), recovered=True,
                       expert_active=self.experts.active(), input_mode=self.selected_mode,
                       muted=self.muted, state=self.state, source=self.source)
+            await self.publish_admission_status(force=True)
             return self
         except BaseException:
             # The API cannot release a lease for an accept() which never
@@ -1495,6 +1673,7 @@ class DirectSession(NativeSession):
                                   recovered=True, lost_input_replayed=False,
                                   expert_active=self.experts.active(), input_mode=self.selected_mode,
                                   muted=self.muted, state=self.state, source=self.source)
+                        await self.publish_admission_status(force=True)
                     except Exception:
                         self._reconnect_after = time.monotonic()+min(30, 2**self._reconnect_attempts)
                         self.emit('reconnect_pending', empty_transport_only=True,
@@ -1532,6 +1711,9 @@ class DirectSession(NativeSession):
                         await asyncio.sleep(5)
                 if age >= 55*60 and self.input_open:
                     await self.close_fast_input('transport_rotation_deadline')
+                # Only local policy/ledger reads, at most once per second.
+                # Availability never changes phase, active input or output.
+                await self.publish_admission_status()
                 if self.detached_expired(now):
                     await self.manager.close(self.id, self.offer.device_id, self.offer.client_id,
                                              self.offer.profile_epoch, 'detached_expired')
