@@ -178,6 +178,14 @@ superseded by fresh physical evidence below; its architecture requirements remai
   Speech/ExpertJobs legacy paths, board admission, cancellation, context retention
   and direct WS. This includes the above overlapping focused sets. Source is
   frozen for isolated native Windows checks and the final controlled deployment.
+- The first native final gate at `6a4ea48` returned **206 passed, 3 failed** in
+  the accelerated deadline tests, before production deployment or source push.
+  A bounded PLAN measurement found requested3ms sleeps took8.4-17.0ms; the test's
+  40-80ms windows also included local narrator preparation. Tests now explicitly
+  wait for entry into the blocked operation, use a sufficient scheduling margin,
+  and still require real timeout/cancellation and consumer waits longer than the
+  whole synthetic provider budget. The corrected10-case module passes locally;
+  runtime90/45/5s limits are unchanged. The failed report remains private on PLAN.
 - `SOURCE_IMPLEMENTED`: core present and published. `BUILT`: backend passes;
   0.4.15 failed physical boot; repaired 0.4.16 built and installed.
   `INSTALLED`: unified backend/UI and V4-derived 0.4.16 on the physical column.
