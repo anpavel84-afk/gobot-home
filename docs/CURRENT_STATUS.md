@@ -1,5 +1,190 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## HOST-INTEGRATOR — 0.4.18 установлена, автозапуск и связь проверены, 20 ноября 12:18 BRT
+
+**Развёртывание выполнено на существующем PLAN и физической Spotpear.**
+Загруженный исполняемый runtime —
+`66fcae045c74d19a6054de5fa9a02c05e0e0ff09`; последующая фиксация статуса
+меняет только этот документ и JOINT_TEST, без перезапуска кода.
+Основная интеграционная ветка сохранена; PR #14 остаётся OPEN/DRAFT,
+master не изменяется. Frontend HOST-A на 18811 обслуживает актуальный
+`services/phone/dist/sophia.js`, SHA256
+`04b1a9cd8d35f2e6752f56a73cbbfbb88893f520157c1a4cb2d1b0d7c3c860c6`.
+
+Физический app — **0.4.18-dev-sophia-barge-v4**, 3 695 936 bytes, SHA256
+`ada6406195fdd3b481a7537b192cb194e4056fbb6998630b31e0405a21247f3c`.
+ROM проверил точную запись; partition/OTA metadata не менялись, NVS не
+читался и не записывался. В 12:14:19 BRT получено production **ready / fast /
+unmuted / capture connected / available**, generation_allowed=true,
+native admission revision 1, expired notice отсутствует. Эксперт по прежнему
+опыту проекта — Antigravity `ARGON_DEEP` / `gemini-4-argon-medium` / medium.
+Это подтверждение выбора и доступности, не результат платного expert turn.
+
+### Установленные исправления и проверка
+
+- Обычный wake сохранён из установленной V4: тот же WN10 Sophia / DET_MODE95,
+  idle pre-AFE PCM, усиление и единственный reader. AEC включается для wake
+  во время воспроизведения, с аппаратным reference ES8311.
+- Wake и короткое касание во время ответа теперь используют общую процедуру
+  отмены: локальная остановка, software/DMA quiet и точный Stop ACK до нового
+  ввода. Удержание завершает обмен. Старые ответы и ACK не получают новый
+  захват; новый вопрос сохраняется от подтверждённой quiet boundary.
+- Одиночная активация использует существующий final-ASR gate. На одном имени,
+  пустой/неопределённой короткой активации ответ не создаётся; ожидается вопрос.
+  Для слитного имени с вопросом отдельная дополнительная пауза не добавлена
+  по коду и тестам. Реальное измерение на голосе владельца ещё требуется.
+- Wake во время временного provider reconnect теперь возвращает управляемый
+  отказ без закрытия исправного Gateway↔Brain/LAN-соединения. Восстановление
+  очищает только соответствующую временную ошибку; вопрос не повторяется
+  автоматически.
+- Локальный общий gate: **545 PASS / 1 platform skip**, 39 файлов.
+  Native Windows gate того же source: **542 PASS / 4 platform skips**, 106.01 s.
+  Offline isolation и Antigravity `/permissions` audit пройдены без model turn.
+
+Cloud-free hardware fixture на **новом app** прошёл все семь шагов: whole /
+segment DMA finish, AEC/reference, guard перед новым захватом, cancel DMA,
+mute и unmute с новым capture epoch. Два authenticated соединения / два
+epochs, ошибок 0. AEC действительно обработал **23 новых кадра**, из них
+**21 с reference**; максимум **25 212 us < 32 000 us** на кадр, минимальный
+наблюдённый запас input stack **1296 bytes** при требовании >=512.
+После reconnect AEC ready=true, interrupt_pending=false.
+
+Отдельно проверены queue samples именно синтетического 0.6 s тона:
+11 пакетов, max send gap 170.233 ms. Два empty/idle-writer samples относятся
+к первому и последнему consumed packet; промежуточные samples (3/5/7/9)
+имели output_pending=1 и активный writer. На baseline 0.4.17 также два
+краевых empty samples, промежуточная очередь 2 и max gap 107.349 ms.
+Encode drops в обоих аппаратных прогонах 0. Это не измерение DMA underruns
+и не доказательство плавности реальной речи; живой report остаётся отдельным.
+
+Сначала была корректно отменена установка после слишком короткой 50 s
+fixture, не получившей accepted connection до native retry 60 s. Точный
+откат 0.4.18→0.4.17 **реально выполнен и проверен**; затем baseline 180 s
+на 0.4.17 прошёл. Финальная отдельная попытка допустима только по этой
+проверенной истории. Исходные marker/receipt сохранены, неизвестные записи
+не повторялись. Финальная квитанция:
+
+`wake-barge-firmware-deployment-66fcae045c74-retry-after-verified-rollback.json`
+SHA256 `f717587b12208f721a7d44ba9ec98b72dbdc5948d1a50a05d3a74d94aa91b318`.
+Полный AEC fixture report SHA256
+`3fd7e4ad66f5ec39ba02028af1dcf35db11ab51fd2273c9295dc4a7130db89c9`.
+
+### Постоянный терминал и автозапуск
+
+Установлен один per-user Startup **GoBot Sophia.lnk**. Он запускает
+существующий `tools/sophia_terminal_startup.py start --execute` через
+проектный pythonw при входе **PLAN** в Windows. Native COM private candidate
+и установленный ярлык прочитаны обратно; до/после launcher подтвердил
+NOOP с теми же PID/create-time и protected hashes. Это проверка установки
+и идемпотентности; принудительная перезагрузка Windows не выполнялась.
+До входа в учётную запись автозапуск не заявляется (DPAPI/CLI current-user).
+Другие Startup items, службы Windows, scheduled tasks и ExecutionPolicy
+не менялись. Откат — удалить только этот созданный ярлык при совпадении SHA
+из приватной квитанции `startup-install-86594a50ee7f452dab4de33a3e011e2c/result.json`.
+SHA256 квитанции:
+`81375b0f068ea99feb1a86b894ed964d1fa841963ed6d77ea662dd1b30a8664c`;
+созданного и повторно проверенного ярлыка:
+`0ec96cd03e336a860c0aedc4c901f2d7069b3b66b967e29db733d04d03897fc8`.
+
+Постоянный `sophia_owner_terminal` остаётся включённым: expiry, проектные
+денежные/общие количественные ограничения отсутствуют. 180 s fixture и
+150 s диагностического наблюдения **не являются окнами доступности**.
+Сохранены 72 policy/proposal/activation файла, 21 исторический ledger,
+два действующих ledgers, профиль, ключи, конфигурации и WIP трёх worktrees.
+Учёт после работ: **3 fast operations / 9 responses / 9 usage rows**,
+expert/STT/диктор 0; новые model requests исполнителя — **0**.
+
+Read-only наблюдение **150.008 s PASS**: +30 application keepalives,
++30 device control messages, +2502 входных пакета; за прогретую часть
++2333 encoded frames / +14 000 input blocks. Channel timeouts и fault/reset
+markers — 0; ошибок, перезапуска Gateway и новых encode drops не было.
+Максимальный возраст control receipt 5.015 s. Native admission подтверждён
+28 USB-записями за 135.699 s, revision 1; app 0.4.18 / Wi-Fi / enrollment /
+unmuted и отсутствие expired notice подтверждены metadata. Это framebuffer
+receipt, не фотография экрана и не измерение акустики. Owner activity не
+наблюдалась; scope и учёт неизменны. Наблюдатель завершён, COM3 освобождён;
+сам терминал остаётся доступен. Приватная квитанция:
+`wake-barge-idle-observation-1795187722688431400.json`.
+
+### Оставшаяся живая приёмка
+
+Аппаратная fixture не является проверкой человеческого wake/touch или
+качества речи. В новом app пока нет живых barge wake/tap событий владельца.
+Не заявляются успешная акустическая проверка, реальная задержка первой
+контрольной реплики или полный fast→marin→Antigravity→marin→follow-up.
+Первая фраза в любое удобное время: **«София, сколько будет два плюс три?»**.
+Её report должен отдельно показать wake→endpoint→first audio→device playback
+и heard-context после playback_finished. DMA underrun counter пока не
+инструментирован; sampled playback queue/gap и provider completion нельзя
+подменять заявлением «underruns=0».
+
+## HOST-INTEGRATOR — baseline с корректным ожиданием пройден, 20 ноября 12:07 BRT
+
+Cloud-free проверка восстановленной **0.4.17** с длительностью 180 s прошла:
+два принятых authenticated соединения, два capture epochs, whole/segment DMA
+finish, защита до нового захвата, подтверждённая остановка, mute и новое
+подключение после unmute. Ошибок и реальных wake events нет. Получены
+24 456 PCM24 samples только внутри fixture; сырой звук и текст не сохранены,
+provider calls 0. После восстановления прежней команды Gateway физическая
+колонка снова ready / fast / available, revision 3 в 12:07:36 BRT.
+Другие процессы, WIP, authority и учёт сохранены.
+
+Приватная итоговая квитанция:
+`wake-barge-fixture-reconnect-probe-66fcae045c74.json`, SHA256
+`fc94cce7b9dfb5796508b8250d43cb756814e81cf911fed69238c36592c125c2`.
+Полный fixture report SHA256:
+`18a9bfc498265bbaa4ab75dcc8d5d0c8b4ca34965e4d5b497e28aebb3fe9442a`.
+
+Начата отдельная однократная установка того же точного app 0.4.18 после
+известного проверенного отката. Её marker/receipt имеют суффикс
+`-retry-after-verified-rollback`; исходные неудачные свидетельства не
+переписаны. Требуются исходный receipt `c2ff208…`, baseline `fc94cce…`,
+совпадение истории markers, новый ROM preflight и аппаратный AEC fixture
+180 s. Итог новой записи и AEC пока не объявляется. Постоянный пользовательский
+терминал не получил ограничений; длина fixture относится только к диагностике.
+
+## HOST-INTEGRATOR — сервер установлен, аппаратный откат подтверждён, 20 ноября 11:50 BRT
+
+На PLAN установлен и загружен runtime
+**66fcae045c74d19a6054de5fa9a02c05e0e0ff09**. Native Windows gate:
+**542 PASS / 4 platform skips**, 39 файлов, 106.01 s; source deployment
+подтвердил physical ready / fast / unmuted / capture connected / available.
+Незакоммиченная работа трёх worktrees, политики, ключи, пользовательские
+профили и учёт сохранены. Постоянный допуск остаётся без expiry и проектных
+денежных/количественных ограничений.
+
+App **0.4.18-dev-sophia-barge-v4** действительно записан и проверен ROM:
+точный SHA `ada6406195fdd3b481a7537b192cb194e4056fbb6998630b31e0405a21247f3c`,
+partition/OTA metadata неизменны, UART подтвердил version 0.4.18,
+Wi-Fi/enrolled=1, muted=0, phase=0. Однако следующий cloud-free fixture
+за 50 s не получил ни одного **принятого** device connection; аудиосценарий
+и AEC не выполнялись. `connections=[]` не исключает отклонённые TLS/auth
+попытки и не является доказательством неисправности DSP.
+
+Предусмотренный точный откат на **0.4.17-dev-sophia-ui-v4** выполнен и
+проверен ROM/UART; metadata сохранены. В 11:49:57 BRT production снова
+подтвердил physical ready / available, revision 1, runtime 66fcae0.
+Поэтому **текущая физическая версия пока 0.4.17**, а wake/touch interruption
+0.4.18 ещё не принято. Старый marker и failed receipt сохраняются:
+
+`wake-barge-firmware-deployment-66fcae045c74.json`
+SHA256 `c2ff208c340e7be5f40380138a1c1b1ce2dc126f79e7939efde928ee8c285b0a`.
+
+Найден конкретный недостаток процедуры: после boot при выключенном Gateway
+унаследованный unified auto-probe назначает повторное соединение через
+60 s, а fixture слушал только 50 s. Installer требует обычный UART-ready,
+не HOST-ready. После rollback обычный Gateway получил physical ready лишь
+примерно через 65 s после UART-ready — это согласуется с данным таймингом.
+Перед новой записью проверяется существующий cloud-free fixture с 180 s
+на уже восстановленной 0.4.17, без ROM/app/USB-команд. Повторная установка
+может опираться только на точное свидетельство известного отката и успешный
+baseline; неизвестная запись автоматически не повторяется.
+
+Учёт на всём шаге неизменен: **3 fast operations / 9 responses / 9 usage rows**,
+expert/STT/диктор 0, model requests исполнителя 0. Startup shortcut пока
+не установлен. Нового окна доступности владельцу не вводилось; 50/180 s
+выше относятся только к одноразовой аппаратной диагностике.
+
 ## HOST-INTEGRATOR — связь восстановлена после перезагрузки PLAN, 20 ноября 11:26 BRT
 
 После сообщения владельца о восстановлении компьютера PLAN снова доступен
