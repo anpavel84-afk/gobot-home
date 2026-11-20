@@ -1,0 +1,138 @@
+{
+  "schema": "sophia-wake-touch-deployment-v1",
+  "date": "2026-11-20",
+  "timezone": "America/Sao_Paulo",
+  "source_base": "abbd92b10e66db7a3692ab3128d0cdeb621a6c49",
+  "runtime_commit": "24fef121e9170a5b6fb1f20ea29dc9557ab30d0c",
+  "firmware": "0.4.19-dev-sophia-touch-v4",
+  "app_sha256": "6be635649b57e31ccf625efd05ca27ae1e2551c28cf66a6a049772cb1fb4f252",
+  "app_bytes": 3696624,
+  "installed": true,
+  "readiness_pending": false,
+  "rollback_performed": false,
+  "checked_at_utc": "2026-11-20T21:46:36.854Z",
+  "runtime_state": {
+    "state": "ready",
+    "input_mode": "fast",
+    "ready": true,
+    "capture_connected": true,
+    "muted": false,
+    "generation_allowed": true,
+    "expert_active": false
+  },
+  "gateway": {
+    "device_protocol_confirmed": true,
+    "cloud_ready": true,
+    "voice_phase": "ready",
+    "input_open": false,
+    "last_error": null,
+    "device_mute_revision": 0,
+    "received_packets": 1250,
+    "application_keepalives_sent": 16,
+    "device_control_messages": 16,
+    "muted_events_dropped": null,
+    "stale_mute_acks": null
+  },
+  "resources": {
+    "aec_ready": true,
+    "aec_frames": 32,
+    "aec_reference_frames": 31,
+    "aec_process_max_us": 20837,
+    "audio_input_stack_hwm_bytes": 1216,
+    "interrupt_pending": false,
+    "encode_drops": 0
+  },
+  "local_gate": {
+    "passed": 697,
+    "skipped": 1,
+    "files": 48,
+    "seconds": 26.38
+  },
+  "windows_gate": {
+    "passed": 693,
+    "skipped": 5,
+    "files": 48,
+    "seconds": 131.01
+  },
+  "application_installation": {
+    "status": "app_verified_metadata_preserved_boot_ready",
+    "app_write_verified": true,
+    "restore_image_matches_active_flash": true,
+    "non_app_write_allowed": false,
+    "nvs_read": false,
+    "whole_flash_read": false
+  },
+  "hardware_fixture": {
+    "pass": true,
+    "level": "HARDWARE_FIXTURE",
+    "real_provider_calls": 0,
+    "raw_audio_saved": false,
+    "text_saved": false,
+    "acoustic_or_human_acceptance": false,
+    "steps": [
+      "whole_response_dma_receipt",
+      "barge_aec_hardware_reference_processed",
+      "post_receipt_guard_then_real_capture",
+      "cancel_dma_receipt",
+      "mute_stops_capture",
+      "unmute_requested_fresh_epoch",
+      "unmute_fresh_capture_confirmed"
+    ],
+    "errors": [],
+    "barge_aec_required": true,
+    "barge_aec": {
+      "aec_ready": true,
+      "aec_frames": 22,
+      "aec_reference_frames": 21,
+      "aec_process_max_us": 20837,
+      "audio_input_stack_hwm_bytes": 1216,
+      "internal_free": 83823,
+      "psram_free": 3843700,
+      "new_aec_frames": 22,
+      "new_reference_frames": 21,
+      "frame_duration_us": 32000,
+      "minimum_required_stack_margin_bytes": 512,
+      "human_wake_or_echo_rejection_accepted": false
+    },
+    "distinct_capture_epochs": 2,
+    "actual_wake_events": 0
+  },
+  "postcheck": {
+    "passed": true,
+    "seconds": 12.056,
+    "received_packets_delta": 166,
+    "application_keepalives_delta": 2,
+    "device_control_messages_delta": 2,
+    "active_inputs": 0,
+    "active_turns": 0,
+    "active_voice_streams": 0,
+    "household_transcripts_exported": false,
+    "raw_audio_saved": false,
+    "new_model_calls": 0
+  },
+  "preservation": {
+    "counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    },
+    "source_usage_unchanged": true,
+    "firmware_preservation": true,
+    "source_wip_preserved": true,
+    "grant_or_limit_changes": 0
+  },
+  "evidence_sha256": {
+    "source_receipt": "bc67b234adb4a81ff97b004a8bd56e419ef2e18fca230cc858ab5cfc3be79eda",
+    "firmware_receipt": "b796061d5cd2f1cdbb6b6d496861ccd510ebc731ad63cae07e3f5250e125b7af",
+    "windows_gate": "2ac8cee097a9171218a1cc2d4896168aab421ab5f6e22c8768c0e34c732e4d83",
+    "postcheck": "080fe7b060a9f3ec6d04aec10f9684a8a67f9c0e928e4f28886891cdc6bb855a"
+  },
+  "human_voice_and_physical_touch_acceptance": "pending_owner_use_after_installation",
+  "initial_unnamed_unmapped_input_heuristic": {
+    "minimum_words": 2,
+    "minimum_post_detector_captured_audio_ms": 1450,
+    "additional_timer": false,
+    "acoustic_proof": false
+  }
+}
