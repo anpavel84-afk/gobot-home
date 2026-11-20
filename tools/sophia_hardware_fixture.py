@@ -88,7 +88,13 @@ class FixtureBrain:
             else:
                 self.report['whole_playback_finished'].append(obj.get('response_id'))
                 self.report['capture_floors'].append(obj.get('sample_floor'))
-        elif kind=='mute':self.emit('muted',muted=obj.get('muted') is True)
+        elif kind=='mute':
+            # The production Gateway adopts mute_revision from each ready ACK
+            # and puts it on device controls. Echo its request nonce exactly so
+            # that its physical-state synchronization completes before this
+            # fixture requests the later mute/unmute cycle.
+            self.emit('muted',muted=obj.get('muted') is True,
+                      **({'request_id':obj['request_id']} if 'request_id' in obj else {}))
         elif kind=='stop':
             self.emit('stopped', **({'request_id':obj['request_id']} if obj.get('request_id') else {}))
         elif kind=='input_end':self.emit('input_closed')

@@ -106,13 +106,14 @@ NUMBERS = {
     'image_tokens', 'cached_tokens', 'inputTokens', 'outputTokens', 'totalTokens',
     'cachedInputTokens', 'reasoningOutputTokens', 'detector_monotonic_us',
     'callback_monotonic_us', 'detector_sample', 'provider_last_speech_ms', 'provider_audio_end_ms',
+    'provider_audio_start_ms',
     'queued', 'running', 'completed', 'codex_first_answer_delta',
     'first_speakable_chunk', 'narrator_first_audio', 'expert_context_synced',
     'result_notified', 'input_ended', 'response_created', 'answer_transcript',
     'output_buffer_started', 'client_playback', 'client_playback_stopped',
     'followup_requested', 'followup_acknowledged', 'call_created',
     'sideband_connected', 'settings_acknowledged', 'lifetime_ms',
-    'captured_samples', 'buffered_samples', 'wake_offset_ms',
+    'captured_samples', 'buffered_samples', 'wake_offset_ms', 'token_count',
 }
 NUMBERS |= PLAYBACK_SUMMARY_COUNTS | PLAYBACK_SUMMARY_GAPS
 NUMBERS |= CAPTURE_BOUNDARY_COUNTS
@@ -126,7 +127,7 @@ BOOLEANS = {
     'stable', 'recovered', 'lost_input_replayed', 'narrated', 'voice_deferred',
     'final', 'result_available', 'microphone', 'private_access', 'audio_available',
     'resume_pending', 'resume_capture',
-    'device_reported', 'interrupt',
+    'device_reported', 'interrupt', 'named_question', 'activation_only',
 }
 CONTAINERS = {'timings', 'timings_ms', 'usage', 'input_token_details',
               'output_token_details', 'cached_tokens_details', 'narrator_usage',
@@ -154,6 +155,7 @@ ENUMS = {
     'stage': CAPTURE_BOUNDARY_STAGES,
     'trigger': {'wake_word', 'touch', 'manual', 'followup', 'unknown'},
     'clock_domain': {'capture_16k', 'provider_input', 'provider_input_after_clear'},
+    'boundary': {'not_applicable', 'unmapped', 'near_detector', 'after_detector'},
 }
 CODES = {
     'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
@@ -187,19 +189,23 @@ CODES = {
     'input_transcription_failed_or_empty', 'input_transcription_timeout', 'input_wake_word_only',
     'response_acknowledgement_timeout',
     'stale_or_unknown_request',
+    'wake_exact_name', 'wake_unanchored_final', 'wake_final_unavailable',
+    'wake_named_question', 'wake_single_token_ambiguous', 'wake_endpoint_unmapped',
+    'wake_substantial_question', 'wake_endpoint_near_detector',
+    'wake_question_after_detector', 'wake_local_stop',
 }
 EVENTS = {
     'cloud_ready', 'first_audio_packet', 'expert_job_accepted', 'cached_cue_queued',
     'cached_cue_started', 'expert_context_synced', 'pre_roll_flushed',
     'playback_started', 'playback_finished', 'speaker_sound_started', 'last_speech_sample',
-    'end_of_speech', 'endpoint_decided',
+    'start_of_speech', 'end_of_speech', 'endpoint_decided',
     'local_endpoint_decision', 'session.update', 'session.updated', 'session.created',
     'playback_buffer_summary', 'capture_boundary',
     'input_transcript_pending', 'input_transcript_ready', 'input_transcript_rejected',
     'local_voice_stop',
     'response_correlation_rejected',
     'wake_fragment_pending', 'wake_fragment_rejected', 'wake_word_only_skipped',
-    'wake_activation_candidate',
+    'wake_activation_candidate', 'wake_input_classified',
     'wake_fragment_question_ready', 'playback_receipt_received', 'heard_context_committed',
     'response.create', 'response.created', 'response.done', 'response.cancel',
     'response.output_audio.delta', 'response.output_audio.done',

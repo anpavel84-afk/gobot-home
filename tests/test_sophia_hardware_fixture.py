@@ -1,7 +1,79 @@
 """A finite fixture must not turn an unsolicited disconnect into a PASS."""
+import asyncio
+import json
+
 import pytest
 
-from tools.sophia_hardware_fixture import barge_aec_evidence, expected_close_reason
+from tools.sophia_hardware_fixture import (FixtureBrain, barge_aec_evidence,
+                                         expected_close_reason, wait_until)
+
+
+@pytest.mark.parametrize('request_id', [None, 'physical-mute-request'])
+def test_fixture_mute_echo_preserves_gateway_request_correlation(request_id):
+    async def run():
+        brain = FixtureBrain({})
+        command = {'type': 'mute', 'muted': True}
+        if request_id is not None:
+            command['request_id'] = request_id
+        await brain.send(json.dumps(command))
+        data = json.loads(await brain.__anext__())
+        assert data == {'type': 'muted', 'data': {key: value for key, value in command.items()
+                                               if key != 'type'}}
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('revision', [None, 0, 14, 4294967295])
+def test_fixture_full_handshake_echoes_current_device_revision_and_keeps_legacy(revision):
+    from test_sophia_gateway import connection
+
+    async def run():
+        gateway = connection()
+        report = {'empty_fixture_transports': 0, 'actual_wake_events': 0,
+                  'fixture_pcm24_samples': 0}
+        brain = FixtureBrain(report)
+        gateway.connector = lambda *args, **kwargs: brain
+        ack = {'type': 'gobot_host_ready_ack', 'protocol': 2,
+               'session_id': gateway.transport, 'epoch': gateway.epoch,
+               'frame_samples': 960, 'pcm_stage': 'pre_afe',
+               'stream_epoch': 'fresh-capture', 'sample_start': 0}
+        if revision is not None:
+            ack.update(mute_revision=revision, muted=False)
+        await gateway.device.queue.put(json.dumps(ack))
+        hello = {'host_stream': {'version': 2, 'local_wake_enabled': True,
+                                'capture': 'continuous', 'pcm_stage': 'pre_afe'}}
+        task = asyncio.create_task(gateway.run(gateway.device, hello, lambda _: True))
+
+        def controls():
+            return [message for raw in gateway.device.sent
+                    if isinstance(raw, str) and
+                    (message := json.loads(raw)).get('type') == 'gobot_host_mute']
+
+        try:
+            await wait_until(lambda: gateway.cloud_ready.is_set() and
+                             gateway.latest_physical_mute_request is None, 2)
+            assert gateway.device_mute_revision == revision
+            assert not gateway.muted and not gateway.forward
+            start_count = len(controls())
+            assert start_count == (0 if revision is None else 1)
+            for desired in (True, False):
+                brain.emit('muted', muted=desired)
+                await wait_until(lambda: gateway.muted is desired and
+                                 len(controls()) > start_count and
+                                 controls()[-1]['muted'] is desired, 2)
+                start_count += 1
+                wire = controls()[-1]
+                if revision is None:
+                    assert 'mute_revision' not in wire
+                else:
+                    assert wire['mute_revision'] == revision
+            assert not gateway.forward and gateway.ring.cursor is None
+            assert gateway.latest_physical_mute_request is None
+            assert report == {'empty_fixture_transports': 1, 'actual_wake_events': 0,
+                              'fixture_pcm24_samples': 0}
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize('received', [None, 1000, 1001, 1002, 1011])

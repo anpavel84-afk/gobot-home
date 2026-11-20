@@ -39,6 +39,8 @@ _FAST_INPUT_MAX_SECONDS = 30.
 _FAST_TRANSCRIPT_TIMEOUT_SECONDS = 2.
 _WAKE_ENDPOINT_QUANTIZATION_MS = 32
 _WAKE_NAMES = frozenset({'софия', 'софья', 'sophia', 'sofia'})
+_WAKE_UNMAPPED_MIN_QUESTION_WORDS = 2
+_WAKE_UNMAPPED_MIN_POST_DETECTOR_AUDIO_MS = 1450
 _RESPONSE_CREATED_TIMEOUT_SECONDS = 5.
 _RESPONSE_REQUEST_RETENTION_SECONDS = 120.
 _RESPONSE_REQUEST_LIMIT = 128
@@ -1241,32 +1243,91 @@ class DirectSession(NativeSession):
         words = re.findall(r'[^\W_]+', text.casefold(), flags=re.UNICODE)
         return any(word in _WAKE_NAMES for word in words) and any(word not in _WAKE_NAMES for word in words)
 
-    def wake_activation_candidate(self, item_id):
-        """Find an endpoint near the local detector, not an acoustic name end.
+    def wake_activation_evidence(self, item_id):
+        """Keep an unmapped provider clock distinct from a question endpoint.
 
-        PLAN's configured server_vad reports the current buffer's position
-        after clear (confirmed by live offsets). Its endpoint includes 450 ms
-        of silence; permit one 32 ms provider-frame margin. The detector can
-        lag speech, so final ASR still preserves an explicitly named question
-        before this position. An omitted/misheard name is ambiguous here; keep
-        listening rather than generate a speculative answer. Never infer the
-        clock from host wall time. Post-interrupt capture can exclude the wake.
+        Provider audio offsets are not guaranteed to restart at our clear.
+        The live warm session has reported an endpoint beyond all audio sent
+        in the current window, and later a smaller endpoint after Stop. Do
+        not invent a cumulative offset, or treat that mismatch as evidence of
+        a question. A nearby endpoint is only an activation candidate: the
+        local callback can precede the final vowel or lag an entire question.
         """
         capture = self._fast_capture_anchor
         endpoint = self._fast_speech_ends.pop(item_id, None)
-        if not capture or endpoint is None or self.offer.endpointing != 'server_450':
-            return False
+        evidence = {'boundary': 'not_applicable', 'captured_samples': self._input_samples}
+        if endpoint is not None:
+            evidence['provider_audio_end_ms'] = endpoint
+        if not capture or capture['interrupt']:
+            return evidence
         offset = capture['detector_sample']-capture['selected_start']
-        if offset < 0 or endpoint < 450 or endpoint*24 > self._input_samples+24*_WAKE_ENDPOINT_QUANTIZATION_MS:
-            return False
+        if offset < 0:
+            return evidence
+        evidence['wake_offset_ms'] = offset/16
+        if (endpoint is None or self.offer.endpointing != 'server_450' or endpoint < 450 or
+                endpoint*24 > self._input_samples+24*_WAKE_ENDPOINT_QUANTIZATION_MS):
+            evidence['boundary'] = 'unmapped'
+            return evidence
         candidate = (endpoint-450 <= offset/16+_WAKE_ENDPOINT_QUANTIZATION_MS)
+        evidence['boundary'] = 'near_detector' if candidate else 'after_detector'
         if candidate:
             self.emit('telemetry', event='wake_activation_candidate',
                       provider_audio_end_ms=endpoint, provider_last_speech_ms=endpoint-450,
                       wake_offset_ms=offset/16, captured_samples=self._input_samples,
-                      clock_domain='provider_input_after_clear', not_acoustic_proof=True,
+                      clock_domain='provider_input', not_acoustic_proof=True,
                       automatic_retry=False, plan_monotonic=time.monotonic())
-        return candidate
+        return evidence
+
+    def classify_wake_input(self, fragment, text):
+        """Choose whether this final is sufficient to answer, without a delay.
+
+        A single non-name word on the initial pre-roll wake is ambiguous:
+        the existing ASR has produced unrelated one-word hypotheses for just
+        Sophia. An explicit named question stays immediate. If the provider
+        clock is unmapped, a substantial multiword final is allowed only with
+        at least 1450 ms captured after the callback. That count includes any
+        silence and network burst; it is a conservative intent heuristic, not
+        proof of speech or an acoustic word boundary. No additional timer runs.
+        Subsequent questions, touch and post-interrupt audio keep their normal
+        final-ASR path, including legitimate one-word replies.
+        """
+        words = re.findall(r'[^\W_]+', text.casefold(), flags=re.UNICODE)
+        named = self.wake_named_question(text)
+        exact_name = self.wake_word_only(text)
+        evidence = fragment.get('wake_evidence') or {'boundary': 'not_applicable'}
+        boundary = evidence['boundary']
+        pre_roll = fragment['wake_resume'] and boundary != 'not_applicable'
+        from .conversation_control import closing_intent
+        local_stop = not fragment.get('failed') and closing_intent(text) == 'stop_output'
+        substantial = (len(words) >= _WAKE_UNMAPPED_MIN_QUESTION_WORDS and
+            evidence.get('captured_samples', 0)/24 >= evidence.get('wake_offset_ms', 0)+
+            _WAKE_UNMAPPED_MIN_POST_DETECTOR_AUDIO_MS)
+        if exact_name:
+            activation_only, reason = True, 'wake_exact_name'
+        elif local_stop:
+            activation_only, reason = False, 'wake_local_stop'
+        elif not pre_roll:
+            activation_only, reason = False, 'wake_unanchored_final'
+        elif fragment.get('failed') or not words:
+            activation_only, reason = True, 'wake_final_unavailable'
+        elif named:
+            activation_only, reason = False, 'wake_named_question'
+        elif len(words) == 1:
+            activation_only, reason = True, 'wake_single_token_ambiguous'
+        elif boundary == 'unmapped':
+            activation_only = not substantial
+            reason = 'wake_endpoint_unmapped' if activation_only else 'wake_substantial_question'
+        elif boundary == 'near_detector':
+            activation_only, reason = True, 'wake_endpoint_near_detector'
+        else:
+            activation_only, reason = False, 'wake_question_after_detector'
+        if fragment['wake_resume'] or exact_name:
+            self.emit('telemetry', event='wake_input_classified', reason=reason,
+                      **evidence, token_count=len(words), named_question=named,
+                      activation_only=activation_only, not_acoustic_proof=True,
+                      clock_domain='provider_input', automatic_retry=False,
+                      plan_monotonic=time.monotonic())
+        return activation_only
 
     def journal_final_input(self, turn, text, *, failed=False):
         """Only the existing exact board opt-in may persist this ASR result."""
@@ -1316,7 +1377,9 @@ class DirectSession(NativeSession):
             try:
                 await asyncio.wait_for(fragment['transcript_ready'].wait(), _FAST_TRANSCRIPT_TIMEOUT_SECONDS)
             except TimeoutError:
-                if not fragment['activation_candidate']:
+                if not fragment['activation_candidate'] and not (
+                        fragment['wake_resume'] and
+                        fragment.get('wake_evidence', {}).get('boundary') not in (None, 'not_applicable')):
                     raise
             self.require_input_gate(fragment['epoch'])
             if self._wake_fragment is not fragment:
@@ -1324,15 +1387,11 @@ class DirectSession(NativeSession):
             text, turn = fragment['text'], fragment['turn']
             if fragment['transcript_ready'].is_set():
                 self.journal_final_input(turn, text, failed=fragment.get('failed', False))
-            activation_only = fragment['activation_candidate'] and (
-                fragment.get('failed') or not self.wake_named_question(text))
+            activation_only = self.classify_wake_input(fragment, text)
             if not activation_only and (
                     fragment.get('failed') or not any(c.isalnum() for c in text)):
                 await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_failed'
                     if fragment['wake_resume'] else 'input_transcription_failed_or_empty')
-                return
-            if self.wake_word_only(text) and not fragment['wake_resume']:
-                await self.fail_wake_fragment(fragment, 'input_wake_word_only')
                 return
             if not activation_only and not self.wake_word_only(text):
                 if fragment['commits']:
@@ -1516,6 +1575,10 @@ class DirectSession(NativeSession):
                     self._wake_early_transcripts[item_id] = obj
                 return
         if kind == 'input_audio_buffer.speech_started':
+            if self.input_open or self._wake_fragment is not None:
+                self.emit('telemetry', event='start_of_speech', item_id=obj.get('item_id'),
+                          provider_audio_start_ms=obj.get('audio_start_ms'),
+                          clock_domain='provider_input', plan_monotonic=time.monotonic())
             if self._wake_fragment is not None:
                 if not self._wake_fragment['speech_started']:
                     self._wake_fragment['speech_started_at'] = time.monotonic()
@@ -1536,7 +1599,7 @@ class DirectSession(NativeSession):
                 while len(self._fast_speech_ends) > 4:
                     self._fast_speech_ends.pop(next(iter(self._fast_speech_ends)))
             # Provider position and local decision time are different clocks.
-            self.emit('telemetry', event='end_of_speech',
+            self.emit('telemetry', event='end_of_speech', item_id=item_id,
                       provider_audio_end_ms=obj.get('audio_end_ms'), clock_domain='provider_input')
             self.emit('telemetry', event='endpoint_decided', plan_monotonic=time.monotonic())
         elif kind == 'input_audio_buffer.committed':
@@ -1558,18 +1621,24 @@ class DirectSession(NativeSession):
             # Eligibility follows the explicit local wake, never scheduling
             # delay or the amount of trailing silence already forwarded.
             candidate = self._wake_fragment_candidate
-            activation_candidate = candidate and self.wake_activation_candidate(obj.get('item_id'))
+            wake_evidence = self.wake_activation_evidence(obj.get('item_id')) if candidate else None
+            activation_candidate = bool(wake_evidence and
+                                        wake_evidence['boundary'] in {'near_detector', 'unmapped'})
             self._wake_fragment_candidate = False
             self.input_open = False
             self.auto_input_deadline = None
             self.state = 'thinking'
-            self.emit('input_closed', reason='provider_endpoint', resume_pending=candidate)
+            # Retain the physical cursor until final ASR has decided whether
+            # this was a question or just Sophia in an already-open window.
+            self.emit('input_closed', reason='provider_endpoint',
+                      resume_pending=candidate or self.source == 'device')
             if candidate or self.source == 'device':
                 self.input_mode = 'processing'
                 self._input_started = False
                 fragment = {'epoch': self._input_gate_epoch,
                     'wake_resume': candidate,
                     'activation_candidate': activation_candidate,
+                    'wake_evidence': wake_evidence,
                     'item_id': obj.get('item_id', ''), 'turn': None,
                     'transcript_ready': asyncio.Event(), 'text': '', 'failed': False,
                     'pcm': deque(), 'bytes': 0, 'commits': [], 'transcripts': {},
@@ -2059,13 +2128,17 @@ class DirectSession(NativeSession):
         finally:
             self._stop_count -= 1
 
-    async def mute(self, muted):
+    async def mute(self, muted, *, request_id=None):
         if type(muted) is not bool:
             raise ValueError('invalid_mute')
+        if request_id is not None and (not isinstance(request_id, str) or
+                not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', request_id)):
+            raise ValueError('invalid_mute_request_id')
         self.muted = muted
         if muted:
             await self.stop()
-        self.emit('muted', muted=muted, input_open=False)
+        self.emit('muted', muted=muted, input_open=False,
+                  **({'request_id': request_id} if request_id is not None else {}))
         return {'muted': muted}
 
     async def detach(self, reason='client_disconnected'):

@@ -179,7 +179,8 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                         await session.playback_finished(obj.get('response_id'),
                             sample_floor=obj.get('sample_floor'), segment_id=obj.get('segment_id'))
                     elif kind == 'mute' and type(obj.get('muted')) is bool:
-                        await session.mute(obj['muted'])
+                        request = {'request_id': obj['request_id']} if 'request_id' in obj else {}
+                        await session.mute(obj['muted'], **request)
                     elif kind == 'stop':
                         request = {'request_id': obj['request_id']} if 'request_id' in obj else {}
                         await session.stop(**request)

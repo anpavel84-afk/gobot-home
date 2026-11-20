@@ -91,6 +91,10 @@ class SophiaConnection:
         self.pending_interrupt = None
         self.completed_stop_requests = deque(maxlen=128)
         self.activation_events = deque(maxlen=128)
+        self.physical_mute_requests = {}
+        self.latest_physical_mute_request = None
+        self.device_mute_revision = None
+        self.mute_control_epoch = 0
         self.tasks = set()
         self.closed = False
         self.capture_completion = None
@@ -247,25 +251,36 @@ class SophiaConnection:
             raise ValueError('invalid_sophia_control')
         return obj
 
-    async def send(self, data, packet=None, *, output_state=None):
+    async def send(self, data, packet=None, *, output_state=None, mute_epoch=None):
         async with self.device_send_lock:
+            # A physical hold can win while an earlier unmute/state update
+            # waits for this lock. Its already captured device revision also
+            # lets ESP reject a stale command which is already on the wire.
+            if mute_epoch is not None and mute_epoch != self.mute_control_epoch:
+                return False
             # Cancellation may win while a previous metadata+Opus pair holds
             # the lock. Recheck ownership before starting another pair.
             if output_state is not None and (self.output is not output_state or
-                    output_state.get('cancel_pending') or
+                    self.muted or output_state.get('cancel_pending') or
                     output_state['response_id'] in self.cancelled):
                 return False
+            if output_state is not None and data.get('type') == 'gobot_host_output_start':
+                output_state['start_sent'] = True
             await asyncio.wait_for(self.device.send(json.dumps({
                 **data, 'session_id': self.transport, 'epoch': self.epoch}, ensure_ascii=False)), 2)
             if packet is not None:
                 await asyncio.wait_for(self.device.send(packet), 2)
             return True
 
-    async def to_brain(self, obj, *, activation_cursor=None):
+    async def to_brain(self, obj, *, activation_cursor=None, input_cursor=None, mute_epoch=None):
         if self.brain is None:
             raise ValueError('brain_transport_unavailable')
         async with self.brain_send_lock:
+            if mute_epoch is not None and mute_epoch != self.mute_control_epoch:
+                return False
             if activation_cursor is not None and not self.activation_current(activation_cursor):
+                return False
+            if input_cursor is not None and not self.activation_current(input_cursor):
                 return False
             await asyncio.wait_for(self.brain.send(obj if isinstance(obj, bytes)
                                                  else json.dumps(obj, ensure_ascii=False)), 3)
@@ -274,6 +289,49 @@ class SophiaConnection:
     def activation_current(self, cursor):
         return (not self.closed and not self.muted and self.pending_interrupt is None and
                 self.ring.cursor is cursor and not self.ring.blocked)
+
+    def device_mute_snapshot(self, obj, *, initial=False):
+        """Adopt the physical intent from authenticated ACK/control frames.
+
+        Legacy 0.4.18 has no revision. Negotiated 0.4.19 controls must always
+        carry one; the per-boot counter never wraps. No network state update
+        can invent a newer physical intent.
+        """
+        revision = obj.get('mute_revision')
+        if 'mute_revision' not in obj and self.device_mute_revision is None:
+            if initial:
+                return False
+        else:
+            if (type(revision) is not int or not 0 <= revision <= 0xffffffff or
+                    type(obj.get('muted')) is not bool):
+                raise ValueError('invalid_physical_mute_revision')
+            if not initial and self.device_mute_revision is not None and revision <= self.device_mute_revision:
+                self.stats['stale_physical_mute_controls'] = self.stats.get('stale_physical_mute_controls', 0)+1
+                return False
+            self.device_mute_revision = revision
+            self.stats['device_mute_revision'] = revision
+        if type(obj.get('muted')) is not bool:
+            raise ValueError('invalid_physical_mute')
+        self.mute_control_epoch += 1
+        self.muted = obj['muted']
+        if self.pending_interrupt is not None:
+            self.pending_interrupt['wake'] = None
+        if self.muted:
+            self.fence_interruption('physical_mute')
+        else:
+            self.forward = False
+            self.stats['input_open'] = False
+            self.ring.set_blocked(False, reason='physical_unmute')
+        return True
+
+    async def notify_physical_mute(self):
+        request_id, muted, epoch = uuid4().hex, self.muted, self.mute_control_epoch
+        self.physical_mute_requests[request_id] = muted
+        self.latest_physical_mute_request = request_id
+        while len(self.physical_mute_requests) > 128:
+            del self.physical_mute_requests[next(iter(self.physical_mute_requests))]
+        return await self.to_brain({'type': 'mute', 'muted': muted, 'request_id': request_id},
+                                   mute_epoch=epoch)
 
     def selected_input_mode(self, mode):
         if mode not in ('fast', 'expert'):
@@ -336,14 +394,18 @@ class SophiaConnection:
         self.stats['admission_receipt']['receipt_plan_monotonic'] = time.monotonic()
 
     async def screen(self, phase, text=''):
+        mute_epoch = self.mute_control_epoch
+        if self.muted:
+            phase, text = 'muted', ''
         self.stats['voice_phase'] = phase
         titles = {'ready': 'София', 'listening': 'Слушаю', 'thinking': 'Обдумываю',
                   'speaking': 'Отвечаю', 'muted': 'Микрофон выключен', 'error': 'Разговор недоступен'}
-        await self.send({'type': 'gobot_host_state', 'state': phase})
+        if not await self.send({'type': 'gobot_host_state', 'state': phase}, mute_epoch=mute_epoch):
+            return
         await self.send({'type': 'custom', 'payload': {'namespace': 'gobot.ui', 'version': 2,
                          'command': 'presentation.show', 'type': 'status_card',
                          'title': titles[phase], 'text': text[:160],
-                         'voice_engine': 'B_WS', 'voice_phase': phase}})
+                         'voice_engine': 'B_WS', 'voice_phase': phase}}, mute_epoch=mute_epoch)
 
     async def run(self, ws, hello, validator):
         self.device = ws
@@ -365,6 +427,7 @@ class SophiaConnection:
                     or ack.get('frame_samples') != 960 or ack.get('pcm_stage') != 'pre_afe'):
                 raise ValueError('sophia_v2_handshake_not_confirmed')
             self.decoder.reset(ack['stream_epoch'], sample_start=ack.get('sample_start', 0))
+            self.device_mute_snapshot(ack, initial=True)
             self.stats['device_protocol_confirmed'] = True
             self.stats['interruption_protocol'] = (
                 'wake_touch_v1' if ack.get('interruption') == 'wake_touch_v1' else None)
@@ -438,7 +501,17 @@ class SophiaConnection:
             elif kind == 'gobot_host_touch':
                 if obj.get('action') == 'stop':
                     if obj.get('interrupt_requested') is True and isinstance(obj.get('event_id'), str):
-                        self.begin_interruption(None, trigger='touch', control=obj)
+                        if (self.pending_interrupt is not None and
+                                self.pending_interrupt['event_id'] == obj['event_id']):
+                            # A second short tap changes the already-visible
+                            # listening intent to standby without restarting
+                            # either the physical or provider stop barrier.
+                            self.pending_interrupt['wake'] = None
+                            self.forward = False
+                            self.stats['input_open'] = False
+                            self.ring.set_blocked(True, reason='physical_stop')
+                        else:
+                            self.begin_interruption(None, trigger='touch', control=obj)
                     else:
                         self.fence_interruption('physical_stop')
                         self.spawn(self.stop('physical_stop'))
@@ -448,13 +521,11 @@ class SophiaConnection:
                             'detector_sample': obj.get('detector_sample', self.ring.end)}
                     self.device_activation(wake, trigger='touch', control=obj)
             elif kind == 'gobot_host_mute':
-                self.muted = obj.get('muted') is True
-                if self.pending_interrupt is not None:
-                    self.pending_interrupt['wake'] = None
-                self.forward = False
-                self.ring.set_blocked(self.muted, reason='mute')
+                if not self.device_mute_snapshot(obj):
+                    continue
+                self.stats['last_physical_control'] = 'mute' if self.muted else 'unmute'
                 if self.brain:
-                    await self.to_brain({'type': 'mute', 'muted': self.muted})
+                    await self.notify_physical_mute()
                 await self.screen('muted' if self.muted else 'ready')
             elif kind == 'gobot_host_playback':
                 await self.receipt(obj)
@@ -553,7 +624,8 @@ class SophiaConnection:
                 return False
         intent = {'event_id': event_id, 'request_id': uuid4().hex, 'wake': wake,
                   'trigger': trigger, 'ack': asyncio.Event(), 'quiet': asyncio.Event(),
-                  'quiet_floor': None, 'output_state': self.output}
+                  'quiet_floor': None, 'output_state': self.output if self.output is not None and
+                    self.output.get('start_sent') is not False else None}
         self.pending_interrupt = intent
         self.fence_interruption('device_interrupt')
         self.stats['device_interrupts'] = self.stats.get('device_interrupts', 0)+1
@@ -681,7 +753,8 @@ class SophiaConnection:
                     pcm = pcm[:remaining*2]
                 out = resampler.feed(pcm)
                 if out:
-                    await self.to_brain(out)
+                    if not await self.to_brain(out, input_cursor=cursor):
+                        continue
                 if self.ring.cursor is not cursor or self.resampler is not resampler:
                     continue  # Stop/new input also supersedes the old local expert endpoint.
                 sent_end = cursor.selected_start+resampler.output_samples*16000//24000
@@ -711,10 +784,13 @@ class SophiaConnection:
         limit = state['samples'] >= 16000*self.expert_audio_limit
         empty = state['started'] is None and state['samples'] >= 16000*12
         if complete or limit or empty:
+            cursor = self.ring.cursor
             tail = self.resampler.finish()
             if tail:
-                await self.to_brain(tail)
-            await self.to_brain({'type': 'input_end'})
+                if not await self.to_brain(tail, input_cursor=cursor):
+                    return
+            if not await self.to_brain({'type': 'input_end'}, input_cursor=cursor):
+                return
             self.forward = False
             self.ring.stop('expert_local_endpoint')
             self.trace({'event': 'end_of_speech', 'last_speech_sample':
@@ -739,6 +815,10 @@ class SophiaConnection:
                      'requested_model': self.options.get('model', 'gpt-realtime-2.1-mini'),
                      'input_mode': self.mode, 'endpointing': self.options.get('endpointing', 'server_450')}
             await self.to_brain({'type': 'hello', 'source': 'device', 'offer': offer})
+            if self.device_mute_revision is not None:
+                # Reconnection uses the device's actual state. Register the
+                # correlated command before consuming old server state events.
+                await self.notify_physical_mute()
             async for raw in brain:
                 if not isinstance(raw, str):
                     raise ValueError('unexpected_brain_binary')
@@ -748,6 +828,15 @@ class SophiaConnection:
 
     async def cloud_event(self, event):
         kind, data = event.get('type'), event.get('data', {})
+        if self.muted and kind in {'audio_start', 'audio_chunk', 'audio_stop',
+                'audio_segment_done', 'expert_segment_generated', 'input_transcript',
+                'stt_partial', 'stt_final'}:
+            # Provider cancellation can cross media already in flight. Keep
+            # stop/cancel receipts live, but never restore output after a hold.
+            if kind == 'audio_start' and isinstance(data.get('response_id'), str):
+                self.cancelled.append(data['response_id'])
+            self.stats['muted_events_dropped'] = self.stats.get('muted_events_dropped', 0)+1
+            return
         if kind == 'stopped' and data.get('request_id') in self.completed_stop_requests:
             return
         intent = self.pending_interrupt
@@ -768,10 +857,6 @@ class SophiaConnection:
                     self.cancelled.append(data['response_id'])
                 self.stats['interrupted_events_dropped'] = self.stats.get('interrupted_events_dropped', 0)+1
                 return
-            if kind == 'muted' and data.get('muted') is True:
-                intent['wake'] = None
-            elif kind == 'muted':
-                return
         if kind == 'admission_status':
             await self.admission_status(data)
         elif kind == 'ready':
@@ -781,7 +866,7 @@ class SophiaConnection:
             self.stats.update(cloud_ready=True, generation_allowed=data.get('generation_allowed') is True)
             if data.get('recovered') is True and self.stats.get('last_error') == 'transport_unavailable':
                 self.stats['last_error'] = None
-            await self.screen('ready', 'Скажите «София»' if self.stats['generation_allowed']
+            await self.screen('muted' if self.muted else 'ready', 'Скажите «София»' if self.stats['generation_allowed']
                               else 'Для разговора нужен действующий допуск к расходам.')
         elif kind in ('listening', 'followup'):
             if self.muted:
@@ -849,15 +934,15 @@ class SophiaConnection:
             self.output = {'response_id': data['response_id'], 'playback_id': uuid4().hex,
                            'output_epoch': self.output_epoch, 'encoder': self.encoder_factory(),
                            'seq': 0, 'started_at': None, 'role': data.get('audio_role', 'fast_answer'),
-                           'done': False, 'consumed': 0, 'progress_seen': False,
+                           'done': False, 'start_sent': False, 'consumed': 0, 'progress_seen': False,
                            'pcm_samples': 0, 'cancel_signal': asyncio.Event()}
             self.output['metrics'] = self.new_output_metrics(data['response_id'], self.output['role'])
             state = self.output
-            await self.send({'type': 'gobot_host_output_start', **self.output_fields(),
+            sent = await self.send({'type': 'gobot_host_output_start', **self.output_fields(),
                              'kind': 'cue' if self.output['role'] == 'service_cue' else 'answer',
                              'streaming': True, 'packet_count': 0, 'codec': 'opus',
-                             'sample_rate': 24000, 'frame_samples': 1440})
-            if self.output is state and not state.get('cancel_pending'):
+                             'sample_rate': 24000, 'frame_samples': 1440}, output_state=state)
+            if sent and self.output is state and not state.get('cancel_pending'):
                 await self.screen('speaking')
         elif kind == 'audio_chunk':
             if not self.output or data.get('response_id') in self.cancelled:
@@ -873,9 +958,10 @@ class SophiaConnection:
                 await self.output_packet(packet)
         elif kind in ('expert_segment_generated', 'audio_segment_done'):
             if self.output and data.get('response_id') == self.output['response_id']:
+                state = self.output
                 await self.send({'type': 'gobot_host_output_segment_end', **self.output_fields(),
                                  'segment_id': data.get('segment_id'),
-                                 'pcm_sample_end': self.output['pcm_samples']})
+                                 'pcm_sample_end': self.output['pcm_samples']}, output_state=state)
         elif kind == 'audio_stop':
             if self.output and data.get('response_id') == self.output['response_id']:
                 state = self.output
@@ -886,11 +972,12 @@ class SophiaConnection:
                 if self.output is not state or state.get('cancel_pending'):
                     return
                 state['done'] = True
-                await self.send({'type': 'gobot_host_output_end', **self.output_fields(),
+                sent = await self.send({'type': 'gobot_host_output_end', **self.output_fields(),
                                  'packet_count': self.output['seq'],
-                                 'whole_response': self.output['role'] != 'service_cue'})
-                state['metrics']['output_end_sent_monotonic'] = time.monotonic()
-                state['metrics']['output_end_sent_wall'] = time.time()
+                                 'whole_response': self.output['role'] != 'service_cue'}, output_state=state)
+                if sent:
+                    state['metrics']['output_end_sent_monotonic'] = time.monotonic()
+                    state['metrics']['output_end_sent_wall'] = time.time()
         elif kind in ('audio_cancel', 'stopped'):
             response = data.get('response_id')
             if kind == 'audio_cancel' and isinstance(response, str) and (
@@ -905,11 +992,52 @@ class SophiaConnection:
             self.ring.set_blocked(self.muted, reason='stop')
             await self.screen('muted' if self.muted else 'ready')
         elif kind == 'muted':
-            self.muted = data.get('muted') is True
-            self.forward = False
-            self.stats['input_open'] = False
-            self.ring.set_blocked(self.muted, reason='mute')
-            await self.send({'type': 'gobot_host_mute', 'muted': self.muted})
+            if type(data.get('muted')) is not bool:
+                raise ValueError('invalid_brain_mute')
+            request_id = data.get('request_id')
+            physical_ack = False
+            if isinstance(request_id, str) and request_id in self.physical_mute_requests:
+                expected = self.physical_mute_requests.pop(request_id)
+                if (request_id != self.latest_physical_mute_request or
+                        data.get('muted') is not expected):
+                    self.stats['stale_mute_acks'] = self.stats.get('stale_mute_acks', 0)+1
+                    return
+                self.latest_physical_mute_request = None
+                physical_ack = True
+            elif request_id is not None:
+                self.stats['stale_mute_acks'] = self.stats.get('stale_mute_acks', 0)+1
+                return
+            elif self.latest_physical_mute_request is not None:
+                # Even a same-state echo cannot supersede the physical intent:
+                # its correlated command may still be waiting for the Brain
+                # wire lock. Only the exact ACK completes that pending intent.
+                self.stats['stale_mute_acks'] = self.stats.get('stale_mute_acks', 0)+1
+                return
+            if physical_ack:
+                # The receive task already applied this physical intent. Its
+                # ACK must not clear a newer input cursor/listening transition
+                # or cancel a pending tap. Only confirm the matching wire state.
+                control = {'type': 'gobot_host_mute', 'muted': data['muted']}
+                if self.device_mute_revision is not None:
+                    control['mute_revision'] = self.device_mute_revision
+                await self.send(control, mute_epoch=self.mute_control_epoch)
+                return
+            self.mute_control_epoch += 1
+            mute_epoch = self.mute_control_epoch
+            self.muted = data['muted']
+            if self.muted:
+                if self.pending_interrupt is not None:
+                    self.pending_interrupt['wake'] = None
+                self.fence_interruption('mute')
+            else:
+                self.forward = False
+                self.stats['input_open'] = False
+                self.ring.set_blocked(False, reason='unmute')
+            control = {'type': 'gobot_host_mute', 'muted': self.muted}
+            if self.device_mute_revision is not None:
+                control['mute_revision'] = self.device_mute_revision
+            if not await self.send(control, mute_epoch=mute_epoch):
+                return
             await self.screen('muted' if self.muted else 'ready')
         elif kind == 'mode_selected':
             self.selected_input_mode(data['mode'])
@@ -1039,6 +1167,12 @@ class SophiaConnection:
                     self.cancelled.append(state['response_id'])
                 state['cancel_pending'] = True
                 state['cancel_signal'].set()
+                if state.get('start_sent') is False:
+                    # Cancellation won before any owner/audio reached ESP.
+                    # There is no physical output owner to cancel or ACK.
+                    self.output = None
+                    self.queue_output_summary(state, 'interrupted')
+                    return
                 self.cancel_finished.clear()
                 try:
                     await self.send({'type': 'gobot_host_output_cancel', **self.output_fields()})

@@ -66,7 +66,7 @@ def test_correlated_final_allows_exactly_one_answer_using_original_audio(tmp_pat
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('ending', ['empty', 'punctuation', 'failed', 'timeout', 'name_only'])
+@pytest.mark.parametrize('ending', ['empty', 'punctuation', 'failed', 'timeout'])
 def test_empty_failed_or_missing_final_has_no_response_and_cannot_revive(tmp_path, settings, monkeypatch, ending):
     async def run():
         original, board, manager, _ = setup(tmp_path, settings)
@@ -77,7 +77,7 @@ def test_empty_failed_or_missing_final_has_no_response_and_cannot_revive(tmp_pat
             gate, _ = await begin(session)
             if ending != 'timeout':
                 await final(session, text={'empty': ' \n ', 'punctuation': '...?!',
-                            'failed': 'unknown', 'name_only': 'София.'}[ending], failed=ending == 'failed')
+                            'failed': 'unknown'}[ending], failed=ending == 'failed')
             await gate['task']
             assert response_count(session) == reserved_responses(board) == 0
             assert session.ready and not session.closed and not session.input_open

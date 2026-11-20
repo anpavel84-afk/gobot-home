@@ -212,7 +212,7 @@ def test_endpoint_before_stop_cannot_classify_new_window_after_clear(tmp_path, s
             assert not session._fast_speech_ends
             await append_samples(session, 48840)
             gate = await commit(session, 'not-yet-committed')
-            assert not gate['activation_candidate']
+            assert gate['activation_candidate'] and gate['wake_evidence']['boundary'] == 'unmapped'
             await final(session, 'not-yet-committed', QUESTION)
             await gate['task']
             assert len(responses(session)) == 1 and session.current.query == QUESTION
@@ -222,7 +222,7 @@ def test_endpoint_before_stop_cannot_classify_new_window_after_clear(tmp_path, s
 
 
 @pytest.mark.parametrize('endpoint', [None, -1, 0, True, 10**9])
-def test_missing_or_invalid_endpoint_never_implies_activation_candidate(tmp_path, settings, endpoint):
+def test_missing_or_invalid_endpoint_remains_ambiguous_but_keeps_named_question(tmp_path, settings, endpoint):
     async def run():
         original, board, manager, _ = setup(tmp_path, settings)
         try:
@@ -230,7 +230,8 @@ def test_missing_or_invalid_endpoint_never_implies_activation_candidate(tmp_path
             await session.wake('uncertain', trigger='wake_word', capture=CAPTURE)
             await append_samples(session, 48840)
             gate = await commit(session, 'unknown-endpoint', endpoint)
-            assert not gate['activation_candidate'] and not responses(session)
+            assert gate['activation_candidate'] and gate['wake_evidence']['boundary'] == 'unmapped'
+            assert not responses(session)
             await final(session, 'unknown-endpoint', QUESTION)
             await gate['task']
             assert len(responses(session)) == 1

@@ -159,13 +159,15 @@ def test_gateway_pause_retains_unsent_burst_and_stateful_resampler():
                 return pcm
         resampler = gateway.resampler = Resampler()
         sent = []
-        async def send(pcm):
+        async def send(pcm, *, input_cursor=None):
             if not isinstance(pcm, bytes):
-                return  # Independent capture-boundary diagnostics are not PCM.
+                return True  # Independent capture-boundary diagnostics are not PCM.
+            assert input_cursor is gateway.ring.cursor
             sent.append(pcm)
             if len(sent) == 1:
                 await gateway.cloud_event({'type': 'input_closed', 'data': {
                     'reason': 'provider_endpoint', 'resume_pending': True}})
+            return True
         gateway.to_brain = send
         gateway.forward = True
         gateway.input_changed.set()
