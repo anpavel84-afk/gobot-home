@@ -779,6 +779,8 @@ class SophiaConnection:
                 self.selected_input_mode(data['input_mode'])
             self.cloud_ready.set()
             self.stats.update(cloud_ready=True, generation_allowed=data.get('generation_allowed') is True)
+            if data.get('recovered') is True and self.stats.get('last_error') == 'transport_unavailable':
+                self.stats['last_error'] = None
             await self.screen('ready', 'Скажите «София»' if self.stats['generation_allowed']
                               else 'Для разговора нужен действующий допуск к расходам.')
         elif kind in ('listening', 'followup'):

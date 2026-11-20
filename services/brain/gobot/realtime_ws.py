@@ -779,7 +779,9 @@ class DirectSession(NativeSession):
             if capture is not None and (source != 'device' or trigger not in {'wake_word', 'touch'}):
                 raise ValueError('wake_capture_requires_device_activation')
             capture = self.wake_capture_anchor(capture)
-            if self.closed or not self.ready or not self.attached:
+            if mode is not None and mode not in ('fast', 'expert'):
+                raise ValueError('invalid_voice_mode')
+            if self.closed or not self.attached:
                 raise ValueError('cloud_not_ready')
             if self.muted:
                 raise PermissionError('microphone_muted')
@@ -788,6 +790,18 @@ class DirectSession(NativeSession):
             if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
                     self.expert_input_busy() or self._wake_fragment is not None):
                 raise ValueError('conversation_busy')
+            if not self.ready:
+                # Provider recovery must not tear down the healthy device/Brain
+                # pipe. Refuse this activation before any reservation or PCM,
+                # and retire its ID so recovery cannot replay the old question.
+                self.seen_wakes.add(wake_id)
+                if len(self.seen_wakes) > 512:
+                    self.seen_wakes = {wake_id}
+                self.emit('admission_denied', reason='transport_unavailable',
+                          mode=self.selected_mode, generation_allowed=self.generation_allowed(),
+                          state=self.state, input_open=False, automatic_retry=False)
+                return {'accepted': False, 'reason': 'transport_unavailable',
+                        'input_open': False, 'mode': self.selected_mode}
             if mode is not None:
                 await self.select_mode(mode)
             # A deliberate new activation supersedes the preceding response's
