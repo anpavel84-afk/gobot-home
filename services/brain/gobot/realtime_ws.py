@@ -12,6 +12,7 @@ import base64
 import inspect
 import hashlib
 import json
+import re
 import sqlite3
 import time
 from contextlib import suppress
@@ -36,6 +37,8 @@ _CLOSE_REASONS = frozenset({'closed', 'setup_failed', 'server_shutdown', 'detach
                           'profile_authorization_revoked'})
 _FAST_INPUT_MAX_SECONDS = 30.
 _FAST_TRANSCRIPT_TIMEOUT_SECONDS = 2.
+_WAKE_ENDPOINT_QUANTIZATION_MS = 32
+_WAKE_NAMES = frozenset({'софия', 'софья', 'sophia', 'sofia'})
 _RESPONSE_CREATED_TIMEOUT_SECONDS = 5.
 _RESPONSE_REQUEST_RETENTION_SECONDS = 120.
 _RESPONSE_REQUEST_LIMIT = 128
@@ -135,6 +138,8 @@ class DirectSession(NativeSession):
         self._fast_capture_started = 0.
         self._fast_input_trigger = 'unknown'
         self._fast_input_wake_id = None
+        self._fast_capture_anchor = None
+        self._fast_speech_ends = {}
         self._wake_fragment = None
         self._wake_replay_fragment = None
         self._wake_early_transcripts = {}
@@ -743,7 +748,24 @@ class DirectSession(NativeSession):
         self.emit('operation_admitted', operation_id=ident,
                   max_seconds=p.max_session_seconds, reservation_is_invoice=False)
 
-    async def wake(self, wake_id, *, source='device', mode=None, trigger='manual'):
+    @staticmethod
+    def wake_capture_anchor(capture):
+        if capture is None:
+            return None
+        if (not isinstance(capture, dict) or set(capture) != {
+                'stream_epoch', 'selected_start', 'detector_sample', 'sample_rate', 'interrupt'} or
+                not isinstance(capture['stream_epoch'], str) or
+                not re.fullmatch(r'[A-Za-z0-9_.:-]{1,128}', capture['stream_epoch']) or
+                type(capture['sample_rate']) is not int or capture['sample_rate'] != 16000 or
+                type(capture['interrupt']) is not bool or
+                any(type(capture[key]) is not int or not 0 <= capture[key] <= 10**15
+                    for key in ('selected_start', 'detector_sample')) or
+                capture['detector_sample']-capture['selected_start'] > 32000 or
+                (capture['detector_sample'] < capture['selected_start'] and not capture['interrupt'])):
+            raise ValueError('invalid_wake_capture_anchor')
+        return dict(capture)
+
+    async def wake(self, wake_id, *, source='device', mode=None, trigger='manual', capture=None):
         wake_received_monotonic = time.monotonic()
         async with self.activation_lock:
             if not isinstance(wake_id, str) or not 1 <= len(wake_id) <= 128:
@@ -754,6 +776,9 @@ class DirectSession(NativeSession):
                 raise PermissionError('microphone_source_mismatch')
             if trigger not in {'manual', 'touch', 'wake_word'} or (trigger == 'wake_word' and source != 'device'):
                 raise ValueError('invalid_voice_activation_trigger')
+            if capture is not None and (source != 'device' or trigger not in {'wake_word', 'touch'}):
+                raise ValueError('wake_capture_requires_device_activation')
+            capture = self.wake_capture_anchor(capture)
             if self.closed or not self.ready or not self.attached:
                 raise ValueError('cloud_not_ready')
             if self.muted:
@@ -782,6 +807,7 @@ class DirectSession(NativeSession):
             self._wake_fragment_candidate = trigger == 'wake_word' and self.selected_mode == 'fast'
             self._fast_input_trigger = trigger
             self._fast_input_wake_id = wake_id
+            self._fast_capture_anchor = capture
             self._wake_early_transcripts.clear()
             input_epoch = self._input_gate_epoch
             try:
@@ -800,7 +826,8 @@ class DirectSession(NativeSession):
                           generation_allowed=self.generation_allowed(),
                           state=self.state, input_open=False, automatic_retry=False)
                 raise
-            self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode,
+            self.emit('wake_accepted', wake_id=wake_id, mode=self.selected_mode, trigger=trigger,
+                      **(capture or {}),
                       wake_received_monotonic=wake_received_monotonic,
                       plan_monotonic=time.monotonic())
             return {'accepted': True, 'input_open': self.input_open, 'mode': self.selected_mode}
@@ -851,10 +878,12 @@ class DirectSession(NativeSession):
         self.state = 'listening'
         self._input_started = False
         self._input_samples = 0
+        self._fast_speech_ends.clear()
         self.auto_input_deadline = None
         self._fast_capture_started = time.monotonic()
         if followup:
             self._wake_fragment_candidate = False
+            self._fast_capture_anchor = None
             self._fast_input_trigger = 'followup'
             self._fast_input_wake_id = None
         self.followup_deadline = time.monotonic()+8
@@ -1031,7 +1060,48 @@ class DirectSession(NativeSession):
 
     @staticmethod
     def wake_word_only(text):
-        return text.strip(' \t\r\n.,!?…:;"\'«»').casefold() in {'софия', 'софья', 'sophia'}
+        words = re.findall(r'[^\W_]+', text.casefold(), flags=re.UNICODE)
+        return bool(words) and all(word in _WAKE_NAMES for word in words)
+
+    @staticmethod
+    def wake_named_question(text):
+        words = re.findall(r'[^\W_]+', text.casefold(), flags=re.UNICODE)
+        return any(word in _WAKE_NAMES for word in words) and any(word not in _WAKE_NAMES for word in words)
+
+    def wake_activation_candidate(self, item_id):
+        """Find an endpoint near the local detector, not an acoustic name end.
+
+        PLAN's configured server_vad reports the current buffer's position
+        after clear (confirmed by live offsets). Its endpoint includes 450 ms
+        of silence; permit one 32 ms provider-frame margin. The detector can
+        lag speech, so final ASR still preserves an explicitly named question
+        before this position. An omitted/misheard name is ambiguous here; keep
+        listening rather than generate a speculative answer. Never infer the
+        clock from host wall time. Post-interrupt capture can exclude the wake.
+        """
+        capture = self._fast_capture_anchor
+        endpoint = self._fast_speech_ends.pop(item_id, None)
+        if not capture or endpoint is None or self.offer.endpointing != 'server_450':
+            return False
+        offset = capture['detector_sample']-capture['selected_start']
+        if offset < 0 or endpoint < 450 or endpoint*24 > self._input_samples+24*_WAKE_ENDPOINT_QUANTIZATION_MS:
+            return False
+        candidate = (endpoint-450 <= offset/16+_WAKE_ENDPOINT_QUANTIZATION_MS)
+        if candidate:
+            self.emit('telemetry', event='wake_activation_candidate',
+                      provider_audio_end_ms=endpoint, provider_last_speech_ms=endpoint-450,
+                      wake_offset_ms=offset/16, captured_samples=self._input_samples,
+                      clock_domain='provider_input_after_clear', not_acoustic_proof=True,
+                      automatic_retry=False, plan_monotonic=time.monotonic())
+        return candidate
+
+    def journal_final_input(self, turn, text, *, failed=False):
+        """Only the existing exact board opt-in may persist this ASR result."""
+        with suppress(Exception):
+            self.manager.journal.session_event(self, 'B', 'direct_input_transcript', {
+                'turn_id': turn.id, 'item_id': turn.input_id,
+                'text': '' if failed else text, 'final': True,
+                'asr_status': 'failed' if failed else 'completed'})
 
     def discard_wake_fragment(self):
         self._wake_fragment_candidate = False
@@ -1067,19 +1137,31 @@ class DirectSession(NativeSession):
 
     async def resolve_wake_fragment(self, fragment):
         try:
-            await asyncio.wait_for(fragment['transcript_ready'].wait(), _FAST_TRANSCRIPT_TIMEOUT_SECONDS)
+            # Reuse the existing final-ASR gate for both paths. The local wake
+            # callback can lag a short joined question or follow a wake at its
+            # end; an explicit named question must survive that ambiguity.
+            try:
+                await asyncio.wait_for(fragment['transcript_ready'].wait(), _FAST_TRANSCRIPT_TIMEOUT_SECONDS)
+            except TimeoutError:
+                if not fragment['activation_candidate']:
+                    raise
             self.require_input_gate(fragment['epoch'])
             if self._wake_fragment is not fragment:
                 return
-            if fragment.get('failed') or not any(c.isalnum() for c in fragment.get('text', '')):
+            text, turn = fragment['text'], fragment['turn']
+            if fragment['transcript_ready'].is_set():
+                self.journal_final_input(turn, text, failed=fragment.get('failed', False))
+            activation_only = fragment['activation_candidate'] and (
+                fragment.get('failed') or not self.wake_named_question(text))
+            if not activation_only and (
+                    fragment.get('failed') or not any(c.isalnum() for c in text)):
                 await self.fail_wake_fragment(fragment, 'wake_fragment_transcription_failed'
                     if fragment['wake_resume'] else 'input_transcription_failed_or_empty')
                 return
-            text, turn = fragment['text'], fragment['turn']
             if self.wake_word_only(text) and not fragment['wake_resume']:
                 await self.fail_wake_fragment(fragment, 'input_wake_word_only')
                 return
-            if not self.wake_word_only(text):
+            if not activation_only and not self.wake_word_only(text):
                 if fragment['commits']:
                     await self.fail_wake_fragment(fragment, 'wake_fragment_overlap')
                     return
@@ -1098,8 +1180,10 @@ class DirectSession(NativeSession):
                 self.emit('input_closed', reason='provider_endpoint', resume_pending=False)
                 await self.response()
                 return
-            # The first VAD item was only the activation word. Do not ask the
-            # model to answer it, reserve another response, or replay its audio.
+            # The first VAD item is a name or an ambiguous activation-span
+            # fragment. Do not ask the model to answer it, reserve another
+            # response, or replay its audio; keep the following question.
+            turn.direct_activation_only = True
             await self.finish(turn, False)
             self.require_input_gate(fragment['epoch'])
             await self.send({'type': 'conversation.item.delete', 'item_id': turn.input_id})
@@ -1217,6 +1301,15 @@ class DirectSession(NativeSession):
                     'conversation.item.input_audio_transcription.failed'}:
             fragment = self._wake_fragment
             item_id = obj.get('item_id')
+            retired_input = next((turn for turn in self.turns
+                if turn.input_id == item_id and (getattr(turn, 'direct_activation_only', False) or
+                    turn.cancelled and hasattr(turn, 'direct_input_trigger'))), None)
+            if retired_input is not None:
+                transcript = obj.get('transcript', '')
+                self.journal_final_input(retired_input,
+                    transcript[:8000] if isinstance(transcript, str) else '',
+                    failed=kind.endswith('.failed') or not isinstance(transcript, str))
+                return  # A retired input's ASR cannot become the next question.
             replay = self._wake_replay_fragment
             if replay is not None and item_id == replay['item_id']:
                 # Replayed commit processing can await previous-turn cleanup
@@ -1253,6 +1346,13 @@ class DirectSession(NativeSession):
             if self.selected_mode == 'fast' and self.auto_input_deadline is None:
                 self.auto_input_deadline = time.monotonic()+_FAST_INPUT_MAX_SECONDS
         elif kind == 'input_audio_buffer.speech_stopped':
+            item_id, endpoint = obj.get('item_id'), obj.get('audio_end_ms')
+            if ((self.input_open or self._wake_fragment is not None) and
+                    isinstance(item_id, str) and 0 < len(item_id) <= 200 and
+                    type(endpoint) is int and 0 <= endpoint <= 10**12):
+                self._fast_speech_ends[item_id] = endpoint
+                while len(self._fast_speech_ends) > 4:
+                    self._fast_speech_ends.pop(next(iter(self._fast_speech_ends)))
             # Provider position and local decision time are different clocks.
             self.emit('telemetry', event='end_of_speech',
                       provider_audio_end_ms=obj.get('audio_end_ms'), clock_domain='provider_input')
@@ -1273,9 +1373,10 @@ class DirectSession(NativeSession):
                 if obj.get('item_id'):
                     await self.send({'type': 'conversation.item.delete', 'item_id': obj['item_id']})
                 return
-            candidate = (self._wake_fragment_candidate and
-                         0 < self._input_samples <= 48000 and
-                         time.monotonic()-self._fast_capture_started <= 1.5)
+            # Eligibility follows the explicit local wake, never scheduling
+            # delay or the amount of trailing silence already forwarded.
+            candidate = self._wake_fragment_candidate
+            activation_candidate = candidate and self.wake_activation_candidate(obj.get('item_id'))
             self._wake_fragment_candidate = False
             self.input_open = False
             self.auto_input_deadline = None
@@ -1286,6 +1387,7 @@ class DirectSession(NativeSession):
                 self._input_started = False
                 fragment = {'epoch': self._input_gate_epoch,
                     'wake_resume': candidate,
+                    'activation_candidate': activation_candidate,
                     'item_id': obj.get('item_id', ''), 'turn': None,
                     'transcript_ready': asyncio.Event(), 'text': '', 'failed': False,
                     'pcm': deque(), 'bytes': 0, 'commits': [], 'transcripts': {},
@@ -1750,7 +1852,10 @@ class DirectSession(NativeSession):
         if self.current:
             await self.finish(self.current, False)
 
-    async def stop(self):
+    async def stop(self, *, request_id=None):
+        if request_id is not None and (not isinstance(request_id, str) or
+                not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', request_id)):
+            raise ValueError('invalid_stop_request_id')
         self._stop_count += 1
         try:
             for job in self.experts.jobs.values():
@@ -1766,7 +1871,8 @@ class DirectSession(NativeSession):
             self.input_open = False
             self.input_mode = 'idle'
             self.state = 'muted' if self.muted else 'ready' if self.ready else 'disconnected'
-            self.emit('stopped', input_open=False)
+            self.emit('stopped', input_open=False,
+                      **({'request_id': request_id} if request_id is not None else {}))
             return {'stopped': True}
         finally:
             self._stop_count -= 1

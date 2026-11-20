@@ -165,9 +165,10 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                     kind = obj.get('type')
                     if kind == 'wake':
                         try:
+                            capture = {'capture': obj['capture']} if 'capture' in obj else {}
                             await session.wake(obj.get('wake_id'), source=hello['source'],
                                 mode=obj.get('mode', getattr(session, 'selected_mode', 'fast')),
-                                trigger=obj.get('trigger', 'manual'))
+                                trigger=obj.get('trigger', 'manual'), **capture)
                         except PermissionError:
                             # The session emitted admission_denied. Preserve the
                             # empty pipe and local Sophia; do not retry spending.
@@ -180,7 +181,8 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                     elif kind == 'mute' and type(obj.get('muted')) is bool:
                         await session.mute(obj['muted'])
                     elif kind == 'stop':
-                        await session.stop()
+                        request = {'request_id': obj['request_id']} if 'request_id' in obj else {}
+                        await session.stop(**request)
                     elif kind == 'mode' and obj.get('mode') in {'fast', 'expert'}:
                         await session.select_mode(obj['mode'])
                     elif kind == 'input_end':

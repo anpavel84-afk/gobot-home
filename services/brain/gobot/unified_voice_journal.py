@@ -28,7 +28,7 @@ PLAYBACK_SUMMARY_GAPS = {'max_packet_send_gap_ms', 'max_progress_receipt_gap_ms'
 CAPTURE_BOUNDARY_COUNTS = {'physical_sample_floor', 'guard_samples', 'ring_end',
                            'sample_floor', 'selected_start', 'source_sample_start',
                            'source_sample_end'}
-CAPTURE_BOUNDARY_STAGES = {'playback_finished', 'followup_opened', 'first_uplink'}
+CAPTURE_BOUNDARY_STAGES = {'playback_finished', 'followup_opened', 'first_uplink', 'interrupt_quiet'}
 
 
 def capture_boundary(value):
@@ -38,7 +38,11 @@ def capture_boundary(value):
             value['stage'] not in CAPTURE_BOUNDARY_STAGES):
         return None
     required = {'stream_epoch', 'ring_end', 'sample_floor', 'plan_monotonic'}
-    if value['stage'] == 'playback_finished':
+    if value['stage'] == 'interrupt_quiet':
+        required |= {'wake_id', 'physical_sample_floor', 'guard_samples', 'selected_start'}
+        if 'response_id' in value:
+            required.add('response_id')
+    elif value['stage'] == 'playback_finished':
         required |= {'response_id', 'physical_sample_floor', 'guard_samples'}
     elif value['stage'] == 'followup_opened':
         required |= {'wake_id', 'selected_start'}
@@ -90,7 +94,7 @@ def playback_buffer_summary(value):
 
 IDS = {'id', 'session_id', 'conversation_id', 'turn_id', 'job_id', 'response_id',
        'call_id', 'item_id', 'event_id', 'operation_id', 'segment_id', 'wake_id',
-       'proposal_id', 'audio_id', 'stream_epoch'}
+       'proposal_id', 'audio_id', 'stream_epoch', 'request_id'}
 NUMBERS = {
     'seq', 'chunk_seq', 'segment_sequence', 'transport_epoch', 'frame_id',
     'sample_start', 'sample_count', 'sample_floor', 'sample_rate', 'chunks',
@@ -108,7 +112,7 @@ NUMBERS = {
     'output_buffer_started', 'client_playback', 'client_playback_stopped',
     'followup_requested', 'followup_acknowledged', 'call_created',
     'sideband_connected', 'settings_acknowledged', 'lifetime_ms',
-    'captured_samples', 'buffered_samples',
+    'captured_samples', 'buffered_samples', 'wake_offset_ms',
 }
 NUMBERS |= PLAYBACK_SUMMARY_COUNTS | PLAYBACK_SUMMARY_GAPS
 NUMBERS |= CAPTURE_BOUNDARY_COUNTS
@@ -122,7 +126,7 @@ BOOLEANS = {
     'stable', 'recovered', 'lost_input_replayed', 'narrated', 'voice_deferred',
     'final', 'result_available', 'microphone', 'private_access', 'audio_available',
     'resume_pending', 'resume_capture',
-    'device_reported',
+    'device_reported', 'interrupt',
 }
 CONTAINERS = {'timings', 'timings_ms', 'usage', 'input_token_details',
               'output_token_details', 'cached_tokens_details', 'narrator_usage',
@@ -149,6 +153,7 @@ ENUMS = {
     'underrun_measurement': {'not_instrumented'},
     'stage': CAPTURE_BOUNDARY_STAGES,
     'trigger': {'wake_word', 'touch', 'manual', 'followup', 'unknown'},
+    'clock_domain': {'capture_16k', 'provider_input', 'provider_input_after_clear'},
 }
 CODES = {
     'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
@@ -194,6 +199,7 @@ EVENTS = {
     'local_voice_stop',
     'response_correlation_rejected',
     'wake_fragment_pending', 'wake_fragment_rejected', 'wake_word_only_skipped',
+    'wake_activation_candidate',
     'wake_fragment_question_ready', 'playback_receipt_received', 'heard_context_committed',
     'response.create', 'response.created', 'response.done', 'response.cancel',
     'response.output_audio.delta', 'response.output_audio.done',
@@ -344,7 +350,8 @@ class OwnerTerminalDiagnosticJournal(ContentFreeJournal):
             return False
 
     def session_event(self, session, engine, kind, data=None):
-        final_input = kind == 'input_transcript' and isinstance(data, dict) and data.get('final') is True
+        explicit_input = kind == 'direct_input_transcript' and isinstance(data, dict)
+        final_input = (kind == 'input_transcript' or explicit_input) and isinstance(data, dict) and data.get('final') is True
         final_output = kind == 'direct_dialogue_turn' and isinstance(data, dict)
         if not (final_input or final_output):
             return super().session_event(session, engine, kind, data)
@@ -353,19 +360,26 @@ class OwnerTerminalDiagnosticJournal(ContentFreeJournal):
             # recording is disabled; the legacy lifecycle metadata still exists.
             return super().session_event(session, engine, kind, data)
         try:
-            return self._final_text(session, data, final_input)
+            return self._final_text(session, data, final_input, explicit_input=explicit_input)
         except Exception:
             # Diagnostics must not break voice input, playback or provider work.
             return False
 
-    def _final_text(self, session, data, final_input):
+    def _final_text(self, session, data, final_input, *, explicit_input=False):
         from .debug_journal import clean
 
         if final_input:
-            if session.current is None:
-                return False
-            turn_id = session.current.id
-            item_id = getattr(session.current, 'input_id', '')
+            if explicit_input:
+                # A skipped activation may already be retired when its ASR
+                # arrives. Bind diagnostics to that item, not a later question.
+                turn_id, item_id = data.get('turn_id'), data.get('item_id')
+                if data.get('asr_status') not in {'completed', 'failed'}:
+                    return False
+            else:
+                if session.current is None:
+                    return False
+                turn_id = session.current.id
+                item_id = getattr(session.current, 'input_id', '')
             field, limit, kind = 'text', INPUT_TEXT_LIMIT, 'input_transcript'
             source = 'input_asr_hypothesis'
         else:
@@ -379,7 +393,7 @@ class OwnerTerminalDiagnosticJournal(ContentFreeJournal):
                 return False
         raw = data.get(field)
         if (not isinstance(turn_id, str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,200}', turn_id) or
-                not isinstance(raw, str) or not raw[:limit].strip()):
+                not isinstance(raw, str) or (not explicit_input and not raw[:limit].strip())):
             return False
         key = (_identifier(session.id), _identifier(turn_id), kind)
         if key[0] is None or key in self._text_events:
@@ -396,6 +410,8 @@ class OwnerTerminalDiagnosticJournal(ContentFreeJournal):
             'not_acoustic_proof': True})
         if not final_input:
             safe.update(playback=data['playback'], truncated=data['truncated'])
+        elif explicit_input:
+            safe['asr_status'] = data['asr_status']
         view = SimpleNamespace(owner_test_binding=self.board_id,
             offer=SimpleNamespace(device_id=self.board_id, client_id=self.board_id, profile_epoch=None),
             id=session.id, current=SimpleNamespace(id=turn_id))

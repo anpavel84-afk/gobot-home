@@ -89,8 +89,14 @@ class FixtureBrain:
                 self.report['whole_playback_finished'].append(obj.get('response_id'))
                 self.report['capture_floors'].append(obj.get('sample_floor'))
         elif kind=='mute':self.emit('muted',muted=obj.get('muted') is True)
-        elif kind=='stop':self.emit('stopped')
+        elif kind=='stop':
+            self.emit('stopped', **({'request_id':obj['request_id']} if obj.get('request_id') else {}))
         elif kind=='input_end':self.emit('input_closed')
+        elif kind=='telemetry':
+            # Production capture diagnostics may arrive here. Retain no payload,
+            # PCM, text, keys or provider state in this cloud-free peer.
+            if obj.get('event') not in ('capture_boundary','playback_buffer_summary'):
+                raise ValueError('unsupported_fixture_telemetry')
         else:raise ValueError('unsupported_fixture_brain_command')
 
     async def sound(self,ident,seconds=.6):
@@ -108,6 +114,30 @@ class FixtureBrain:
 async def wait_until(predicate,timeout=10):
     async with asyncio.timeout(timeout):
         while not predicate():await asyncio.sleep(.05)
+
+
+def barge_aec_evidence(before, after):
+    """Require actual DSP/reference work on this connection, not an idle ready bit."""
+    keys=('aec_frames','aec_reference_frames','aec_process_max_us',
+          'audio_input_stack_hwm_bytes','internal_free','psram_free')
+    if after.get('aec_ready') is not True:
+        raise ValueError('barge_aec_not_ready')
+    if any(type(after.get(key)) is not int or after[key]<0 for key in keys):
+        raise ValueError('barge_aec_resources_missing')
+    if any(type(before.get(key)) is not int or before[key]<0 for key in ('aec_frames','aec_reference_frames')):
+        raise ValueError('barge_aec_baseline_missing')
+    deltas={key:after[key]-before[key] for key in ('aec_frames','aec_reference_frames')}
+    if any(value<=0 for value in deltas.values()):
+        raise ValueError('barge_aec_no_new_processing_or_reference')
+    if not 0<after['aec_process_max_us']<32000:
+        raise ValueError('barge_aec_exceeded_frame_time')
+    if after['audio_input_stack_hwm_bytes']<512:
+        raise ValueError('barge_aec_input_stack_margin_low')
+    return {'aec_ready':True, **{key:after[key] for key in keys},
+            'new_aec_frames':deltas['aec_frames'],
+            'new_reference_frames':deltas['aec_reference_frames'],
+            'frame_duration_us':32000,'minimum_required_stack_margin_bytes':512,
+            'human_wake_or_echo_rejection_accepted':False}
 
 
 def expected_close_reason(*,unmute_requested,stopping,sent_code,received_code,
@@ -132,6 +162,8 @@ async def run(args):
         'empty_fixture_transports':0,'fixture_pcm24_samples':0,'actual_wake_events':0,
         'playback_started':[],'whole_playback_finished':[],'segments_finished':[],
         'capture_floors':[],'connections':[],'steps':[],'errors':[]}
+    require_aec=getattr(args,'require_barge_aec',False)
+    report['barge_aec_required']=require_aec
     active=False
     first=True
     stopping=False
@@ -165,12 +197,24 @@ async def run(args):
                     report['steps'].append('unmute_fresh_capture_confirmed')
                 return
             first=False
+            if require_aec:
+                await wait_until(lambda:connection.stats.get('device_resources',{}).get('aec_ready') is True and
+                    all(type(connection.stats['device_resources'].get(key)) is int for key in
+                        ('aec_frames','aec_reference_frames')),8)
+            aec_before=dict(connection.stats.get('device_resources',{}))
             await brain.sound('hardware-whole')
             await wait_until(lambda:'hardware-whole' in report['whole_playback_finished'])
             report['steps'].append('whole_response_dma_receipt')
             if 'hardware-whole:0' not in report['segments_finished']:
                 raise ValueError('physical_segment_receipt_missing')
             if connection.forward:raise ValueError('input_open_before_guard')
+            if require_aec:
+                # Firmware stats are periodic. Wait for the completed real DSP
+                # work to be reported; this delay is confined to this fixture.
+                await wait_until(lambda:all(connection.stats.get('device_resources',{}).get(key,0)>
+                    aec_before[key] for key in ('aec_frames','aec_reference_frames')),8)
+                report['barge_aec']=barge_aec_evidence(aec_before,connection.stats['device_resources'])
+                report['steps'].append('barge_aec_hardware_reference_processed')
             await asyncio.sleep(.2)
             brain.emit('followup',mode='fast')
             await wait_until(lambda:brain.bytes_received>=48000)
@@ -254,6 +298,8 @@ async def run(args):
     report['pass']=all(step in report['steps'] for step in (
         'whole_response_dma_receipt','post_receipt_guard_then_real_capture',
         'cancel_dma_receipt','mute_stops_capture','unmute_fresh_capture_confirmed')) and report['distinct_capture_epochs']>=2 and not report['errors']
+    if require_aec:
+        report['pass']=report['pass'] and 'barge_aec_hardware_reference_processed' in report['steps']
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(report,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='connections'}),flush=True)
@@ -266,4 +312,6 @@ if __name__=='__main__':
     parser.add_argument('--report',type=Path,required=True)
     parser.add_argument('--seconds',type=int,default=45)
     parser.add_argument('--execute',action='store_true')
+    parser.add_argument('--require-barge-aec',action='store_true',
+        help='Require real AEC/reference processing and input-task margin during the quiet tone.')
     raise SystemExit(asyncio.run(run(parser.parse_args())))

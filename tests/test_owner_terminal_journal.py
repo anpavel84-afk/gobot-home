@@ -258,3 +258,94 @@ def test_diagnostic_duplicate_cache_is_bounded_and_stores_no_text(tmp_path, sett
         finally:
             await cleanup(original, board, manager)
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('ending', ['question', 'name_only', 'empty', 'failed'])
+def test_every_received_final_asr_gate_decision_is_scoped_and_recorded_once(tmp_path, settings, ending):
+    async def run():
+        original, board, manager, session, _ = await setup_terminal(tmp_path, settings)
+        try:
+            opt_in(original)
+            await session.wake('synthetic-input', trigger='wake_word')
+            await session.append_pcm(bytes(9600))
+            await session.handle({'type': 'input_audio_buffer.committed', 'item_id': 'input-final'})
+            gate = session._wake_fragment
+            text = {'question': QUESTION, 'name_only': 'София', 'empty': '',
+                    'failed': FORBIDDEN}[ending]
+            await session.handle({'type': 'conversation.item.input_audio_transcription.'+
+                ('failed' if ending == 'failed' else 'completed'),
+                'item_id': 'input-final', 'transcript': text})
+            await gate['task']
+            inputs = [item for item in await records(original)
+                      if item['data'].get('text_source') == 'input_asr_hypothesis']
+            assert len(inputs) == 1
+            assert inputs[0]['data']['text'] == ('' if ending == 'failed' else text)
+            assert inputs[0]['data']['asr_status'] == ('failed' if ending == 'failed' else 'completed')
+            assert inputs[0]['data']['diagnostic_only'] and not inputs[0]['data']['content_free']
+            assert FORBIDDEN not in json.dumps(inputs, ensure_ascii=False)
+            if ending != 'question':
+                assert not any(event['type'] == 'response.create' for event in session.ws.sent)
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+def test_late_activation_asr_records_old_item_without_replacing_current_question(tmp_path, settings, monkeypatch):
+    from gobot import realtime_ws
+    monkeypatch.setattr(realtime_ws, '_FAST_TRANSCRIPT_TIMEOUT_SECONDS', .01)
+    async def run():
+        original, board, manager, session, _ = await setup_terminal(tmp_path, settings)
+        try:
+            opt_in(original)
+            await session.wake('synthetic-capture', trigger='wake_word', capture={
+                'stream_epoch': 'fixture', 'selected_start': 40000, 'detector_sample': 56000,
+                'sample_rate': 16000, 'interrupt': False})
+            for samples in (24000, 24000, 840):
+                await session.append_pcm(bytes(samples*2))
+            await session.handle({'type': 'input_audio_buffer.speech_stopped',
+                                  'item_id': 'only-activation', 'audio_end_ms': 1472})
+            await session.handle({'type': 'input_audio_buffer.committed', 'item_id': 'only-activation'})
+            gate = session._wake_fragment
+            await asyncio.wait_for(gate['task'], 1)
+            old = session.current
+            assert old.cancelled and old.query == '' and old.req is None
+            await session.append_pcm(bytes(9600))
+            await session.handle({'type': 'input_audio_buffer.committed', 'item_id': 'actual-question'})
+            question_gate = session._wake_fragment
+            current = session.current
+            late = {'type': 'conversation.item.input_audio_transcription.completed',
+                    'item_id': 'only-activation', 'transcript': 'Синтетическая ошибочная гипотеза.'}
+            await session.handle(late)
+            await session.handle(late)
+            assert current.query == '' and not current.input_ready.is_set()
+            await session.handle({'type': 'conversation.item.input_audio_transcription.completed',
+                                  'item_id': 'actual-question', 'transcript': QUESTION})
+            await question_gate['task']
+            inputs = [item for item in await records(original)
+                      if item['data'].get('text_source') == 'input_asr_hypothesis']
+            assert len(inputs) == 2
+            assert inputs[0]['turn_id'] == old.id
+            assert inputs[0]['data']['turn_id'] == hashlib.sha256(old.id.encode()).hexdigest()
+            assert inputs[0]['data']['item_id'] == hashlib.sha256(b'only-activation').hexdigest()
+            assert inputs[1]['turn_id'] == current.id and inputs[1]['data']['text'] == QUESTION
+            assert old.query == '' and current.query == QUESTION
+            assert sum(event['type'] == 'response.create' for event in session.ws.sent) == 1
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('enabled', [False, True])
+def test_private_final_hook_never_writes_outside_existing_board_opt_in(tmp_path, settings, enabled):
+    async def run():
+        original, board, manager, session, _ = await setup_terminal(tmp_path, settings)
+        try:
+            opt_in(original, enabled=enabled, bindings=('board',) if not enabled else ('phone',))
+            value = turn(session)
+            session.journal_final_input(value, QUESTION)
+            assert not [item for item in await records(original)
+                        if item['data'].get('text_source') == 'input_asr_hypothesis']
+            assert original.owner_testing.policy().debug_journal_retention_days == 7
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
