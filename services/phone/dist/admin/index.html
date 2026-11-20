@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#12272b">
+  <meta name="description" content="Настройки Софии на домашнем сервере PLAN. Умения, разговор, дом, сервисы и диагностика.">
+  <title>Умения Софии · GoBot</title>
+  <link rel="icon" href="/sophia/settings/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/sophia/settings/admin.css">
+  <script src="/sophia/settings/catalog.js" defer></script>
+  <script src="/sophia/settings/admin.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Перейти к содержимому</a>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Разделы настроек">
+      <button class="icon-button mobile-nav-close" id="mobileNavClose" aria-label="Закрыть навигацию">×</button>
+      <a class="brand" href="#/overview" aria-label="GoBot, обзор Софии"><img src="/sophia/settings/mark.svg" alt="" width="38" height="38"><span>GoBot<span class="brand-sub">София дома</span></span></a>
+      <div class="device-picker"><div class="mini-face" aria-hidden="true"><i></i><i></i></div><div><strong>София</strong><span>Колонка Spotpear</span></div><span class="device-marker" aria-label="Выбранное устройство"></span></div>
+      <nav id="navigation" aria-label="Основная навигация"></nav>
+      <div class="sidebar-bottom"><span class="avatar">В</span><div><strong>Владелец</strong><span>Приватная панель PLAN</span></div></div>
+    </aside>
+    <button class="mobile-backdrop" id="mobileBackdrop" hidden aria-label="Закрыть навигацию"></button>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="topbar-left"><button class="icon-button mobile-menu" id="menuButton" aria-label="Открыть навигацию" aria-expanded="false" aria-controls="sidebar"></button><div class="breadcrumb">Мой GoBot <span aria-hidden="true">/</span> <span id="breadcrumb">Умения</span></div></div>
+        <div class="topbar-actions"><span class="prototype-label" id="connectionLabel">Подключение…</span><button class="button primary" id="reviewButton" disabled>Нет изменений</button></div>
+      </header>
+      <div class="prototype-strip live-strip" id="connectionStrip"><span class="strip-icon" aria-hidden="true">i</span><p id="connectionDescription" role="status">Загружаем настройки колонки с PLAN…</p><button class="text-button" data-action="refresh" id="refreshButton">Обновить</button></div>
+      <main id="main" tabindex="-1"></main>
+      <footer class="workspace-footer"><span>GoBot · центр настроек Софии</span><button class="text-button" data-action="about">Об этой панели</button></footer>
+    </div>
+  </div>
+  <dialog class="settings-dialog" id="settingsDialog" aria-labelledby="dialogTitle"><div id="dialogContent"></div></dialog>
+  <dialog class="review-dialog" id="reviewDialog" aria-labelledby="reviewTitle"><div id="reviewContent"></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

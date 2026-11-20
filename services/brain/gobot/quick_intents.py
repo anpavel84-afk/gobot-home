@@ -23,9 +23,29 @@ def normalize(text):
     value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|не мог бы ты|не могли бы вы|давай(?: ка)?)[, ]+','',value)
     return re.sub(r'[, ]+пожалуйста$','',value)
 
+def _addressed_weather(value,context):
+    """The wake name is a wrapper only for an already read-only weather query.
+
+    Keep the general command normalizer unchanged: dropping an address must not
+    turn a quoted instruction, setup confirmation or timer command into a write.
+    The existing weather grammar still validates negation, quoted text and slots.
+    """
+    addressed=re.fullmatch(r'софия(?:\s+|[,.:!?]\s*)(.+)',value)
+    if not addressed:return None
+    from .weather_queries import weather_query,weather_followup
+    query=normalize(addressed[1])
+    slots=weather_followup(query,context) or weather_query(query)
+    if slots and slots.get('operation') in {
+            'weather_current','weather_forecast','weather_unsupported',
+            'weather_provider_unavailable'}:
+        return QuickIntent('settings','settings',slots)
+    return None
+
 def resolve_quick(text,context=None):
     if len(text)>200:return None
     value=normalize(text)
+    weather=_addressed_weather(value,context)
+    if weather:return weather
     pending=(context or {}).get('pending_action')
     if pending and pending.get('expires',0)>time.time() and re.fullmatch(r'нет(?:[, ]+(?:спасибо|благодарю))?|не надо|отмена',value):
         return QuickIntent('pending_decline','pending_decline',{'pending_id':pending.get('id'),

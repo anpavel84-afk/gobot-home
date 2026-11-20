@@ -21,7 +21,7 @@ import time
 import anyio
 import httpx
 from fastapi import HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from websockets.asyncio.client import connect
 
 
@@ -275,6 +275,8 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
     browser_leases = set()
     lease_lock = asyncio.Lock()
     backend = 'http://127.0.0.1:18781/api/v1/voice-ws'
+    from .sophia_admin_access import ADMIN_HEADERS, owner_boundary, safe_runtime_status
+    admin_authenticate = owner_boundary(root)
 
     def boundary(request, mutation=False):
         try:
@@ -327,6 +329,28 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
                for s in result.json().get('sessions', [])):
             raise PermissionError('microphone_source_change_requires_idle')
 
+    @app.get('/sophia/settings')
+    async def admin_redirect(request: Request):
+        admin_authenticate(request)
+        return RedirectResponse('/sophia/settings/', status_code=307, headers=ADMIN_HEADERS)
+
+    @app.get('/sophia/settings/')
+    async def admin_page(request: Request):
+        admin_authenticate(request)
+        path = assets/'admin/index.html'
+        if not path.is_file():
+            raise HTTPException(404, 'sophia_admin_assets_unavailable')
+        return FileResponse(path, media_type='text/html', headers=ADMIN_HEADERS)
+
+    @app.get('/sophia/settings/{name}')
+    async def admin_asset(name: str, request: Request):
+        admin_authenticate(request)
+        types = {'admin.js': 'text/javascript', 'catalog.js': 'text/javascript',
+                 'admin.css': 'text/css', 'mark.svg': 'image/svg+xml'}
+        if name not in types or not (assets/'admin'/name).is_file():
+            raise HTTPException(404)
+        return FileResponse(assets/'admin'/name, media_type=types[name], headers=ADMIN_HEADERS)
+
     @app.get('/sophia')
     async def page(request: Request):
         boundary(request)
@@ -341,21 +365,23 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
         return FileResponse(assets/asset, media_type='text/javascript' if asset.endswith('.js') else 'text/css',
                             headers={'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff'})
 
-    @app.get('/api/sophia/status')
-    async def status(request: Request):
-        boundary(request)
+    async def column_status():
         try:
             config, auth = await asyncio.to_thread(connection)
             async with client_factory(trust_env=False, timeout=4) as client:
                 result = await client.get('http://127.0.0.1:18781/api/v1/voice-ws/status',
                     headers=auth, params={'source': 'device', 'device_id': config['device_id'],
                                          'client_id': config['device_id']})
+            result.raise_for_status()
             state = result.json()
             try:
-                gateway = json.loads((root/'data/hardware/gobot-v1/gateway-status.json').read_text())
+                gateway_path = root/'data/hardware/gobot-v1/gateway-status.json'
+                gateway = json.loads(gateway_path.read_text())
+                gateway_observed_at = gateway_path.stat().st_mtime
                 unified = gateway.get('unified', {})
             except (OSError, ValueError):
                 unified = {}
+                gateway_observed_at = None
             safe = {k: v for k, v in unified.items() if k in {
                 'protocol', 'mode', 'voice', 'wake_location', 'pcm_stage', 'cloud_ready',
                 'generation_allowed', 'received_packets', 'downlink_packets', 'input_open', 'voice_phase',
@@ -366,11 +392,27 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
                 'configured': config.get('unified_voice', {}).get('enabled') is True,
                 'source': 'spotpear', 'browser_comparison_url': '/',
                 'wake_baseline': 'Sophia V4 / DET_MODE_95',
+                'gateway_observed_at': gateway_observed_at,
                 'status': 'connected' if safe.get('device_protocol_confirmed') else 'waiting_for_device'},
                 headers={'Cache-Control': 'no-store'})
         except Exception:
             return JSONResponse({'status': 'unavailable', 'code': 'brain_or_gateway_unavailable'},
                                 status_code=503, headers={'Cache-Control': 'no-store'})
+
+    @app.get('/api/sophia/status')
+    async def status(request: Request):
+        boundary(request)
+        return await column_status()
+
+    async def admin_runtime_status():
+        response = await column_status()
+        payload = json.loads(response.body)
+        return safe_runtime_status(payload, observed_at=time.time(),
+                                   gateway_observed_at=payload.get('gateway_observed_at'))
+
+    from .sophia_admin import attach_sophia_admin
+    attach_sophia_admin(app, root, authenticate=admin_authenticate,
+                        runtime_status=admin_runtime_status)
 
     @app.post('/api/sophia/control')
     async def control(request: Request):
@@ -388,6 +430,11 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
                                 headers={'Cache-Control': 'no-store'})
         except httpx.HTTPError:
             raise HTTPException(503, 'voice_control_unavailable') from None
+
+    @app.post('/api/sophia/admin/control')
+    async def admin_control(request: Request):
+        admin_authenticate(request, write=True)
+        return await control(request)
 
     @app.post('/api/sophia/browser/bind')
     async def browser_bind(request: Request):
