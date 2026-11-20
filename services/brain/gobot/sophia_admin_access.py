@@ -136,6 +136,12 @@ def safe_runtime_status(payload, *, observed_at, gateway_observed_at):
     device['device_resources'] = fields(payload.get('device', {}).get('device_resources'), {
         'encode_pending', 'send_pending', 'decode_pending', 'output_pending', 'encode_drops',
         'aec_ready', 'interrupt_pending', 'barge_wakes', 'barge_taps', 'underrun_measurement',
+        'host_wake_mode', 'wake_barge_frames', 'wake_barge_gaps', 'wake_barge_resets',
+        'wake_barge_detections', 'wake_barge_accepted', 'aec_clean_zero_frames', 'aec_level_frame',
+        'wake_barge_process_max_us', 'wake_barge_processing_overrun_frames',
+        'barge_duck_started', 'barge_duck_restored', 'barge_duck_active',
+        'aec_mic_avg_abs', 'aec_ref_avg_abs', 'aec_clean_avg_abs',
+        'aec_mic_peak', 'aec_ref_peak', 'aec_clean_peak',
     })
     age = (round(max(0, observed_at-gateway_observed_at), 2)
            if gateway_observed_at is not None and -1 <= observed_at-gateway_observed_at else None)

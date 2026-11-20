@@ -26,6 +26,21 @@ from sophia_audio import PcmRing, OrderedOpus, ContinuousPcm24
 POST_PLAYBACK_CAPTURE_GUARD_SAMPLES = 3200
 INTERRUPT_STOP_ACK_SECONDS = 6.
 
+# Fixed numeric observations from the local playback wake path. These are
+# diagnostics, never input authority or acoustic recognition acceptance.
+BARGE_RESOURCE_LIMITS = {
+    'host_wake_mode': 3,
+    **{key: 2**63-1 for key in (
+        'wake_barge_frames', 'wake_barge_gaps', 'wake_barge_resets',
+        'wake_barge_detections', 'wake_barge_accepted',
+        'wake_barge_process_max_us', 'wake_barge_processing_overrun_frames',
+        'aec_clean_zero_frames', 'aec_level_frame',
+        'barge_duck_started', 'barge_duck_restored')},
+    **{key: 32768 for key in (
+        'aec_mic_avg_abs', 'aec_ref_avg_abs', 'aec_clean_avg_abs',
+        'aec_mic_peak', 'aec_ref_peak', 'aec_clean_peak')},
+}
+
 
 class PrefetchedSocket:
     """Preserve the original legacy receive contract after capability routing."""
@@ -556,9 +571,14 @@ class SophiaConnection:
                            'internal_free', 'psram_free', 'input_blocks', 'encoded_frames', 'encode_drops',
                            'audio_input_stack_hwm_bytes', 'aec_frames', 'aec_process_max_us',
                            'aec_reference_frames', 'barge_wakes', 'barge_taps')
-                self.stats['device_resources'] = {k: obj[k] for k in allowed
-                                                  if type(obj.get(k)) in (int, float)}
-                for key in ('audio_input_task_present', 'aec_ready', 'interrupt_pending'):
+                self.stats['device_resources'] = {k: value for k in allowed
+                    if type(value := obj.get(k)) in (int, float) and 0 <= value <= 2**64-1}
+                for key, maximum in BARGE_RESOURCE_LIMITS.items():
+                    value = obj.get(key)
+                    if type(value) is int and 0 <= value <= maximum:
+                        self.stats['device_resources'][key] = value
+                for key in ('audio_input_task_present', 'aec_ready', 'interrupt_pending',
+                            'barge_duck_active'):
                     if type(obj.get(key)) is bool:
                         self.stats['device_resources'][key] = obj[key]
                 if 'audio_input_stack_hwm_bytes' in self.stats['device_resources']:

@@ -137,6 +137,96 @@ def test_device_stack_measurement_survives_numeric_resource_filter():
     asyncio.run(run())
 
 
+async def receive_resource_snapshot(c, fields):
+    envelope = {'session_id': c.transport, 'epoch': c.epoch}
+    await c.device.queue.put(json.dumps({**envelope, 'type': 'gobot_host_stats', **fields}))
+    await c.device.queue.put(json.dumps({**envelope, 'type': 'end_test'}))
+    with pytest.raises(ValueError, match='unsupported_sophia_control'):
+        await c.receive()
+    return c.stats['device_resources']
+
+
+@pytest.mark.parametrize('wake_mode', [0, 1, 2, 3])
+def test_playback_wake_diagnostics_survive_without_changing_audio_authority(wake_mode):
+    async def run():
+        c = connection()
+        c.stats['voice_phase'] = 'speaking'
+        output = c.output = {'owner': 'existing-output'}
+        c.ring.set_blocked(True, reason='playback')
+        fields = {
+            'host_wake_mode': wake_mode,
+            'wake_barge_frames': 186, 'wake_barge_gaps': 0,
+            'wake_barge_resets': 2, 'wake_barge_detections': 1,
+            'wake_barge_accepted': 1, 'aec_clean_zero_frames': 4,
+            'wake_barge_process_max_us': 25900, 'wake_barge_processing_overrun_frames': 0,
+            'barge_duck_started': 1, 'barge_duck_restored': 1, 'barge_duck_active': False,
+            'aec_level_frame': 190,
+            'aec_mic_avg_abs': 580, 'aec_ref_avg_abs': 1024,
+            'aec_clean_avg_abs': 68, 'aec_mic_peak': 32768,
+            'aec_ref_peak': 24576, 'aec_clean_peak': 296,
+        }
+        resources = await receive_resource_snapshot(c, {
+            **fields, 'unrecognized_private_text': 'must not persist',
+            'aec_clean_samples': [1, 2, 3],
+        })
+        assert resources == {**fields, 'underrun_measurement': 'not_instrumented'}
+        assert c.output is output and c.ring.blocked and not c.forward
+        assert c.stats['voice_phase'] == 'speaking' and c.stats['wake_events'] == 0
+        assert c.pending_interrupt is None
+        assert c.device.sent == c.brain.sent == []
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('field,maximum', [
+    ('host_wake_mode', 3), ('wake_barge_frames', 2**63-1),
+    ('aec_clean_zero_frames', 2**63-1), ('aec_level_frame', 2**63-1),
+    ('wake_barge_process_max_us', 2**63-1), ('wake_barge_processing_overrun_frames', 2**63-1),
+    ('barge_duck_started', 2**63-1), ('barge_duck_restored', 2**63-1),
+    ('aec_mic_avg_abs', 32768), ('aec_clean_peak', 32768),
+])
+def test_playback_wake_diagnostics_reject_noninteger_and_out_of_range_fields(field, maximum):
+    async def run():
+        c = connection()
+        for value in (-1, maximum+1, True, '1', None, [], {}, 1.0, 1.5,
+                      float('nan'), float('inf'), float('-inf')):
+            resources = await receive_resource_snapshot(c, {field: value})
+            assert field not in resources
+            json.dumps(resources, allow_nan=False)
+        for value in (0, maximum):
+            resources = await receive_resource_snapshot(c, {field: value})
+            assert resources[field] == value
+    asyncio.run(run())
+
+
+def test_playback_duck_active_requires_an_actual_boolean():
+    async def run():
+        c = connection()
+        for value in (0, 1, 'true', None, float('nan'), float('inf')):
+            resources = await receive_resource_snapshot(c, {'barge_duck_active': value})
+            assert 'barge_duck_active' not in resources
+        for value in (False, True):
+            resources = await receive_resource_snapshot(c, {'barge_duck_active': value})
+            assert resources['barge_duck_active'] is value
+    asyncio.run(run())
+
+
+def test_nonfinite_and_invalid_legacy_counters_cannot_poison_resource_status():
+    async def run():
+        c = connection()
+        resources = await receive_resource_snapshot(c, {
+            'aec_frames': float('nan'), 'aec_reference_frames': float('inf'),
+            'aec_process_max_us': float('-inf'), 'barge_wakes': -1,
+            'barge_taps': True, 'input_blocks': 2**64, 'encode_drops': '0',
+            'audio_input_stack_hwm_bytes': 1216, 'aec_ready': True,
+        })
+        assert resources == {
+            'audio_input_stack_hwm_bytes': 1216, 'audio_input_stack_hwm_units': 'bytes',
+            'aec_ready': True, 'underrun_measurement': 'not_instrumented',
+        }
+        json.dumps(resources, allow_nan=False)
+    asyncio.run(run())
+
+
 def test_legacy_ui_visible_wire_ack_is_only_lvgl_refresh_evidence():
     async def run():
         c = connection()

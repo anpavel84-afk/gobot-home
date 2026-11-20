@@ -146,6 +146,60 @@ def barge_aec_evidence(before, after):
             'human_wake_or_echo_rejection_accepted':False}
 
 
+BARGE_SR_COUNTERS=('wake_barge_frames','wake_barge_gaps',
+                   'wake_barge_processing_overrun_frames')
+
+
+def barge_sr_baseline_available(resources):
+    return all(type(resources.get(key)) is int and 0<=resources[key]<=2**63-1
+               for key in BARGE_SR_COUNTERS)
+
+
+def barge_sr_evidence(before, after):
+    """Prove mode-3 detector progress during the same real AEC/reference work.
+
+    These boot-lifetime counters measure execution, not recognition quality.
+    No detected wake or model response is required or manufactured by the tone.
+    """
+    aec=barge_aec_evidence(before, after)
+    if not barge_sr_baseline_available(before):
+        raise ValueError('barge_sr_baseline_missing')
+    if (not barge_sr_baseline_available(after) or
+            type(after.get('wake_barge_process_max_us')) is not int or
+            not 0<=after['wake_barge_process_max_us']<=2**63-1):
+        raise ValueError('barge_sr_resources_missing')
+    deltas={key:after[key]-before[key] for key in BARGE_SR_COUNTERS}
+    if deltas['wake_barge_frames']<=0:
+        raise ValueError('barge_sr_no_new_mode3_detector_processing')
+    if deltas['wake_barge_gaps']!=0:
+        raise ValueError('barge_sr_capture_gaps_or_counter_reset')
+    if deltas['wake_barge_processing_overrun_frames']!=0:
+        raise ValueError('barge_sr_processing_overrun_or_counter_reset')
+    if not 0<after['wake_barge_process_max_us']<=32000:
+        raise ValueError('barge_sr_combined_processing_exceeded_frame_time')
+    evidence={'mode3_detector_processed':True,
+        **{key:after[key] for key in (*BARGE_SR_COUNTERS,'wake_barge_process_max_us')},
+        'new_wake_barge_frames':deltas['wake_barge_frames'],
+        'new_wake_barge_gaps':deltas['wake_barge_gaps'],
+        'new_processing_overrun_frames':deltas['wake_barge_processing_overrun_frames'],
+        'new_aec_frames':aec['new_aec_frames'],
+        'new_reference_frames':aec['new_reference_frames'],
+        'audio_input_stack_hwm_bytes':aec['audio_input_stack_hwm_bytes'],
+        'minimum_required_stack_margin_bytes':512,'frame_duration_us':32000,
+        'timing_scope':'completed_aec_frame_plus_mode3_detector_ingestion',
+        'acoustic_or_human_acceptance':False,
+        'human_wake_or_echo_rejection_accepted':False}
+    # A final frame's scalar magnitudes help diagnose a silent detector path.
+    # They neither export PCM nor claim that the tone proves human recognition.
+    level_keys=('aec_mic_avg_abs','aec_ref_avg_abs','aec_clean_avg_abs',
+                'aec_mic_peak','aec_ref_peak','aec_clean_peak')
+    if (type(after.get('aec_level_frame')) is int and 0<after['aec_level_frame']<=2**63-1 and
+            all(type(after.get(key)) is int and 0<=after[key]<=32768 for key in level_keys)):
+        evidence['last_aec_frame_levels']={'aec_level_frame':after['aec_level_frame'],
+                                          **{key:after[key] for key in level_keys}}
+    return evidence
+
+
 def expected_close_reason(*,unmute_requested,stopping,sent_code,received_code,
                           received_before_sent=None):
     # An explicit peer error never becomes success because local cleanup also
@@ -168,8 +222,10 @@ async def run(args):
         'empty_fixture_transports':0,'fixture_pcm24_samples':0,'actual_wake_events':0,
         'playback_started':[],'whole_playback_finished':[],'segments_finished':[],
         'capture_floors':[],'connections':[],'steps':[],'errors':[]}
-    require_aec=getattr(args,'require_barge_aec',False)
+    require_sr=getattr(args,'require_barge_sr',False)
+    require_aec=getattr(args,'require_barge_aec',False) or require_sr
     report['barge_aec_required']=require_aec
+    report['barge_sr_required']=require_sr
     active=False
     first=True
     stopping=False
@@ -207,6 +263,9 @@ async def run(args):
                 await wait_until(lambda:connection.stats.get('device_resources',{}).get('aec_ready') is True and
                     all(type(connection.stats['device_resources'].get(key)) is int for key in
                         ('aec_frames','aec_reference_frames')),8)
+            if require_sr:
+                await wait_until(lambda:barge_sr_baseline_available(
+                    connection.stats.get('device_resources',{})),8)
             aec_before=dict(connection.stats.get('device_resources',{}))
             await brain.sound('hardware-whole')
             await wait_until(lambda:'hardware-whole' in report['whole_playback_finished'])
@@ -221,6 +280,11 @@ async def run(args):
                     aec_before[key] for key in ('aec_frames','aec_reference_frames')),8)
                 report['barge_aec']=barge_aec_evidence(aec_before,connection.stats['device_resources'])
                 report['steps'].append('barge_aec_hardware_reference_processed')
+            if require_sr:
+                await wait_until(lambda:connection.stats.get('device_resources',{}).get('wake_barge_frames',0)>
+                    aec_before['wake_barge_frames'],8)
+                report['barge_sr']=barge_sr_evidence(aec_before,connection.stats['device_resources'])
+                report['steps'].append('barge_sr_mode3_detector_processed')
             await asyncio.sleep(.2)
             brain.emit('followup',mode='fast')
             await wait_until(lambda:brain.bytes_received>=48000)
@@ -306,13 +370,15 @@ async def run(args):
         'cancel_dma_receipt','mute_stops_capture','unmute_fresh_capture_confirmed')) and report['distinct_capture_epochs']>=2 and not report['errors']
     if require_aec:
         report['pass']=report['pass'] and 'barge_aec_hardware_reference_processed' in report['steps']
+    if require_sr:
+        report['pass']=report['pass'] and 'barge_sr_mode3_detector_processed' in report['steps']
     args.report.parent.mkdir(parents=True,exist_ok=True)
     args.report.write_text(json.dumps(report,indent=2),encoding='utf-8')
     print(json.dumps({k:v for k,v in report.items() if k!='connections'}),flush=True)
     return 0 if report['pass'] else 1
 
 
-if __name__=='__main__':
+def argument_parser():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config',type=Path,default=ROOT/'data/hardware/gobot-v1/gateway.json')
     parser.add_argument('--report',type=Path,required=True)
@@ -320,4 +386,10 @@ if __name__=='__main__':
     parser.add_argument('--execute',action='store_true')
     parser.add_argument('--require-barge-aec',action='store_true',
         help='Require real AEC/reference processing and input-task margin during the quiet tone.')
-    raise SystemExit(asyncio.run(run(parser.parse_args())))
+    parser.add_argument('--require-barge-sr',action='store_true',
+        help='Also require mode-3 WakeNet processing, continuous frames and combined real-time margin.')
+    return parser
+
+
+if __name__=='__main__':
+    raise SystemExit(asyncio.run(run(argument_parser().parse_args())))

@@ -1,0 +1,58 @@
+{
+  "schema": "sophia-wake-duck-investigation-v1",
+  "date": "2026-11-20",
+  "timezone": "America/Sao_Paulo",
+  "owner_report": "wake word does not interrupt the current spoken answer; reduce playback volume on wake",
+  "owner_acoustic_acceptance": false,
+  "runtime_commit": "24fef121e9170a5b6fb1f20ea29dc9557ab30d0c",
+  "source_head": "e30263bfd6d8cc44c600b0955027094a3c410120",
+  "last_verified_installed_app": "0.4.19-dev-sophia-touch-v4",
+  "gateway_snapshot_unix_seconds": 1795214385.9470623,
+  "observed_device_counters": {
+    "aec_ready": true,
+    "aec_frames": 1200,
+    "aec_reference_frames": 1180,
+    "aec_process_max_us": 24011,
+    "barge_wakes": 0,
+    "barge_taps": 5,
+    "encode_drops": 0,
+    "audio_input_stack_hwm_bytes": 1216,
+    "interrupt_pending": false
+  },
+  "idle_uart_observation": {
+    "seconds": 30.193,
+    "numeric_snapshots": 6,
+    "inference_frames_per_5_seconds": [156, 156, 156, 157, 156, 156],
+    "gaps": 0,
+    "failed_reads": 0,
+    "playback_during_observation_confirmed": false,
+    "commands_sent": 0,
+    "raw_audio_saved": false,
+    "household_text_exported": false
+  },
+  "source_findings": {
+    "playback_wake_input": "hardware-reference AEC output",
+    "aec_mode": "AEC_MODE_FD_LOW_COST",
+    "aec_nlp_level": "AEC_NLP_LEVEL_AGGR",
+    "separate_playback_duck_present": false,
+    "current_accepted_wake_action": "immediate cancel followed by physical quiet and correlated Brain Stop ACK",
+    "microphone_reference_channel_order_verified": true,
+    "aec_sample_rate_hz": 16000,
+    "aec_frame_samples": 512,
+    "detector_model": "wn10_sophia",
+    "detector_mode": "DET_MODE_95"
+  },
+  "hypothesis": "Full-duplex aggressive nonlinear processing may suppress near-end wake speech; recognition-oriented linear SR mode is a candidate correction, not proof of the cause of a particular missed word.",
+  "primary_reference": "https://docs.espressif.com/projects/esp-sr/en/latest/esp32s3/acoustic_echo_cancellation/README.html",
+  "exact_sdk": {
+    "esp_sr_version": "2.6.2",
+    "esp_aec_header_sha256": "249d98eb33d344caafcd83dfafff1ba0f9b563147fa5a1ef8fddfcf3e006c8cf",
+    "active_audio_input_stack_bytes": 12288,
+    "data_cache_kb": 32
+  },
+  "limitations": [
+    "Existing accepted-wake counter cannot distinguish failure to recognize from rejection of a detected callback.",
+    "AEC process timing excludes WakeNet inference; combined timing must be measured.",
+    "No human audio was recorded or exported and no paid model test was started."
+  ]
+}

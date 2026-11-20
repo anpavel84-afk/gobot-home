@@ -83,11 +83,18 @@ def test_runtime_status_separates_stale_gateway_and_unknown_cost(tmp_path):
                   'sessions': [{'session_id': 'private-id', 'conversation_id': 'private-dialogue',
                      'ready': True, 'lifecycle': {'home_context_status': 'pending', 'text': 'private'}}]},
         'device': {'device_protocol_confirmed': True, 'cloud_ready': True,
-                   'device_resources': {'underrun_measurement': 'not_instrumented', 'raw': 'private'}}}
+                   'device_resources': {'underrun_measurement': 'not_instrumented', 'raw': 'private',
+                       'host_wake_mode': 3, 'wake_barge_frames': 31,
+                       'aec_mic_avg_abs': 320, 'aec_clean_avg_abs': 120,
+                       'pcm_samples': [100, -80], 'transcript': 'private'}}}
     safe = safe_runtime_status(payload, observed_at=100, gateway_observed_at=80)
     assert safe['status'] == 'stale' and not safe['gateway_fresh']
     assert safe['brain']['status']['budget']['reported_response_estimate_usd'] is None
     assert safe['device']['device_resources']['underrun_measurement'] == 'not_instrumented'
+    assert safe['device']['device_resources']['host_wake_mode'] == 3
+    assert safe['device']['device_resources']['wake_barge_frames'] == 31
+    assert safe['device']['device_resources']['aec_clean_avg_abs'] == 120
+    assert 'pcm_samples' not in safe['device']['device_resources']
     assert 'private' not in json.dumps(safe) and 'never-export' not in json.dumps(safe)
     assert safe_runtime_status(payload, observed_at=100, gateway_observed_at=99)['status'] == 'connected'
     assert not safe_runtime_status(payload, observed_at=100, gateway_observed_at=150)['gateway_fresh']
