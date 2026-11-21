@@ -2,9 +2,9 @@
   "schema": "sophia-common-knowledge-v1",
   "date": "2026-11-21",
   "timezone": "America/Sao_Paulo",
-  "stage": "prepared_not_installed",
-  "source_candidate_commit": null,
-  "installed": false,
+  "stage": "installed_and_runtime_verified",
+  "source_candidate_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+  "installed": true,
   "baseline": {
     "source_head": "bf1449e2ca50f760d2361bc7251ec1db21257ae7",
     "runtime_commit": "0965de9fc4b95f418aeb7ea11699f8570fe601f6",
@@ -52,7 +52,8 @@
     "latest_release_and_high_consequence_guards_preserved": true,
     "calculator_and_private_memory_keep_existing_tools": true,
     "action_transcript_validation_preserved": true,
-    "browser_and_device_receive_same_prompt_contract": true
+    "browser_and_device_receive_same_prompt_contract": true,
+    "current_record_guard_excludes_instructional_methods": true
   },
   "validation": {
     "local_gate": {
@@ -65,8 +66,16 @@
       "wall_seconds": 32.829,
       "log_sha256": "934dc100bd8364bd79a35bcda0ce3db85e9a5c3beccaab841c0451b3806663b8"
     },
-    "windows_gate": "pending_final_run",
-    "windows_test_file_count_planned": 21,
+    "windows_gate": {
+      "passed": 654,
+      "subtests_passed": 118,
+      "test_files": 21,
+      "deselected": 0,
+      "pytest_seconds": 103.76,
+      "gate_seconds": 106.52,
+      "summary": "654 passed, 118 subtests passed in 103.76s (0:01:43)",
+      "receipt_sha256": "124c554fad9d5a8fa53d0b7c681957a94df9e94f611e940847c702f3990537ee"
+    },
     "local_environment_deselection": "tests/test_native_handoff.py::test_streaming_a_transport_reuses_question_without_second_stt",
     "local_environment_deselection_reason": "aiortc_unavailable_locally_present_on_windows",
     "test_transport": "mock",
@@ -81,18 +90,65 @@
         "current_record_guard_excludes_jokes_and_instructional_methods"
       ],
       "blocking_findings_remaining": 0
+    },
+    "final_read_only_postcheck": {
+      "passed": true,
+      "seconds": 12.062,
+      "checked_at_utc": "2026-11-21T10:27:55.186331+00:00",
+      "checked_at_local": "2026-11-21T07:27:55.186331-03:00",
+      "runtime_code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+      "session": {
+        "state": "ready",
+        "input_mode": "fast",
+        "ready": true,
+        "capture_connected": true,
+        "muted": false,
+        "generation_allowed": true,
+        "expert_active": false
+      },
+      "active_inputs": 0,
+      "active_turns": 0,
+      "active_voice_streams": 0,
+      "device_protocol_confirmed": true,
+      "cloud_ready": true,
+      "last_error": null,
+      "transport_deltas": {
+        "received_packets": 166,
+        "application_keepalives_sent": 2,
+        "device_control_messages": 2
+      },
+      "receipt_sha256": "1f51dd158b817cb0e68bbd8bdc14c3449832023c064026300e67913c432658bc"
     }
   },
   "deployment": {
-    "state": "not_started",
+    "state": "installed_and_verified",
     "feature_branch": "feat/sophia-common-knowledge-20261121",
     "integration_branch": "feat/host-integrator-sophia-unified-20261118",
     "firmware_change_required": false,
-    "source_only_idle_guarded_deployment_planned": true,
     "policy_or_grant_changes": 0,
     "owner_setting_changes": 0,
     "usage_ledger_reset": false,
-    "master_merge": false
+    "master_merge": false,
+    "runtime_code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+    "firmware_changed": false,
+    "rollback_needed": false,
+    "isolated_source_rollback_reapply_passed": true,
+    "source_only_idle_guarded_deployment_completed": true,
+    "source_wip_preserved": true,
+    "source_usage_unchanged": true,
+    "preservation_counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    },
+    "source_receipt_sha256": "142d641f340fff9363e9d19c58ef88684fed0da436b0ee8b3309740e707b3947",
+    "local_http_verified": true,
+    "private_https_verified": true,
+    "served_assets_verified": true,
+    "feature_published": true,
+    "integration_published": true,
+    "pr_14_remains_draft": true
   },
   "privacy": {
     "raw_audio_saved": false,
@@ -103,7 +159,6 @@
   "limitations": [
     "The exact provider events behind the owner's reported refusal were not recovered.",
     "Deterministic handler tests do not prove how the live model will phrase its next answer.",
-    "The change does not connect a general web search or a fact verification provider.",
-    "Prepared source has not yet been installed; firmware remains unchanged."
+    "The change does not connect a general web search or a fact verification provider."
   ]
 }
