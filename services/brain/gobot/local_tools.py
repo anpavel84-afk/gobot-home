@@ -27,6 +27,45 @@ class LocalTools:
             return {'timer_list_expires':snapshot[0],'timer_list_ids':list(snapshot[1])}
     def clear_timer_context(self,req):
         with self.target_lock:self.timer_targets.pop(self.timer_scope(req),None)
+    def working_memory(self,req):
+        """Current scoped dialogue is available independently of private archives.
+
+        Verification here concerns the provenance of conversation records, not
+        whether an assertion previously made by the assistant was factually true.
+        """
+        from .context_manager import ContextManager
+        recall=self.memory.recall(req)
+        source_ids=recall.get('source_ids',[])
+        context={'messages':recall.get('messages',[]),'summary':recall.get('summary',''),
+                 'summary_sources':source_ids,
+                 '_memory_meta':{'version':recall.get('context_version',0),
+                                 'coverage':recall.get('coverage','partial_working_context')}}
+        packet=ContextManager(recent=1000,summary=500).pack(req.text,context,'FAST_CHAT')
+        messages=packet['messages'];summary=packet['summary']
+        evidence={'method':'memory_source','verified':False,'facts_verified':False,
+                  'external_sources_checked':False,'private_archive_checked':False,
+                  'scope':'current_conversation','context_version':recall.get('context_version',0),
+                  'coverage':recall.get('coverage','partial_working_context'),
+                  'source_message_ids':packet['_context_meta']['source_message_ids'],
+                  'reason':recall.get('reason','no_relevant_working_context'),
+                  'ordinary_conversation_available':True}
+        if not recall.get('useful') or not (messages or summary):
+            evidence.update(abstained=True,status='not_found',source_records_verified=False)
+            return ToolResult('Сейчас не нахожу эту часть разговора в доступном контексте. Уточни тему или напомни, о чём шла речь.',evidence=evidence)
+        records=[]
+        for item in messages:
+            label='Пользователь' if item['role']=='user' else ('Ответ Софии, воспроизведённый пользователю' if item.get('heard') is True else 'Ответ модели; воспроизведение не подтверждено')
+            if item.get('content_complete') is False:label+=' (неполный фрагмент)'
+            records.append(label+': '+item['content'])
+        if summary:records.append('Рабочая сводка с источниками; её покрытие ограничено: '+summary)
+        answer='В доступной рабочей памяти найдены материалы этой беседы:\n'+'\n'.join(records)
+        evidence.update(status='matched',verified=True,source_records_verified=True,
+                        verification_scope='conversation_record_only',
+                        canonical_answer=messages[0]['content'] if messages else summary,
+                        source_records=[{key:item[key] for key in
+                            ('id','turn_id','role','heard','status','content_complete','excerpted') if key in item}
+                            for item in messages])
+        return ToolResult(answer,evidence=evidence)
     def execute(self,tool,req,slots=None):
         text=req.text.lower()
         slots=slots or {}
@@ -81,6 +120,7 @@ class LocalTools:
         if tool=='home':return ToolResult('Это управление домом ещё не подключено или не разрешено. Команда устройствам не отправлена.')
         if tool=='control':return ToolResult('Остановлено.' if text in {'стоп','остановись','отмена','хватит','отмени'} else 'Сейчас нет действия, ожидающего подтверждения.')
         if tool=='memory':
+            if not req.remember:return self.working_memory(req)
             if not req.device_id.startswith('personal:'):return ToolResult('Для персональной истории сначала подтверди профиль PIN-кодом в разделе «Семья».',evidence={'abstained':True})
             if re.search(r'недел|за (?:семь|7) дней',text):
                 rows=self.memory.archive.period(req.device_id,time.time()-7*86400,time.time())

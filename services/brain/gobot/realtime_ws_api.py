@@ -7,6 +7,9 @@ import asyncio
 import contextlib
 import hmac
 import json
+import math
+import re
+import time
 from collections import deque
 
 import anyio
@@ -21,6 +24,77 @@ from .realtime_provider import RealtimeProviderError
 # its cancellation frame nor the close handshake may wait behind a stalled send.
 _TERMINAL_SEND_TIMEOUT = .5
 _TERMINAL_CLOSE_TIMEOUT = 2.
+
+_MEMORY_LOOKUP_STATES = frozenset({'disabled','ready','configuration_unavailable',
+    'searching','hot_context_unavailable','no_related_context','delivered_late',
+    'delivered_before_answer','lookup_timeout','lookup_unavailable','supplement_requested',
+    'context_ack_unconfirmed'})
+_MEMORY_SUMMARY_STATES = frozenset({'idle','unconfigured','budget_wait','queued','stale',
+    'input_over_budget','budget_busy_or_already_attempted','counting','generating',
+    'input_or_daily_budget_exceeded','applied','stale_or_rejected','cancelled',
+    'invalid_or_unconfirmed_result','count_or_key_unavailable','usage_unknown',
+    'count_unavailable','worker_failed','invalidated','completed','not_generated'})
+_MEMORY_ERRORS = frozenset({'working_memory_owner_binding_required',
+    'working_memory_change_requires_idle','working_memory_unavailable',
+    'working_memory_policy_fields','working_memory_policy_boolean',
+    'working_memory_ttl_range','working_memory_policy_invalid',
+    'working_memory_policy_capacity','voice_source_not_mounted'})
+
+
+def safe_working_memory_status(value):
+    """Public owner diagnostics, never transcript, scope IDs, sources or secrets."""
+    value=value if isinstance(value,dict) else {}
+    def fields(obj,booleans=(),numbers=()):
+        obj=obj if isinstance(obj,dict) else {}
+        result={key:obj[key] for key in booleans if type(obj.get(key)) is bool}
+        for key in numbers:
+            number=obj.get(key)
+            if type(number) not in (int,float) or number<0:continue
+            try:
+                if math.isfinite(number):result[key]=number
+            except OverflowError:pass
+        return result
+    result=fields(value,('available','enabled','private_archive','diagnostics_available'),
+                  ('supplements_per_question',))
+    if value.get('trigger')=='every_question':result['trigger']='every_question'
+    policy=value.get('policy',{})
+    result['policy']=fields(policy,('enabled','persist','summarize','background','supplement'),('ttl_seconds',))
+    lookup=value.get('lookup',{})
+    result['lookup']=fields(lookup,(),('queries','useful_results','supplements','discarded',
+        'hot_messages','hot_tokens','last_lookup_ms','last_sources'))
+    if isinstance(lookup,dict):
+        state=lookup.get('state')
+        result['lookup']['state']=state if isinstance(state,str) and state in _MEMORY_LOOKUP_STATES else 'unavailable'
+        omitted=lookup.get('omitted')
+        if isinstance(omitted,list):
+            allowed={'unheard_assistant_excluded','orphan_answer_excluded',
+                'recent_exchange_over_budget','recent_exchange_excerpted','legacy_summary_contains_diagnostics',
+                'summary_overlaps_recent_sources','summary_over_budget','facts_fragment_over_budget',
+                'retrieved_fragment_over_budget'}
+            result['lookup']['omitted']=[item for item in omitted[:24] if isinstance(item,str) and item in allowed]
+    working=value.get('working',{})
+    result['working']=fields(working,('enabled','persistence_requested','persisted'),
+        ('version','ttl_seconds','source_count','available_exchanges','completed_exchanges',
+         'restored_exchanges','expires'))
+    if isinstance(working,dict):
+        if isinstance(working.get('summary_kind'),str) and working['summary_kind'] in {'grounded_semantic_working_summary','attributed_working_sources'}:
+            result['working']['summary_kind']=working['summary_kind']
+        if working.get('coverage')=='scoped_partial_working_memory':result['working']['coverage']=working['coverage']
+        error=working.get('error')
+        result['working']['error']=error if error is None or isinstance(error,str) and error in {
+            'checkpoint_decryption_unavailable','checkpoint_encryption_or_write_unavailable'} else 'unavailable'
+    worker=value.get('summary_worker',{})
+    result['summary_worker']=fields(worker,('enabled_for_scope','active'),
+        ('daily_token_limit','primary_usage_fraction_limit','known_primary_tokens',
+         'scope_tokens_used_or_reserved','global_tokens_used_or_reserved','available_tokens',
+         'unknown_usage_attempts','queued','spoken_responses_created'))
+    if isinstance(worker,dict):
+        if worker.get('model')=='gpt-6-luna':result['summary_worker']['model']=worker['model']
+        if isinstance(worker.get('budget_day_utc'),str) and re.fullmatch(r'\d{4}-\d{2}-\d{2}',worker['budget_day_utc']):
+            result['summary_worker']['budget_day_utc']=worker['budget_day_utc']
+        state=worker.get('last_state')
+        result['summary_worker']['last_state']=state if isinstance(state,str) and state in _MEMORY_SUMMARY_STATES else 'unavailable'
+    return result
 
 
 def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_token):
@@ -40,6 +114,60 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
     def expert_active(session):
         active = getattr(getattr(session, 'experts', None), 'active', False)
         return bool(active() if callable(active) else active)
+
+    def memory_session(source,device_id,client_id,owner_test_binding=None):
+        if (not isinstance(source,str) or source not in managers or
+                not all(isinstance(value,str) and 0<len(value)<=256 for value in (device_id,client_id)) or
+                owner_test_binding is not None and
+                (not isinstance(owner_test_binding,str) or not 0<len(owner_test_binding)<=256)):
+            raise HTTPException(422,'working_memory_exact_device_required')
+        manager=manager_for(source)
+        active=[session for session in sessions_for(manager,device_id)
+                if session.offer.client_id==client_id and
+                session.offer.owner_test_binding==owner_test_binding]
+        if len(active)!=1:raise HTTPException(409,'voice_device_not_connected')
+        flow=getattr(active[0],'memory_flow',None)
+        if flow is None:raise HTTPException(409,'working_memory_unavailable')
+        return flow
+
+    @app.get('/api/v1/voice-ws/memory',dependencies=[Depends(auth)])
+    async def memory_status(source:str='device',device_id:str='',client_id:str='',
+                            owner_test_binding:str|None=None):
+        try:
+            flow=memory_session(source,device_id,client_id,owner_test_binding)
+            state=await asyncio.to_thread(flow.status)
+            if asyncio.iscoroutine(state):state=await state
+            return JSONResponse({'memory':safe_working_memory_status(state),'observed_at':time.time()},
+                                headers={'Cache-Control':'no-store'})
+        except PermissionError as error:
+            raise HTTPException(403,str(error) if str(error) in _MEMORY_ERRORS else 'working_memory_unavailable') from None
+        except (ValueError,OSError,RuntimeError):
+            raise HTTPException(503,'working_memory_unavailable') from None
+
+    @app.post('/api/v1/voice-ws/memory',dependencies=[Depends(auth)])
+    async def memory_control(request:Request):
+        data=await bounded_json(request,2000)
+        if set(data)-{'source','device_id','client_id','owner_test_binding','action','values','confirm'}:
+            raise HTTPException(422,'invalid_working_memory_control')
+        try:
+            flow=memory_session(data.get('source'),data.get('device_id'),data.get('client_id'),data.get('owner_test_binding'))
+            if data.get('action')=='configure' and set(data)<= {'source','device_id','client_id','owner_test_binding','action','values'}:
+                from .working_memory_policy import WorkingMemoryPolicyStore
+                values=WorkingMemoryPolicyStore.validate(data.get('values'))
+                state=await flow.set_policy(values)
+            elif data.get('action')=='clear' and set(data)<= {'source','device_id','client_id','owner_test_binding','action','confirm'}:
+                if data.get('confirm') is not True:raise HTTPException(422,'working_memory_clear_confirmation_required')
+                state=await flow.clear()
+            else:raise HTTPException(422,'invalid_working_memory_control')
+            return JSONResponse({'accepted':True,'memory':safe_working_memory_status(state),'observed_at':time.time()},
+                                headers={'Cache-Control':'no-store'})
+        except PermissionError as error:
+            raise HTTPException(403,str(error) if str(error) in _MEMORY_ERRORS else 'working_memory_unavailable') from None
+        except ValueError as error:
+            code=str(error) if str(error) in _MEMORY_ERRORS else 'invalid_working_memory_control'
+            raise HTTPException(409 if code=='working_memory_change_requires_idle' else 422,code) from None
+        except (OSError,RuntimeError,RealtimeProviderError):
+            raise HTTPException(503,'working_memory_unavailable') from None
 
     @app.get('/api/v1/voice-ws/status', dependencies=[Depends(auth)])
     async def status(source: str = 'device', device_id: str = '', client_id: str = '',

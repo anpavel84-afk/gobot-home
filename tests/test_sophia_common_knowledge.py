@@ -123,13 +123,15 @@ def test_freshness_explicit_verification_and_high_consequence_stay_guarded(query
     ('Что мы обсуждали вчера?', 'memory'),
     ('Как меня зовут?', 'memory'),
 ])
-def test_exact_calculation_and_private_memory_keep_their_real_tools(tmp_path, settings, query, tool):
+def test_exact_calculation_and_scoped_memory_keep_their_real_tools(tmp_path, settings, query, tool):
     async def run():
         original, board, manager, session = await setup(tmp_path, settings)
         operations = []
+        requests = []
         execute = session.manager.brain.tools.execute
         def recorded(name, req, slots):
             operations.append(name)
+            requests.append(req)
             return execute(name, req, slots)
         async def respond():
             pass
@@ -145,7 +147,16 @@ def test_exact_calculation_and_private_memory_keep_their_real_tools(tmp_path, se
             if tool == 'calculator':
                 assert result['evidence']['verified'] and '5461' in result['text']
             else:
-                assert result['evidence']['abstained'] and 'PIN' in result['text']
+                assert requests[0].remember is False
+                assert result['evidence']['abstained'] and 'PIN' not in result['text']
+                assert result['evidence']['status'] == 'not_found'
+                assert result['evidence']['scope'] == 'current_conversation'
+                assert result['evidence']['source_message_ids'] == []
+                assert result['evidence']['private_archive_checked'] is False
+                # An explicit private archive request still needs identity;
+                # the current-conversation path cannot confer archive access.
+                private = execute('memory', requests[0].model_copy(update={'remember': True}), {})
+                assert private.evidence['abstained'] and 'PIN' in private.text
         finally:
             await cleanup(original, board, manager)
     asyncio.run(run())

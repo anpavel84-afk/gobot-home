@@ -19,3 +19,5 @@
 .source-proof.source-failed{border-color:#d7ab8d;background:#fff7f0;color:#744e36}
 
 .skill-intro{margin-bottom:22px}
+
+.memory-warning{padding:13px 15px;margin-bottom:18px;border:1px solid #e5c595;border-radius:9px;background:#fff8eb;color:#7a5528;font-size:.875rem;line-height:1.6}.memory-controls .field{margin-bottom:22px}.memory-controls .toggle-field>div{min-width:0}.memory-controls+.section-actions{flex-wrap:wrap}.memory-controls~.note{margin-top:18px}

@@ -81,6 +81,9 @@ class NativeTurn:
     expert_intent_seen:bool=False
     active_response_id:str|None=None
     continuation:bool=False
+    input_revision:int=0
+    memory_supplement:bool=False
+    generation_sequence:int=0
 
 from .voice_visual import VoiceVisualSession
 
@@ -313,6 +316,7 @@ class NativeSession(VoiceVisualSession):
 
     async def input_text(self,turn,text):
         if turn.query and turn.query!=text:return
+        if turn.query!=text or not turn.input_revision:turn.input_revision+=1
         turn.query=text
         turn.input_ready.set()
         if not turn.req:
@@ -735,10 +739,10 @@ class NativeSession(VoiceVisualSession):
         if turn.req:
             # Interrupted audio is not archived as if it was heard. User question remains scoped.
             if turn.continuation:
-                if heard:await asyncio.to_thread(self.manager.brain.memory.complete_native_continuation,turn.req,turn.answer,'openai:'+self.policy.model,turn.trace)
+                if heard:await asyncio.to_thread(self.manager.brain.memory.complete_native_continuation,turn.req,turn.answer,'openai:'+self.policy.model,turn.trace,complete=not turn.truncated)
             else:
                 await asyncio.to_thread(self.manager.brain.memory.finish,turn.req,'incomplete' if heard and turn.truncated else 'completed' if heard else 'cancelled',turn.answer if heard else '',
-                                        'openai:'+self.policy.model,turn.trace)
+                                        'openai:'+self.policy.model,turn.trace,heard=heard)
         if heard and turn is self.current:self.emit('turn_complete',heard=True,incomplete=turn.truncated)
 
     async def interrupt(self):

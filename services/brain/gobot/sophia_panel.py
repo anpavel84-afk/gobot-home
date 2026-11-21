@@ -436,6 +436,53 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
         admin_authenticate(request, write=True)
         return await control(request)
 
+    async def memory_proxy(body=None):
+        from .realtime_ws_api import safe_working_memory_status
+        try:
+            config,auth=await asyncio.to_thread(connection)
+            # A panel caller cannot supply a principal or select another device.
+            scope={'source':'device','device_id':config['device_id'],'client_id':config['device_id']}
+            async with client_factory(trust_env=False,timeout=12) as client:
+                if body is None:response=await client.get(backend+'/memory',headers=auth,params=scope)
+                else:response=await client.post(backend+'/memory',headers=auth,json={**body,**scope})
+            value=response.json()
+            if not isinstance(value,dict):raise HTTPException(503,'working_memory_unavailable')
+            if response.status_code!=200:
+                codes={'working_memory_owner_binding_required','working_memory_change_requires_idle',
+                    'working_memory_unavailable','working_memory_policy_fields','working_memory_policy_boolean',
+                    'working_memory_ttl_range','working_memory_policy_invalid','working_memory_policy_capacity',
+                    'working_memory_clear_confirmation_required','voice_device_not_connected',
+                    'invalid_working_memory_control'}
+                code=value.get('detail') if isinstance(value,dict) else None
+                raise HTTPException(response.status_code,code if isinstance(code,str) and code in codes else 'working_memory_unavailable')
+            if body is not None and value.get('accepted') is not True:
+                raise HTTPException(503,'working_memory_unavailable')
+            return JSONResponse({'memory':safe_working_memory_status(value.get('memory')),
+                'observed_at':time.time(),**({'accepted':True} if body is not None and value.get('accepted') is True else {})},
+                headers=ADMIN_HEADERS)
+        except (OSError,ValueError,KeyError,httpx.HTTPError):
+            raise HTTPException(503,'working_memory_unavailable') from None
+
+    @app.get('/api/sophia/admin/memory')
+    async def admin_memory_status(request:Request):
+        admin_authenticate(request)
+        if request.query_params:raise HTTPException(422,'invalid_working_memory_control')
+        return await memory_proxy()
+
+    @app.post('/api/sophia/admin/memory')
+    async def admin_memory_control(request:Request):
+        admin_authenticate(request,write=True)
+        from .realtime_api import bounded_json
+        from .working_memory_policy import WorkingMemoryPolicyStore
+        body=await bounded_json(request,1500)
+        if body.get('action')=='configure' and set(body)=={'action','values'}:
+            try:WorkingMemoryPolicyStore.validate(body['values'])
+            except ValueError as error:raise HTTPException(422,str(error)) from None
+        elif body.get('action')=='clear' and set(body)=={'action','confirm'}:
+            if body['confirm'] is not True:raise HTTPException(422,'working_memory_clear_confirmation_required')
+        else:raise HTTPException(422,'invalid_working_memory_control')
+        return await memory_proxy(body)
+
     @app.post('/api/sophia/browser/bind')
     async def browser_bind(request: Request):
         boundary(request, mutation=True)

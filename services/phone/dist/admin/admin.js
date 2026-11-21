@@ -58,6 +58,8 @@
   let candidates = [], toastTimer = null, busy = false, loading = false, loadSequence = 0;
   let problem = '', conflict = false, lastLoaded = 0, actionError = '', pendingApply = null;
   let reviewAfterVerify = false;
+  let memoryState=null,memoryDraft=null,memoryProblem='',memoryBusy=false,memoryLoading=false,memoryConflict=false,memoryObserved=null,memoryReadGeneration=0;
+  const MEMORY_FIELDS=['enabled','ttl_seconds','persist','summarize','background','supplement'];
   const errorMessages = {
     sophia_admin_private_owner_only:'Панель доступна локально на PLAN или через приватный адрес Tailscale владельца.',
     sophia_admin_owner_binding_unavailable:'Не удалось прочитать привязку владельца панели. Требуется восстановление настройки на PLAN.',
@@ -95,6 +97,15 @@
     voice_device_not_connected:'Колонка сейчас не подключена к голосовому серверу.',
     conversation_busy:'Сейчас идёт реплика. Дождитесь её окончания или остановите ответ.',
     voice_control_unavailable:'Команда не подтверждена голосовым сервером. Обновите состояние перед повтором.',
+    working_memory_owner_binding_required:'Рабочая память настраивается для подключённой колонки владельца.',
+    working_memory_change_requires_idle:'Сейчас идёт разговор. Дождитесь окончания реплики или остановите ответ, затем повторите изменение памяти.',
+    working_memory_unavailable:'Не удалось прочитать состояние памяти колонки. Обновите его перед изменением настроек.',
+    working_memory_policy_fields:'Сервер не принял набор настроек памяти. Обновите страницу.',
+    working_memory_policy_boolean:'Проверьте переключатели памяти и сохраните настройки снова.',
+    working_memory_ttl_range:'Срок рабочей памяти должен быть от одного до 24 часов.',
+    working_memory_policy_invalid:'Настройки памяти на PLAN требуют проверки. Новые значения не подтверждены.',
+    working_memory_clear_confirmation_required:'Подтвердите очистку рабочей памяти в окне проверки.',
+    invalid_working_memory_control:'Сервер не принял изменение памяти. Обновите настройки и повторите выбор.',
     operation_id_conflict:'Такая операция уже существует с другими значениями. Обновите настройки.',
     request_failed:'Не удалось связаться с PLAN. Проверьте сеть и Tailscale, затем обновите страницу.',
     request_timeout:'Сервер не ответил вовремя. Результат сохранения пока неизвестен — проверьте состояние.',
@@ -146,8 +157,27 @@
   const session = () => runtime().brain?.sessions?.[0] || {};
   const device = () => runtime().device || {};
   const admission = () => runtime().brain?.admission || {};
-  const canEdit = () => saved !== null && !problem && !busy && !conflict && !pendingApply;
+  const canEdit = () => saved !== null && !problem && !busy && !memoryBusy && !conflict && !pendingApply;
   const hasChanges = () => saved !== null && (draftEnabled !== saved.enabled || !!draftCandidate);
+  const memoryHasChanges=()=>!!memoryState?.policy&&!!memoryDraft&&MEMORY_FIELDS.some(key=>memoryDraft[key]!==memoryState.policy[key]);
+  const memoryCanEdit=()=>memoryState?.available===true&&!memoryProblem&&!memoryBusy&&!busy&&!memoryConflict;
+  function acceptMemory(value,{reset=false}={}) {
+    const next=value?.memory,policy=next?.policy;
+    if(!next||!policy||typeof policy.enabled!=='boolean'||!Number.isInteger(policy.ttl_seconds)||MEMORY_FIELDS.filter(key=>key!=='ttl_seconds').some(key=>typeof policy[key]!=='boolean')){
+      const error=new Error('invalid_memory_status');error.code='working_memory_unavailable';throw error;
+    }
+    const dirty=memoryHasChanges();
+    if(reset||!memoryDraft||!dirty||MEMORY_FIELDS.every(key=>memoryDraft[key]===policy[key])){memoryDraft=clone(policy);memoryConflict=false;}
+    else if(MEMORY_FIELDS.some(key=>policy[key]!==memoryState.policy[key]))memoryConflict=true;
+    memoryState=next;memoryObserved=value.observed_at;memoryProblem='';
+  }
+  async function loadMemory({reset=false,renderPage=false}={}) {
+    if(memoryLoading||memoryBusy)return;
+    memoryLoading=true;const generation=memoryReadGeneration;
+    try{const value=await api('/memory');if(generation===memoryReadGeneration)acceptMemory(value,{reset});}
+    catch(error){if(generation===memoryReadGeneration)memoryProblem=humanError(error);}
+    finally{memoryLoading=false;if(renderPage&&!memoryBusy)render();}
+  }
   function modeName(mode) { return mode==='fast'?'Быстрый разговор':mode==='expert'?'Эксперт':'Не получен'; }
   function phaseName() {
     if (problem || !snapshot) return 'Нет свежих данных';
@@ -175,12 +205,14 @@
     return typeof app?.message === 'string'?app.message:'Сохранение действует для погоды этой колонки. Получение ответа на колонке подтверждается отдельно.';
   }
   function skillState(s) {
+    if(s.id==='memory')return !memoryState||memoryProblem?'unknown':memoryState.enabled?'configured':'check';
     if (s.id==='fast') return !snapshot||problem?'unknown':ready()&&session().generation_allowed===true?'configured':'check';
     if (s.id==='expert') return !snapshot||problem?'unknown':session().selected_expert?'configured':'check';
     if (s.id==='weather') return !saved||problem?'unknown':saved.enabled&&saved.location_name?'configured':'check';
     return s.status;
   }
   function skillSetting(s) {
+    if(s.id==='memory')return !memoryState||memoryProblem?'Состояние не получено':memoryState.enabled?`Рабочая память · ${memoryState.policy.ttl_seconds/3600} ч`:'Рабочая память выключена';
     if (s.id==='weather') return !saved?'Профиль ещё не загружен':saved.enabled?(saved.location_name||'Выберите город'):'Погода выключена';
     if (s.id==='expert') return session().selected_expert?.model || 'Профиль не получен';
     if (s.id==='fast') return !snapshot?'Состояние не загружено':phaseName();
@@ -191,10 +223,11 @@
     $('connectionLabel').textContent=problem?'Нет связи':snapshot?'PLAN · подключено':'Подключение…';
     $('connectionStrip').classList.toggle('connection-error',!!problem);
     $('connectionDescription').textContent=problem || (snapshot?`Настройки колонки Spotpear. Обновлено ${dateTime(snapshot.observed_at || lastLoaded)}. Сохранение меняет настройки на PLAN.`:'Загружаем настройки колонки с PLAN…');
-    $('refreshButton').disabled=loading||busy;
+    $('refreshButton').disabled=loading||busy||memoryBusy;
     const count=saved?Number(draftEnabled!==saved.enabled)+Number(!!draftCandidate):0;
-    $('reviewButton').disabled=!count||busy||!!problem||conflict||!!pendingApply;
-    $('reviewButton').textContent=count?`Проверить изменения · ${count}`:'Нет изменений';
+    const memoryOnly=!count&&memoryHasChanges();
+    $('reviewButton').disabled=memoryOnly?!memoryCanEdit():!count||busy||memoryBusy||!!problem||conflict||!!pendingApply;
+    $('reviewButton').textContent=memoryOnly?'Проверить память':count?`Проверить изменения · ${count}`:'Нет изменений';
   }
   function acceptSnapshot(value,{reset=false}={}) {
     if (!value || !value.target || typeof value.revision!=='string' || typeof value.settings?.weather?.enabled!=='boolean') {
@@ -210,10 +243,10 @@
     lastLoaded=Date.now();problem='';
   }
   async function load({manual=false,reset=false}={}) {
-    if (loading || busy) return;
+    if (loading || busy || memoryBusy) return;
     loading=true;const seq=++loadSequence;updateHeader();
     try {
-      const value=await api('/snapshot');
+      const [value]=await Promise.all([api('/snapshot'),loadMemory()]);
       if (seq!==loadSequence)return;
       acceptSnapshot(value,{reset});
       if (manual || conflict || !$('settingsDialog').open && !$('reviewDialog').open) render();
@@ -302,9 +335,36 @@
     return heading('Устройства','Настройки и состояние выбранной физической колонки.','УСТРОЙСТВА ДОМА')+
       `<div class="two-col"><div class="stack">${panel('София · Spotpear','Текущий серверный профиль',`<div class="hero-device"><div class="large-face" aria-hidden="true"><i></i><i></i></div><div><h2>Ваша колонка</h2><p>${esc(phaseName())}</p>${chip('Выбрана','blue')}</div></div><dl>${row('Основа пробуждения',esc(runtime().wake_baseline || 'Не получена'))}${row('Версия прошивки',esc(device().firmware_version || 'Не передана в текущем API'))}${row('Подтверждение протокола',deviceConnected()?'Есть':'Не получено')}</dl><div class="section-actions">${button('Разговор и микрофон','go','data-page="voice"')}</div>`)}${panel('Громкость и экран','Эти параметры пока не подключены к управлению текущей прошивкой',fields(['device.volume','device.brightness','device.nightDisplay']))}</div><div class="stack">${panel('Название и оформление','Будущие настройки устройства',fields(['device.name','device.room','display.face','display.reduceMotion']))}${panel('Браузер — отдельное устройство','Панель не превращает этот браузер в микрофон колонки',`<p>Для голосового разговора в браузере используется существующая отдельная привязка. Эта страница только управляет выбранной колонкой.</p><div class="section-actions"><a class="button" href="/sophia">Открыть разговорную панель</a></div>`)}</div></div>`;
   }
+  function memoryControls() {
+    if(!memoryState)return `<p>${esc(memoryProblem||'Читаем состояние рабочей памяти…')}</p>${button('Обновить память','memory-refresh',memoryLoading?'disabled':'')}`;
+    const policy=memoryDraft||memoryState.policy,disabled=memoryCanEdit()?'':'disabled';
+    const toggle=(key,label,hint)=>`<div class="toggle-field"><div><label class="field-label" for="memory-${key}">${esc(label)}</label><span class="field-hint" id="memory-${key}-hint">${esc(hint)}</span></div><label class="switch"><input id="memory-${key}" type="checkbox" data-memory-field="${key}" ${policy[key]?'checked':''} ${disabled} aria-describedby="memory-${key}-hint"><span class="switch-track"></span></label></div>`;
+    const hours=policy.ttl_seconds/3600,choices=[1,4,12,24];if(!choices.includes(hours))choices.push(hours);choices.sort((a,b)=>a-b);
+    return (memoryProblem?`<p class="memory-warning" role="status">${esc(memoryProblem)}</p>`:'')+
+      (memoryConflict?`<p class="memory-warning" role="status">Политика изменилась на сервере. Обновите значения и заново выберите нужное изменение.</p>`:'')+
+      (memoryState.available!==true?`<p class="note">Настройка доступна для подключённой колонки владельца.</p>`:'')+
+      `<div class="memory-controls">${toggle('enabled','Рабочая память беседы','Учитывать предыдущие вопросы, ответы и рабочие сводки. Выключение очищает рабочий контекст.')}
+      <div class="field"><label class="field-label" for="memory-ttl">Срок рабочей памяти</label><select id="memory-ttl" data-memory-field="ttl_seconds" ${disabled}>${choices.map(value=>`<option value="${value*3600}" ${value===hours?'selected':''}>${value} ч</option>`).join('')}</select><span class="field-hint">Каждый фрагмент остаётся доступен в пределах этого срока. Можно очистить память раньше.</span></div>
+      ${toggle('persist','Переживать перезапуск PLAN','Сохранять зашифрованный временный снимок. Он имеет тот же срок хранения.')}
+      ${toggle('background','Проверять контекст на каждый вопрос','Искать полезные связи с разговором параллельно с ответом, без слова «помнишь».')}
+      ${toggle('supplement','Дополнять текущий ответ','Разрешить одно короткое дополнение по полезной поздней находке. Оно учитывается как часть расходов разговора.')}
+      ${toggle('summarize','Собирать смысловые сводки','Обновлять цели, условия и открытые вопросы в пределах отдельного ограниченного бюджета.')}</div>
+      <div class="section-actions">${button('Проверить и сохранить','memory-review',memoryCanEdit()&&memoryHasChanges()?'':'disabled','primary')}${button('Обновить','memory-refresh',memoryBusy||memoryLoading?'disabled':'')}${memoryHasChanges()||memoryConflict?button(memoryConflict?'Загрузить значения сервера':'Отменить изменения','memory-discard',memoryBusy||memoryLoading?'disabled':''):''}${button('Очистить память','memory-clear',memoryCanEdit()?'':'disabled','danger')}</div>
+      <p class="note">Изменение и очистка выполняются между репликами. Личная история семьи имеет отдельные права доступа.</p>`;
+  }
+  function memoryDiagnostics() {
+    if(!memoryState)return `<p>${esc(memoryProblem||'Состояние ещё не получено.')}</p>`;
+    const current=memoryState.working||{},lookup=memoryState.lookup||{},worker=memoryState.summary_worker||{};
+    const number=(value)=>typeof value==='number'?String(value):'Не получено';
+    const lookupLabels={ready:'Готова к следующему вопросу',disabled:'Выключена',searching:'Ищет связанный контекст',no_related_context:'Полезных дополнений не найдено',delivered_before_answer:'Контекст передан до ответа',delivered_late:'Контекст передан во время ответа',supplement_requested:'Короткое дополнение запрошено',lookup_timeout:'Поиск не уложился в срок',lookup_unavailable:'Поиск недоступен',hot_context_unavailable:'Передача текущего контекста требует проверки',configuration_unavailable:'Настройки требуют проверки',context_ack_unconfirmed:'Получение контекста моделью не подтверждено'};
+    const workerLabels={idle:'Ожидает новые завершённые обмены',unconfigured:'Не включена для этой беседы',budget_wait:'Ожидает доступный бюджет',queued:'В очереди',counting:'Проверяет размер контекста',generating:'Собирает сводку',applied:'Сводка обновлена',stale:'Отложено: контекст изменился',stale_or_rejected:'Результат не применён',cancelled:'Обработка отменена',usage_unknown:'Расход уточняется',invalidated:'Прежняя задача отменена',input_over_budget:'Контекст превысил бюджет',input_or_daily_budget_exceeded:'Лимит обработки достигнут',budget_busy_or_already_attempted:'Повторная обработка не запускается',invalid_or_unconfirmed_result:'Результат не прошёл проверку',count_or_key_unavailable:'Проверка модели недоступна',count_unavailable:'Подсчёт недоступен',worker_failed:'Обработчик требует проверки'};
+    let storage=memoryState.policy.persist?(current.persisted?'Зашифрованный снимок сохранён':'Включён; снимок ещё не подтверждён'):'Только оперативная память';
+    if(current.error)storage='Снимок не подтверждён: требуется проверка шифрования или записи';
+    return `<dl>${row('Состояние',chip(memoryState.enabled?'Включена':'Выключена',memoryState.enabled?'green':'gray'))}${row('Фрагментов разговора',esc(number(current.available_exchanges)))}${row('Завершённых обменов',esc(number(current.completed_exchanges)))}${row('Версия контекста',esc(number(current.version)))}${row('После перезапуска восстановлено',esc(number(current.restored_exchanges)))}${row('Хранение',esc(storage))}${row('Последняя проверка',esc(lookupLabels[lookup.state]||'Не получено'))}${row('Проверено вопросов',esc(number(lookup.queries)))}${row('Полезных находок',esc(number(lookup.useful_results)))}${row('Запрошено дополнений',esc(number(lookup.supplements)))}${row('Последний поиск',typeof lookup.last_lookup_ms==='number'?esc(lookup.last_lookup_ms+' мс'):'Не измерен')}${row('Сводка',esc(current.summary_kind==='grounded_semantic_working_summary'?'Смысловая сводка с источниками':current.summary_kind==='attributed_working_sources'?'Рабочие заметки с источниками':'Не получено'))}${row('Фоновая обработка',esc(workerLabels[worker.last_state]||'Не получено'))}${row('Бюджет сводок за день UTC',typeof worker.global_tokens_used_or_reserved==='number'&&typeof worker.daily_token_limit==='number'?esc(worker.global_tokens_used_or_reserved+' / '+worker.daily_token_limit+' токенов'):'Не получено')}${row('Неуточнённых расходов',esc(number(worker.unknown_usage_attempts)))}${row('Обновлено',esc(dateTime(memoryObserved)))}</dl><p class="note">Здесь только состояния и счётчики. Тексты беседы, ключи и личный архив в панель не передаются.</p>`;
+  }
   function renderPrivacy() {
     return heading('Люди и память','Права управления отделены от личности собеседника и личной памяти.','ДОСТУП И ДАННЫЕ')+
-      `<div class="two-col"><div class="stack">${panel('Доступ к настройкам','Проверяется сервером для этой панели',`<ul class="service-list"><li><div><strong>Владелец панели</strong><small>Локальный доступ PLAN или разрешённая учётная запись Tailscale</small></div>${chip(snapshot&&!problem?'Доступ подтверждён':'Не подтверждён',snapshot&&!problem?'green':'amber')}</li><li><div><strong>Собеседник колонки</strong><small>Голос не даёт прав владельца панели</small></div>${chip('Отдельная проверка','blue')}</li><li><div><strong>Личный архив</strong><small>На этой странице не загружается</small></div>${chip('Нет доступа')}</li></ul>`)}${panel('Память разговора','Краткий контекст и личная память — разные механизмы',`<p>Ответ учитывается как услышанный после подтверждения окончания воспроизведения. Долговременная личная память требует отдельного подтверждения личности и согласия.</p>`+fields(['privacy.memory']))}</div><div class="stack">${panel('Текстовый журнал','Панель не извлекает домашние реплики',fields(['privacy.debug','privacy.retention']))}${panel('Что хранится в панели','Личные данные остаются в существующей системе',`<ul class="check-list"><li>${icon('server')}<span>Настройки сохраняются на PLAN в профиле этой колонки.</span></li><li>${icon('lock')}<span>Ключи сервисов не возвращаются в браузер.</span></li><li>${icon('mic')}<span>Панель не запрашивает микрофон и не записывает звук.</span></li><li>${icon('history')}<span>В истории видны изменения настроек без текстов разговоров.</span></li></ul>`)}</div></div>`;
+      `<div class="two-col"><div class="stack">${panel('Рабочая память беседы','Настройки действуют для этой колонки',memoryControls())}${panel('Доступ к настройкам','Проверяется сервером для этой панели',`<ul class="service-list"><li><div><strong>Владелец панели</strong><small>Локальный доступ PLAN или разрешённая учётная запись Tailscale</small></div>${chip(snapshot&&!problem?'Доступ подтверждён':'Не подтверждён',snapshot&&!problem?'green':'amber')}</li><li><div><strong>Собеседник колонки</strong><small>Голос не даёт прав владельца панели</small></div>${chip('Отдельная проверка','blue')}</li><li><div><strong>Личный архив</strong><small>На этой странице не загружается</small></div>${chip('Нет доступа')}</li></ul>`)}</div><div class="stack">${panel('Состояние памяти','Данные текущего Brain на PLAN',memoryDiagnostics())}${panel('Текстовый журнал','Панель не извлекает домашние реплики',fields(['privacy.debug','privacy.retention']))}${panel('Что хранится в панели','Личные данные остаются в существующей системе',`<ul class="check-list"><li>${icon('server')}<span>Настройки сохраняются на PLAN для этой колонки.</span></li><li>${icon('lock')}<span>Ключи сервисов не возвращаются в браузер.</span></li><li>${icon('mic')}<span>Панель не запрашивает микрофон и не записывает звук.</span></li><li>${icon('history')}<span>Рабочая память и диагностический журнал имеют отдельные сроки и очистку.</span></li></ul>`)}</div></div>`;
   }
   function renderCosts() {
     const budget=runtime().brain?.status?.budget || null;
@@ -357,7 +417,38 @@
   }
   function showDialog(content) { dialogSequence++;$('dialogContent').innerHTML=content;if(!$('settingsDialog').open)$('settingsDialog').showModal(); }
   function closeDialog() { dialogSequence++;cityRequest++;$('settingsDialog').close(); }
+  let memoryReview=null;
+  function openMemoryReview() {
+    if(!memoryCanEdit()||!memoryHasChanges())return;
+    memoryReview=clone(memoryDraft);
+    const names={enabled:'Рабочая память беседы',ttl_seconds:'Срок хранения',persist:'Переживать перезапуск PLAN',background:'Проверка на каждый вопрос',supplement:'Короткое дополнение',summarize:'Смысловые сводки'};
+    const format=(key,value)=>key==='ttl_seconds'?`${value/3600} ч`:changeValue(value);
+    const changes=MEMORY_FIELDS.filter(key=>memoryReview[key]!==memoryState.policy[key]);
+    const body=`<div class="dialog-body"><div class="review-list">${changes.map(key=>`<div class="review-row"><strong>${esc(names[key])}</strong><div class="review-values"><span>${esc(format(key,memoryState.policy[key]))}</span>${icon('chevron')}<strong>${esc(format(key,memoryReview[key]))}</strong></div></div>`).join('')}</div><p class="note">Настройка применяется между репликами. ${memoryReview.enabled?'Фоновая проверка использует контекст этой колонки.':'Выключение удалит текущую рабочую память и её временный снимок.'}</p><div class="action-message" id="memoryActionError" role="alert"></div></div>`;
+    showDialog(dialogShell('Проверить настройки памяти','Изменения для подключённой колонки владельца.',body,button('Отмена','close-dialog','','subtle')+button('Сохранить память на PLAN','memory-apply','','primary'),'ПАМЯТЬ БЕСЕДЫ'));
+  }
+  function openMemoryClear() {
+    if(!memoryCanEdit())return;
+    showDialog(dialogShell('Очистить рабочую память?','Текущая беседа начнётся с пустого контекста.',`<div class="dialog-body"><p>Будут удалены вопросы, ответы, рабочие сводки и временный зашифрованный снимок этой беседы. Очистка применяется между репликами и не запускает голосовой ответ.</p><p class="note">Настройки памяти сохранятся. Личный архив и диагностический журнал имеют отдельную очистку. Удалённый рабочий контекст восстановить нельзя.</p><div class="action-message" id="memoryActionError" role="alert"></div></div>`,button('Отмена','close-dialog','','subtle')+button('Очистить сейчас','memory-clear-confirm','','danger'),'ПАМЯТЬ БЕСЕДЫ'));
+  }
+  async function changeMemory(action) {
+    if(!memoryCanEdit())return;
+    if(action==='configure'&&(!memoryReview||MEMORY_FIELDS.some(key=>memoryReview[key]!==memoryDraft[key]))){closeDialog();toast('Черновик изменился. Проверьте настройки ещё раз.');return;}
+    const body=action==='clear'?{action:'clear',confirm:true}:{action:'configure',values:clone(memoryReview)};
+    memoryBusy=true;memoryReadGeneration++;updateHeader();
+    document.querySelectorAll('#dialogContent button').forEach(button=>button.disabled=true);
+    try {
+      const value=await api('/memory',body);
+      if(value.accepted!==true){const error=new Error('memory_ack_missing');error.code='request_timeout';throw error;}
+      acceptMemory(value,{reset:action==='configure'});memoryReview=null;closeDialog();
+      toast(action==='clear'?'Сервер подтвердил очистку рабочей памяти.':'Настройки памяти сохранены на PLAN.');
+    } catch(error) {
+      memoryProblem=humanError(error);closeDialog();
+      toast(!error.status||error.status>=500?'Подтверждение изменения памяти не получено. Обновите состояние перед следующим действием.':memoryProblem);
+    } finally {memoryBusy=false;render();}
+  }
   function openSkill(id,tab='settings') {
+    if(id==='memory'){closeDialog();navigate('privacy');loadMemory({renderPage:true});return;}
     const s=data.skills.find(x=>x.id===id);if(!s)return;openedSkill=id;skillTab=tab;
     let content='';
     if(tab==='overview')content=badge(skillState(s))+`<p>${esc(s.detail)}</p><div class="quote">${esc(s.example)}</div><dl>${row('Сервис',esc(s.service))}${row('Разговорный режим',esc(s.mode))}${row('Устройство','Spotpear')}</dl>`;
@@ -529,6 +620,7 @@
       device_protocol_confirmed:device().device_protocol_confirmed===true,voice_ready:session().ready===true,mode:session().input_mode || device().mode || null,
       phase:device().voice_phase || session().state || null,voice:device().voice || session().voice || null,
       weather:{enabled:saved?.enabled===true,provider:saved?.provider || null,location_configured:!!saved?.location_name,check:proof?{verified:proof.verified===true,checked_at:proof.checked_at,expires_at:proof.expires_at,duration_ms:proof.duration_ms,data_age_seconds:proof.data_age_seconds}:null},
+      working_memory:memoryProblem?{available:false}:memoryState,
       measured_voice_latency:null,dma_underrun_measurement:'not_available',contains_dialogue:false,contains_location:false};
     const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sophia-admin-status.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Скачан отчёт без ключей, города, координат и реплик.');
   }
@@ -539,6 +631,12 @@
     if(action==='refresh')await load({manual:true});
     if(action==='about')about();if(action==='legend')legend();
     if(action==='skill')openSkill(el.dataset.id);
+    if(action==='memory-review')openMemoryReview();
+    if(action==='memory-apply')await changeMemory('configure');
+    if(action==='memory-clear')openMemoryClear();
+    if(action==='memory-clear-confirm')await changeMemory('clear');
+    if(action==='memory-refresh')await loadMemory({renderPage:true});
+    if(action==='memory-discard')await loadMemory({reset:true,renderPage:true});
     if(action==='skill-tab'){openSkill(openedSkill,el.dataset.tab);$('skill-tab-'+el.dataset.tab)?.focus();}
     if(action==='close-dialog')closeDialog();if(action==='close-review')$('reviewDialog').close();
     if(action==='category'){category=el.dataset.category;$('skillResults').innerHTML=skillRows();document.querySelectorAll('[data-action="category"]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.category===category)));announceFilters();}
@@ -568,6 +666,10 @@
   });
   document.addEventListener('change',event=>{
     const el=event.target;if(el.id==='statusFilter'){filterStatus=el.value;$('skillResults').innerHTML=skillRows();announceFilters();}
+    if(MEMORY_FIELDS.includes(el.dataset.memoryField)&&memoryCanEdit()){
+      memoryDraft[el.dataset.memoryField]=el.dataset.memoryField==='ttl_seconds'?Number(el.value):el.checked;
+      updateHeader();render();
+    }
     if(el.dataset.field==='weather.enabled'&&canEdit()){
       draftEnabled=el.checked;
       if(!draftEnabled&&draftCandidate){draftCandidate=null;draftProof=null;}
@@ -587,11 +689,11 @@
     }
   });
   $('settingsDialog').addEventListener('cancel',()=>{dialogSequence++;cityRequest++;});
-  $('reviewButton').addEventListener('click',()=>openReview());
+  $('reviewButton').addEventListener('click',()=>memoryHasChanges()&&!hasChanges()?openMemoryReview():openReview());
   $('menuButton').addEventListener('click',openMobile);$('mobileNavClose').addEventListener('click',()=>closeMobile(true));$('mobileBackdrop').addEventListener('click',()=>closeMobile(true));
   $('sidebar').addEventListener('click',event=>{if(narrowScreen.matches&&event.target.closest('a')){closeMobile();$('main').focus({preventScroll:true});}});
   window.addEventListener('hashchange',()=>{closeMobile();render();window.scrollTo(0,0);$('main').focus({preventScroll:true});});
-  window.addEventListener('beforeunload',event=>{if(hasChanges()||pendingApply){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(hasChanges()||memoryHasChanges()||pendingApply||memoryBusy){event.preventDefault();event.returnValue='';}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
   render();closeMobile();load({manual:true});
   setInterval(()=>{if(!document.hidden&&!busy&&!loading&&!pendingApply)load();},15000);
