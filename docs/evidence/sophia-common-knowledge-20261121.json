@@ -1,0 +1,109 @@
+{
+  "schema": "sophia-common-knowledge-v1",
+  "date": "2026-11-21",
+  "timezone": "America/Sao_Paulo",
+  "stage": "prepared_not_installed",
+  "source_candidate_commit": null,
+  "installed": false,
+  "baseline": {
+    "source_head": "bf1449e2ca50f760d2361bc7251ec1db21257ae7",
+    "runtime_commit": "0965de9fc4b95f418aeb7ea11699f8570fe601f6",
+    "firmware": "0.4.20-dev-sophia-duck-v4"
+  },
+  "reported_problem": {
+    "public_example_from_owner_request": "Какой самый быстрый летательный аппарат?",
+    "reported_reply_category": "fact_check_unavailable_instead_of_general_knowledge_answer",
+    "exact_session_trace_recovered": false,
+    "model_tool_call_in_reported_turn_proven": false
+  },
+  "source_findings": {
+    "ordinary_example_requires_external_verification": false,
+    "ordinary_example_has_quick_operation": false,
+    "previous_unmatched_native_tool_fallback": "generic_function_unavailable_text",
+    "previous_prompt_explicit_common_knowledge_guidance": false,
+    "scope": "source_analysis_and_mock_transport_reproduction_not_recovered_household_trace"
+  },
+  "changes": {
+    "paths": [
+      "services/brain/gobot/realtime.py",
+      "services/brain/gobot/quality.py",
+      "tests/test_sophia_common_knowledge.py"
+    ],
+    "ordinary_questions": "current_native_model_answers_directly_without_required_tool_or_expert",
+    "ambiguity": "briefly_distinguish_relevant_categories_or_ask_one_short_clarification",
+    "aircraft_answer_hardcoded": false,
+    "unmatched_tool_output": {
+      "status": "no_matching_server_operation",
+      "executed": false,
+      "ordinary_conversation_available": true,
+      "text": "",
+      "evidence": {
+        "method": "no_matching_server_operation",
+        "verified": false,
+        "server_action_executed": false,
+        "external_sources_checked": false
+      }
+    },
+    "unmatched_operation_is_not_knowledge_authorization": true,
+    "unmatched_operation_does_not_propose_expert": true,
+    "source_requirement_uses_actual_transcript_when_available": true,
+    "explicit_online_checks_still_require_sources": true,
+    "explicit_current_records_still_require_sources": true,
+    "latest_release_and_high_consequence_guards_preserved": true,
+    "calculator_and_private_memory_keep_existing_tools": true,
+    "action_transcript_validation_preserved": true,
+    "browser_and_device_receive_same_prompt_contract": true
+  },
+  "validation": {
+    "local_gate": {
+      "passed": 653,
+      "deselected": 1,
+      "subtests_passed": 118,
+      "dependency_deprecation_warnings": 1,
+      "exit_code": 0,
+      "pytest_seconds": 32.18,
+      "wall_seconds": 32.829,
+      "log_sha256": "934dc100bd8364bd79a35bcda0ce3db85e9a5c3beccaab841c0451b3806663b8"
+    },
+    "windows_gate": "pending_final_run",
+    "windows_test_file_count_planned": 21,
+    "local_environment_deselection": "tests/test_native_handoff.py::test_streaming_a_transport_reuses_question_without_second_stt",
+    "local_environment_deselection_reason": "aiortc_unavailable_locally_present_on_windows",
+    "test_transport": "mock",
+    "production_handlers_exercised": true,
+    "actual_model_answer_tested": false,
+    "automated_model_calls": 0,
+    "human_voice_acceptance_claimed": false,
+    "independent_source_review": {
+      "completed": true,
+      "findings_resolved": [
+        "fact_word_inflections_do_not_match_factorization",
+        "current_record_guard_excludes_jokes_and_instructional_methods"
+      ],
+      "blocking_findings_remaining": 0
+    }
+  },
+  "deployment": {
+    "state": "not_started",
+    "feature_branch": "feat/sophia-common-knowledge-20261121",
+    "integration_branch": "feat/host-integrator-sophia-unified-20261118",
+    "firmware_change_required": false,
+    "source_only_idle_guarded_deployment_planned": true,
+    "policy_or_grant_changes": 0,
+    "owner_setting_changes": 0,
+    "usage_ledger_reset": false,
+    "master_merge": false
+  },
+  "privacy": {
+    "raw_audio_saved": false,
+    "household_transcripts_exported": false,
+    "credentials_exported": false,
+    "example_origin": "owner_supplied_current_chat_question"
+  },
+  "limitations": [
+    "The exact provider events behind the owner's reported refusal were not recovered.",
+    "Deterministic handler tests do not prove how the live model will phrase its next answer.",
+    "The change does not connect a general web search or a fact verification provider.",
+    "Prepared source has not yet been installed; firmware remains unchanged."
+  ]
+}
