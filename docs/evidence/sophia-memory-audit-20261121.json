@@ -1,0 +1,264 @@
+{
+  "schema": "sophia-memory-incident-audit-v1",
+  "at_utc": "2026-11-21T20:10:11.409427+00:00",
+  "read_only": true,
+  "window_start_utc": "2026-11-21T16:10:11.130734+00:00",
+  "rows_read": 874,
+  "row_limit_reached": false,
+  "decryption_failures": 0,
+  "runtime": {
+    "runtime_code_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+    "active_turns": 0,
+    "active_voice_streams": 0
+  },
+  "budget": {
+    "sessions_reserved": 9,
+    "response_attempts": 32,
+    "usage_rows": 32,
+    "unknown_or_pending_response_usage": 0
+  },
+  "household_transcripts_exported": false,
+  "raw_audio_saved": false,
+  "new_model_calls": 0,
+  "source_report_sha256": "b9069e13974e94e66833080021b5d25c06c41bc7574f5c180f32b92b809fa348",
+  "selected_turns": [
+    {
+      "session_sha256": "a5975090cfecd91405e1402e59cdd617dd181acf5368bff1c507955cca4d7489",
+      "turn_sha256": "4336517a68eeb640c3ec268e2db5fbc17edeb815e32230ab5fe61ae910677e17",
+      "first_utc": "2026-11-21T18:13:59.082941+00:00",
+      "last_utc": "2026-11-21T18:14:14.524089+00:00",
+      "events": [
+        {
+          "id": 18718,
+          "at_utc": "2026-11-21T18:13:59.082941+00:00",
+          "kind": "input_transcript",
+          "text_characters": 32,
+          "flags": {
+            "fuel_topic": true,
+            "recall_question": false,
+            "memory_mention": false,
+            "no_memory_claim": false,
+            "not_remember_claim": false,
+            "not_store_claim": false,
+            "no_access_claim": false,
+            "past_conversation_scope": false,
+            "current_conversation_scope": false,
+            "long_term_scope": false,
+            "short_term_scope": false,
+            "pin_required_claim": false,
+            "positive_recall_claim": false,
+            "asks_repeat": false
+          },
+          "playback": null,
+          "truncated": null,
+          "response_sha256": null,
+          "text_is_asr_hypothesis": true
+        },
+        {
+          "id": 18866,
+          "at_utc": "2026-11-21T18:14:14.524089+00:00",
+          "kind": "direct_dialogue_turn",
+          "text_characters": 222,
+          "flags": {
+            "fuel_topic": true,
+            "recall_question": false,
+            "memory_mention": false,
+            "no_memory_claim": false,
+            "not_remember_claim": false,
+            "not_store_claim": false,
+            "no_access_claim": false,
+            "past_conversation_scope": false,
+            "current_conversation_scope": false,
+            "long_term_scope": false,
+            "short_term_scope": false,
+            "pin_required_claim": false,
+            "positive_recall_claim": false,
+            "asks_repeat": false
+          },
+          "playback": "client_playback_reported",
+          "truncated": false,
+          "response_sha256": "fef09137867b781c081aa8e69d47da4bf2bd65d4606de0ed43e097d52c41cab1",
+          "text_is_asr_hypothesis": false
+        }
+      ]
+    },
+    {
+      "session_sha256": "a5975090cfecd91405e1402e59cdd617dd181acf5368bff1c507955cca4d7489",
+      "turn_sha256": "64a548b14f3e2c1b818a05df8cd8af448c67b9bf8be9fd21961e336a1a2f78f4",
+      "first_utc": "2026-11-21T20:02:57.621020+00:00",
+      "last_utc": "2026-11-21T20:03:16.797860+00:00",
+      "events": [
+        {
+          "id": 19342,
+          "at_utc": "2026-11-21T20:02:57.621020+00:00",
+          "kind": "input_transcript",
+          "text_characters": 45,
+          "flags": {
+            "fuel_topic": true,
+            "recall_question": true,
+            "memory_mention": true,
+            "no_memory_claim": false,
+            "not_remember_claim": false,
+            "not_store_claim": false,
+            "no_access_claim": false,
+            "past_conversation_scope": false,
+            "current_conversation_scope": false,
+            "long_term_scope": false,
+            "short_term_scope": false,
+            "pin_required_claim": false,
+            "positive_recall_claim": false,
+            "asks_repeat": false
+          },
+          "playback": null,
+          "truncated": null,
+          "response_sha256": null,
+          "text_is_asr_hypothesis": true
+        },
+        {
+          "id": 19497,
+          "at_utc": "2026-11-21T20:03:16.797860+00:00",
+          "kind": "direct_dialogue_turn",
+          "text_characters": 260,
+          "flags": {
+            "fuel_topic": true,
+            "recall_question": true,
+            "memory_mention": true,
+            "no_memory_claim": true,
+            "not_remember_claim": false,
+            "not_store_claim": false,
+            "no_access_claim": false,
+            "past_conversation_scope": true,
+            "current_conversation_scope": false,
+            "long_term_scope": true,
+            "short_term_scope": false,
+            "pin_required_claim": false,
+            "positive_recall_claim": false,
+            "asks_repeat": true
+          },
+          "playback": "client_playback_reported",
+          "truncated": false,
+          "response_sha256": "b9fc60afebcb815dc4a50b2d39ae24693d173e9f7ba02fbd03223b7ce85cc136",
+          "text_is_asr_hypothesis": false
+        }
+      ]
+    }
+  ],
+  "recall_event_counts": {
+    "telemetry": 13,
+    "provider_event": 32,
+    "input_transcript": 1,
+    "provider_command": 4,
+    "input_closed": 2,
+    "audio_start": 1,
+    "generation_done": 1,
+    "audio_stop": 1,
+    "dialogue_turn": 1,
+    "turn_complete": 1,
+    "direct_dialogue_turn": 1,
+    "playback_finished": 1,
+    "followup": 1,
+    "admission_status": 1,
+    "listening": 1
+  },
+  "lifecycle_events": [
+    {
+      "at_utc": "2026-11-21T16:56:37.490853+00:00",
+      "kind": "transport_rotated",
+      "code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+      "data": {}
+    },
+    {
+      "at_utc": "2026-11-21T17:47:37.796545+00:00",
+      "kind": "transport_rotated",
+      "code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+      "data": {}
+    },
+    {
+      "at_utc": "2026-11-21T18:14:30.482808+00:00",
+      "kind": "transport_detached",
+      "code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+      "data": {
+        "reason": "output_backpressure"
+      }
+    },
+    {
+      "at_utc": "2026-11-21T18:28:14.328231+00:00",
+      "kind": "transport_detached",
+      "code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+      "data": {
+        "reason": "client_disconnected"
+      }
+    },
+    {
+      "at_utc": "2026-11-21T18:31:48.159297+00:00",
+      "kind": "ready",
+      "code_commit": "dbc6948824b66c8efdeafd500083c19fbdf2e129",
+      "data": {
+        "input_mode": "fast",
+        "state": "ready"
+      }
+    },
+    {
+      "at_utc": "2026-11-21T18:37:35.620529+00:00",
+      "kind": "transport_detached",
+      "code_commit": "dbc6948824b66c8efdeafd500083c19fbdf2e129",
+      "data": {
+        "reason": "client_disconnected"
+      }
+    },
+    {
+      "at_utc": "2026-11-21T18:38:39.013578+00:00",
+      "kind": "ready",
+      "code_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+      "data": {
+        "input_mode": "fast",
+        "state": "ready"
+      }
+    },
+    {
+      "at_utc": "2026-11-21T19:29:41.233421+00:00",
+      "kind": "transport_rotated",
+      "code_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+      "data": {}
+    }
+  ],
+  "audit_source_commit": "d8e592245fb9a40dd5ed183514d7aec567dcb67d",
+  "report_timezone": "America/Sao_Paulo",
+  "audit_method": {
+    "transcript_handling": "Text decrypted and classified only on PLAN; exported flags, lengths, timestamps and hashed IDs only.",
+    "journal_limitations": "No row cap or decryption failure in this read. Debug journal is bounded and is not claimed to record every provider event losslessly.",
+    "tool_finding": "No recorded tool_request or tool_result for the selected recall turn; PIN-refusal classification is false. Do not attribute this incident to the independently reproduced memory-tool routing defect.",
+    "incident_conclusion": "Completed original exchange preceded Brain process restarts during the preceding playback repair. remember=false transient memory is process-local and is not restored from the journal. The recall also occurred after the independent 3600-second RAM replay limit.",
+    "production_changes_during_audit": false,
+    "new_paid_developer_calls": 0
+  },
+  "offline_verification": {
+    "performed_on_source_commit": "d8e592245fb9a40dd5ed183514d7aec567dcb67d",
+    "code_changes": false,
+    "existing_test_result": {
+      "passed": 71,
+      "duration_seconds": 5.08,
+      "persistent_log_saved": false,
+      "command": ".venv/bin/python -m pytest -q tests/test_context_continuity.py tests/test_context_archive.py tests/test_dialogue_window.py tests/test_realtime_dialogue.py tests/test_realtime_ws.py tests/test_owner_terminal_direct.py tests/test_owner_terminal_expert_history.py"
+    },
+    "synthetic_probe": {
+      "provider": "mock",
+      "persistent_probe_script_saved": false,
+      "persistent_log_saved": false,
+      "output_source": "Tool output in this audit session; temporary database removed.",
+      "model_response_calls": 0,
+      "microphone_audio_calls": 0,
+      "observations": [
+        "Completed synthetic topic remains through stop, wake and follow-up close.",
+        "Detach/reattach with the same logical IDs preserves available RAM context.",
+        "Provider rotation seeds a replacement transport with available RAM context.",
+        "Six subsequent completed exchanges remove the original topic from replay; RAM summary is empty.",
+        "An oversized newest exchange yields zero packed messages with recent_exchange_over_budget.",
+        "A new Memory object on the same database has no transient exchanges.",
+        "Some current-conversation recall phrasings route to private memory and return a PIN refusal even when RAM contains the topic.",
+        "Incomplete/cancelled exchange is excluded by the completed-only RAM replay filter."
+      ]
+    },
+    "limits": "Structural context delivery and local routing verified; no claim of live model recall quality or acoustic acceptance."
+  }
+}
