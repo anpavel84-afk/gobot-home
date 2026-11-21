@@ -42,6 +42,7 @@ _WAKE_NAMES = frozenset({'софия', 'софья', 'sophia', 'sofia'})
 _WAKE_UNMAPPED_MIN_QUESTION_WORDS = 2
 _WAKE_UNMAPPED_MIN_POST_DETECTOR_AUDIO_MS = 1450
 _RESPONSE_CREATED_TIMEOUT_SECONDS = 5.
+_OUTPUT_CAPACITY_TIMEOUT_SECONDS = 5.
 _RESPONSE_REQUEST_RETENTION_SECONDS = 120.
 _RESPONSE_REQUEST_LIMIT = 128
 _HOME_CONTEXT_CHECK_SECONDS = 2.
@@ -107,9 +108,13 @@ class DirectSession(NativeSession):
         if manager.public_expert_budget is not None:
             from .expert_jobs import ExpertJobs
             self.experts = ExpertJobs(self, budget=manager.public_expert_budget)
-        self.outgoing = asyncio.Queue(maxsize=128)
+        from .realtime_output_queue import DirectOutputQueue
+        self.outgoing = DirectOutputQueue()
         self._priority_events = deque()
         self._deferred_wire_event = None
+        self.subscriber_detached = asyncio.Event()
+        self._attachment_lock = asyncio.Lock()
+        self._attachment_epoch = 0
         self.attached = True
         self.detached_at = None
         self.last_detach_reason = None
@@ -232,6 +237,11 @@ class DirectSession(NativeSession):
         super().emit(kind, **data)
         if not hasattr(self, 'outgoing') or not self.attached:
             return
+        if kind == 'text_delta':
+            # These fast-answer caption deltas are observed through the existing
+            # RAM event stream/journal above. Neither direct audio client consumes
+            # them. They must not compete with paced PCM or its end marker.
+            return
         event = {'type': kind, 'session_id': self.id,
                  'conversation_id': self.offer.conversation_id,
                  'turn_id': self.current.id if self.current else None,
@@ -326,7 +336,22 @@ class DirectSession(NativeSession):
                           'chunk_seq': chunk_seq, 'segment_id': segment_id,
                           'sample_rate': 24000, 'format': 'pcm16',
                           'pcm': base64.b64encode(pcm).decode('ascii')}}
-        await asyncio.wait_for(self.outgoing.put(event), 2)
+        epoch = self._attachment_epoch
+        def is_current():
+            return (self.attached and not self.closed and not self.muted and
+                    self._attachment_epoch == epoch and self.output_response == response_id and
+                    self.output_owner == role and response_id not in self.cancelled_responses)
+        try:
+            queued = await asyncio.wait_for(self.outgoing.put(event, is_current=is_current),
+                                            _OUTPUT_CAPACITY_TIMEOUT_SECONDS)
+        except TimeoutError:
+            # A genuinely stalled subscriber is a local output failure, not a
+            # provider failure. Keep reading response.done for append-only usage.
+            if is_current():
+                await self.detach(reason='output_backpressure')
+            return False
+        if not queued or not is_current():
+            return False
         if self.output_sequence == 0:
             self.emit('telemetry', event='first_audio_packet', response_id=response_id,
                       audio_role=role, plan_monotonic=time.monotonic())
@@ -2142,26 +2167,42 @@ class DirectSession(NativeSession):
         return {'muted': muted}
 
     async def detach(self, reason='client_disconnected'):
-        if self.closed:
-            return
-        if self.attached or self.detached_at is None:
+        async with self._attachment_lock:
+            if self.closed:
+                return
+            if not self.attached and self.detached_at is not None:
+                self.subscriber_detached.set()
+                return
             self.detached_at = time.monotonic()
-        self.last_detach_reason = reason if reason in _DETACH_REASONS else 'other'
-        self.attached = False
-        await self.interrupt()
-        self.state = 'detached'
-        while not self.outgoing.empty():
-            self.outgoing.get_nowait()
-        self._priority_events.clear()
-        self._deferred_wire_event = None
-        # Explicit Stop cancels a job; network detach does not.
-        if hasattr(self.experts, 'detach'):
-            self.experts.detach()
-        self.emit('transport_detached', reason=reason, expert_job_preserved=True)
+            self.last_detach_reason = reason if reason in _DETACH_REASONS else 'other'
+            self.attached = False
+            self._attachment_epoch += 1
+            # This signal is separate from the bounded media queue. The API
+            # terminates the actual subscriber even if its writer is blocked;
+            # an internal detach must never leave capture/speaker ownership live.
+            self.subscriber_detached.set()
+            try:
+                await self.interrupt()
+            finally:
+                self.state = 'detached'
+                while not self.outgoing.empty():
+                    self.outgoing.get_nowait()
+                self._priority_events.clear()
+                self._deferred_wire_event = None
+                # Explicit Stop cancels a job; network detach does not.
+                if hasattr(self.experts, 'detach'):
+                    self.experts.detach()
+                self.emit('transport_detached', reason=self.last_detach_reason, expert_job_preserved=True)
 
     async def reattach(self):
+        async with self._attachment_lock:
+            return await self._reattach()
+
+    async def _reattach(self):
         if self.closed or self._closing:
             raise ValueError('logical_conversation_closed')
+        self._attachment_epoch += 1
+        self.subscriber_detached = asyncio.Event()
         self.attached = True
         self._wire_overflow = False
         try:
@@ -2183,6 +2224,8 @@ class DirectSession(NativeSession):
             # returned a session. A failed empty reconnect must release its
             # provisional subscriber itself, without cancelling logical jobs.
             self.attached = False
+            self._attachment_epoch += 1
+            self.subscriber_detached.set()
             if self.detached_at is None:
                 self.detached_at = time.monotonic()
             self.input_open = False
@@ -2482,6 +2525,9 @@ class DirectRealtimeManager(RealtimeManager):
         session.closed_at = time.monotonic()
         session.ready = session.input_open = False
         session.emit('closed', reason=reason)
+        # A blocked subscriber cannot consume the queued closed event. Use the
+        # same out-of-band termination path as an output-pressure detach.
+        session.subscriber_detached.set()
         pending = [session.reader, session._maintenance, *session.tasks]
         for task in pending:
             if task and task is not asyncio.current_task():

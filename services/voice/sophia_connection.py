@@ -25,6 +25,7 @@ from sophia_audio import PcmRing, OrderedOpus, ContinuousPcm24
 # coordinate too. This is read-progress evidence, never an acoustic DMA clock.
 POST_PLAYBACK_CAPTURE_GUARD_SAMPLES = 3200
 INTERRUPT_STOP_ACK_SECONDS = 6.
+TRANSPORT_OUTPUT_CANCEL_SECONDS = 2.
 
 # Fixed numeric observations from the local playback wake path. These are
 # diagnostics, never input authority or acoustic recognition acceptance.
@@ -112,6 +113,7 @@ class SophiaConnection:
         self.mute_control_epoch = 0
         self.tasks = set()
         self.closed = False
+        self.transport_ending = False
         self.capture_completion = None
         self.first_uplink_cursor = None
         self.endpoint = {'started': None, 'last_voice': None, 'noise': 80., 'samples': 0}
@@ -288,9 +290,11 @@ class SophiaConnection:
             return True
 
     async def to_brain(self, obj, *, activation_cursor=None, input_cursor=None, mute_epoch=None):
-        if self.brain is None:
+        if self.brain is None or self.transport_ending:
             raise ValueError('brain_transport_unavailable')
         async with self.brain_send_lock:
+            if self.transport_ending:
+                raise ValueError('brain_transport_unavailable')
             if mute_epoch is not None and mute_epoch != self.mute_control_epoch:
                 return False
             if activation_cursor is not None and not self.activation_current(activation_cursor):
@@ -302,7 +306,8 @@ class SophiaConnection:
             return True
 
     def activation_current(self, cursor):
-        return (not self.closed and not self.muted and self.pending_interrupt is None and
+        return (not self.closed and not self.transport_ending and not self.muted and
+                self.pending_interrupt is None and
                 self.ring.cursor is cursor and not self.ring.blocked)
 
     def device_mute_snapshot(self, obj, *, initial=False):
@@ -428,6 +433,7 @@ class SophiaConnection:
             raise ValueError('sophia_v2_capabilities_required')
         if self.options.get('lan_stream_consent') is not True:
             raise PermissionError('local_stream_consent_required')
+        receiver = None
         try:
             await self.send({'type': 'hello', 'version': 1, 'transport': 'websocket',
                              'audio_params': {'format': 'opus', 'sample_rate': 24000,
@@ -446,24 +452,63 @@ class SophiaConnection:
             self.stats['device_protocol_confirmed'] = True
             self.stats['interruption_protocol'] = (
                 'wake_touch_v1' if ack.get('interruption') == 'wake_touch_v1' else None)
-            core = [self.spawn(self.receive()), self.spawn(self.uplink()),
+            receiver = self.spawn(self.receive())
+            core = [receiver, self.spawn(self.uplink()),
                     self.spawn(self.cloud()), self.spawn(self.status_tick())]
             done, _ = await asyncio.wait(core, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 task.result()
         finally:
+            self.fence_transport_end()
+            try:
+                if self.output is None:
+                    self.stats['output_cleanup_status'] = 'no_output'
+                elif receiver is None or receiver.done():
+                    # A lost device/receipt path cannot prove physical quiet.
+                    # The outer handler closes the device WS as the fallback.
+                    self.stats['output_cleanup_status'] = 'receiver_unavailable'
+                else:
+                    started = self.output.get('start_sent') is True
+                    self.stats['output_cleanup_status'] = 'unconfirmed'
+                    try:
+                        # Keep receive alive for the real stopped ACK. Bound
+                        # the entire cancel, including the device send lock.
+                        await asyncio.wait_for(self.clear_output(), TRANSPORT_OUTPUT_CANCEL_SECONDS)
+                    except Exception:
+                        pass  # Preserve the original transport failure.
+                    else:
+                        self.stats['output_cleanup_status'] = 'stopped_receipt' if started else 'not_started'
+            finally:
+                self.closed = True
+                self.decoder.close()
+                self.resampler = None
+                for task in list(self.tasks):
+                    task.cancel()
+                await asyncio.gather(*list(self.tasks), return_exceptions=True)
+                self.stats['cloud_ready'] = False
+                self.stats['input_open'] = False
+                self.stats['device_protocol_confirmed'] = False
+                self.stats['voice_phase'] = 'muted' if self.muted else 'disconnected'
+
+    def fence_transport_end(self):
+        """Stop producers before awaiting any transport or physical cleanup."""
+        if not self.transport_ending:
             self.stats['input_open_before_cleanup'] = self.stats.get('input_open') is True
             self.stats['output_active_before_cleanup'] = self.output is not None
-            self.closed = True
-            self.forward = False
-            self.decoder.close()
-            self.resampler = None
-            for task in list(self.tasks):
-                task.cancel()
-            await asyncio.gather(*list(self.tasks), return_exceptions=True)
-            self.stats['cloud_ready'] = False
-            self.stats['input_open'] = False
-            self.stats['device_protocol_confirmed'] = False
+        self.transport_ending = True
+        self.cloud_ready.clear()
+        self.stats['cloud_ready'] = False
+        if self.pending_interrupt is not None:
+            self.pending_interrupt['wake'] = None
+        self.fence_interruption('transport_closed')
+        self.ring.stop('transport_closed')
+        self.stats['voice_phase'] = 'muted' if self.muted else 'disconnected'
+
+    async def watch_brain_closed(self, brain):
+        # The event consumer may be pacing a long PCM chunk. Observing the
+        # socket independently prevents it from sleeping out that stale audio.
+        await brain.wait_closed()
+        self.fence_transport_end()
 
     async def status_tick(self):
         while True:
@@ -514,6 +559,8 @@ class SophiaConnection:
             elif kind == 'gobot_host_wake':
                 self.device_activation(obj, trigger='wake_word', control=obj)
             elif kind == 'gobot_host_touch':
+                if self.transport_ending:
+                    continue
                 if obj.get('action') == 'stop':
                     if obj.get('interrupt_requested') is True and isinstance(obj.get('event_id'), str):
                         if (self.pending_interrupt is not None and
@@ -539,6 +586,9 @@ class SophiaConnection:
                 if not self.device_mute_snapshot(obj):
                     continue
                 self.stats['last_physical_control'] = 'mute' if self.muted else 'unmute'
+                if self.transport_ending:
+                    self.fence_transport_end()
+                    continue
                 if self.brain:
                     await self.notify_physical_mute()
                 await self.screen('muted' if self.muted else 'ready')
@@ -601,7 +651,7 @@ class SophiaConnection:
             self.output_credit.set()
 
     def device_activation(self, wake, *, trigger, control):
-        if self.muted:
+        if self.muted or self.transport_ending:
             return False
         ident, sample = wake.get('wake_id'), wake.get('detector_sample')
         if (wake.get('stream_epoch') != self.ring.epoch or not isinstance(ident, str)
@@ -826,6 +876,8 @@ class SophiaConnection:
                                   proxy=None, open_timeout=10, close_timeout=2,
                                   max_size=1048576, max_queue=16) as brain:
             self.brain = brain
+            watcher = (self.spawn(self.watch_brain_closed(brain))
+                       if callable(getattr(brain, 'wait_closed', None)) else None)
             offer = {'session_id': self.logical_session, 'conversation_id': self.conversation,
                      'device_id': self.config['device_id'], 'client_id': self.config['device_id'],
                      'consent': self.config.get('hardware_realtime_consent') is True,
@@ -834,19 +886,27 @@ class SophiaConnection:
                      'personalization_mode': 'guest', 'requested_voice': 'marin',
                      'requested_model': self.options.get('model', 'gpt-realtime-2.1-mini'),
                      'input_mode': self.mode, 'endpointing': self.options.get('endpointing', 'server_450')}
-            await self.to_brain({'type': 'hello', 'source': 'device', 'offer': offer})
-            if self.device_mute_revision is not None:
-                # Reconnection uses the device's actual state. Register the
-                # correlated command before consuming old server state events.
-                await self.notify_physical_mute()
-            async for raw in brain:
-                if not isinstance(raw, str):
-                    raise ValueError('unexpected_brain_binary')
-                event = json.loads(raw)
-                await self.cloud_event(event)
+            try:
+                await self.to_brain({'type': 'hello', 'source': 'device', 'offer': offer})
+                if self.device_mute_revision is not None:
+                    # Reconnection uses the device's actual state. Register the
+                    # correlated command before consuming old server state events.
+                    await self.notify_physical_mute()
+                async for raw in brain:
+                    if not isinstance(raw, str):
+                        raise ValueError('unexpected_brain_binary')
+                    event = json.loads(raw)
+                    await self.cloud_event(event)
+            finally:
+                self.fence_transport_end()
+                if watcher is not None:
+                    watcher.cancel()
+                    await asyncio.gather(watcher, return_exceptions=True)
         self.brain = None
 
     async def cloud_event(self, event):
+        if self.transport_ending:
+            return
         kind, data = event.get('type'), event.get('data', {})
         if self.muted and kind in {'audio_start', 'audio_chunk', 'audio_stop',
                 'audio_segment_done', 'expert_segment_generated', 'input_transcript',

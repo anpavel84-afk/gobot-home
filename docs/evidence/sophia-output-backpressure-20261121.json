@@ -1,0 +1,122 @@
+{
+  "schema": "sophia-output-backpressure-fix-v1",
+  "date": "2026-11-21",
+  "status": "prepared_not_installed",
+  "incident": {
+    "evidence": "actual_PLAN_owner_debug_journal_and_live_gateway_metadata",
+    "private_report_sha256": "26e31209b108ad443ff307a14a172836a83e987fe6eef88bb9011132a3f80ece",
+    "runtime_code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+    "firmware": "0.4.20-dev-sophia-duck-v4",
+    "first_answer": {
+      "audio_start_utc": "2026-11-21T18:14:00.018997Z",
+      "packets_sent": 238,
+      "whole_finish_receipt_utc": "2026-11-21T18:14:14.515605Z",
+      "complete": true
+    },
+    "second_answer": {
+      "audio_start_utc": "2026-11-21T18:14:26.127317Z",
+      "audio_cancel_journal_utc": "2026-11-21T18:14:30.466663Z",
+      "provider_response_cancel_utc": "2026-11-21T18:14:30.467795Z",
+      "transport_detached_utc": "2026-11-21T18:14:30.482808Z",
+      "detach_reason": "output_backpressure",
+      "last_packet_sent_utc": "2026-11-21T18:14:44.348761Z",
+      "packets_sent": 306,
+      "progress_receipts": 153,
+      "last_packets_consumed": 305,
+      "output_end_sent": false,
+      "whole_finish_receipt": false,
+      "physical_cancel_delivered": false,
+      "gateway_phase": "speaking",
+      "session_attached": false,
+      "capture_connected": true,
+      "barge_duck_active": false,
+      "complete": false
+    },
+    "diagnosis": [
+      "Synchronous transcript/control emit shared the 128-event queue with awaited paced PCM and could trigger QueueFull on a healthy subscriber.",
+      "detach set attached=false before interrupt, suppressing delivery of its audio_cancel while still recording it in the journal.",
+      "The API writer watched session.closed only, leaving the actual subscriber WebSocket and capture lease alive after internal detach.",
+      "Gateway drained received audio without an end/cancel and retained its physical output owner and speaking screen."
+    ]
+  },
+  "fix": {
+    "audio_capacity": 64,
+    "control_capacity": 64,
+    "total_queue_capacity": 128,
+    "ordering": "single_FIFO_with_independent_audio_and_control_reservations",
+    "unused_fast_caption_deltas": "preserved_in_existing_RAM_events_and_journal_not_forwarded_on_direct_audio_wire",
+    "stalled_audio_capacity_timeout_seconds": 5,
+    "physical_cancel_cleanup_timeout_seconds": 2,
+    "subscriber_termination_signal_outside_media_queue": true,
+    "blocked_producer_attachment_and_response_guard": true,
+    "lease_release_after_old_detach_and_writer_cleanup": true,
+    "physical_playback_receipt_required_for_heard_context": true,
+    "late_provider_usage_preserved": true,
+    "automatic_paid_response_retry": false
+  },
+  "validation": {
+    "new_test_files": [
+      "tests/test_direct_output_backpressure.py",
+      "tests/test_direct_ws_detach.py",
+      "tests/test_sophia_disconnect_cleanup.py"
+    ],
+    "mock_provider": true,
+    "real_loopback_websocket_backpressure": true,
+    "local_final_gate": {
+      "exit_code": 0,
+      "seconds": 20.66,
+      "tests": [
+        "tests/test_direct_output_backpressure.py",
+        "tests/test_direct_ws_detach.py",
+        "tests/test_sophia_disconnect_cleanup.py",
+        "tests/test_realtime_ws.py",
+        "tests/test_brain_ws_transport.py",
+        "tests/test_unified_voice_api.py",
+        "tests/test_unified_voice_cancellation.py",
+        "tests/test_unified_voice_budget.py",
+        "tests/test_sophia_gateway.py",
+        "tests/test_sophia_hardware_fixture.py",
+        "tests/test_sophia_barge.py",
+        "tests/test_sophia_touch_wire_races.py",
+        "tests/test_sophia_touch_privacy.py",
+        "tests/test_sophia_audio.py",
+        "tests/test_sophia_keepalive.py",
+        "tests/test_sophia_output_metrics.py",
+        "tests/test_sophia_capture_guard.py",
+        "tests/test_playback_buffer_summary.py",
+        "tests/test_sophia_browser.py",
+        "tests/test_owner_terminal_direct.py",
+        "tests/test_owner_terminal_speech.py",
+        "tests/test_owner_terminal_expert_history.py",
+        "tests/test_owner_terminal_policy.py",
+        "tests/test_owner_terminal_journal.py",
+        "tests/test_direct_admission_status.py",
+        "tests/test_direct_input_deadline.py",
+        "tests/test_direct_input_lifecycle.py",
+        "tests/test_direct_wake_recovery.py",
+        "tests/test_sophia_input_transcript_gate.py",
+        "tests/test_sophia_home_refresh.py",
+        "tests/test_sophia_common_knowledge.py",
+        "tests/test_realtime_dialogue.py",
+        "tests/test_sophia_admin.py",
+        "tests/test_sophia_admin_access.py",
+        "tests/test_sophia_terminal_startup.py"
+      ],
+      "log_sha256": "588c50add2d93d12035fce7117b7fe9457c50ea0fc0184c22f4f6e75eab69cc9",
+      "summary": "575 passed, 1 warning in 19.96s"
+    },
+    "PLAN_exact_source_gate": null,
+    "new_live_model_answer": false,
+    "new_acoustic_acceptance": false
+  },
+  "deployment": null,
+  "preservation": {
+    "new_model_calls_by_executor": 0,
+    "firmware_changed": false,
+    "raw_audio_saved_or_exported": false,
+    "household_transcripts_exported": false,
+    "owner_grant_renewed": false,
+    "master_merged": false,
+    "PR_14": "draft"
+  }
+}

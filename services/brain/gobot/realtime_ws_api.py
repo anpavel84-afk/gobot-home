@@ -17,6 +17,12 @@ from .realtime_api import bounded_json
 from .realtime_provider import RealtimeProviderError
 
 
+# A terminal output failure must also terminate the physical subscriber. Neither
+# its cancellation frame nor the close handshake may wait behind a stalled send.
+_TERMINAL_SEND_TIMEOUT = .5
+_TERMINAL_CLOSE_TIMEOUT = 2.
+
+
 def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_token):
     managers = {'browser': browser_manager, 'device': board_manager}
     capture_lock = asyncio.Lock()
@@ -117,7 +123,10 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
         await ws.accept()
         session = None
         owns_capture = False
-        reader = writer = None
+        reader = writer = detached = None
+        terminal_cancel = False
+        error_code = None
+        close_code = 1000
         try:
             raw = await asyncio.wait_for(ws.receive_text(), 8)
             if len(raw.encode()) > 12000:
@@ -219,37 +228,68 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
 
             reader = asyncio.create_task(commands())
             writer = asyncio.create_task(events())
-            done, _ = await asyncio.wait({reader, writer}, return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                task.result()
+            watched = {reader, writer}
+            signal = getattr(session, 'subscriber_detached', None)
+            if signal is not None:
+                # Capture this attachment's event. Reattachment installs a new
+                # event and cannot revive an old subscriber's writer.
+                detached = asyncio.create_task(signal.wait())
+                watched.add(detached)
+            done, _ = await asyncio.wait(watched, return_when=asyncio.FIRST_COMPLETED)
+            if detached in done or signal is not None and signal.is_set():
+                terminal_cancel = True
+                if not session.closed and session.last_detach_reason == 'output_backpressure':
+                    close_code = 1011
+            else:
+                for task in done:
+                    task.result()
         except (WebSocketDisconnect, asyncio.CancelledError):
             pass
         except (PermissionError, ValueError) as error:
-            with contextlib.suppress(Exception):
-                await ws.send_json({'type': 'error', 'data': {'code': str(error)[:160]}})
+            error_code = str(error)[:160]
         except RealtimeProviderError as error:
             code = str(error)
             if code not in {'openai_key_missing', 'realtime_network_error',
                             'realtime_configuration_rejected', 'realtime_settings_not_acknowledged'}:
                 code = 'direct_voice_transport_failed'
-            with contextlib.suppress(Exception):
-                await ws.send_json({'type': 'error', 'data': {'code': code}})
+            error_code = code
         except Exception:
-            with contextlib.suppress(Exception):
-                await ws.send_json({'type': 'error', 'data': {'code': 'direct_voice_transport_failed'}})
+            error_code = 'direct_voice_transport_failed'
         finally:
             # Disconnect can cancel the ASGI scope while its reader/writer are
-            # still unwinding. Always release the capture lease and detach the
-            # output subscriber; otherwise the next connection remains locked.
+            # still unwinding. Keep the capture lease until they have stopped
+            # and detach has finished; otherwise an old finally can detach a
+            # new subscriber which already reclaimed the same logical session.
             with anyio.CancelScope(shield=True):
-                if session and owns_capture:
-                    session._duplex_attached = False
-                for task in (reader, writer):
+                for task in (reader, writer, detached):
                     if task:
                         task.cancel()
-                await asyncio.gather(*(t for t in (reader, writer) if t), return_exceptions=True)
-                if session and owns_capture:
-                    # A dropped transport is not an explicit expert-task cancellation.
-                    await session.detach()
-                with contextlib.suppress(Exception):
-                    await ws.close()
+                await asyncio.gather(*(t for t in (reader, writer, detached) if t), return_exceptions=True)
+                try:
+                    # There is now one writer. The close remains mandatory if
+                    # backpressure prevents delivery of this best-effort cancel.
+                    if terminal_cancel:
+                        with contextlib.suppress(Exception):
+                            await asyncio.wait_for(ws.send_json({'type': 'audio_cancel',
+                                'data': {'response_id': None}}), _TERMINAL_SEND_TIMEOUT)
+                        if session.closed:
+                            close_code = 1000
+                            # The queued close may have been trapped behind
+                            # PCM. Let browser subscribers retire the logical ID
+                            # even when that ordinary queue was never drained.
+                            with contextlib.suppress(Exception):
+                                await asyncio.wait_for(ws.send_json({'type': 'closed',
+                                    'data': {}}), _TERMINAL_SEND_TIMEOUT)
+                    if error_code:
+                        with contextlib.suppress(Exception):
+                            await asyncio.wait_for(ws.send_json({'type': 'error',
+                                'data': {'code': error_code}}), _TERMINAL_SEND_TIMEOUT)
+                    if session and owns_capture:
+                        # A dropped transport is not an explicit expert-task cancellation.
+                        await session.detach()
+                finally:
+                    with contextlib.suppress(Exception):
+                        await asyncio.wait_for(ws.close(code=close_code), _TERMINAL_CLOSE_TIMEOUT)
+                    if session and owns_capture:
+                        async with capture_lock:
+                            session._duplex_attached = False
