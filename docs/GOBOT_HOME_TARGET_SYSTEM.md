@@ -1,5 +1,53 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Device voice-state contract:** show the actual engine A/B/C independently of
+voice timbre, and Connecting/Listening/Thinking/Speaking from authenticated
+session-scoped status. UI phase changes do not alter audio capture or fabricate
+playback completion. Timers retain priority and mode labels fit the round safe
+area. First A speech may identify the confirmed mode within its existing TTS
+budget; this acknowledgment is not measured as useful-answer latency. Installed
+firmware compatibility and physical rendering must be reported separately.
+
+**Owner simplification 2026-11-13:** an actual user mention of expert mode selects
+existing A under its effective admission, with the attached question if present.
+ASR punctuation does not define whether the command counts. If B cannot give a
+reliable substantive answer, it checks the backend and offers A; current user
+confirmation then selects A. Tool/model text cannot trigger the user-keyword
+action or grant expenses/permissions. Existing native close/drain/ACL remain.
+
+**Implementation amendment:** hardware B expert MODE uses the existing A stream
+after confirmed native hangup and physical playback drain. Transfer the existing
+question once and guest-only permitted dialogue context; do not transcribe it
+again. A mode admission and its CLI/STT/TTS costs are separate from a background
+expert job. Repeat/reconnect never implicitly starts a second paid task. The
+first question handoff is automatic; continuous A device followups need separate
+capture/phrase-end acceptance and must not be advertised from this transition.
+
+**Owner correction 2026-11-13 (expert MODE):** "перевести в экспертный режим"
+means handover to the existing A conversation engine with permitted context and
+incremental sentence/audio delivery, not one background ExpertJobs task followed
+by a summary in B. Keep these two operations distinct. Announce a completed mode
+switch only after actual provider cleanup and A admission. No silent CLI/model
+substitution, context loss or automatic budget expansion. B->A hardware handover
+is currently a required integration, not a passed capability.
+
+**Owner amendment 2026-11-13:** wake activation must accept a SINGLE utterance
+«ГоБот, <question>», without a deliberate pause after the name. Local bounded
+pre-roll/setup buffering must preserve the question until transport readiness;
+no standby cloud STT or paid session. Include first/second Russian stress in
+acoustic training/evaluation, not text aliases as evidence. Buffer overflow is
+an explicit local cancellation, never silent truncation. Touch remains the safe
+alternative until real acoustic and false-wake acceptance. One separately
+approved board trial is180s/12x2048/$1 estimated, with one confirmed public
+SOL_HIGH task90s/context3000/result6000; no global cap increase or auto retries.
+
+**Owner amendment Night Train v1:** [утверждённая web-first архитектура](night-train-v1/TARGET_SYSTEM_VNEXT.md)
+дополняет этот паспорт: deterministic household routing до открытия модели, общий
+Brain, voice library/narrator, scoped approval/replay и ручные B/C transitions.
+Preview не заменяет старые modes и не расширяет budgets. Реальная готовность —
+[CURRENT_STATUS](CURRENT_STATUS.md) и [утренний отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md).
+
+
 **Версия:** 0.5 DRAFT — единый разговор C ↔ A и графический язык владельца; не v1.0
 **Дата:** 11 ноября 2026 года
 **Статус:** DRAFT FOR REVIEW — вся спецификация ещё не утверждена как v1.0; четыре корректировки v0.2 согласованы владельцем  
@@ -10,6 +58,27 @@
 **Единый документ:** `docs/GOBOT_HOME_TARGET_SYSTEM.md`  
 **Проверенная база кода для этой редакции:** `bd487fff1e6cb88cdc34e3fc53ebd15dbde1cb11`  
 **Источник v0.1:** `main@fb4034946cc542d63251e5de6ab506dc2cf4fac8`, blob `27120a30362ebae70609e6932580faa133633afa`.
+
+**Owner amendment, Controlled C/B recovery:** неизвестное terminal usage не
+подменяется успешным close и не удаляется. После проверенного освобождения
+локальных ресурсов можно отдельно записать `orphaned_unconfirmed` и получить
+явный административный Owner ACK на риск неизвестного прежнего расхода.
+Ограниченное по scope/count/expiry согласование разрешает новые ручные сессии
+в пределах существующего бюджета, с новой provider history и без повтора
+инструментов старой сессии. Оно не является provider ACK, не подтверждает
+окончательную стоимость и не разрешает автоматические платные повторения.
+Эталонный C/firmware меняются только после отдельной приёмки.
+
+**Owner amendment, аппаратное сравнение B:** B использует существующий Brain и
+прошивку 0.4.3 через изолированный Realtime Mini/marin adapter, отдельные ledger
+и device binding. Полудуплекс Listening → Thinking → Speaking → Listening:
+generation_done не заменяет device playback drain ACK; input открывается после
+очистки очередей и echo guard, без автоматического barge-in. Stop — существующее
+удержание; новое поведение короткого tap без прошивки не обещается. Контрольный
+допуск B: 8 ручных сессий до 60 секунд, 8 ответов до 512 output tokens, отдельная
+асинхронная gpt-transcribe, $1 оценочного allowance без абсолютной гарантии invoice.
+C finalization incident не расходует/блокирует B budget; общий активный audio lease
+сохраняется. Опциональный B router подключается только в принятом deployment.
 
 **Приоритет новых решений:** §36–37 заменяют конфликтующие правила v0.2 об основном CLI-разговоре. Историческая база выше не является командой отката; фактическая база этого прохода — `master@b09f2f369eb183f22b47fa72b4018324b1aa8c0d` с сохранённой незавершённой работой голосовых настроек. Фактический runtime и проверки — только в CURRENT_STATUS.md.
 
@@ -2615,6 +2684,24 @@ Cancel task/End. Stop локально глушит звук, не отменя�
 Idle и экспертная задача имеют разные сроки. До Close зарегистрировать terminal
 handler, ограниченно дождаться final usage, отметить unknown finalization и выполнить
 документированный cleanup. C не перезапускает оплаченный turn после неизвестного исхода.
+
+Аппаратный путь C через PLAN LiveKit сохраняет один Brain и один provider session.
+Служебный Opus comfort noise до первой подачи PCM не считается вопросом/ответом и
+не заполняет application queues. Setup имеет общий deadline; первые слоги хранятся
+только в ограниченном RAM-буфере и передаются без ожидания окончания фразы.
+Измерять startup backlog отдельно от steady-state latency и фактического playback.
+Бесплатная проверка должна проходить через тот же WebRTC-адаптер с искусственно
+задержанным synthetic peer; она не доказывает распознавание или баржин GPT-Live.
+
+В промежуточном touch-релизе экран Connecting сохраняется до готовности media
+transport. Новая capability capture_deferred разрешает отдельный media-ready ACK:
+один подтверждённый tap открывает одну допустимую сессию, затем начинается capture
+и появляется «Слушаю». Не проигрывать накопленный setup целиком в live track и не
+отбрасывать тихие слова для догоняния времени. Wake+question pre-roll остаётся
+отдельной задачей до акустической приёмки локального wake-to-Brain. Конечный
+тестовый lifetime показывается как нормальное завершение, без автоматического
+оплачиваемого продолжения. Журнал устройства включается отдельным диагностическим
+opt-in binding, с прежней изоляцией и шифрованием, не через финансовое разрешение.
 
 Live billing — cumulative duration: 12 → 15 секунд = 15. Не применять token formula
 Realtime или тариф Live 1 к неподтверждённой 1.1. Mute не прекращает расходы.

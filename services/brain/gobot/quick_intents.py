@@ -23,9 +23,38 @@ def normalize(text):
     value=re.sub(r'^(?:ты можешь|можешь(?: ли)?(?: ты)?|не мог бы ты|не могли бы вы|давай(?: ка)?)[, ]+','',value)
     return re.sub(r'[, ]+пожалуйста$','',value)
 
+def _addressed_weather(value,context):
+    """The wake name is a wrapper only for an already read-only weather query.
+
+    Keep the general command normalizer unchanged: dropping an address must not
+    turn a quoted instruction, setup confirmation or timer command into a write.
+    The existing weather grammar still validates negation, quoted text and slots.
+    """
+    addressed=re.fullmatch(r'софия(?:\s+|[,.:!?]\s*)(.+)',value)
+    if not addressed:return None
+    from .weather_queries import weather_query,weather_followup
+    query=normalize(addressed[1])
+    slots=weather_followup(query,context) or weather_query(query)
+    if slots and slots.get('operation') in {
+            'weather_current','weather_forecast','weather_unsupported',
+            'weather_provider_unavailable'}:
+        return QuickIntent('settings','settings',slots)
+    return None
+
 def resolve_quick(text,context=None):
     if len(text)>200:return None
     value=normalize(text)
+    weather=_addressed_weather(value,context)
+    if weather:return weather
+    pending=(context or {}).get('pending_action')
+    if pending and pending.get('expires',0)>time.time() and re.fullmatch(r'нет(?:[, ]+(?:спасибо|благодарю))?|не надо|отмена',value):
+        return QuickIntent('pending_decline','pending_decline',{'pending_id':pending.get('id'),
+            'pending_kind':pending.get('kind'),'pending_namespace':(context or {}).get('pending_namespace')})
+    # An elliptical ordinal is meaningful only in the active timer dialogue.
+    # The executor still revalidates the stored list and object scope at mutation.
+    ordinal=re.fullmatch(r'(?:отмени|останови|выключи|убери) (первый|второй|третий|четвертый|пятый|[1-5])',value)
+    if ordinal and (context or {}).get('timer_followup'):
+        return QuickIntent('timer_cancel','timer',{'operation':'cancel','target':ordinal[1]})
     from .quick_utilities import intent as utility_intent
     utility=utility_intent(value)
     if utility:
@@ -37,9 +66,16 @@ def resolve_quick(text,context=None):
     from .settings_tools import settings_intent
     setting=settings_intent(value,context)
     if setting:return QuickIntent('settings','settings',setting)
+    if re.fullmatch(r'(?:(?:а|ну|тогда|хорошо)[, ]+)*(?:сегодня|завтра|послезавтра)',value):
+        return QuickIntent('context_required','quick_clarify',{'missing_slots':['domain']},'needs_parameters','task_context_required')
     # A polite refusal followed by an explicit new question is not a session end.
     value=re.sub(r'^нет[, ]+спасибо[, ]+(?:а\s+)?','',value)
-    pending=(context or {}).get('pending_action')
+    quantity=(pending or {}).get('payload',{}).get('quantity')
+    if (pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time()
+            and isinstance(quantity,str) and len(quantity)<=20
+            and re.fullmatch(r'секунд(?:а|ы|у)?|сек|минут(?:а|ы|у)?|мин|час(?:а|ов)?',value)):
+        seconds=timer_seconds(quantity+' '+value)
+        if seconds is not None:return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(value):
         return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value),'operation':'start'})
     matches=[]
@@ -56,6 +92,8 @@ def resolve_quick(text,context=None):
                     if slots['seconds'] is None:
                         status='needs_parameters' if not slots.get('duration') else 'rejected'
                         if status=='rejected':executor='quick_clarify'
+                        if re.fullmatch(r'\d+(?:[,.]\d+)?|один|одна|два|две|три|четыре|пять|шесть|семь|восемь|девять|десять',slots.get('duration') or ''):
+                            slots['missing_slots']=['duration_unit']
                 if row['intent']=='timer_cancel':
                     slots.update(operation='cancel',target=slots.get('target') or slots.get('after') or '')
                     if (slots.get('target') and slots.get('after')) or re.search(r'\b(?:и|или|не|либо)\b',slots['target']):

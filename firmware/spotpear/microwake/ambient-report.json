@@ -1,0 +1,7 @@
+{
+  "kind": "synthetic confusables with generated hum, silence and noise",
+  "seconds": 1800.0,
+  "false_events": 138,
+  "false_per_hour": 276.0,
+  "real_household_seconds": 0
+}

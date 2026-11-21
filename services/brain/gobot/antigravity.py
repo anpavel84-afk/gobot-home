@@ -4,6 +4,7 @@ from .telemetry import mark
 from functools import lru_cache
 from pathlib import Path
 from .processes import AgentError,clean_environment,native_process,failure_code
+from .expert_stream import AnswerDelta
 ROOT=Path(__file__).resolve().parents[3]
 POLICY=ROOT/'services/agent-bridge/policies/antigravity-settings.json'
 WORK=ROOT/'run/agents/antigravity'
@@ -44,9 +45,20 @@ def argv(*,stream=True,model_id=None):
     return command
 
 class AntigravityEvents:
-    def __init__(self):self.text='';self.completed=False;self.initialized=False;self.usage=None
+    def __init__(self,*,strict_answers=False,job_id=None):
+        if strict_answers and (not isinstance(job_id,str) or not 1<=len(job_id)<=100):
+            raise AgentError('expert_answer_job_required')
+        self.text='';self.completed=False;self.initialized=False;self.usage=None
+        self.strict_answers=strict_answers;self.job_id=job_id;self.completed_steps=set()
+
+    def delta(self,text,*,item_id,phase,completed=False):
+        if not text:return []
+        if not self.strict_answers:return [text]
+        return [AnswerDelta(text,item_id='antigravity:'+self.job_id+':'+item_id,
+                            phase=phase,job_id=self.job_id,verified=True,completed=completed)]
+
     def parse(self,item):
-        if self.completed:return []
+        if self.completed or not isinstance(item,dict):return []
         kind=item.get('event')
         if kind=='init':
             self.initialized=True
@@ -64,7 +76,20 @@ class AntigravityEvents:
             if step.get('step_type')!='agent_response':return []
             delta=step.get('text_delta','')
             if not isinstance(delta,str):return []
-            self.text+=delta;return [delta] if delta else []
+            index=step.get('step_index')
+            if self.strict_answers:
+                # Official stream-json contract: ACTIVE/DONE agent_response
+                # carries incremental answer text. Other steps are diagnostics,
+                # thoughts or tools, never narrator input. A future explicit
+                # phase can narrow this boundary but cannot widen it.
+                if (not self.initialized or step.get('state') not in {'ACTIVE','DONE'} or
+                        type(index) is not int or not 0<=index<=1_000_000 or
+                        step.get('phase') not in (None,'partial_answer','final_answer')):return []
+                if index in self.completed_steps:return []
+                if step['state']=='DONE':self.completed_steps.add(index)
+            self.text+=delta
+            return self.delta(delta,item_id=str(index),phase='partial_answer',
+                              completed=step.get('state')=='DONE')
         if kind=='result':
             result=item.get('result',{})
             raw=result.get('usage',{})
@@ -72,10 +97,13 @@ class AntigravityEvents:
             if result.get('status')!='SUCCESS':raise AgentError(failure_code(result.get('error','')))
             final=result.get('response','')
             if not isinstance(final,str):raise AgentError('antigravity_invalid_result')
+            if self.strict_answers and (not self.initialized or result.get('phase') not in (None,'final_answer')):
+                raise AgentError('antigravity_invalid_result')
             if final.startswith(self.text):delta=final[len(self.text):]
             elif not self.text:delta=final
             else:raise AgentError('antigravity_final_mismatch')
-            self.text+=delta;self.completed=True;return [delta] if delta else []
+            self.text+=delta;self.completed=True
+            return self.delta(delta,item_id='result',phase='final_answer',completed=True)
         return []
 
 def status(consent=False):
@@ -90,9 +118,9 @@ def status(consent=False):
 
 class AntigravityAdapter:
     def __init__(self):self.usage=None
-    async def stream(self,text,context,model_id=None):
+    async def stream(self,text,context,model_id=None,*,strict_answers=False,job_id=None):
         from .live_agents import context_prompt
-        parser=AntigravityEvents();mark("argv_policy_start")
+        parser=AntigravityEvents(strict_answers=strict_answers,job_id=job_id);mark("argv_policy_start")
         prompt=context_prompt(text,context)
         # Reuse the Brain estimate: loading a second tokenizer in Bridge's
         # first request would itself add cold-start delay. Bytes are measured

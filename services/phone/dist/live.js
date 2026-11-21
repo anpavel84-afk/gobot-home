@@ -81,8 +81,13 @@
   async pttStart(){if(!this.ready){this.status('Сначала включите GoBot и дождитесь готовности C.');return false;}if(this.inputMode==='hold'){this.muted=false;this.mic(true);await this.command('unmute');}return true;}
   async pttEnd(){if(this.inputMode==='hold'){this.muted=true;this.mic(false);await this.command('mute');}}
   async sendText(text){if(!text.trim())return;await this.start();await this.command('text',{text});}
+  blockPlayback(force=false){
+   if(!this.output)return;this.output.muted=true;this.output.pause();this.output.srcObject=null;
+   if(this.speechBlocked&&!force)return;
+   this.speechBlocked=true;this.inputAfterStop=false;this.stoppedInputEnd=this.lastInputEnd||0;this.stopQuietAt=0;
+  }
   async stopSpeech(){
-   if(!this.ready)return;this.output.muted=true;this.output.pause();this.output.srcObject=null;this.speechBlocked=true;this.inputAfterStop=false;this.stoppedInputEnd=this.lastInputEnd||0;this.stopQuietAt=0;
+   if(!this.ready)return;this.blockPlayback(true);
    this.status('Речь остановлена. Микрофон и согласованная задача продолжают работать.');await this.command('stop_speech');
   }
   visualPresented(frame,turn){if(this.ready&&turn===this.currentTurn)void this.command('visual_presented',{frame_id:frame,turn_id:turn}).catch(()=>{});}
@@ -96,6 +101,7 @@
    if(event.type==='speaker_segment')this.speakerMirror?.begin(data.segment_id);
    if(event.type==='speaker_segment_end')void this.speakerMirror?.flush();
    if(event.type==='live_input_delta'){this.lastInputEnd=data.end_ms;if(this.speechBlocked&&data.end_ms>this.stoppedInputEnd)this.inputAfterStop=true;this.diagnostic({stage:'live_input_delta',text:data.text});}
+   if(event.type==='playback_cleared')this.blockPlayback();
    if(event.type==='text_delta')this.diagnostic({stage:'answer_delta',text:data.text});
    if(event.type==='usage')this.diagnostic({stage:'usage',...data});
    if(event.type==='closing')this.preparingClose(data.reason);

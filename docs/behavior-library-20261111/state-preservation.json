@@ -1,0 +1,9 @@
+{
+  "policy_bytes_unchanged": true,
+  "device_profile_rows_unchanged": true,
+  "usage_and_backend_ledgers_unchanged": true,
+  "comparison": "SHA256 of policy bytes and deterministic schema/row hashes; contents excluded",
+  "household_content_exported": false,
+  "journal_content_read": false,
+  "provider_calls_by_check": 0
+}

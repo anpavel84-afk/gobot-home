@@ -17,6 +17,28 @@ from gobot.models import ChatRequest
 from gobot.pipeline import voiced_events
 from gobot.live_agents import context_prompt
 
+@pytest.mark.parametrize('limit',[0,3000])
+def test_handoff_mode_confirmation_uses_first_segment_and_same_tts_budget(settings,limit):
+    from types import SimpleNamespace
+    from gobot.models import event
+    async def run():
+        submitted=[];service=Service(settings);req=ChatRequest(text='Вопрос',mode='mock',remember=False)
+        req._mode_flow=SimpleNamespace(handoff_turn_id=req.turn_id,provider_closed=True,mode='legacy')
+        async def source(*args):
+            yield event(req,'sentence_ready',text='Первый вывод.')
+            yield event(req,'sentence_ready',text='Второй вывод.')
+            yield event(req,'final',text='Первый вывод. Второй вывод.')
+        class Voice:
+            async def synthesize(self,text,*args,**kwargs):submitted.append(text);yield b'\x01\0'*20,24000
+        service.events=source
+        result=[v async for v in voiced_events(service,Voice(),req,tts_character_limit=limit)]
+        if not limit:assert not submitted
+        else:
+            assert submitted[0].startswith('Экспертный режим включён.')
+            assert sum(t.count('Экспертный режим') for t in submitted)==1
+        assert sum(map(len,submitted))<=limit
+    asyncio.run(run())
+
 @pytest.mark.parametrize('limit',[0,1,70])
 def test_speech_budget_counts_formatted_text_and_never_sends_partial_sentence(settings,limit):
     from gobot.models import event,VoiceRequest

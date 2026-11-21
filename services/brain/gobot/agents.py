@@ -6,6 +6,7 @@ import asyncio,json,os,signal
 from pathlib import Path
 from .security import redact
 from .processes import AgentError,failure_code
+from .expert_stream import AnswerDelta,ANSWER_PHASES
 
 class NDJSON:
     def __init__(self):self.buffer=b''
@@ -61,21 +62,64 @@ class GeminiCLIAdapter:
         self.text+=delta;return [redact(delta)] if delta else []
 
 class CodexEventAdapter:
-    def __init__(self):self.text='';self.items={};self.completed=False
+    def __init__(self,*,strict_phases=False,job_id=None):
+        self.text='';self.items={};self.completed=False
+        self.strict_phases=strict_phases;self.job_id=job_id;self.records={}
+
+    def _answer(self,key,delta,phase,*,completed=False,verified=False):
+        if not delta:return []
+        if len(self.text)+len(delta)>24000:raise AgentError('codex_answer_limit')
+        value=AnswerDelta(redact(delta),item_id=key,phase=phase,job_id=self.job_id,
+                          completed=completed,verified=verified)
+        self.text+=str(value)
+        return [value]
+
+    def _record(self,key):
+        if key not in self.records and len(self.records)>=128:raise AgentError('codex_item_limit')
+        return self.records.setdefault(key,{'text':'','emitted':'','phase':None,'completed':False})
+
     def parse(self,obj):
         if self.completed:return []
-        kind=obj.get('type');method=obj.get('method');delta=''
-        if method=='item/agentMessage/delta':delta=obj.get('params',{}).get('delta','')
-        elif kind=='item.completed':
-            item=obj.get('item',{})
-            if item.get('type')=='agent_message':
-                key=item.get('id','default');full=item.get('text','');old=self.items.get(key,'')
-                delta=full[len(old):] if full.startswith(old) else '';self.items[key]=full
+        kind=obj.get('type');method=obj.get('method');params=obj.get('params',{})
+        if method in {'item/started','item/completed'} or kind=='item.completed':
+            item=params.get('item',{}) if method else obj.get('item',{})
+            if item.get('type') not in {'agentMessage','agent_message'}:return []
+            key=item.get('id') or params.get('itemId') or 'default'
+            record=self._record(key)
+            if record['completed']:return []
+            if item.get('phase') is not None:record['phase']=item['phase']
+            if method=='item/started':return []
+            full=item.get('text',record['text'])
+            if not isinstance(full,str):raise AgentError('invalid_codex_answer')
+            if len(full)>24000:raise AgentError('codex_answer_limit')
+            record['text']=full;record['completed']=True;self.items[key]=full
+            phase=record['phase']
+            # Older CLI versions expose a structured completed assistant item but
+            # no phase. Completion is the only permitted legacy speech fallback.
+            if phase is None:phase='final_answer'
+            if phase not in ANSWER_PHASES:return []
+            old=record['emitted']
+            if old and not full.startswith(old):raise AgentError('codex_answer_revised')
+            delta=full[len(old):];record['emitted']=full
+            return self._answer(key,delta,phase,completed=True,verified=True)
+        elif method=='item/agentMessage/delta':
+            key=params.get('itemId') or params.get('item_id') or 'default'
+            delta=params.get('delta','')
+            if not isinstance(delta,str):raise AgentError('invalid_codex_answer')
+            record=self._record(key)
+            if record['completed']:return []
+            if params.get('phase') is not None:record['phase']=params['phase']
+            record['text']+=delta
+            if len(record['text'])>24000:raise AgentError('codex_answer_limit')
+            phase=record['phase']
+            if phase is not None and phase not in ANSWER_PHASES:return []
+            if self.strict_phases and phase not in ANSWER_PHASES:return []
+            pending=record['text'][len(record['emitted']):];record['emitted']=record['text']
+            return self._answer(key,pending,phase,verified=phase in ANSWER_PHASES)
         elif kind=='turn.failed' or method=='error':raise AgentError(failure_code(obj))
         elif kind=='turn.completed' or method=='turn/completed':
             if method and obj.get('params',{}).get('turn',{}).get('status') not in {'completed',None}:raise AgentError(failure_code(obj))
             self.completed=True
-        if delta:self.text+=delta;return [redact(delta)]
         return []
 
 class CodexAppServerAdapter:
@@ -83,7 +127,9 @@ class CodexAppServerAdapter:
     rpc object provides request(method,params), notify(method,params), events(), reply().
     All approval requests are declined. Runtime transport admission remains disabled.
     """
-    def __init__(self,rpc,workspace):self.rpc=rpc;self.workspace=str(Path(workspace).resolve());self.thread_id=None;self.turn_id=None;self.usage=None
+    def __init__(self,rpc,workspace,*,strict_phases=False,job_id=None):
+        self.rpc=rpc;self.workspace=str(Path(workspace).resolve());self.thread_id=None;self.turn_id=None;self.usage=None
+        self.strict_phases=strict_phases;self.job_id=job_id
     async def initialize(self):
         result=await self.rpc.request('initialize',{'clientInfo':{'name':'gobot_home','title':'GoBot Home','version':'0.1.0'},'capabilities':{'experimentalApi':False}})
         await self.rpc.notify('initialized',{});return result
@@ -98,7 +144,7 @@ class CodexAppServerAdapter:
     async def stream(self,text):
         mark("prompt_dispatch_start")
         result=await self.rpc.request('turn/start',{'threadId':self.thread_id,'input':[{'type':'text','text':text,'text_elements':[]}],'approvalPolicy':'on-request','sandboxPolicy':{'type':'readOnly'}})
-        mark('prompt_sent');self.turn_id=result['turn']['id'];parser=CodexEventAdapter()
+        mark('prompt_sent');self.turn_id=result['turn']['id'];parser=CodexEventAdapter(strict_phases=self.strict_phases,job_id=self.job_id)
         try:
             async for obj in self.rpc.events():
                 mark("raw_event")

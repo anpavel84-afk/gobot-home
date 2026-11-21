@@ -1,0 +1,9 @@
+{
+  "version": "0.4.0-dev-duplex",
+  "app_sha256": "ed88ea7435218b7a894c762fd8535f337720fe5979e1d5a92689be280228a576",
+  "app_bytes": 2709856,
+  "previous_sha256": "b013c5929eda7ad14d48693c2da65fcb2aa5f927efe6f9849c9b6f5cc9469d90",
+  "assets_sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0",
+  "p0_only": true,
+  "hardware_verified": false
+}

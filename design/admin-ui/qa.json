@@ -1,0 +1,93 @@
+{
+  "stage": "UI-first prototype, not production device settings",
+  "checked_on": "2026-11-20",
+  "timezone": "America/Sao_Paulo",
+  "site": {
+    "url": "https://gobot-sophia-settings.proud-mouse-8733.chatgpt.site/",
+    "audience": "owner-only",
+    "project_id": "appgprj_6b00789d42288191a8868228af85745d",
+    "source_commit": "48a888c90d7ad46d90d6db07f6e217bde33721f0",
+    "deployment_id": "appgdep_6b007eba923c8191a3f45253c3e9a4b0",
+    "deployment_status": "succeeded",
+    "production_browser": "owner sign-in gate observed; no credentials requested; UI tested on identical local assets"
+  },
+  "content": {
+    "sections": 10,
+    "capability_families": 24,
+    "category_filters": 6,
+    "status_classes": 5,
+    "all_referenced_fields_defined": true
+  },
+  "browser_checks": [
+    "Desktop visual rendering of skills, home and diagnostics",
+    "Search for weather produces one of 24 rows",
+    "Weather drawer settings and check tabs",
+    "Demonstration city search, specific choice and confirmation",
+    "Wind unit change and two-field before/after review",
+    "Explicit local save and persistence after reload",
+    "History revert restores prior city and wind through review",
+    "All ten sections rendered; current heading observed",
+    "390px responsive layout; 320px table/card layout",
+    "320px frame document width equals scroll width (305px after scrollbar)",
+    "Mobile hidden navigation inert; open background inert",
+    "Mobile Shift+Tab containment, Escape and current-link close",
+    "Unsupported weather providers visibly disabled with reasons",
+    "Node syntax checks for both scripts passed"
+  ],
+  "observed_and_fixed": [
+    "mobile offscreen navigation focus",
+    "current mobile nav link did not close drawer",
+    "important status label font sizes",
+    "old weather source check could look like verification of a newly selected example city",
+    "future server application semantics labelled as already implemented",
+    "invalid abbreviated source references"
+  ],
+  "not_claimed": [
+    "iPhone hardware/browser acceptance",
+    "WCAG certification or complete screen-reader audit",
+    "live polling of every service",
+    "saving settings to PLAN or firmware",
+    "resolved live weather request",
+    "latency from wake to playback",
+    "DMA underruns=0",
+    "full expert acoustic acceptance"
+  ],
+  "production_effects": {
+    "plan_mutation": false,
+    "firmware_mutation": false,
+    "model_calls": 0,
+    "existing_weather_source_requests": 1,
+    "scope_or_ledger_reset": false
+  },
+  "live_observation": {
+    "checked_at": "2026-11-20T16:44:21Z",
+    "runtime": "66fcae045c74d19a6054de5fa9a02c05e0e0ff09",
+    "device_ready": true,
+    "mode": "fast",
+    "weather_enabled": true,
+    "weather_provider": "open_meteo",
+    "coordinates_valid": true,
+    "actual_home_location_included": false,
+    "fast_operations": 4,
+    "fast_responses": 14,
+    "expert_operations": 0,
+    "expires_at": null
+  },
+  "weather_source_probe": {
+    "checked_at": "2026-11-20T16:45:42Z",
+    "ok": true,
+    "provider": "open_meteo",
+    "verified": true,
+    "elapsed_ms": 887,
+    "source_data_age_seconds": 42,
+    "timezone_present": true,
+    "voice_route_verified": false
+  },
+  "assets_sha256": {
+    "index.html": "cce8bf10e57f45ba9bca1601cfd3a6d17728b14d3e7b10535651da05eb078a95",
+    "admin.css": "bca15bb56b465b39bf6f4354d2f6476ce3df82e2f7e4ca6b19161bf47c7a4cd2",
+    "admin.js": "7e87c70e517ef4bc420bacb9cba862f9be8dc3e095275ad4b7846acece8ad264",
+    "catalog.js": "0d83fbc7d1003c765c987e5953a195d132f390152eb5449e201735750a3f6b9d",
+    "mark.svg": "6d5a61928753e584e4b4ffeedaede5cd11a6cb39a17bfad1d5a629fa4e649c51"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "version": "0.3.0-dev-mww-probe",
+  "app_bytes": 2707920,
+  "app_sha256": "b013c5929eda7ad14d48693c2da65fcb2aa5f927efe6f9849c9b6f5cc9469d90",
+  "model_sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010",
+  "wake_to_brain": false,
+  "base": "0.2.3-dev-touch-auto",
+  "feature_hash": 1987024791,
+  "hardware_verified": true,
+  "verified": ["fresh_full_snapshot", "ota_0_esptool_verify", "usb_boot", "wifi_enrollment", "frontend_parity", "physical_mic_inference"],
+  "observed": {"frames":14912,"invokes":4970,"detections_without_labels":2,"max_block_us":3799,"underrun":0,"errors":0,"upload_at_poll":0,"volume":100},
+  "acoustic_labeled_trials": 0
+}

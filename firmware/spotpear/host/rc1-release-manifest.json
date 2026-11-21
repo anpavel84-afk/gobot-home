@@ -1,0 +1,69 @@
+{
+  "schema": "gobot_host_a_rc1_release_v1",
+  "owner_issue": "https://github.com/anpavel84-afk/gobot-home/issues/5",
+  "owner_comment": "https://github.com/anpavel84-afk/gobot-home/issues/5#issuecomment-6929537812",
+  "source": "private preserved 0.4.12 main and managed_components + tracked firmware/spotpear/host/prepare_host_rc1.py",
+  "version": "0.4.13-dev-host-a-rc1-r3",
+  "build_toolchain": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "esp_idf": "v6.0.1",
+  "target": "ESP32-S3 rev 0.2",
+  "app_only": true,
+  "active_partition": "ota_0",
+  "app_offset": "0x20000",
+  "app_partition_bytes": 4128768,
+  "app_bytes": 3047680,
+  "app_sha256": "5186b41a80d3f4155dd544fa1112975eca74fa4b979d62c275b6804626d13576",
+  "elf_sha256": "784d59d21e619df4334835e261fba582cf0a2a23fc7f73c021dd9c05d7c798ac",
+  "h0_preserved_app_sha256": "1acb944df377c6da4ac53b013997d9ac548e01cba6bdadece4267f7c502c5c6a",
+  "full_readback_bytes": 16777216,
+  "preflight": "PASS",
+  "installed": "APP_ONLY_FLASH_VERIFIED_AND_BOOTED",
+  "boot_report": "version=0.4.13-dev-host-a-rc1-r3 wifi=1 enrolled=1 phase=0 upload=0",
+  "outside_active_app": {
+    "bootloader": true,
+    "partition_table": true,
+    "otadata": true,
+    "phy_init": true,
+    "inactive_ota1": true,
+    "assets": true,
+    "nvs_exact_same": false,
+    "nvs_caveat": "NVS sectors 0xA000 0xB000 0xC000 differed across two full readbacks. No direct NVS write command, cause not established; Wi-Fi and enrollment still work."
+  },
+  "software_tests": {
+    "passed": 156,
+    "skipped": 11,
+    "failed": 0
+  },
+  "physical_tests": {
+    "real_opus_16k_uplink_frames": 1061,
+    "real_opus_24k_downlink_frames": 7,
+    "device_playback_receipts": [
+      "started",
+      "drained"
+    ],
+    "first_real_stream_seconds": 63.66,
+    "first_stream_max_queue_frames": 2,
+    "first_stream_max_queue_age_ms": 1.601,
+    "pcm_canonical_frame_samples_after_fix": 960,
+    "pcm_retest_frames": 342,
+    "pcm_retest_total_samples": 328320,
+    "pcm_retest_clipped_samples": 1046,
+    "paid_calls": 0,
+    "human_acoustic_quality_accepted": false,
+    "thirty_minute_wifi_soak": "NOT_RUN",
+    "manual_touch_stop_physical": "NOT_RUN",
+    "websocket_close": "ABNORMAL_CLOSE_ON_VOLATILE_HOST_OFF"
+  },
+  "not_installed": {
+    "host_b_acoustic_detector": true,
+    "brain_handover": true
+  },
+  "privileged_mutations": {
+    "second_flash": false,
+    "master_merge": false,
+    "production_gateway_switch": false,
+    "ledger_reset": false,
+    "nvs_flash_write": false
+  },
+  "private_artifacts_not_published": true
+}

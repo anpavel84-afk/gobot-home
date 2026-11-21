@@ -1,0 +1,37 @@
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -24,6 +24,8 @@
+ }
+ 
+ void Application::HostEnable(bool enabled) {
++    // Source switch to HOST remains possible. Sophia is LOCAL only;
++    // disable it once HOST mode has been accepted.
+     // Selection never writes NVS or modifies the enrolled endpoint.
+     if(gobot_turn_.Active() || GetDeviceState()!=kDeviceStateIdle ||
+        !audio_service_.IsPlaybackIdle()) {
+@@ -37,7 +39,9 @@
+         host_feedback_.clear();host_stop_id_.clear();host_playback_id_.clear();
+         audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
+         ws->CloseAudioChannel();ws->ConfigureHostTest("");
+-        ESP_LOGI(TAG,"GOBOT_HOST_MODE OFF volatile=1");RenderGoBot();return;
++        audio_service_.EnableSophiaDiagnostic(true);
++        ESP_LOGI(TAG,"GOBOT_HOST_MODE OFF volatile=1 SOPHIA_LOCAL_RESTORED=1");
++        RenderGoBot();return;
+     }
+     if(gobot_muted_ || !gobot_network_ready_ ||
+        std::string(GOBOT_HOST_RC1_TEST_URL).empty()) {
+@@ -46,6 +50,7 @@
+     if(!ws->ConfigureHostTest(GOBOT_HOST_RC1_TEST_URL)) {
+         ESP_LOGE(TAG,"GOBOT_HOST_SWITCH_REJECT protocol_busy=1");return;
+     }
++    audio_service_.EnableSophiaDiagnostic(false);
+     host_mode_=true;host_muted_=false;host_ready_=false;
+     host_touch_active_=host_output_active_=false;
+     host_output_end_=host_output_started_=false;
+@@ -210,4 +215,4 @@
+             RenderGoBot();
+         }
+     }
+-}
++}
+\ No newline at end of file

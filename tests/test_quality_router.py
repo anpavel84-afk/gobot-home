@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from gobot.routing import SmartRouter,RouterPolicy
 from gobot.models import ChatRequest
-from gobot.quality import SelectiveVerifier,Assessment,calculate,arithmetic_expression
+from gobot.quality import SelectiveVerifier,Assessment,RiskAssessment,calculate,arithmetic_expression
 from gobot.processes import AgentError
 from gobot.context_manager import ContextManager
 
@@ -23,6 +23,25 @@ def test_quality_rejects_self_confidence_and_missing_evidence():
     assert not verifier.check(assessment,'Я абсолютно уверен: факт верен.')['accepted']
     assert not verifier.check(assessment,'Факт',{'method':'other_model','verified':True,'canonical_answer':'Факт'})['accepted']
     assert verifier.check(assessment,'Не удалось проверить.',{'abstained':True})['accepted']
+
+@pytest.mark.parametrize('query',[
+    'Какой последний фильм с Ди Каприо?',
+    'Назови последний вышедший фильм этого режиссёра',
+    'Какой самый новый альбом этой группы?',
+    'Какая новейшая версия программы?',
+])
+def test_latest_release_requires_current_source(query):
+    assessment=RiskAssessment().assess(query,{})
+    assert assessment.verification_required and assessment.external_verification
+    assert assessment.method=='external_sources'
+
+@pytest.mark.parametrize('query',[
+    'Расскажи о фильме Титаник',
+    'Сравни последние сцены двух фильмов',
+    'Как записать новый альбом?',
+])
+def test_ordinary_film_or_creative_questions_are_not_latest_release_checks(query):
+    assert not RiskAssessment().assess(query,{}).verification_required
 
 def test_flash_failure_not_heavy_fallback_and_registry_limits():
     with pytest.raises(AgentError):SmartRouter().choose(ChatRequest(text='Привет',mode='auto'),{}, {'codex':{'available':True}})

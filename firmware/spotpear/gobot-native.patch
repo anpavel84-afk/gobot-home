@@ -1,0 +1,970 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 3b9df7e..a363b97 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "2.5.3")
++set(PROJECT_VER "0.1.0-dev-gobot")
+ project(xiaozhi)
+diff --git a/main/Kconfig.projbuild b/main/Kconfig.projbuild
+index 8966dec..8674ec4 100644
+--- a/main/Kconfig.projbuild
++++ b/main/Kconfig.projbuild
+@@ -1246,3 +1246,8 @@ menu "TAIJIPAI_S3_CONFIG"
+ endmenu
+ 
+ endmenu
++
++config GOBOT_DEVICE
++    bool "GoBot local wake-only device"
++    default y
++    depends on USE_CUSTOM_WAKE_WORD
+diff --git a/main/application.cc b/main/application.cc
+index e1f0719..819842e 100644
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -8,6 +8,7 @@
+ #include "mcp_server.h"
+ #include "mqtt_protocol.h"
+ #include "settings.h"
++#include "gobot_platform.h"
+ #include "system_info.h"
+ #include "text_glyph_payload.h"
+ #include "websocket_protocol.h"
+@@ -50,6 +51,7 @@ Application::Application() : notify_player_(audio_service_) {
+ 
+ Application::~Application() {
+     notify_player_.Stop();
++    if(gobot_timer_) {esp_timer_stop(gobot_timer_);esp_timer_delete(gobot_timer_);}
+     if (clock_timer_handle_ != nullptr) {
+         esp_timer_stop(clock_timer_handle_);
+         esp_timer_delete(clock_timer_handle_);
+@@ -176,7 +178,22 @@ void Application::Initialize() {
+         }
+     });
+ 
+-    // Start network asynchronously
++    // Load only bundled assets. Never run factory OTA, activation or MQTT.
++    gobot::InitializeClock();
++    Assets::GetInstance().Apply();
++    InitializeProtocol();
++    startup_completed_=true;
++    SetDeviceState(kDeviceStateActivating);
++    SetDeviceState(kDeviceStateIdle);
++    esp_timer_create_args_t timer{};
++    timer.callback=[](void* arg) { auto* self=static_cast<Application*>(arg); xEventGroupSetBits(self->event_group_,MAIN_EVENT_GOBOT_TICK); };
++    timer.arg=this;timer.name="gobot_guard";timer.skip_unhandled_events=true;
++    ESP_ERROR_CHECK(esp_timer_create(&timer,&gobot_timer_));
++    ESP_ERROR_CHECK(esp_timer_start_periodic(gobot_timer_,100000));
++    gobot::StartSerialConsole([this](std::string line) {
++        Schedule([this,line=std::move(line)](){GoBotSerial(line);});
++    });
++    ESP_LOGI(TAG,"GOBOT_BOOT version=%s cloud_activation=0",GOBOT_FIRMWARE_VERSION);
+     board.StartNetwork();
+ 
+     // Update the status bar immediately to show the network state
+@@ -192,18 +209,22 @@ void Application::Run() {
+         MAIN_EVENT_VAD_CHANGE | MAIN_EVENT_CLOCK_TICK | MAIN_EVENT_ERROR |
+         MAIN_EVENT_NETWORK_CONNECTED | MAIN_EVENT_NETWORK_DISCONNECTED | MAIN_EVENT_TOGGLE_CHAT |
+         MAIN_EVENT_START_LISTENING | MAIN_EVENT_STOP_LISTENING | MAIN_EVENT_ACTIVATION_DONE |
+-        MAIN_EVENT_STATE_CHANGED | MAIN_EVENT_PLAYBACK_DRAINED | MAIN_EVENT_STARTUP_HINT_TIMEOUT;
++        MAIN_EVENT_STATE_CHANGED | MAIN_EVENT_PLAYBACK_DRAINED | MAIN_EVENT_STARTUP_HINT_TIMEOUT | MAIN_EVENT_GOBOT_TICK;
+ 
+     while (true) {
+         auto bits = xEventGroupWaitBits(event_group_, ALL_EVENTS, pdTRUE, pdFALSE, portMAX_DELAY);
+ 
++        if (bits & MAIN_EVENT_GOBOT_TICK) GoBotPoll();
++
+         if (bits & MAIN_EVENT_ERROR) {
++            const std::string network_error = last_error_message_;
++            GoBotFinish("network_error");
++            last_error_message_ = network_error;
+             if (GetDeviceState() == kDeviceStateNotifying) {
+                 StopNotification();
+             }
+             SetDeviceState(kDeviceStateIdle);
+-            Alert(Lang::Strings::ERROR, last_error_message_.c_str(), "cancel",
+-                  Lang::Sounds::OGG_EXCLAMATION);
++            Alert(Lang::Strings::ERROR, last_error_message_.c_str(), "cancel");
+         }
+ 
+         if (bits & MAIN_EVENT_NETWORK_CONNECTED) {
+@@ -249,6 +270,7 @@ void Application::Run() {
+ 
+         if (bits & MAIN_EVENT_SEND_AUDIO) {
+             while (auto packet = audio_service_.PopPacketFromSendQueue()) {
++                if(!gobot_turn_.UploadAllowed()) continue;
+                 if (protocol_ && !protocol_->SendAudio(std::move(packet))) {
+                     // Drop the remaining packets. Leaving them in the queue would
+                     // stall the Opus codec task (it waits for queue space), which in
+@@ -301,47 +323,19 @@ void Application::Run() {
+ }
+ 
+ void Application::HandleNetworkConnectedEvent() {
+-    ESP_LOGI(TAG, "Network connected");
+-    auto state = GetDeviceState();
+-
+-    if (state == kDeviceStateStarting || state == kDeviceStateWifiConfiguring) {
+-        // Network is ready, start activation
+-        SetDeviceState(kDeviceStateActivating);
+-        if (activation_task_handle_ != nullptr) {
+-            ESP_LOGW(TAG, "Activation task already running");
+-            return;
+-        }
+-
+-        xTaskCreate(
+-            [](void* arg) {
+-                Application* app = static_cast<Application*>(arg);
+-                app->ActivationTask();
+-                app->activation_task_handle_ = nullptr;
+-                vTaskDelete(NULL);
+-            },
+-            "activation", 4096 * 2, this, 2, &activation_task_handle_);
++    gobot_network_ready_=true;
++    auto state=GetDeviceState();
++    if(state==kDeviceStateWifiConfiguring || state==kDeviceStateStarting) {
++        SetDeviceState(kDeviceStateActivating);SetDeviceState(kDeviceStateIdle);
+     }
+-
+-    // Update the status bar immediately to show the network state
+-    auto display = Board::GetInstance().GetDisplay();
+-    display->UpdateStatusBar(true);
++    ESP_LOGI(TAG,"GOBOT_WIFI_READY");
++    Board::GetInstance().GetDisplay()->UpdateStatusBar(true);
+ }
+ 
+ void Application::HandleNetworkDisconnectedEvent() {
+-    // Close current conversation when network disconnected
+-    auto state = GetDeviceState();
+-    if (state == kDeviceStateNotifying) {
+-        StopNotification();
+-    }
+-    if (state == kDeviceStateConnecting || state == kDeviceStateListening ||
+-        state == kDeviceStateSpeaking) {
+-        ESP_LOGI(TAG, "Closing audio channel due to network disconnection");
+-        protocol_->CloseAudioChannel();
+-    }
+-
+-    // Update the status bar immediately to show the network state
+-    auto display = Board::GetInstance().GetDisplay();
+-    display->UpdateStatusBar(true);
++    gobot_network_ready_=false;
++    if(gobot_turn_.Active()) GoBotFinish("wifi_disconnected");
++    Board::GetInstance().GetDisplay()->UpdateStatusBar(true);
+ }
+ 
+ void Application::HandleActivationDoneEvent() {
+@@ -380,178 +374,11 @@ void Application::HandleActivationDoneEvent() {
+     }
+ }
+ 
+-void Application::ActivationTask() {
+-    // Create OTA object for activation process
+-    ota_ = std::make_unique<Ota>();
+-
+-    // Check for new assets version
+-    CheckAssetsVersion();
+-
+-    // Check for new firmware version
+-    CheckNewVersion();
+-
+-    // Initialize the protocol
+-    InitializeProtocol();
+-
+-    // Signal completion to main loop
+-    xEventGroupSetBits(event_group_, MAIN_EVENT_ACTIVATION_DONE);
+-}
+-
+-void Application::CheckAssetsVersion() {
+-    // Only allow CheckAssetsVersion to be called once
+-    if (assets_version_checked_) {
+-        return;
+-    }
+-    assets_version_checked_ = true;
+-
+-    auto& board = Board::GetInstance();
+-    auto display = board.GetDisplay();
+-    auto& assets = Assets::GetInstance();
+-
+-    if (!assets.partition_valid()) {
+-        ESP_LOGW(TAG, "Assets partition is disabled for board %s", BOARD_NAME);
+-        return;
+-    }
+-
+-    Settings settings("assets", true);
+-    // Check if there is a new assets need to be downloaded
+-    std::string download_url = settings.GetString("download_url");
+-
+-    if (!download_url.empty()) {
+-        settings.EraseKey("download_url");
+-
+-        char message[256];
+-        snprintf(message, sizeof(message), Lang::Strings::FOUND_NEW_ASSETS, download_url.c_str());
+-        Alert(Lang::Strings::LOADING_ASSETS, message, "cloud_download", Lang::Sounds::OGG_UPGRADE);
+-
+-        // Wait for the audio service to be idle for 3 seconds
+-        vTaskDelay(pdMS_TO_TICKS(3000));
+-        SetDeviceState(kDeviceStateUpgrading);
+-        board.SetPowerSaveLevel(PowerSaveLevel::PERFORMANCE);
+-        display->SetChatMessage("system", Lang::Strings::PLEASE_WAIT);
+-
+-        bool success =
+-            assets.Download(download_url, [this, display](int progress, size_t speed) -> void {
+-                char buffer[32];
+-                snprintf(buffer, sizeof(buffer), "%d%% %uKB/s", progress, speed / 1024);
+-                Schedule([display, message = std::string(buffer)]() {
+-                    display->SetChatMessage("system", message.c_str());
+-                });
+-            });
+-
+-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+-        vTaskDelay(pdMS_TO_TICKS(1000));
+-
+-        if (!success) {
+-            Alert(Lang::Strings::ERROR, Lang::Strings::DOWNLOAD_ASSETS_FAILED, "cancel",
+-                  Lang::Sounds::OGG_EXCLAMATION);
+-            vTaskDelay(pdMS_TO_TICKS(2000));
+-            SetDeviceState(kDeviceStateActivating);
+-            return;
+-        }
+-    }
+-
+-    // Apply assets
+-    assets.Apply();
+-    display->SetChatMessage("system", "");
+-    // "robot_2" is declared only by a board shipping its own pack: esp-vocat maps it to
+-    // neutral.eaf, and the rgb-matrix display special-cases the string. None of the shared
+-    // esp_emote_assets packs (320_240, 360_360, 1024_600) declares it, so on every board that
+-    // uses one this call fails, logs two errors and leaves whatever face was already up.
+-    // Fall back to an emotion all three packs do declare.
+-    if (!display->SetEmotion("robot_2")) {
+-        display->SetEmotion("neutral");
+-    }
+-}
+-
+-void Application::CheckNewVersion() {
+-    const int MAX_RETRY = 10;
+-    int retry_count = 0;
+-    int retry_delay = 10;  // Initial retry delay in seconds
+-
+-    auto& board = Board::GetInstance();
+-    while (true) {
+-        auto display = board.GetDisplay();
+-        display->SetStatus(Lang::Strings::CHECKING_NEW_VERSION);
+-
+-        auto check = ota_->CheckVersion();
+-        if (!check) {
+-            retry_count++;
+-            if (retry_count >= MAX_RETRY) {
+-                ESP_LOGE(TAG, "Too many retries, exit version check");
+-                return;
+-            }
+-
+-            const auto& err = check.error();
+-            char error_message[160];
+-            int error_message_length =
+-                snprintf(error_message, sizeof(error_message), "%s", err.ToString().c_str());
+-            if (error_message_length < 0 ||
+-                error_message_length >= static_cast<int>(sizeof(error_message))) {
+-                snprintf(error_message, sizeof(error_message), "%s", err.Message());
+-            }
+-
+-            char buffer[320];
+-            int alert_message_length =
+-                snprintf(buffer, sizeof(buffer), Lang::Strings::CHECK_NEW_VERSION_FAILED,
+-                         retry_delay, error_message);
+-            if (alert_message_length < 0 ||
+-                alert_message_length >= static_cast<int>(sizeof(buffer))) {
+-                snprintf(buffer, sizeof(buffer), "%s", err.Message());
+-            }
+-            Alert(Lang::Strings::ERROR, buffer, "cloud_off", Lang::Sounds::OGG_EXCLAMATION);
++void Application::ActivationTask() { ESP_LOGW(TAG,"Factory activation disabled in GoBot"); }
+ 
+-            ESP_LOGW(TAG, "Check new version failed, retry in %d seconds (%d/%d)", retry_delay,
+-                     retry_count, MAX_RETRY);
+-            for (int i = 0; i < retry_delay; i++) {
+-                vTaskDelay(pdMS_TO_TICKS(1000));
+-                if (GetDeviceState() == kDeviceStateIdle) {
+-                    break;
+-                }
+-            }
+-            retry_delay *= 2;  // Double the retry delay
+-            continue;
+-        }
+-        retry_count = 0;
+-        retry_delay = 10;  // Reset retry delay
+-
+-        if (ota_->HasNewVersion()) {
+-            if (UpgradeFirmware(ota_->GetFirmwareUrl(), ota_->GetFirmwareVersion())) {
+-                return;  // This line will never be reached after reboot
+-            }
+-            // If upgrade failed, continue to normal operation
+-        }
+-
+-        // No new version, mark the current version as valid
+-        ota_->MarkCurrentVersionValid();
+-        if (!ota_->HasActivationCode() && !ota_->HasActivationChallenge()) {
+-            // Exit the loop if done checking new version
+-            break;
+-        }
++void Application::CheckAssetsVersion() { Assets::GetInstance().Apply(); }
+ 
+-        display->SetStatus(Lang::Strings::ACTIVATION);
+-        // Activation code is shown to the user and waiting for the user to input
+-        if (ota_->HasActivationCode()) {
+-            ShowActivationCode(ota_->GetActivationCode(), ota_->GetActivationMessage());
+-        }
+-
+-        // This will block the loop until the activation is done or timeout
+-        for (int i = 0; i < 10; ++i) {
+-            ESP_LOGI(TAG, "Activating... %d/%d", i + 1, 10);
+-            esp_err_t err = ota_->Activate();
+-            if (err == ESP_OK) {
+-                break;
+-            } else if (err == ESP_ERR_TIMEOUT) {
+-                vTaskDelay(pdMS_TO_TICKS(3000));
+-            } else {
+-                vTaskDelay(pdMS_TO_TICKS(10000));
+-            }
+-            if (GetDeviceState() == kDeviceStateIdle) {
+-                break;
+-            }
+-        }
+-    }
+-}
++void Application::CheckNewVersion() { /* Owner-controlled USB release only. */ }
+ 
+ void Application::InitializeProtocol() {
+     auto& board = Board::GetInstance();
+@@ -560,14 +387,7 @@ void Application::InitializeProtocol() {
+ 
+     display->SetStatus(Lang::Strings::LOADING_PROTOCOL);
+ 
+-    if (ota_->HasMqttConfig()) {
+-        protocol_ = std::make_unique<MqttProtocol>();
+-    } else if (ota_->HasWebsocketConfig()) {
+-        protocol_ = std::make_unique<WebsocketProtocol>();
+-    } else {
+-        ESP_LOGW(TAG, "No protocol specified in the OTA config, using MQTT");
+-        protocol_ = std::make_unique<MqttProtocol>();
+-    }
++    protocol_ = std::make_unique<WebsocketProtocol>();
+ 
+     protocol_->OnConnected([this]() { DismissAlert(); });
+ 
+@@ -592,12 +412,10 @@ void Application::InitializeProtocol() {
+         }
+     });
+ 
+-    protocol_->OnAudioChannelClosed([this, &board]() {
+-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
++    protocol_->OnAudioChannelClosed([this]() {
+         Schedule([this]() {
+-            auto display = Board::GetInstance().GetDisplay();
+-            display->SetChatMessage("system", "");
+-            SetDeviceState(kDeviceStateIdle);
++            if(protocol_ && protocol_->IsAudioChannelOpened()) return;
++            if(gobot_turn_.Active()) GoBotFinish("remote_closed");
+         });
+     });
+ 
+@@ -608,6 +426,9 @@ void Application::InitializeProtocol() {
+             ESP_LOGW(TAG, "Incoming JSON message has no type");
+             return;
+         }
++        // No remote OTA/reboot/MCP/browser URLs in this hardware bring-up release.
++        if(strcmp(type->valuestring,"notify")==0 || strcmp(type->valuestring,"system")==0 ||
++           strcmp(type->valuestring,"mcp")==0 || strcmp(type->valuestring,"alert")==0)return;
+         if (strcmp(type->valuestring, "notify") == 0) {
+             auto audio_url = cJSON_GetObjectItem(root, "audio_url");
+             if (!cJSON_IsString(audio_url) || audio_url->valuestring[0] == '\0') {
+@@ -648,18 +469,13 @@ void Application::InitializeProtocol() {
+             }
+             if (strcmp(state->valuestring, "start") == 0) {
+                 Schedule([this]() {
++                    if(!gobot_turn_.TtsStart(gobot::NowMs())) return;
+                     aborted_ = false;
+                     SetDeviceState(kDeviceStateSpeaking);
+                 });
+             } else if (strcmp(state->valuestring, "stop") == 0) {
+                 Schedule([this]() {
+-                    if (GetDeviceState() == kDeviceStateSpeaking) {
+-                        if (listening_mode_ == kListeningModeManualStop) {
+-                            SetDeviceState(kDeviceStateIdle);
+-                        } else {
+-                            SetDeviceState(kDeviceStateListening);
+-                        }
+-                    }
++                    if(GetDeviceState()==kDeviceStateSpeaking && gobot_turn_.TtsStop(gobot::NowMs())) GoBotPoll();
+                 });
+             } else if (strcmp(state->valuestring, "sentence_start") == 0) {
+                 auto text = cJSON_GetObjectItem(root, "text");
+@@ -669,7 +485,7 @@ void Application::InitializeProtocol() {
+                     if (!TextGlyphPayload::Parse(root, glyphs, bpp)) {
+                         glyphs.clear();
+                     }
+-                    ESP_LOGI(TAG, "<< %s", text->valuestring);
++                    ESP_LOGI(TAG, "GOBOT_REPLY_TEXT bytes=%u",static_cast<unsigned>(strlen(text->valuestring)));
+                     Schedule([display, message = std::string(text->valuestring),
+                               glyphs = std::move(glyphs), bpp]() {
+                         display->AddTextGlyphs(glyphs, bpp);
+@@ -685,7 +501,7 @@ void Application::InitializeProtocol() {
+                 if (!TextGlyphPayload::Parse(root, glyphs, bpp)) {
+                     glyphs.clear();
+                 }
+-                ESP_LOGI(TAG, ">> %s", text->valuestring);
++                ESP_LOGI(TAG, "GOBOT_STT_TEXT bytes=%u",static_cast<unsigned>(strlen(text->valuestring)));
+                 Schedule([display, message = std::string(text->valuestring),
+                           glyphs = std::move(glyphs), bpp]() {
+                     display->AddTextGlyphs(glyphs, bpp);
+@@ -729,7 +545,7 @@ void Application::InitializeProtocol() {
+         } else if (strcmp(type->valuestring, "custom") == 0) {
+             auto payload = cJSON_GetObjectItem(root, "payload");
+             CJsonStringUniquePtr root_json(cJSON_PrintUnformatted(root));
+-            ESP_LOGI(TAG, "Received custom message: %s", root_json ? root_json.get() : "");
++            ESP_LOGD(TAG, "GoBot custom presentation received");
+             if (cJSON_IsObject(payload)) {
+                 CJsonStringUniquePtr payload_json(cJSON_PrintUnformatted(payload));
+                 if (payload_json) {
+@@ -803,45 +619,8 @@ void Application::StartListening() { xEventGroupSetBits(event_group_, MAIN_EVENT
+ void Application::StopListening() { xEventGroupSetBits(event_group_, MAIN_EVENT_STOP_LISTENING); }
+ 
+ void Application::HandleToggleChatEvent() {
+-    auto state = GetDeviceState();
+-
+-    if (state == kDeviceStateNotifying) {
+-        StopNotification();
+-        state = kDeviceStateIdle;
+-    }
+-
+-    if (state == kDeviceStateActivating) {
+-        SetDeviceState(kDeviceStateIdle);
+-        return;
+-    } else if (state == kDeviceStateWifiConfiguring) {
+-        audio_service_.EnableAudioTesting(true);
+-        SetDeviceState(kDeviceStateAudioTesting);
+-        return;
+-    } else if (state == kDeviceStateAudioTesting) {
+-        audio_service_.EnableAudioTesting(false);
+-        SetDeviceState(kDeviceStateWifiConfiguring);
+-        return;
+-    }
+-
+-    if (!protocol_) {
+-        ESP_LOGE(TAG, "Protocol not initialized");
+-        return;
+-    }
+-
+-    if (state == kDeviceStateIdle) {
+-        ListeningMode mode = GetDefaultListeningMode();
+-        if (!protocol_->IsAudioChannelOpened()) {
+-            SetDeviceState(kDeviceStateConnecting);
+-            // Schedule to let the state change be processed first (UI update)
+-            Schedule([this, mode]() { ContinueOpenAudioChannel(mode); });
+-            return;
+-        }
+-        SetListeningMode(mode);
+-    } else if (state == kDeviceStateSpeaking) {
+-        AbortSpeaking(kAbortReasonNone);
+-    } else if (state == kDeviceStateListening) {
+-        protocol_->CloseAudioChannel();
+-    }
++    if(gobot_turn_.Active()) { GoBotFinish("button_cancel"); return; }
++    Board::GetInstance().GetDisplay()->ShowNotification("Скажите: ГоБот");
+ }
+ 
+ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
+@@ -866,94 +645,21 @@ void Application::ContinueOpenAudioChannel(ListeningMode mode) {
+     SetListeningMode(mode);
+ }
+ 
+-void Application::HandleStartListeningEvent() {
+-    auto state = GetDeviceState();
+-
+-    if (state == kDeviceStateNotifying) {
+-        StopNotification();
+-        state = kDeviceStateIdle;
+-    }
+-
+-    if (state == kDeviceStateActivating) {
+-        SetDeviceState(kDeviceStateIdle);
+-        return;
+-    } else if (state == kDeviceStateWifiConfiguring) {
+-        audio_service_.EnableAudioTesting(true);
+-        SetDeviceState(kDeviceStateAudioTesting);
+-        return;
+-    }
++void Application::HandleStartListeningEvent() { HandleToggleChatEvent(); }
+ 
+-    if (!protocol_) {
+-        ESP_LOGE(TAG, "Protocol not initialized");
+-        return;
+-    }
+-
+-    if (state == kDeviceStateIdle) {
+-        if (!protocol_->IsAudioChannelOpened()) {
+-            SetDeviceState(kDeviceStateConnecting);
+-            // Schedule to let the state change be processed first (UI update)
+-            Schedule([this]() { ContinueOpenAudioChannel(kListeningModeManualStop); });
+-            return;
+-        }
+-        SetListeningMode(kListeningModeManualStop);
+-    } else if (state == kDeviceStateSpeaking) {
+-        AbortSpeaking(kAbortReasonNone);
+-        SetListeningMode(kListeningModeManualStop);
+-    }
+-}
+-
+-void Application::HandleStopListeningEvent() {
+-    auto state = GetDeviceState();
+-
+-    if (state == kDeviceStateNotifying) {
+-        StopNotification();
+-    } else if (state == kDeviceStateAudioTesting) {
+-        audio_service_.EnableAudioTesting(false);
+-        SetDeviceState(kDeviceStateWifiConfiguring);
+-        return;
+-    } else if (state == kDeviceStateListening) {
+-        if (protocol_) {
+-            protocol_->SendStopListening();
+-        }
+-        SetDeviceState(kDeviceStateIdle);
+-    }
+-}
++void Application::HandleStopListeningEvent() { if(gobot_turn_.Active())GoBotFinish("button_stop"); }
+ 
+ void Application::HandleWakeWordDetectedEvent() {
+-    if (!protocol_) {
+-        return;
+-    }
+-
+-    auto state = GetDeviceState();
+-    auto wake_word = audio_service_.GetLastWakeWord();
+-    ESP_LOGI(TAG, "Wake word detected: %s (state: %d)", wake_word.c_str(), (int)state);
+-
+-    if (state == kDeviceStateIdle) {
+-        BeginWakeWordInvoke(wake_word);
+-    } else if (state == kDeviceStateNotifying) {
+-        StopNotification();
+-        BeginWakeWordInvoke(wake_word);
+-    } else if (state == kDeviceStateSpeaking || state == kDeviceStateListening) {
+-        AbortSpeaking(kAbortReasonWakeWordDetected);
+-        // Clear send queue to avoid sending residues to server
+-        while (audio_service_.PopPacketFromSendQueue())
+-            ;
+-
+-        if (state == kDeviceStateListening) {
+-            protocol_->SendStartListening(GetDefaultListeningMode());
+-            audio_service_.ResetDecoder();
+-            audio_service_.PlaySound(Lang::Sounds::OGG_POPUP);
+-            // Re-enable wake word detection as it was stopped by the detection itself
+-            audio_service_.EnableWakeWordDetection(true);
+-        } else {
+-            // Play popup sound and start listening again
+-            play_popup_on_listening_ = true;
+-            SetListeningMode(GetDefaultListeningMode());
+-        }
+-    } else if (state == kDeviceStateActivating) {
+-        // Restart the activation check if the wake word is detected during activation
+-        SetDeviceState(kDeviceStateIdle);
+-    }
++    if(gobot_muted_ || gobot_turn_.Active()) return;
++    if(GetDeviceState()!=kDeviceStateIdle) return;
++    gobot::Enrollment enrollment;
++    if(!gobot_network_ready_ || !gobot::LoadEnrollment(enrollment)) {
++        Board::GetInstance().GetDisplay()->ShowNotification(gobot_network_ready_?"Нужно подключение к GoBot":"Нет Wi-Fi");
++        audio_service_.EnableWakeWordDetection(true);return;
++    }
++    if(!gobot_turn_.Begin(gobot::NowMs())) {audio_service_.EnableWakeWordDetection(true);return;}
++    ESP_LOGI(TAG,"GOBOT_WAKE source=local target=GoBot");
++    BeginWakeWordInvoke("ГоБот");
+ }
+ 
+ void Application::BeginWakeWordInvoke(const std::string& wake_word) {
+@@ -995,11 +701,12 @@ void Application::ContinueWakeWordInvoke(const std::string& wake_word) {
+             // Return to idle so the device is not stuck in the connecting
+             // state (not every failure path reports a network error), and
+             // wake word detection is re-enabled by the idle state handler.
+-            SetDeviceState(kDeviceStateIdle);
++            GoBotFinish("connect_failed");
+             return;
+         }
+     }
+ 
++    if(!gobot_turn_.Connected(gobot::NowMs())) {GoBotFinish("stale_connect");return;}
+     ESP_LOGI(TAG, "Wake word detected: %s", wake_word.c_str());
+ #if CONFIG_SEND_WAKE_WORD_DATA
+     // Encode and send the wake word data to the server
+@@ -1042,7 +749,9 @@ void Application::HandleStateChangedEvent() {
+                     "neutral");  // Then set emotion (wechat mode checks child count)
+             }
+             audio_service_.EnableVoiceProcessing(false);
+-            audio_service_.EnableWakeWordDetection(true);
++            audio_service_.EnableWakeWordDetection(!gobot_muted_);
++            display->SetStatus(gobot_muted_?"Микрофон выключен":
++                audio_service_.GetWakeWords().empty()?"ГоБот: требуется калибровка":"Скажите: ГоБот");
+             break;
+         case kDeviceStateConnecting:
+             display->SetStatus(Lang::Strings::CONNECTING);
+@@ -1074,7 +783,7 @@ void Application::HandleStateChangedEvent() {
+             if (listening_mode_ != kListeningModeRealtime) {
+                 audio_service_.EnableVoiceProcessing(false);
+                 // Only AFE wake word can be detected in speaking mode
+-                audio_service_.EnableWakeWordDetection(audio_service_.IsAfeWakeWord());
++                audio_service_.EnableWakeWordDetection(false);
+             }
+             audio_service_.ResetDecoder();
+             break;
+@@ -1162,6 +871,7 @@ void Application::HideStartupWakeWordHint() {
+ }
+ 
+ void Application::StartListeningAudio() {
++    if(!gobot_turn_.UploadAllowed()) return;
+     // Runs in the main loop, either directly from HandleStateChangedEvent or
+     // deferred via MAIN_EVENT_PLAYBACK_DRAINED once the playback queue drains.
+     if (GetDeviceState() != kDeviceStateListening) {
+@@ -1278,9 +988,7 @@ void Application::SetListeningMode(ListeningMode mode) {
+     SetDeviceState(kDeviceStateListening);
+ }
+ 
+-ListeningMode Application::GetDefaultListeningMode() const {
+-    return aec_mode_ == kAecOff ? kListeningModeAutoStop : kListeningModeRealtime;
+-}
++ListeningMode Application::GetDefaultListeningMode() const { return kListeningModeAutoStop; }
+ 
+ void Application::Reboot() {
+     ESP_LOGI(TAG, "Rebooting...");
+@@ -1299,6 +1007,8 @@ void Application::Reboot() {
+ }
+ 
+ bool Application::UpgradeFirmware(const std::string& url, const std::string& version) {
++    ESP_LOGW(TAG,"GoBot remote OTA disabled until signed release provisioning");
++    return false;
+     auto& board = Board::GetInstance();
+     auto display = board.GetDisplay();
+ 
+@@ -1465,3 +1175,48 @@ void Application::ResetProtocol() {
+         protocol_.reset();
+     });
+ }
++
++void Application::GoBotFinish(const char* reason) {
++    audio_service_.EnableVoiceProcessing(false);
++    audio_service_.EnableWakeWordDetection(false);
++    while(audio_service_.PopPacketFromSendQueue()) {}
++    audio_service_.ResetDecoder();
++    gobot_turn_.End(gobot::NowMs());
++    if(protocol_)protocol_->CloseAudioChannel();
++    last_error_message_.clear();
++    SetDeviceState(kDeviceStateIdle);
++    audio_service_.EnableWakeWordDetection(!gobot_muted_);
++    Board::GetInstance().GetDisplay()->SetStatus(gobot_muted_?"Микрофон выключен":"Скажите: ГоБот");
++    ESP_LOGI(TAG,"GOBOT_STANDBY reason=%s upload=0",reason);
++}
++void Application::GoBotPoll() {
++    switch(gobot_turn_.Poll(gobot::NowMs(),audio_service_.IsVoiceDetected(),audio_service_.IsPlaybackIdle())) {
++    case gobot::Action::StopCapture:
++        audio_service_.EnableVoiceProcessing(false);
++        while(audio_service_.PopPacketFromSendQueue()) {}
++        if(protocol_)protocol_->SendStopListening();
++        Board::GetInstance().GetDisplay()->SetStatus("Думаю...");
++        ESP_LOGI(TAG,"GOBOT_UTTERANCE_END upload=0");break;
++    case gobot::Action::Finish:GoBotFinish("turn_complete");break;
++    case gobot::Action::Timeout:GoBotFinish("timeout");break;
++    default:break;
++    }
++}
++void Application::GoBotSerial(const std::string& line) {
++    if(line.rfind("GOBOT_CFG ",0)==0) {
++        if(gobot_turn_.Active()) {ESP_LOGW(TAG,"GOBOT_CONFIG_BUSY");return;}
++        const bool ok=gobot::SaveEnrollment(line.substr(10));
++        ESP_LOGI(TAG,"GOBOT_CONFIG_%s",ok?"OK":"FAILED");
++    } else if(line=="GOBOT_STATUS") {
++        gobot::Enrollment e;
++        const auto words=audio_service_.GetWakeWords();
++        ESP_LOGI(TAG,"GOBOT_STATUS version=%s wifi=%d enrolled=%d muted=%d phase=%d wake_running=%d wake_words=%u upload=%d",
++                 GOBOT_FIRMWARE_VERSION,gobot_network_ready_,gobot::LoadEnrollment(e),gobot_muted_,
++                 static_cast<int>(gobot_turn_.GetPhase()),audio_service_.IsWakeWordRunning(),
++                 static_cast<unsigned>(words.size()),gobot_turn_.UploadAllowed());
++    } else if(line=="GOBOT_MUTE") {
++        gobot_muted_=true;GoBotFinish("muted");
++    } else if(line=="GOBOT_UNMUTE") {
++        gobot_muted_=false;GoBotFinish("unmuted");
++    }
++}
+diff --git a/main/application.h b/main/application.h
+index 1fa825e..b6313d4 100644
+--- a/main/application.h
++++ b/main/application.h
+@@ -19,6 +19,7 @@
+ #include "audio_service.h"
+ #include "device_state.h"
+ #include "device_state_machine.h"
++#include "gobot_turn_guard.h"
+ #include "notify/notify_player.h"
+ 
+ // Main event bits
+@@ -37,6 +38,7 @@
+ #define MAIN_EVENT_STATE_CHANGED        (1 << 12)
+ #define MAIN_EVENT_PLAYBACK_DRAINED     (1 << 13)
+ #define MAIN_EVENT_STARTUP_HINT_TIMEOUT (1 << 14)
++#define MAIN_EVENT_GOBOT_TICK (1 << 15)
+ 
+ enum AecMode {
+     kAecOff,
+@@ -127,6 +129,13 @@ public:
+     void ResetProtocol();
+ 
+ private:
++    gobot::TurnGuard gobot_turn_;
++    bool gobot_muted_ = false;
++    bool gobot_network_ready_ = false;
++    esp_timer_handle_t gobot_timer_ = nullptr;
++    void GoBotFinish(const char* reason);
++    void GoBotPoll();
++    void GoBotSerial(const std::string& line);
+     Application();
+     ~Application();
+ 
+diff --git a/main/audio/wake_words/custom_wake_word.cc b/main/audio/wake_words/custom_wake_word.cc
+index 8759ef4..791c593 100644
+--- a/main/audio/wake_words/custom_wake_word.cc
++++ b/main/audio/wake_words/custom_wake_word.cc
+@@ -8,6 +8,9 @@
+ #include <esp_mn_models.h>
+ #include <esp_mn_speech_commands.h>
+ #include <cJSON.h>
++#include "gobot_kws_samples.h"
++#include <algorithm>
++#include <cmath>
+ 
+ #define TAG "CustomWakeWord"
+ 
+@@ -104,29 +107,65 @@ bool CustomWakeWord::Initialize(AudioCodec* codec, srmodel_list_t* models_list)
+         return false;
+     }
+ 
+-    // 初始化 multinet (命令词识别)
+-    mn_name_ = esp_srmodel_filter(models_, ESP_MN_PREFIX, language_.c_str());
+-    if (mn_name_ == nullptr) {
+-        ESP_LOGW(TAG, "Language '%s' multinet not found, falling back to any multinet model", language_.c_str());
+-        mn_name_ = esp_srmodel_filter(models_, ESP_MN_PREFIX, NULL);
+-    }
+-    if (mn_name_ == nullptr) {
+-        ESP_LOGE(TAG, "Failed to initialize multinet, mn_name is nullptr");
+-        ESP_LOGI(TAG, "Please refer to https://pcn7cs20v8cr.feishu.cn/wiki/CpQjwQsCJiQSWSkYEvrcxcbVnwh to add custom wake word");
+-        return false;
+-    }
+-
++    mn_name_ = esp_srmodel_filter(models_, ESP_MN_PREFIX, "mn7_en");
++    if (!mn_name_) { ESP_LOGE(TAG, "GOBOT_KWS_MODEL_MISSING"); return false; }
+     multinet_ = esp_mn_handle_from_name(mn_name_);
+-    multinet_model_data_ = multinet_->create(mn_name_, duration_);
++    if (!multinet_) return false;
++    multinet_model_data_ = multinet_->create(mn_name_, 3000);
++    if (!multinet_model_data_) return false;
++    threshold_ = 0.70f;
+     multinet_->set_det_threshold(multinet_model_data_, threshold_);
+-    input_buffer_.reserve(multinet_->get_samp_chunksize(multinet_model_data_));
+-    esp_mn_commands_clear();
+-    for (int i = 0; i < commands_.size(); i++) {
+-        esp_mn_commands_add(i + 1, commands_[i].command.c_str());
++    const int chunk = multinet_->get_samp_chunksize(multinet_model_data_);
++    if (chunk <= 0 || chunk > 1600) return false;
++    input_buffer_.reserve(chunk * 2);
++    commands_.clear(); commands_.push_back({"go bot", "ГоБот", "wake"});
++    if (esp_mn_commands_alloc(multinet_,multinet_model_data_) != ESP_OK ||
++        esp_mn_commands_clear() != ESP_OK) return false;
++    const char* phonemes[] = {"GbBeT", "GcBeT", "GeBeT"};
++    const char* names[] = {"go bot", "guh bot", "gaw bot"};
++    for (int i=0; i<3; ++i) {
++        if (esp_mn_commands_phoneme_add(1,names[i],phonemes[i])!=ESP_OK) {
++            ESP_LOGE(TAG,"GOBOT_KWS_COMMAND_INVALID"); return false;
++        }
+     }
+-    esp_mn_commands_update();
+-    
+-    multinet_->print_active_speech_commands(multinet_model_data_);
++    if (esp_mn_commands_update()!=nullptr) {
++        ESP_LOGE(TAG,"GOBOT_KWS_COMPILE_FAILED"); return false;
++    }
++    // Bounded synthetic-only boot test. This is NOT an acoustic/human acceptance test.
++    int expected_positive=0, positives=0, false_positives=0;
++    std::vector<int16_t> frame(chunk,0);
++    for (const auto& sample:gobot::kKwsSamples) {
++        multinet_->clean(multinet_model_data_); bool detected=false; float best=0;
++        for (size_t offset=0;offset<sample.samples;offset+=chunk) {
++            std::fill(frame.begin(),frame.end(),0);
++            const size_t count=std::min(static_cast<size_t>(chunk),sample.samples-offset);
++            std::copy_n(sample.pcm+offset,count,frame.data());
++            const auto state=multinet_->detect(multinet_model_data_,frame.data());
++            if(state==ESP_MN_STATE_DETECTED) {
++                auto* result=multinet_->get_results(multinet_model_data_);
++                if(result) for(int i=0;i<result->num;++i) {
++                    if(result->command_id[i]==1 && std::isfinite(result->prob[i])) {
++                        best=std::max(best,result->prob[i]);
++                        if(result->prob[i]>=threshold_)detected=true;
++                    }
++                }
++                multinet_->clean(multinet_model_data_);
++            } else if(state==ESP_MN_STATE_TIMEOUT)multinet_->clean(multinet_model_data_);
++            vTaskDelay(pdMS_TO_TICKS(1));
++        }
++        if(sample.positive) {++expected_positive; if(detected)++positives;}
++        else if(detected)++false_positives;
++        ESP_LOGI(TAG,"GOBOT_KWS_TEST name=%s expected=%d detected=%d score=%.3f",
++                 sample.name,sample.positive,detected,best);
++    }
++    multinet_->clean(multinet_model_data_);
++    ESP_LOGI(TAG,"GOBOT_KWS_SELFTEST positives=%d/%d false_positives=%d synthetic_only=1",
++             positives,expected_positive,false_positives);
++    // Do not silently activate a detector that failed all positive fixtures.
++    if(positives==0 || false_positives>0) {
++        ESP_LOGE(TAG,"GOBOT_KWS_SELFTEST_BLOCKED"); return false;
++    }
++    ESP_LOGI(TAG,"GOBOT_KWS_READY phonetic_experimental=1 target=GoBot");
+ #if CONFIG_SEND_WAKE_WORD_DATA
+     if (!wake_word_audio_cache_.Initialize(16000 * 2)) {
+         ESP_LOGW(TAG, "Wake-word audio upload disabled: PSRAM cache allocation failed");
+@@ -153,6 +192,9 @@ std::vector<std::string> CustomWakeWord::GetWakeWords() const {
+ }
+ 
+ void CustomWakeWord::Start() {
++    std::lock_guard<std::mutex> lock(input_buffer_mutex_);
++    input_buffer_.clear();
++    if(multinet_model_data_)multinet_->clean(multinet_model_data_);
+     running_ = true;
+ }
+ 
+@@ -204,7 +246,8 @@ void CustomWakeWord::FeedSamples(const int16_t* data, size_t samples, bool mono)
+             for (int i = 0; i < mn_result->num && running_; i++) {
+                 ESP_LOGI(TAG, "Custom wake word detected: command_id=%d, string=%s, prob=%f", 
+                         mn_result->command_id[i], mn_result->string, mn_result->prob[i]);
+-                auto& command = commands_[mn_result->command_id[i] - 1];
++                if(mn_result->command_id[i]!=1 || !std::isfinite(mn_result->prob[i]) || mn_result->prob[i]<threshold_)continue;
++                auto& command = commands_[0];
+                 if (command.action == "wake") {
+                     last_detected_wake_word_ = command.text;
+                     running_ = false;
+diff --git a/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc b/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
+index bb1923e..7a7d77e 100644
+--- a/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
++++ b/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
+@@ -148,7 +148,7 @@ private:
+         rtc_gpio_set_direction(GPIO_NUM_3, RTC_GPIO_MODE_OUTPUT_ONLY);
+         rtc_gpio_set_level(GPIO_NUM_3, 1);
+ 
+-        power_save_timer_ = new PowerSaveTimer(-1, 60, 290);
++        power_save_timer_ = new PowerSaveTimer(-1, 60, -1);
+         power_save_timer_->OnEnterSleepMode([this]() {
+             GetDisplay()->SetPowerSaveMode(true);
+             GetBacklight()->SetBrightness(1);
+diff --git a/main/protocols/websocket_protocol.cc b/main/protocols/websocket_protocol.cc
+index a565869..cccee09 100644
+--- a/main/protocols/websocket_protocol.cc
++++ b/main/protocols/websocket_protocol.cc
+@@ -2,6 +2,7 @@
+ #include "application.h"
+ #include "board.h"
+ #include "settings.h"
++#include "gobot_platform.h"
+ #include "system_info.h"
+ 
+ #include <esp_log.h>
+@@ -59,7 +60,7 @@ bool WebsocketProtocol::SendText(const std::string& text) {
+     }
+ 
+     if (!websocket_->Send(text)) {
+-        ESP_LOGE(TAG, "Failed to send text: %s", text.c_str());
++        ESP_LOGE(TAG, "Failed to send GoBot control message");
+         SetError(Lang::Strings::SERVER_ERROR);
+         return false;
+     }
+@@ -73,17 +74,19 @@ bool WebsocketProtocol::IsAudioChannelOpened() const {
+ 
+ void WebsocketProtocol::CloseAudioChannel(bool send_goodbye) {
+     (void)send_goodbye;  // Websocket doesn't need to send goodbye message
++    ++generation_;
+     websocket_.reset();
+ }
+ 
+ bool WebsocketProtocol::OpenAudioChannel() {
+-    Settings settings("websocket", false);
+-    std::string url = settings.GetString("url");
+-    std::string token = settings.GetString("token");
+-    int version = settings.GetInt("version");
+-    if (version != 0) {
+-        version_ = version;
+-    }
++    gobot::Enrollment enrollment;
++    if(!gobot::LoadEnrollment(enrollment)) {ESP_LOGE(TAG,"GOBOT_ENROLLMENT_REQUIRED");return false;}
++    const std::string url=enrollment.url;
++    std::string token=enrollment.token;
++    version_=1;
++    const uint64_t generation=++generation_;
++    xEventGroupClearBits(event_group_handle_,WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT);
++    gobot::InitializeClock();
+ 
+     error_occurred_ = false;
+ 
+@@ -105,7 +108,8 @@ bool WebsocketProtocol::OpenAudioChannel() {
+     websocket_->SetHeader("Device-Id", SystemInfo::GetMacAddress().c_str());
+     websocket_->SetHeader("Client-Id", Board::GetInstance().GetUuid().c_str());
+ 
+-    websocket_->OnData([this](const char* data, size_t len, bool binary) {
++    websocket_->OnData([this,generation](const char* data, size_t len, bool binary) {
++        if(generation!=generation_.load() || (binary?len>4096:len>16384))return;
+         if (binary) {
+             if (on_incoming_audio_ != nullptr) {
+                 if (version_ == 2) {
+@@ -151,7 +155,7 @@ bool WebsocketProtocol::OpenAudioChannel() {
+                     }
+                 }
+             } else {
+-                ESP_LOGE(TAG, "Missing message type, data: %s", std::string(data, len).c_str());
++                ESP_LOGE(TAG, "Missing message type");
+             }
+             cJSON_Delete(root);
+         }
+@@ -169,7 +173,8 @@ bool WebsocketProtocol::OpenAudioChannel() {
+         });
+     });
+ 
+-    websocket_->OnDisconnected([this]() {
++    websocket_->OnDisconnected([this,generation]() {
++        if(generation!=generation_.load())return;
+         ESP_LOGI(TAG, "Websocket disconnected");
+         if (on_audio_channel_closed_ != nullptr) {
+             on_audio_channel_closed_();
+@@ -216,7 +221,7 @@ std::string WebsocketProtocol::GetHelloMessage() {
+ #if CONFIG_USE_SERVER_AEC
+     cJSON_AddBoolToObject(features, "aec", true);
+ #endif
+-    cJSON_AddBoolToObject(features, "mcp", true);
++    cJSON_AddBoolToObject(features, "mcp", false);
+     cJSON_AddItemToObject(root, "features", features);
+     AddTextFontCapabilities(root);
+     cJSON_AddStringToObject(root, "transport", "websocket");
+diff --git a/main/protocols/websocket_protocol.h b/main/protocols/websocket_protocol.h
+index 07acef8..bb60f36 100644
+--- a/main/protocols/websocket_protocol.h
++++ b/main/protocols/websocket_protocol.h
+@@ -5,6 +5,7 @@
+ #include "protocol.h"
+ 
+ #include <web_socket.h>
++#include <atomic>
+ #include <freertos/FreeRTOS.h>
+ #include <freertos/event_groups.h>
+ 
+@@ -25,6 +26,7 @@ private:
+     EventGroupHandle_t event_group_handle_;
+     std::shared_ptr<WebSocket> websocket_;
+     int version_ = 1;
++    std::atomic<uint64_t> generation_{0};
+ 
+     void ParseServerHello(const cJSON* root);
+     bool SendText(const std::string& text) override;

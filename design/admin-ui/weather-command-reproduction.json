@@ -1,0 +1,44 @@
+{
+  "source_commit": "6c1cbe7672c28b34ef1484acd8ff857aec85392e",
+  "kind": "offline_reproduction_not_last_user_transcript",
+  "cases": [
+    {
+      "test_phrase": "Какая погода завтра?",
+      "recognized": true,
+      "result": {
+        "operation": "weather_forecast",
+        "offset": 1,
+        "days": 1,
+        "weekday": null
+      }
+    },
+    {
+      "test_phrase": "ГоБот, какая погода завтра?",
+      "recognized": true,
+      "result": {
+        "operation": "weather_forecast",
+        "offset": 1,
+        "days": 1,
+        "weekday": null
+      }
+    },
+    {
+      "test_phrase": "София, какая погода завтра?",
+      "recognized": false,
+      "result": null
+    },
+    {
+      "test_phrase": "София какая погода?",
+      "recognized": false,
+      "result": null
+    },
+    {
+      "test_phrase": "София. Какая погода сегодня?",
+      "recognized": false,
+      "result": null
+    }
+  ],
+  "last_user_failure_cause": "not_established",
+  "runtime_modified": false,
+  "paid_model_calls": 0
+}

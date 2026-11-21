@@ -1,0 +1,37 @@
+{
+  "sha256": "1f3b425ba3dd977b30118513bce93f898b2e3a145235a1814b44249bc8183010",
+  "bytes": 20888,
+  "train": [
+    "denis",
+    "espeak-ru",
+    "anna",
+    "aleksandr"
+  ],
+  "validation": "dmitri",
+  "test": "elena",
+  "input_quantization": [
+    0.10196078568696976,
+    -128
+  ],
+  "output_quantization": [
+    0.00390625,
+    0
+  ],
+  "ops": [
+    "ASSIGN_VARIABLE",
+    "AVERAGE_POOL_2D",
+    "CALL_ONCE",
+    "CONCATENATION",
+    "CONV_2D",
+    "DELEGATE",
+    "DEPTHWISE_CONV_2D",
+    "FULLY_CONNECTED",
+    "LOGISTIC",
+    "QUANTIZE",
+    "READ_VARIABLE",
+    "RESHAPE",
+    "STRIDED_SLICE",
+    "VAR_HANDLE"
+  ],
+  "human_trials": 0
+}

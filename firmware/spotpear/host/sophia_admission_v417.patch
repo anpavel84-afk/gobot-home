@@ -1,0 +1,414 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 4f8bb56..8b002ef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "0.4.16-dev-sophia-unified-v4")
++set(PROJECT_VER "0.4.17-dev-sophia-ui-v4")
+ project(xiaozhi)
+diff --git a/main/application.cc b/main/application.cc
+index bd62c79..92f4bcc 100644
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -757,8 +757,11 @@ void Application::TouchGesture(bool physical, bool hold) {
+                 HostSetMuted(!host_muted_);
+             }
+         } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_output_active_) {
+-            host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
+-            audio_service_.AllowHostWake(false);
++            if(!host_admission_ui_.KnownBlocked()) {
++                host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
++                audio_service_.AllowHostWake(false);
++            }
++            // A cached denial changes presentation only. Brain still decides.
+             HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
+         }
+         RenderGoBot();return;
+@@ -849,6 +852,7 @@ void Application::EndTouchCapture() {
+ void Application::RenderGoBot() {
+     using touchui::View;
+     touchui::Page page;
++    bool admission_notice=false;
+     page.skin=skin_;page.engine=gobot_ui_engine_;
+     const auto now=gobot::NowMs();
+     char counter[24]={};
+@@ -896,6 +900,12 @@ void Application::RenderGoBot() {
+         page.detail=timer_latched_?"Время вышло":"Таймер";
+     } else if ((page.view==View::Ready || page.view==View::Speaking) && weather_until_>now) {
+         page.view=View::Weather;page.icon=weather_icon_;page.value=weather_value_;page.detail=weather_detail_;
++    } else if (host_admission_ui_.ShouldShowNotice(host_mode_ && host_ready_ && gobot_network_ready_,
++            page.view==View::Ready,gobot_muted_ || host_muted_,timer_latched_ || gobot_timer_end_)) {
++        // Persistent while this transport's selected mode is blocked. Existing
++        // mute, live media, transient notices, timers and weather keep priority.
++        page.view=View::Notice;page.value=host_admission_ui_.NoticeText();
++        page.detail=host_admission_ui_.NoticeDetail();admission_notice=true;
+     } else if (page.view==View::Ready && idle_clock_ && now>last_contact_+30000) {
+         time_t t=time(nullptr); struct tm local{};
+         if(localtime_r(&t,&local) && local.tm_year>=125) {
+@@ -907,12 +917,13 @@ void Application::RenderGoBot() {
+     if((playing!=reported_playing_ || (live_continuous_ && now>=activity_reported_+300)) && protocol_ && protocol_->IsAudioChannelOpened()){
+         protocol_->SendPlaybackActivity(playing,live_continuous_ && audio_service_.IsVoiceDetected());reported_playing_=playing;activity_reported_=now;
+     }
+-    if(gobot_raw_wake::busy()){page.view=View::Notice;page.value=gobot_raw_wake::label();page.detail=gobot_raw_wake::detail();}
++    if(gobot_raw_wake::busy()){page.view=View::Notice;page.value=gobot_raw_wake::label();page.detail=gobot_raw_wake::detail();admission_notice=false;}
+     if(page.view==View::Ready && !gobot_muted_ && gobot_mww::ready() && audio_service_.IsLocalScanRunning()) {
+         if(gobot_mww::qualified())page.detail="Скажите ГоБот";
+         else if(gobot_mww::owner_test_active())page.detail="Тест: ГоБот, вопрос";
+     }
+-    touchui::Render(page);
++    const auto rendered=touchui::Render(page);
++    HostAdmissionRendered(admission_notice,static_cast<uint8_t>(page.view),rendered);
+ }
+ 
+ void Application::HandleToggleChatEvent() { TouchGesture(false,false); }
+@@ -1618,6 +1629,10 @@ void Application::GoBotSerial(const std::string& line) {
+     } else if(line=="GOBOT_DUPLEX_CHECK" && !gobot_turn_.Active() && !gobot_muted_) {
+         duplex_armed_=true;RenderGoBot();ESP_LOGI(TAG,"GOBOT_DUPLEX_ARMED local=1");
+     } else if(line=="GOBOT_STATUS") {
++        ESP_LOGI(TAG,"GOBOT_HOST_ADMISSION_STATUS known=%d allowed=%d code=%s mode=%s revision=%lu native_view=%u notice_rendered=%d render_result=%u evidence=native_framebuffer_only",
++            int(host_admission_ui_.Known()),int(host_admission_ui_.InputAllowed()),host_admission_ui_.CodeName(),
++            host_admission_ui_.ModeName(),(unsigned long)host_admission_ui_.Revision(),unsigned(host_admission_ui_.NativeView()),
++            int(host_admission_ui_.RenderedNotice()),unsigned(host_admission_ui_.RenderResult()));
+         ESP_LOGI(TAG,"GOBOT_HOST_V2_STATUS selected=%d protocol_ready=%d connecting=%d local_probe_wake=%d lan_capture=%d capture_epoch=%lu sample_end=%llu output_epoch=%lu output_active=%d muted=%d dma_drained=%d %s",
+             int(host_mode_.load()),int(host_ready_.load()),int(host_connecting_.load()),int(host_probe_wake_pending_),
+             int(audio_service_.HostCaptureEnabled()),(unsigned long)audio_service_.HostCaptureEpoch(),
+diff --git a/main/application.h b/main/application.h
+index e0c08eb..b5f877a 100644
+--- a/main/application.h
++++ b/main/application.h
+@@ -22,6 +22,7 @@
+ #include "device_state_machine.h"
+ #include "gobot_turn_guard.h"
+ #include "host_output_receipts.h"
++#include "host_admission_ui.h"
+ #include "notify/notify_player.h"
+ 
+ // Main event bits
+@@ -147,6 +148,7 @@ private:
+     uint64_t host_last_stats_ms_=0;
+     std::string host_response_id_,host_output_kind_;
+     gobot_host::OutputReceipts host_output_receipts_;
++    gobot_host::AdmissionUi host_admission_ui_;
+     bool host_cue_acked_=false, host_render_acked_=false;
+     uint32_t host_output_epoch_=0;
+     uint64_t host_next_retry_ms_=0,host_touch_started_ms_=0,host_last_speech_ms_=0;
+@@ -162,6 +164,7 @@ private:
+     void HostTick();
+     void HostDriverOutputStarted();
+     void HostOnControl(const cJSON* root);
++    void HostAdmissionRendered(bool notice,uint8_t native_view,gobot_host::NativeRenderResult result);
+     void HostControl(const std::string& type,const std::string& extras="");
+     uint64_t gobot_timer_end_ = 0;
+     int gobot_timer_seconds_ = -1;
+diff --git a/main/gobot_build_info.h b/main/gobot_build_info.h
+index e355926..7932e44 100644
+--- a/main/gobot_build_info.h
++++ b/main/gobot_build_info.h
+@@ -1,3 +1,3 @@
+ #pragma once
+ #define GOBOT_BUILD_EPOCH 1794492000
+-#define GOBOT_FIRMWARE_VERSION "0.4.16-dev-sophia-unified-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.17-dev-sophia-ui-v4"
+diff --git a/main/host_admission_ui.h b/main/host_admission_ui.h
+new file mode 100644
+index 0000000..e12744a
+--- /dev/null
++++ b/main/host_admission_ui.h
+@@ -0,0 +1,128 @@
++#pragma once
++#include <cstdint>
++#include <cstring>
++
++// Fixed, volatile presentation state. This is never authority to capture,
++// spend, start a provider response, change the detector, or cancel playback.
++namespace gobot_host {
++enum class AdmissionCode : uint8_t {
++    Unknown=0, Available=1, ScopeExpired=2, StartsExhausted=3,
++    ConsentRequired=4, Unavailable=5
++};
++enum class AdmissionMode : uint8_t { Fast=0, Expert=1 };
++enum class AdmissionUpdate : uint8_t { Ignored=0, Accepted=1, Invalid=2 };
++enum class NativeRenderResult : uint8_t { Failed=0, Unchanged=1, Invalidated=2 };
++
++class AdmissionUi {
++public:
++    void Reset() {
++        Assign(false,false,AdmissionCode::Unknown,AdmissionMode::Fast);
++        rendered_notice_=false;render_result_=NativeRenderResult::Failed;native_view_=0;
++        reported_=false;
++    }
++
++    // The caller obtains scope_matches from the authenticated HostScope check.
++    // allowed_token is 0/1 only for JSON false/true, -1 for every other type.
++    AdmissionUpdate Update(bool ready_v2,bool scope_matches,int allowed_token,
++                           const char* code,const char* mode) {
++        if(!ready_v2 || !scope_matches)return AdmissionUpdate::Ignored;
++        AdmissionCode parsed_code=AdmissionCode::Unknown;
++        AdmissionMode parsed_mode=mode_;
++        const bool valid_mode=ParseMode(mode,parsed_mode);
++        const bool valid_code=ParseCode(code,parsed_code);
++        if((allowed_token!=0 && allowed_token!=1) || !valid_code || !valid_mode ||
++           ((parsed_code==AdmissionCode::Available)!=(allowed_token==1))) {
++            // Reject malformed same-scope data without changing live media.
++            // It cannot preserve an optimistic Available indication.
++            Assign(true,false,AdmissionCode::Unavailable,parsed_mode);
++            return AdmissionUpdate::Invalid;
++        }
++        Assign(true,allowed_token==1,parsed_code,parsed_mode);
++        return AdmissionUpdate::Accepted;
++    }
++
++    bool Known() const {return known_;}
++    bool InputAllowed() const {return known_ && input_allowed_;}
++    bool KnownBlocked() const {return known_ && !input_allowed_;}
++    AdmissionCode Code() const {return code_;}
++    AdmissionMode Mode() const {return mode_;}
++    uint32_t Revision() const {return revision_;}
++    bool ShouldShowNotice(bool transport_ready,bool idle,bool muted,
++                          bool priority_view) const {
++        return transport_ready && idle && !muted && !priority_view && KnownBlocked();
++    }
++    const char* CodeName() const {
++        switch(code_) {
++        case AdmissionCode::Available:return "available";
++        case AdmissionCode::ScopeExpired:return "scope_expired";
++        case AdmissionCode::StartsExhausted:return "starts_exhausted";
++        case AdmissionCode::ConsentRequired:return "consent_required";
++        case AdmissionCode::Unavailable:return "unavailable";
++        default:return "unknown";
++        }
++    }
++    const char* ModeName() const {return mode_==AdmissionMode::Expert?"expert":"fast";}
++    const char* NoticeText() const {
++        if(!KnownBlocked())return "";
++        switch(code_) {
++        case AdmissionCode::ScopeExpired:return "Время теста истекло";
++        case AdmissionCode::StartsExhausted:return "Лимит исчерпан";
++        case AdmissionCode::ConsentRequired:return "Нужно разрешение";
++        default:return "Разговор недоступен";
++        }
++    }
++    const char* NoticeDetail() const {
++        return mode_==AdmissionMode::Expert?"Экспертный режим":"Быстрый разговор";
++    }
++
++    // Called only after the real native Render() result. An invalidated buffer
++    // is not evidence of LVGL refresh, panel DMA completion or visible pixels.
++    bool ObserveRender(NativeRenderResult result,bool notice,uint8_t native_view) {
++        render_result_=result;native_view_=native_view;
++        rendered_notice_=notice && KnownBlocked() && result!=NativeRenderResult::Failed;
++        if(!known_ || result==NativeRenderResult::Failed)return false;
++        if(reported_ && reported_revision_==revision_ &&
++           reported_notice_==rendered_notice_ && reported_view_==native_view_)return false;
++        reported_=true;reported_revision_=revision_;
++        reported_notice_=rendered_notice_;reported_view_=native_view_;
++        return true;
++    }
++    bool RenderedNotice() const {return rendered_notice_;}
++    uint8_t NativeView() const {return native_view_;}
++    NativeRenderResult RenderResult() const {return render_result_;}
++    const char* RenderEvidence() const {
++        return render_result_==NativeRenderResult::Invalidated
++            ?"native_framebuffer_invalidated":"native_framebuffer_unchanged";
++    }
++
++private:
++    bool known_=false,input_allowed_=false,rendered_notice_=false;
++    bool reported_=false,reported_notice_=false;
++    AdmissionCode code_=AdmissionCode::Unknown;
++    AdmissionMode mode_=AdmissionMode::Fast;
++    NativeRenderResult render_result_=NativeRenderResult::Failed;
++    uint8_t native_view_=0,reported_view_=0;
++    uint32_t revision_=0,reported_revision_=0;
++
++    void Assign(bool known,bool allowed,AdmissionCode code,AdmissionMode mode) {
++        if(known_!=known || input_allowed_!=allowed || code_!=code || mode_!=mode)++revision_;
++        known_=known;input_allowed_=allowed;code_=code;mode_=mode;
++    }
++    static bool ParseMode(const char* value,AdmissionMode& out) {
++        if(value && !std::strcmp(value,"fast")){out=AdmissionMode::Fast;return true;}
++        if(value && !std::strcmp(value,"expert")){out=AdmissionMode::Expert;return true;}
++        return false;
++    }
++    static bool ParseCode(const char* value,AdmissionCode& out) {
++        if(!value)return false;
++        if(!std::strcmp(value,"available"))out=AdmissionCode::Available;
++        else if(!std::strcmp(value,"scope_expired"))out=AdmissionCode::ScopeExpired;
++        else if(!std::strcmp(value,"starts_exhausted"))out=AdmissionCode::StartsExhausted;
++        else if(!std::strcmp(value,"consent_required"))out=AdmissionCode::ConsentRequired;
++        else if(!std::strcmp(value,"unavailable"))out=AdmissionCode::Unavailable;
++        else return false;
++        return true;
++    }
++};
++static_assert(sizeof(AdmissionUi)<=48,"Admission UI state must stay fixed and small");
++}
+diff --git a/main/host_rc1_app.inc b/main/host_rc1_app.inc
+index 354d3e4..f05316c 100644
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -10,7 +10,25 @@ void Application::HostControl(const std::string& type,const std::string& extra)
+     if(!ws->HostSend(json))HostFault("send_failed");
+ }
+ 
++void Application::HostAdmissionRendered(bool notice,uint8_t native_view,gobot_host::NativeRenderResult result) {
++    const bool changed=host_admission_ui_.ObserveRender(result,notice,native_view);
++    if(!changed || !host_mode_ || !host_ready_)return;
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!ws || !ws->HostV2())return;
++    ESP_LOGI(TAG,"GOBOT_HOST_ADMISSION_RENDER known=%d allowed=%d code=%s mode=%s revision=%lu native_view=%u notice_rendered=%d render_result=%u evidence=native_framebuffer_only",
++        int(host_admission_ui_.Known()),int(host_admission_ui_.InputAllowed()),host_admission_ui_.CodeName(),
++        host_admission_ui_.ModeName(),(unsigned long)host_admission_ui_.Revision(),unsigned(native_view),
++        int(host_admission_ui_.RenderedNotice()),unsigned(result));
++    HostControl("gobot_host_ack",std::string(",\"event\":\"admission_rendered\",\"admission_known\":true,\"input_allowed\":")+
++        (host_admission_ui_.InputAllowed()?"true":"false")+",\"code\":\""+host_admission_ui_.CodeName()+
++        "\",\"mode\":\""+host_admission_ui_.ModeName()+"\",\"notice_rendered\":"+
++        (host_admission_ui_.RenderedNotice()?"true":"false")+",\"render_revision\":"+
++        std::to_string(host_admission_ui_.Revision())+",\"render_evidence\":\""+
++        host_admission_ui_.RenderEvidence()+"\"");
++}
++
+ void Application::HostFault(const char* reason) {
++    host_admission_ui_.Reset();
+     if(host_connecting_.load()) {
+         host_connect_abort_reason_=reason;return; // worker exclusively owns Connect/hello
+     }
+@@ -51,6 +69,7 @@ void Application::HostEnable(bool enabled,bool unified) {
+     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+     if(!ws)return;
+     if(!enabled) {
++        host_admission_ui_.Reset();
+         host_mode_=host_ready_=host_touch_active_=host_output_active_=false;
+         host_output_end_=host_output_started_=host_muted_=false;
+         host_feedback_.clear();host_stop_id_.clear();host_playback_id_.clear();
+@@ -70,6 +89,7 @@ void Application::HostEnable(bool enabled,bool unified) {
+     if(!(unified ? ws->ConfigureUnifiedHost() : ws->ConfigureHostTest(GOBOT_HOST_RC1_TEST_URL))) {
+         ESP_LOGE(TAG,"GOBOT_HOST_SWITCH_REJECT protocol_busy=1");return;
+     }
++    host_admission_ui_.Reset();
+     host_unified_=unified;
+     host_probe_wake_pending_=false;host_deferred_ready_.clear();host_connect_abort_reason_.clear();
+     host_mode_=true;host_muted_=false;host_ready_=false;
+@@ -88,18 +108,22 @@ void Application::HostSophiaWake(uint32_t capture_epoch,uint64_t sample,uint64_t
+         capture_epoch!=audio_service_.HostCaptureEpoch() || host_output_active_ ||
+         host_response_busy_ || host_touch_active_)return;
+     const auto wake_id=std::string("sophia-")+std::to_string(++host_wake_sequence_);
+-    host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=gobot::NowMs();
+-    gobot_ui_phase_="listening";
+-    // Register real LVGL refresh completion before submitting the new screen.
+-    if(!gobot_host::OnNextNativeRefresh([this,wake_id,callback_us]() {
+-        const uint64_t visible_us=esp_timer_get_time();
+-        Schedule([this,wake_id,callback_us,visible_us]() {
+-            if(host_mode_ && host_ready_)
+-                HostControl("gobot_host_ack",",\"event\":\"ui_visible\",\"wake_id\":\""+wake_id+
+-                    "\",\"device_monotonic_us\":"+std::to_string(visible_us)+
+-                    ",\"callback_monotonic_us\":"+std::to_string(callback_us));
+-        });
+-    })) {HostFault("lcd_refresh_receipt_unavailable");return;}
++    if(!host_admission_ui_.KnownBlocked()) {
++        host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=gobot::NowMs();
++        gobot_ui_phase_="listening";
++        // Preserve the accepted/unknown path's existing LVGL refresh receipt.
++        if(!gobot_host::OnNextNativeRefresh([this,wake_id,callback_us]() {
++            const uint64_t visible_us=esp_timer_get_time();
++            Schedule([this,wake_id,callback_us,visible_us]() {
++                if(host_mode_ && host_ready_)
++                    HostControl("gobot_host_ack",",\"event\":\"ui_visible\",\"wake_id\":\""+wake_id+
++                        "\",\"device_monotonic_us\":"+std::to_string(visible_us)+
++                        ",\"callback_monotonic_us\":"+std::to_string(callback_us));
++            });
++        })) {HostFault("lcd_refresh_receipt_unavailable");return;}
++    }
++    // Known blocked: retain the notice and local detector, but still forward
++    // this exact wake to Brain. A subsequent server state can allow listening.
+     RenderGoBot();
+     HostControl("gobot_host_wake",",\"wake_id\":\""+wake_id+"\",\"stream_epoch\":\""+
+         ws->HostStreamEpoch(capture_epoch)+"\",\"detector_sample\":"+std::to_string(sample)+
+@@ -170,6 +194,7 @@ void Application::HostOnControl(const cJSON* root) {
+         if((negotiated==2 && (!stage || strcmp(stage,"pre_afe") || !wake_location || strcmp(wake_location,"ESP"))) ||
+            !cJSON_IsNumber(frame) || frame->valueint!=960 ||
+            !ws->HostReady(session,epoch,negotiated)) {HostFault("ready_invalid");return;}
++        host_admission_ui_.Reset();
+         host_ready_=true;host_touch_active_=false;host_ready_deadline_ms_=0;
+         host_output_epoch_=0;host_response_busy_=false;
+         if(ws->HostV2()) {
+@@ -190,6 +215,18 @@ void Application::HostOnControl(const cJSON* root) {
+         RenderGoBot();return;
+     }
+     if(!host_ready_ || !ws->HostScope(session,epoch))return;
++    if(kind=="gobot_host_admission" && ws->HostV2()) {
++        const auto allowed=cJSON_GetObjectItem(root,"input_allowed");
++        const int token=cJSON_IsBool(allowed)?(cJSON_IsTrue(allowed)?1:0):-1;
++        const auto code=gobot::String(root,"code",24);
++        const auto mode=gobot::String(root,"mode",8);
++        const auto result=host_admission_ui_.Update(true,true,token,code,mode);
++        ESP_LOGI(TAG,"GOBOT_HOST_ADMISSION_UPDATE accepted=%d known=%d allowed=%d code=%s mode=%s revision=%lu",
++            int(result==gobot_host::AdmissionUpdate::Accepted),int(host_admission_ui_.Known()),
++            int(host_admission_ui_.InputAllowed()),host_admission_ui_.CodeName(),host_admission_ui_.ModeName(),
++            (unsigned long)host_admission_ui_.Revision());
++        RenderGoBot();return; // UI only: no input/output/AFE/wake mutation.
++    }
+     if(kind=="gobot_host_state" && ws->HostV2()) {
+         const auto state=gobot::String(root,"state",24);
+         if(!state)return;
+@@ -335,6 +372,7 @@ void Application::HostSetMuted(bool muted,bool notify) {
+     audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
+     host_touch_active_=host_response_busy_=false;host_output_receipts_.Reset();
+     if(!muted) {
++        host_admission_ui_.Reset();
+         // A new authenticated transport/capture epoch prevents old PCM or a
+         // hidden sample discontinuity from crossing mute/unmute.
+         host_ready_=false;host_output_active_=host_output_started_=host_output_end_=false;
+@@ -365,6 +403,7 @@ void Application::HostColdWake() {
+ 
+ void Application::HostBeginConnect() {
+     if(host_connecting_.exchange(true))return;
++    host_admission_ui_.Reset();
+     host_connect_abort_reason_.clear();host_deferred_ready_.clear();
+     // One temporary bounded worker, one existing protocol/socket. Input,
+     // display and touch tasks remain runnable during DNS/TLS/server hello.
+@@ -521,4 +560,4 @@ void Application::HostTick() {
+             RenderGoBot();
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/main/touch_lcd.h b/main/touch_lcd.h
+index 0074753..105bc70 100644
+--- a/main/touch_lcd.h
++++ b/main/touch_lcd.h
+@@ -2,19 +2,20 @@
+ #include "touch_screen.h"
+ #include "board.h"
+ #include "display.h"
++#include "host_admission_ui.h"
+ #include <esp_heap_caps.h>
+ 
+ namespace touchui {
+-inline void Render(const Page& page) {
++inline gobot_host::NativeRenderResult Render(const Page& page) {
+     static Page last;
+     static lv_obj_t* image=nullptr;
+     static lv_image_dsc_t descriptor{};
+     static uint16_t* buffer=nullptr;
+-    if(image && page==last) return;
++    if(image && page==last) return gobot_host::NativeRenderResult::Unchanged;
+     auto* display=Board::GetInstance().GetDisplay();
+     DisplayLockGuard lock(display);
+     if(!buffer) buffer=static_cast<uint16_t*>(heap_caps_malloc(240*240*2,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT));
+-    if(!buffer) {ESP_LOGE("GoBotLCD","framebuffer allocation failed");return;}
++    if(!buffer) {ESP_LOGE("GoBotLCD","framebuffer allocation failed");return gobot_host::NativeRenderResult::Failed;}
+     Screen(buffer).draw(page);
+     if(!image) {
+         descriptor.header.magic=LV_IMAGE_HEADER_MAGIC;
+@@ -30,5 +31,6 @@ inline void Render(const Page& page) {
+     }
+     lv_obj_invalidate(image);
+     last=page;
++    return gobot_host::NativeRenderResult::Invalidated;
+ }
+ }

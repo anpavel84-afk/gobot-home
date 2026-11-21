@@ -1,5 +1,163 @@
+LATEST INSTALLED:0.4.12-dev-guided-calibration-1,app1acb944d,readback/NVS verified; native1625 delta0; WiFi/enrolled1/phase0/upload0/raw0samples0. No recording ARM or paid call. Human wake NOT ACCEPTED. Fresh guided50s capture and persistent selected personal model permission not yet granted.
+
+LATEST 2026-11-15: ALL training jobs FINISHED/REJECTED. Human wake NOT ACCEPTED. Guided0.4.12 unchanged public4ffc build/install facts in guided-calibration-build.json. Recorder OFF; no NEW recording/paid/retention/transfer consent. Original sample/model expiry unchanged. 149 free wake tests. Correct alignment ONE frame, original end=i+4 restored. Older running/endpoint-fix notes superseded.
+
+LATEST2026-11-15: r2 full job COMPLETED,0dc97077 REJECTED (75/75both,FP134/112;Gabot17/20,16/20). Public continuous1610-window correction09ec4abd also REJECTED (70/75,65/75;FP3/9;Gabot8/20,12/20). Neither flashed. ONE balanced correction now running gobot-wake-balanced-20261115: full10kTRAINnegative scan capped20khardwindows, exact-schedule alias balancing,3000steps,2CPU/4GiB/2h/networkOFF, no retry/paid/flash. Board0.4.11 unchanged, budgets not renewed, C reserve/old expiry preserved. Await actual evaluation, no READY. Earlier running/completion notes historical.
+
+LATEST2026-11-15: Full job v1 FAILED before training at46032 sources (audible negative «Гоу»3160samples vs3200 minimum). Fixed negative-only zero padding, preserving speech/positive validation. ONE corrected offline r2 job RUNNING, no retries: gobot-wake-full-reference-r2-20261115,2CPU/4GiB/12h/networkOFF. Resume hash-verified base, then explicit Owner «Габот» alias extension1000 TRAIN/40 heldout sources;51kpositive/10knegative,102kwindows/10000steps, mandatory alias acceptance.96 free tests. Board0.4.11 unchanged, scan1/upload0,wake NOT_ACCEPTED. No flash/recording/paid allowance renewal;3 B starts spent/C reserve preserved. Older job-running notes are historical. CURRENT_STATUS/run manifest authoritative.
+
+LATEST2026-11-15: One PUBLIC full-scale offline CPU job gobot-wake-full-reference-20261115.service RUNNING on existing VPS: target50k positive/10k negative actual PCM clips, then100k windows/10000steps/evaluation. Network OFF,2CPU/4GiB/12h cap, generation6h/12GiB; no retries/auto-flash. Source full_reference_job.sh, details CURRENT_STATUS/full-reference-run.json. No ready model yet. Prior new private hard-negative correction and DTW experiment FAILED, not installed. Board0.4.11 unchanged, idle/scan1/upload0.93 free tests; no paid calls/new recording/expiry renewal. All3 B starts spent; C reserve unchanged. No raw/features/personal weights leave PLAN. Preserve original deletion deadlines. Old 'no jobs remain' entries below are historical.
+
+LATEST2026-11-15: ONE approved NEW30s pre-AFE USB field sample is now COMPLETE/CRC verified, Owner confirmed completion. Consent CONSUMED. DPAPI/PLAN only, deletion task READY within original23h. No recorder/arm remains; no new paid calls or firmware/runtime change. Installed public model misses one prescribed field question in replay; private candidates find3 but still fail synthetic false-event acceptance, NOT deployed. Timing labels are local ASR hypotheses only; new3 questions remain held out. No more recording without NEW explicit consent. Earlier pending/armed notes are historical.
+
+OWNER2026-11-15 APPROVED ONE NEW <=30s raw USB field-failure recording and is ready. First preparation ended WITHOUT START/0 PCM; consent not consumed. Collector now armed awaiting physical touch (session84747), protocol field_failed_wake_recheck, DPAPI/deletion task registered BEFORE arm. Do not open a second collector or rearm during this one. No paid calls/Brain wake admission/consent renewal. On actual capture, this one-shot consent is consumed; preserve all old expiry deadlines. Await Owner completion.
+
+LATEST2026-11-15: board0.4.11 exact native reference parity PASS; human wake NOT_ACCEPTED. Two public word-end training runs FINISHED/REJECTED, no jobs remain. ALL3 B starts spent; no renewal. NEW <=30s raw field recording consent ASKED/PENDING, no collector/arm/sample/task created. Original sample expiry unchanged.94 free tests pass; do not claim readiness or start paid calls. See latest CURRENT_STATUS.
+
+LATEST2026-11-15 board0.4.11-dev-ref-parity-1 installed, exact1625-output native reference parity PASS0 delta. PUBLIC model unchanged, production and Owner trial OFF. Human wake FAILED; no new paid/recording allowance. ALL3 B starts spent. One bounded public word-end-anchored CPU training job running; no repeats, preserve original sample expiry. Earlier0.4.10 delta17 was desktop-vs-reference backend difference, NOT proven ESP bug. See CURRENT_STATUS.
+
+LATEST2026-11-15 Owner says wake WITHOUT TOUCH FAILS. Local trial CANCEL acknowledged; no rearm.2 B starts spent,1 manual remains, expiry unchanged.0 pending hangups. Multiple playback responses do NOT establish wake acceptance. See newest CURRENT_STATUS.
+
+OWNER on2026-11-15 explicitly APPROVED3 manual board B sessions x60s,8 responses x512tokens,marin,gpt-transcribe,$1 estimate/24h; no CLI/Luna/Image/retries. USB restored. Wake-test scope enabled/mounted after WAL-aware backups; runtime9c317bca47b78f91854cd0a209a446bf574ca53b deployed idle. Board0.4.9 unmuted and ARM acknowledged3 attempts/600s. Do NOT rearm/refill or spend automatically. Await Owner physical question. Acoustic acceptance remains pending; old ledgers/C reserve untouched. Earlier PENDING/UNARMED notes below are historical.
+
+Current hardware checkpoint: PUBLIC0.4.9-dev-owner-wake-test-1 installed and
+readback/boot verified. Production wake OFF; bounded3-attempt/600s Owner trial
+UNARMED. No arm, recording, paid call or Brain deployment occurred. New3x60s B
+allowance requested and PENDING; policy DISABLED/unmounted, old8 starts spent.
+Do not enable/spend without Owner answer. Public question-in-one-phrase candidate
+is NOT universal/name-only accepted. Personal audio/weights stay PLAN-only with
+original expiry. Firmware rollback to0.4.8 prepared. CURRENT_STATUS is factual.
+
+OWNER continued complete local wake implementation on2026-11-14 using the existing
+recording. Guarded PUBLIC diagnostic0.4.8-dev-reference-local-1 is now installed:
+full64x4 INT8 runtime/parity/error counters verified, NVS/boot/inactive/assets
+preserved, exact0.4.6 rollback available. This diagnostic uses a known acoustically
+failed PUBLIC model and keeps wake-to-Brain OFF. Do not confuse native runtime
+success with a qualified detector. Free bounded public CPU training and PLAN-only
+sample analysis continue. No new recording, paid grant or ledger reset is implied;
+original sample/personal-model expiry remains unchanged. See CURRENT_STATUS first.
+
 # GoBot Home boundaries
-Work only in this repository. No paid/model calls by default. No firmware flash/OTA/NVS.
+
+OWNER approved on 2026-11-14 installation of prepared0.4.6-dev-raw-wake-1 on
+the enrolled Spotpear, with identity/backup/NVS/rollback checks, AND ONE NEW
+<=50s pre-AFE USB recording. Physical touch only after separate instruction;
+PLAN-only DPAPI, delete within24h, no cloud/paid APIs. No wake-route enablement
+or renewed voice budget. Keep original two sample expiry deadlines unchanged.
+The raw USB consent is NOW CONSUMED: Owner reported presence, initiated physical
+touch and confirmed completion;50.0s pre-AFE PCM passed full sequence/CRC, DPAPI
+on PLAN, deletion scheduled at original23h deadline. No recorder remains armed.
+Earlier armed window expired with no touch/audio. No automatic further recording,
+paid call, publication/remote transfer of human speech/features/personal weights,
+or wake enablement. Local CPU analysis/calibration remains authorized; model
+quality must pass, no false READY and no threshold-only bypass.
+
+Both Owner local recording consents on 2026-11-14 are CONSUMED:49.92s and35.0s.
+Owner corrected the second protocol: FOUR final wake calls, not three. Both
+samples are post-AFE/Opus conversation audio, NOT exact pre-AFE KWS input.
+Do not use them as device wake acceptance or continue adapting them as raw KWS.
+DPAPI/deletion deadlines stay unchanged; no cloud/paid calls, automatic repeats,
+expense renewal or wake admission. No recorder is armed. Prepare a lossless
+pre-AFE USB diagnostic on a COPY; installation/NEW recording need scoped consent.
+
+The ONE local wake sample consent below was CONSUMED on 2026-11-14:49.92s,
+Owner-confirmed pronunciation protocol, DPAPI on PLAN, no cloud transfer.
+The encrypted personal model shares raw-sample deletion within24h. No additional
+recording consent is implied; the separately approved35s sample above is also
+consumed. No recorder remains armed; B restored.
+
+OWNER resumed the complete local Russian GoBot wake-to-question product on
+2026-11-13; touch is fallback, not the target interaction. Continue local wake
+implementation/quality checks without admitting an unqualified detector to paid
+sessions. Owner separately consented to ONE voluntary <=60s board microphone
+sample for wake training/testing on PLAN only, no cloud transfer, private storage
+and deletion within24h. This is not continuous household recording, API budget
+renewal, private-memory access or permission to publish speech/features.
+
+OWNER explicitly approved on 2026-11-13 installation of the prepared
+0.4.5-dev-fast-start-1 on this enrolled Spotpear and free local diagnostics
+without OpenAI. Preserve identity/NVS/recovery, limits and existing features.
+This extends the prior UI-only exception to this exact bounded startup-capture
+image; it does not authorize automatic paid conversations or wake enablement.
+
+OWNER explicitly approved on 2026-11-13 USB installation of the prepared
+0.4.4-dev-voice-status-1 UI-only candidate on the enrolled Spotpear, after identity
+and backup checks. This specific exception supersedes Night Train's no-flash rule
+for this image only. Preserve audio/KWS/NVS/recovery and all financial ledgers;
+no automatic paid trial. It does not authorize other firmware or wake enablement.
+
+OWNER explicitly APPROVED the consolidated board B->A package on 2026-11-13:
+24h, one manual use of an existing minute B start, <=2 A turns via Codex
+SOL_HIGH/gpt-6.1-sol/high <=90s each, context<=3000 estimated tokens,
+result<=6000chars; <=2 STT attempts x26s, <=6000 TTS chars total, $1 API
+estimate (not guaranteed invoice cap). No automatic paid trials/retries. Use a
+separate persistent A batch; retain all prior B/C/CLI usage and phone identity.
+
+OWNER DIRECT subsequent 2026-11-13 correction authorizes actual hardware B->A
+mode handover, reusing existing ConversationModes/legacy streamed voice. Close B
+and confirm provider cleanup before A; transfer permitted question/context once.
+Do not replace mode A with a buffered ExpertJobs summary. Free implementation /
+acceptance and guarded idle deployment are allowed; no new paid A grant is
+implied. The prior180s B start/one Sol job are consumed. Separate A proposal is
+disabled pending Owner answer; preserve original seven B starts and C ledger.
+
+OWNER DIRECT subsequent 2026-11-13 amendment: prepare one separately ledgered
+manual board B session <=180s,12 responses x2048 output tokens,$1 estimated API
+allowance; one confirmed public task SOL_HIGH (gpt-6.1-sol/high),<=90s,<=3000
+context tokens,<=6000 result characters. No automatic paid calls/retries. Keep
+original seven minute B starts, C ledger/quarantine, guest ACL and firmware0.4.3.
+Local wake variations and same-utterance capture preparation/free CPU training
+are authorized; failed acoustic quality must not open paid background sessions.
+
+OWNER DIRECT Night Train v1 supersedes the pause within docs/night-train-v1:
+implement W0-W8 web-first /device-next, one integration writer, same Brain;
+preserve recovery/B, /device, /demo2, existing transport and firmware 0.4.3.
+No automatic paid provider calls, quota changes, flash/OTA/NVS/wake enable.
+Safe owner-only private HTTPS web preview deployment is authorized after free
+checks, backups, no active sessions, and rollback. Master stays unchanged;
+PR draft. Independent Gemini review only if existing authorized read-only
+execution is available; otherwise documented self-review, no new provider.
+
+OWNER DIRECT 2026-11-12: development is paused. The current authorized work is
+documentation/GitHub status consolidation only. Do not resume implementation,
+training, firmware deployment or developer model trials until the owner resumes.
+Subsequent OWNER DIRECT authorizes only Controlled Voice A/B Comparison:
+audit and isolated hardware B adapter, free acceptance, owner-manual comparison.
+Preserve firmware 0.4.3 and C as reference, no master merge or general development.
+Separate B consent: 8 manual gpt-realtime-2.1-mini sessions up to 60 seconds,
+8 responses/session up to 512 output tokens, existing gpt-transcribe input
+transcription, $1 estimated server allowance; no CLI/Luna/Image/retries.
+Do not charge B to the existing C grant or change phone identity/policy globally.
+Subsequent OWNER DIRECT permits source-only C administrative recovery: preserve
+pending usage, verify local cleanup, append orphaned_unconfirmed and require a
+separate explicit Owner risk approval for bounded new sessions. No fabricated
+provider ACK, ledger reset, automatic paid trial or unaccepted C deployment.
+Subsequent OWNER DIRECT accepts 032e4ea and permits controlled C recovery
+deployment with rollback checks: this board only, one owner-manual <=60s start,
+short expiry, preserve unknown-cost reserve. No firmware/media-path change.
+That one recovered manual session is now used (51 provider-confirmed seconds).
+Do not renew its administrative admission automatically. B source/free local
+peer preparation remains authorized; B deployment/paid conversations not done.
+Do not infer a request to stop the deployed services or revoke existing manual
+testing grants. CURRENT_STATUS.md starts with the authoritative pause snapshot.
+
+### Spotpear touch release · 2026-11-12
+
+The enrolled round Spotpear may start a real turn by a deliberate touch. Keep the
+microphone uplink and provider session closed in standby. Local Russian «ГоБот»
+has separate acoustic acceptance. A failed wake detector must never disable touch
+capture. Keep the board's guest scope, grant and recovery separate from the phone.
+
+Work only in this repository. No paid/model calls by default. Firmware flash/OTA/NVS is disabled by default.
+OWNER DIRECT 2026-11-12 authorizes guarded USB bring-up and scoped enrollment
+of the single verified Spotpear S3 on PLAN. Check physical identity, security
+state, factory backups, partitions and recovery before writes. Preserve the
+other OTA slot. The hardware exception grants no API budget or phone identity.
+OWNER DIRECT 2026-11-12 subsequently authorizes a board-bound manual batch of
+50 GPT-Live 1 sessions, at most 60 seconds each (estimated $2.50 total), with no
+Luna, CLI, Image API or automatic paid retries. Keep earlier usage. This finite
+count survives dates/restarts until consumed; do not impose another daily renewal
+or ask approval for each activation. It grants no phone identity/private data.
 Never read, copy or mount CLI credentials. No shell from voice, no global installs, no firewall changes.
 Brain, Bridge, voice and image services use 127.0.0.1. The owner's iPhone testing request permits a persistent mock-only phone gateway on the specific Wi-Fi IPv4, restricted to that subnet, until stopped. No firewall/router changes, credentials, history access, arbitrary proxy, CLI or shell through this HTTP gateway. The separate private Tailscale HTTPS gateway uses exact peer, Host and Origin allowlists and may proxy validated product requests to Brain and save an OpenAI key through Windows DPAPI. Real CLI admission requires matching offline isolation evidence, no model tools, and explicit quota consent; no tests may spend quota without the owner's permission.
 Tests use mocks; preserve upstream SHAs and regression-test every patch. Do not claim mock audio is speech.
@@ -175,3 +333,7 @@ history. Show the opt-in, 1..7-day retention, health/dropped events and deletion
 the existing Owner Full Test panel. Bounded background writing must not block voice;
 do not claim exhaustive/lossless recording during failure or recover older transcripts.
 No household text or journal database in Git. Preserve all expense limits.
+OWNER DIRECT board-debug continuation explicitly includes this enrolled column's
+native text dialogue and actions. Use a separate diagnostic device-binding opt-in,
+not its expense grant or phone identity. Keep DPAPI, retention, owner-bound read API,
+no raw audio, no semantic-memory indexing and no recovery claims for missing logs.
