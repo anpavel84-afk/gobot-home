@@ -1,7 +1,7 @@
 {
   "schema": "sophia-output-backpressure-fix-v1",
   "date": "2026-11-21",
-  "status": "prepared_not_installed",
+  "status": "installed_verified",
   "incident": {
     "evidence": "actual_PLAN_owner_debug_journal_and_live_gateway_metadata",
     "private_report_sha256": "26e31209b108ad443ff307a14a172836a83e987fe6eef88bb9011132a3f80ece",
@@ -105,11 +105,80 @@
       "log_sha256": "588c50add2d93d12035fce7117b7fe9457c50ea0fc0184c22f4f6e75eab69cc9",
       "summary": "575 passed, 1 warning in 19.96s"
     },
-    "PLAN_exact_source_gate": null,
+    "PLAN_exact_source_gate": {
+      "summary": "575 passed in 116.03s (0:01:56)",
+      "gate_seconds": 118.44,
+      "test_file_count": 35,
+      "isolated_source_rollback_reapply": true,
+      "receipt_sha256": "61ea885be41b517115434a76f3a40f24c81fe14211bb0e7dbc86c079e6675558"
+    },
     "new_live_model_answer": false,
-    "new_acoustic_acceptance": false
+    "new_acoustic_acceptance": false,
+    "postcheck": {
+      "passed": true,
+      "seconds": 12.047,
+      "at_utc": "2026-11-21T18:39:41.584562+00:00",
+      "deltas": {
+        "received_packets": 168,
+        "application_keepalives_sent": 2,
+        "device_control_messages": 2
+      },
+      "receipt_sha256": "78617d61b1190ef3ad72b7ea7cab662af1ef2816cfba88a0563eb23a588deb02"
+    }
   },
-  "deployment": null,
+  "deployment": {
+    "runtime_code_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+    "previous_head_and_runtime": "dbc6948824b66c8efdeafd500083c19fbdf2e129",
+    "source_receipt_sha256": "58a2a1e7d8a0661f0dfe984baa8570d836dcb06f2a94d58847d4bed0886c5532",
+    "source_installed": true,
+    "production_rollback_needed": false,
+    "firmware_changed": false,
+    "existing_stack_restarted": true,
+    "local_http_verified": true,
+    "private_https_verified": true,
+    "assets_verified": true,
+    "session": {
+      "state": "ready",
+      "input_mode": "fast",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "lifecycle": {
+      "attached": true,
+      "last_detach_reason": null,
+      "transport_epoch": 1,
+      "reader_running": true,
+      "maintenance_running": true,
+      "reconnect_attempts": 0
+    },
+    "gateway": {
+      "device_protocol_confirmed": true,
+      "cloud_ready": true,
+      "voice_phase": "ready",
+      "input_open": false,
+      "last_error": null,
+      "device_mute_revision": 0,
+      "received_packets": 1001,
+      "application_keepalives_sent": 13,
+      "device_control_messages": 13
+    },
+    "active_inputs": 0,
+    "active_turns": 0,
+    "active_voice_streams": 0,
+    "preservation_counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    },
+    "WIP_preserved": true,
+    "usage_unchanged": true,
+    "integration_branch": "feat/host-integrator-sophia-unified-20261118",
+    "feature_branch": "feat/sophia-output-backpressure-20261121"
+  },
   "preservation": {
     "new_model_calls_by_executor": 0,
     "firmware_changed": false,
@@ -118,5 +187,30 @@
     "owner_grant_renewed": false,
     "master_merged": false,
     "PR_14": "draft"
+  },
+  "source_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+  "stale_incident_recovery": {
+    "passed": true,
+    "receipt_sha256": "c056baf685345dab5d6e5dc4d9837e6221f0892be958979ef03df894d0c8ad1d",
+    "old_runtime_restarted_before_new_source_install": true,
+    "initial_100_second_wait_expired": true,
+    "later_device_reconnected_without_firmware_or_USB_reset": true,
+    "exact_first_reconnect_time_measured": false,
+    "second_restart_to_recover_device": false,
+    "usage_unchanged": true,
+    "deltas": {
+      "received_packets": 166,
+      "application_keepalives_sent": 2,
+      "device_control_messages": 2
+    },
+    "candidate_post_start_observation_deadline_seconds": 240,
+    "readiness_conditions_unchanged": true
+  },
+  "helper_sha256": {
+    "recovery": "c9f49eac145a17bf7fa54aa010efbd7525af01a9064201879bcae1835abc4b62",
+    "late_recovery_verifier": "73b3d503bc8315a2b120eb52502b806aaa9f27b50174e9d820b8eb715910d825",
+    "windows_gate": "39f94cade8bb396fb350eb0171c286b48a3cd349dbfdd68302b0e35f87d24471",
+    "source_apply": "be05cc229d8fa3c6fbc9c42833b19e44166e9d60fcfca488556eb87441f66ed0",
+    "postcheck": "3935d2a7926424909358c5dd771bc33935473047fb19de64995802aa670561c0"
   }
 }
