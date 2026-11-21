@@ -1,7 +1,7 @@
 {
   "schema": "sophia-working-memory-evidence-v1",
   "date": "2026-11-21",
-  "phase": "source_ready_native_deployment_pending",
+  "phase": "installed_and_verified",
   "source_base": "d8e592245fb9a40dd5ed183514d7aec567dcb67d",
   "prior_runtime": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
   "owner_authorized_implementation": true,
@@ -109,18 +109,119 @@
     "passed": true,
     "command": "node tests/working_memory_admin_dom.cjs"
   },
-  "native_gate": null,
-  "deployment": null,
+  "native_gate": {
+    "passed": 775,
+    "failed": 0,
+    "skipped": 0,
+    "summary": "775 passed in 144.58s (0:02:24)",
+    "test_files": 49,
+    "gate_seconds": 148.17,
+    "isolated_source_rollback_reapply_passed": true,
+    "evidence_sha256": "5232280a27beea2ad66e3a445126fc43e5e353d9f9a0ba4b43f56f52b0a9b2ef",
+    "admin_dom_state_test_passed": true,
+    "real_windows_dpapi_restore_and_clear_passed": true
+  },
+  "deployment": {
+    "runtime_code_commit": "97514bedf9b9c4163cc4ab7844eda66a7ea5ff91",
+    "verified_at_utc": "2026-11-21T21:29:39.249274+00:00",
+    "verified_at_brt": "2026-11-21T18:29:39.249274-03:00",
+    "installed": true,
+    "startup_status": "running",
+    "physical_ready": true,
+    "physical_transport_ready": true,
+    "session": {
+      "state": "ready",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "local_and_private_admin_verified": true,
+    "served_asset_bytes_verified": true,
+    "memory": {
+      "available": true,
+      "enabled": true,
+      "policy": {
+        "enabled": true,
+        "ttl_seconds": 43200,
+        "persist": true,
+        "summarize": true,
+        "background": true,
+        "supplement": true
+      },
+      "private_archive": false,
+      "trigger": "every_question",
+      "supplements_per_question": 1,
+      "working": {
+        "enabled": true,
+        "persistence_requested": true,
+        "persisted": false,
+        "version": 0,
+        "ttl_seconds": 43200,
+        "source_count": 0,
+        "available_exchanges": 0,
+        "completed_exchanges": 0,
+        "restored_exchanges": 0,
+        "error_present": false
+      },
+      "summary_worker": {
+        "enabled_for_scope": true,
+        "active": false,
+        "known_primary_tokens": 0,
+        "scope_tokens_used_or_reserved": 0,
+        "global_tokens_used_or_reserved": 0,
+        "available_tokens": 0,
+        "daily_token_limit": 2000,
+        "primary_usage_fraction_limit": 0.1,
+        "unknown_usage_attempts": 0,
+        "queued": 0,
+        "spoken_responses_created": 0
+      },
+      "lookup": {
+        "queries": 0,
+        "useful_results": 0,
+        "supplements": 0,
+        "discarded": 0
+      },
+      "checkpoint_observed_by_runtime": false
+    },
+    "observation_seconds": 12.62,
+    "physical_counter_deltas": {
+      "received_packets": 166,
+      "application_keepalives_sent": 2,
+      "device_control_messages": 2
+    },
+    "owner_activity_observed": false,
+    "source_wip_preserved": true,
+    "source_usage_unchanged": true,
+    "existing_preservation_counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1
+    },
+    "evidence_sha256": {
+      "source_receipt": "76502b3cb64082810725ef56f0ef4117b7f2492c82508f6e2fea6603a39f84be",
+      "source_deployment": "844ba69023ce3642e2331c4bbde71e7ccb36d5573f78502d958e868ae1b32f3a",
+      "windows_gate": "5232280a27beea2ad66e3a445126fc43e5e353d9f9a0ba4b43f56f52b0a9b2ef"
+    },
+    "deployer_model_calls": 0,
+    "firmware_changed": false,
+    "old_memory_imported_from_journal": false
+  },
   "limitations": {
     "first_install_recovers_prior_lost_ram": false,
-    "windows_dpapi_native_checked": false,
+    "windows_dpapi_native_checked": true,
     "live_acoustic_answer_tested": false,
     "browser_visual_acceptance": false,
-    "browser_visual_reason": "Chromium cannot create socket in executor"
+    "browser_visual_reason": "Chromium cannot create socket in executor",
+    "live_working_checkpoint_exists_at_initial_postcheck": false
   },
   "deployer_model_calls": 0,
   "raw_audio_saved": false,
   "household_transcripts_exported": false,
   "firmware_changed": false,
-  "existing_grants_reset": false
+  "existing_grants_reset": false,
+  "source_commit": "97514bedf9b9c4163cc4ab7844eda66a7ea5ff91",
+  "postcheck_json_sha256": "60b053443ee29c4d5c90067915d3fbe89211a42dbad23f7f8529e6ceed31ffff"
 }
