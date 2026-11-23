@@ -1,7 +1,7 @@
 {
   "schema": "sophia-expert-voice-mode-evidence-v1",
   "date": "2026-11-23",
-  "phase": "source_ready_for_windows_gate",
+  "phase": "installed_and_verified",
   "source_base": "da1e75c9ef6b0b14dd63e4444a7fcf7a1a9ecd9c",
   "prior_runtime": "97514bedf9b9c4163cc4ab7844eda66a7ea5ff91",
   "incident": {
@@ -124,8 +124,63 @@
     "skipped": 1,
     "skip_reason": "Windows-only actual DPAPI test; runs in native gate"
   },
-  "windows_gate": null,
-  "deployment": null,
+  "windows_gate": {
+    "passed": true,
+    "files": 56,
+    "tests_passed": 928,
+    "summary": "928 passed in 175.84s (0:02:55)",
+    "seconds": 177.85,
+    "isolated_source_rollback_reapply_passed": true,
+    "new_model_calls": 0
+  },
+  "deployment": {
+    "source_commit": "9d8b2a73bf9446644923d68cd0b3d88593224625",
+    "at_utc": "2026-11-23T20:28:24.248636+00:00",
+    "at_owner_local": "2026-11-23T17:28:24.248636-03:00",
+    "physical_ready": true,
+    "session": {
+      "state": "ready",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "selected_expert": {
+      "profile": "ARGON_DEEP",
+      "provider": "antigravity",
+      "model": "gemini-4-argon-medium",
+      "effort": "medium"
+    },
+    "expert_available": true,
+    "cli_metadata_admission_ready": true,
+    "stable_observation_seconds": 14.083,
+    "counter_deltas": {
+      "received_packets": 167,
+      "application_keepalives_sent": 2,
+      "device_control_messages": 2
+    },
+    "owner_activity_observed": false,
+    "usage_unchanged": true,
+    "wip_preserved": true,
+    "firmware_changed": false,
+    "policies_profiles_ledgers_preserved": true,
+    "working_memory_restored_exchanges": 2,
+    "working_memory_error_present": false,
+    "proof_sha256": {
+      "source_receipt": "0d2bee101b31365e28498520a7bea93d80ddc788a250aac3da529e82a755f5ad",
+      "source_deployment": "f660e5c09da65bcca17be0aa82aad127c2604e05c4eb083360df95067f218e19",
+      "windows_gate": "8a84e538dad2045ccc0a6e46132907d31b33090fb5e8d69a8e385c3e6cba65d9"
+    },
+    "published_branches": [
+      "feat/sophia-expert-voice-mode-20261123",
+      "feat/host-integrator-sophia-unified-20261118"
+    ],
+    "master_merged": false,
+    "new_model_calls": 0,
+    "live_expert_voice_tested": false,
+    "provider_quota_remaining_checked": false
+  },
   "new_paid_model_calls": 0,
   "household_transcripts_exported": false,
   "journal_ingested_into_memory": false,
@@ -144,5 +199,11 @@
   "deployment_inputs": {
     "helper_sha256": "987ec0d9a7e8a76ef66d32a698b2ccec8abfe7bf64edbb79e825d9dba6a56a69",
     "manifest_sha256": "a86d3c50185bb02637a895fba5f531be00b851af4d79acf57cc8876269571022"
+  },
+  "readiness_after": {
+    "expert_attempts": 0,
+    "expert_authorization_mismatches": 0,
+    "speech_authorization_mismatches": 0,
+    "cached_cue_ready": true
   }
 }
