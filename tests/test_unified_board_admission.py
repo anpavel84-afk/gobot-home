@@ -413,7 +413,7 @@ def test_exhausted_fast_starts_do_not_hide_separate_expert_preview(tmp_path, set
     asyncio.run(run())
 
 
-def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_path, settings, monkeypatch):
+def test_board_expert_routes_narrate_once_and_preserve_selected_followup_mode(tmp_path, settings, monkeypatch):
     """Public guest, real Direct/ExpertJobs/pipeline; no phone budget or provider."""
     import gobot.expert_jobs as jobs
     import gobot.expert_stream as stream
@@ -435,7 +435,7 @@ def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_p
             yield {'type': 'stt_final', 'data': {'text': 'Сравни два публичных метода.',
                 'item_id': 'dictation', 'stable': True, 'audio_seconds': samples/24000,
                 'usage_reported': True, 'usage': {'seconds': samples/24000}}}
-    async def finish_response(session, job):
+    async def finish_response(session, job, *, mode='fast'):
         await job.worker
         assert job.state == 'completed' and job.narration_complete and not job.playback_complete
         await session.playback_started(job.response_id)
@@ -444,9 +444,16 @@ def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_p
         # Waiting only 250ms races normal Windows file/thread scheduling.
         # Await its actual completion; still fail if it hangs or rejects input.
         await asyncio.wait_for(asyncio.shield(session._guard_task), 3)
-        assert job.playback_complete and session.input_open and session.selected_mode == 'fast'
+        assert job.playback_complete and session.selected_mode == mode
+        assert session.input_open == (mode == 'fast')
     async def run():
         original, board, manager, session, auth = await setup(tmp_path, settings, recognition=Recognition())
+        async def consume_output():
+            # Model the attached listener across both responses; an unconsumed
+            # bounded wire queue correctly detaches even in a synthetic test.
+            while True:
+                await session.next_event()
+        listener = asyncio.create_task(consume_output())
         try:
             session.experts.admission = lambda profile: {'available': True}
             await session.wake('fast-route')
@@ -464,11 +471,13 @@ def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_p
             await session.finish_input()
             await session._stt_task
             second = next(job for job in session.experts.jobs.values() if job.id != first.id)
-            # Require a fresh counted continuation for this preselected route.
+            # Explicit expert mode remains selected, awaiting a new manual wake;
+            # its answer must not reserve an unwanted fast or STT followup.
             session.operation_started -= 61
-            await finish_response(session, second)
+            await finish_response(session, second, mode='expert')
             assert len(calls) == 2 and manager.public_expert_budget.status()['sessions_reserved'] == 2
-            assert board.budget.status()['sessions_reserved'] == 3
+            assert board.budget.status()['sessions_reserved'] == 2
+            assert manager.board_speech_ledger.status()['operations']['stt']['attempts'] == 1
             assert manager.board_speech_ledger.status()['operations']['stt']['pending_usage'] == 0
             assert manager.board_speech_ledger.status()['operations']['tts']['attempts'] == 2
             assert not session.owner_test_authorized and session.access.confirmed_profile_id is None
@@ -482,6 +491,8 @@ def test_both_explicit_board_routes_narrate_once_and_open_counted_followup(tmp_p
             with original.brain.memory.connect() as db:
                 assert db.execute('SELECT count(*) FROM expert_results').fetchone()[0] == 0
         finally:
+            listener.cancel()
+            await asyncio.gather(listener, return_exceptions=True)
             await cleanup(original, board, manager)
     asyncio.run(run())
 

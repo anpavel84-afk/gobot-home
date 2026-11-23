@@ -370,7 +370,10 @@ class ExpertJobs:
             if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             if getattr(policy,'owner_full_test',False):
                 await asyncio.to_thread(self.session.manager.owner_testing.reserve,self.session.owner_test_binding,'expert',job.id,origin='developer' if getattr(self.session.offer,'developer_acceptance',False) else 'owner')
-            reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session,'owner_test_binding',None))
+            # The budget receives the explicit offer binding, as native input
+            # admission does. A session's client-id fallback is only for the
+            # separate Owner Full Test ledger, not a phone grant on a board.
+            reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session.offer,'owner_test_binding',None))
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.grant_authorization=reserved.authorization

@@ -130,6 +130,7 @@ class DirectSession(NativeSession):
         self._stop_count = 0
         self.muted = False
         self.selected_mode = offer.input_mode
+        self._mode_selection_revision = 0
         self.source = 'device' if offer.client_kind == 'device' else 'browser'
         self.operation_id = None
         self.operation_started = 0.
@@ -1243,6 +1244,8 @@ class DirectSession(NativeSession):
         if (turn is not self.current or turn.cancelled or turn.local_control or
                 self.closed or not self.attached or self.muted or self._stop_count):
             return
+        if await self.voice_mode_control(turn, text):
+            return
         from .conversation_control import closing_intent
         control = closing_intent(text)
         if control in {'stop_output', 'end_conversation'}:
@@ -1265,14 +1268,74 @@ class DirectSession(NativeSession):
                 turn.consent_ready.set()
                 turn.local_control = True
                 self.emit('input_transcript', text=text, final=True, confirm_text_allowed=False)
+                native_audio_input = self.selected_mode == 'fast'
                 await self.stop()
-                if turn.input_id and self.ready:
+                if native_audio_input and turn.input_id and self.ready:
                     await self.send({'type': 'conversation.item.delete', 'item_id': turn.input_id})
                 self.emit('telemetry', event='local_voice_stop', automatic_retry=False)
                 return
         await super().input_text(turn, text)
         if turn is self.current and self.selected_mode == 'fast':
             await self.memory_flow.on_input(turn)
+
+    async def voice_mode_control(self, turn, text):
+        from .direct_mode_control import direct_mode_intent
+        mode = direct_mode_intent(text)
+        if mode is None:
+            return False
+        if turn.query and turn.query != text:
+            return True  # Preserve the first accepted final for this input item.
+        input_epoch, previous_mode = self._input_gate_epoch, self.selected_mode
+        mode_revision = self._mode_selection_revision
+        turn.query = text
+        turn.input_revision += 1
+        turn.input_ready.set()
+        turn.consent_ready.set()
+        turn.local_control = True
+        self.emit('input_transcript', text=text, final=True, confirm_text_allowed=False)
+
+        def current(epoch):
+            return bool(epoch == self._input_gate_epoch and turn is self.current and
+                        not self.closed and self.ready and self.attached and
+                        not self.muted and not self._stop_count and
+                        self.selected_mode == previous_mode and
+                        self._mode_selection_revision == mode_revision)
+
+        # Serialize with a fresh wake, while Stop/Mute may still invalidate this
+        # command immediately. The existing Stop path retires any late fast
+        # response and memory work, without granting a new paid operation.
+        async with self.activation_lock:
+            if not current(input_epoch):
+                return True
+            await self.stop(_preserve_mode=True)
+            input_epoch += 1
+            if not current(input_epoch):
+                return True
+            if previous_mode == 'fast' and turn.input_id:
+                await self.send({'type': 'conversation.item.delete', 'item_id': turn.input_id})
+                if not current(input_epoch):
+                    return True
+            try:
+                allowed, code = await asyncio.to_thread(
+                    self.expert_input_availability if mode == 'expert' else self.fast_input_availability)
+            except (PermissionError, ValueError, OSError, sqlite3.Error):
+                allowed, code = False, 'unavailable'
+            if not current(input_epoch):
+                return True
+            if not allowed:
+                self.emit('admission_denied', reason='voice_mode_'+code,
+                          requested_mode=mode, mode=self.selected_mode,
+                          generation_allowed=self.generation_allowed(), state=self.state,
+                          input_open=False, automatic_retry=False)
+                self.emit('telemetry', event='local_voice_mode_denied', mode=mode, reason=code)
+                await self.publish_admission_status(force=True)
+                return True
+            await self.select_mode(mode, _completed_input_turn=turn)
+            if (input_epoch == self._input_gate_epoch and turn is self.current and
+                    not self.closed and self.attached and not self.muted):
+                self.emit('telemetry', event='local_voice_mode_selected', mode=mode,
+                          new_activation_required=True, automatic_retry=False)
+        return True
 
     async def new_turn(self, item_id='', query=''):
         self.memory_flow.cancel()
@@ -1470,6 +1533,8 @@ class DirectSession(NativeSession):
                     'type': 'realtime', 'audio': {'input': {'turn_detection': None}}}})
                 self.require_input_gate(fragment['epoch'])
                 await self.input_text(turn, text)
+                if turn.local_control:
+                    return  # A stable voice control retired this input epoch.
                 self.require_input_gate(fragment['epoch'])
                 self.emit('input_closed', reason='provider_endpoint', resume_pending=False)
                 await self.response()
@@ -1857,6 +1922,14 @@ class DirectSession(NativeSession):
         # Never wait for a background lookup inside the device command reader:
         # Stop/wake must remain processable while this independent guard waits.
         epoch = self._input_gate_epoch
+        if role == 'expert_answer':
+            # Expert PCM belongs to its job, not response_turn (which records
+            # native Realtime responses). Bind the guard to that exact turn.
+            job = self.experts.jobs.get(expert_job_id)
+            if not job or not self.current or job.turn_id != self.current.id:
+                self._expert_followup_jobs.discard(expert_job_id)
+                return
+            turn = self.current
         if role == 'fast_answer' and turn and await self.memory_flow.after_playback(turn):
             return
         if epoch != self._input_gate_epoch or turn is not self.current:
@@ -1868,6 +1941,24 @@ class DirectSession(NativeSession):
         await asyncio.sleep(.2)
         if (input_epoch != self._input_gate_epoch or self.closed or not self.attached or
                 self.muted or self._stop_count or self.speaking or self.experts.active()):
+            return
+        if expert_job_id is not None:
+            job = self.experts.jobs.get(expert_job_id)
+            if not job or not self.current or job.turn_id != self.current.id:
+                self._expert_followup_jobs.discard(expert_job_id)
+                return
+        if self.selected_mode == 'expert':
+            # Explicit expert mode persists for the next deliberate activation.
+            # Do not open another paid STT operation just to await a followup.
+            self._expert_followup_jobs.discard(expert_job_id)
+            self.input_open = False
+            self.input_mode = 'idle'
+            self.state = 'ready'
+            self.followup_deadline = self.auto_input_deadline = None
+            self.emit('followup_closed', reason='expert_mode_waiting_for_wake',
+                      mode='expert', input_open=False, generation_allowed=self.generation_allowed(),
+                      new_activation_required=True)
+            await self.publish_admission_status(force=True)
             return
         continuation = False
         if expert_job_id in self._expert_followup_jobs:
@@ -1889,12 +1980,18 @@ class DirectSession(NativeSession):
         except PermissionError as error:
             await self.close_fast_input(str(error), event='followup_closed', input_epoch=input_epoch)
 
-    async def select_mode(self, mode):
+    async def select_mode(self, mode, *, _completed_input_turn=None):
         if mode not in {'fast', 'expert'}:
             raise ValueError('invalid_voice_mode')
+        completed_stt_control = bool(_completed_input_turn is not None and
+            _completed_input_turn is self.current and _completed_input_turn.local_control and
+            self._stt_task is asyncio.current_task())
         if (self.input_open or self.speaking or self.generating or self.response_requested or self.experts.active() or
-                self.expert_input_busy() or self._wake_fragment is not None):
+                (self.expert_input_busy() and not completed_stt_control) or self._wake_fragment is not None):
             raise ValueError('mode_change_requires_idle')
+        # Even reselecting the current route supersedes an older voice command
+        # whose read-only admission preview is still in flight.
+        self._mode_selection_revision += 1
         if mode != self.selected_mode and self._guard_task and not self._guard_task.done():
             # An explicit idle mode selection must not be silently replaced by
             # the preceding answer's delayed automatic fast followup.
@@ -1979,6 +2076,8 @@ class DirectSession(NativeSession):
                             usage_reported=data.get('usage_reported', False)))
                     self.require_input_gate(input_epoch)
                     turn = await self.new_turn(data['item_id'], text)
+                    if turn.local_control:
+                        return  # A mode/Stop command is never an expert task.
                     self.require_input_gate(input_epoch)
                     if (await asyncio.to_thread(self.selected_expert))['profile'] != profile:
                         raise PermissionError('expert_profile_changed_during_input')
@@ -2182,7 +2281,7 @@ class DirectSession(NativeSession):
         if self.current:
             await self.finish(self.current, False)
 
-    async def stop(self, *, request_id=None):
+    async def stop(self, *, request_id=None, _preserve_mode=False):
         if request_id is not None and (not isinstance(request_id, str) or
                 not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', request_id)):
             raise ValueError('invalid_stop_request_id')
@@ -2201,8 +2300,14 @@ class DirectSession(NativeSession):
             self.input_open = False
             self.input_mode = 'idle'
             self.state = 'muted' if self.muted else 'ready' if self.ready else 'disconnected'
+            reset_mode = not _preserve_mode and self.selected_mode != 'fast'
+            if reset_mode:
+                self.selected_mode = 'fast'
+                self.emit('mode_selected', mode='fast')
             self.emit('stopped', input_open=False,
                       **({'request_id': request_id} if request_id is not None else {}))
+            if reset_mode:
+                self.spawn(self.publish_admission_status(force=True))
             return {'stopped': True}
         finally:
             self._stop_count -= 1
