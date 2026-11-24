@@ -123,6 +123,11 @@ Esptool подтвердил ESP32-S3, checksum и validation hash; свобод
 
 ## Проверка и установка
 
+Серверная часть установлена: runtime `b2a19f9946e7d99a4b91b94bed97b40b828b717d`. Итоговый metadata postcheck
+пройден в 2026-11-24 01:13:59 BRT; оба адреса админки и provider ACK
+подтверждены. Локальный gate: 1636 PASS / 1 SKIP;
+Windows: 1635 passed, 2 skipped in 272.25s (0:04:32). Настройки владельца не менялись, модельные пробы не запускались.
+
 Единый бесплатный gate включает 73 Python-файла и две Node DOM fixtures. Он
 проверяет новые команды, owner-only настройки, однократность, scope/epoch races,
 остановку и playback вместе с прежними native, Live, expert, memory и visual путями.

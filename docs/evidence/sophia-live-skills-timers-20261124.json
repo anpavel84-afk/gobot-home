@@ -1,7 +1,7 @@
 {
   "schema": "sophia-live-skills-timers-v1",
-  "recorded_at_utc": "2026-11-24T04:05:43.838394+00:00",
-  "state": "final_source_verified_pending_repeated_windows_gate_and_install",
+  "recorded_at_utc": "2026-11-24T04:13:59.075259+00:00",
+  "state": "server_installed_firmware_staged_awaiting_specific_flash_approval",
   "base_commit": "9dffdc196eb9a8203386cd170256b803f9a40213",
   "prior_runtime": "150ec61a3b098dd669a47db83acae2fbc747cec9",
   "feature_branch": "feat/sophia-live-skills-timers-20261124",
@@ -123,7 +123,8 @@
       "candidate_on_PLAN_verified": true,
       "candidate_on_PLAN_filename": "sophia-timer-v421-2e0898e70872.bin",
       "transfer": "same_owner_private_taildrop"
-    }
+    },
+    "flash_approval": "pending_for_exact_v421_image"
   },
   "validation": {
     "python_test_files": 73,
@@ -180,11 +181,21 @@
       "isolated_source_rollback_reapply_passed": true,
       "feature_published": true
     },
-    "windows_gate": "pending_for_final_source_and_corrected_deployer",
+    "windows_gate": {
+      "target": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+      "summary": "1635 passed, 2 skipped in 272.25s (0:04:32)",
+      "passed": 1635,
+      "skipped": 2,
+      "gate_seconds": 275.66,
+      "python_files": 73,
+      "browser_fixtures_passed": true,
+      "native_cpp_skipped_on_windows_passed_on_linux": true,
+      "isolated_source_rollback_reapply_passed": true
+    },
     "source_input_hashes_digest": "4aa5819c1d13a95f1cfcabecadfb80c609e91bd47ee4af6244356c9fc1bf92d8"
   },
   "deployment": {
-    "installed": false,
+    "installed": true,
     "firmware_changed": false,
     "deployer_sha256": "563b114e877febde9eedad4da411dea191801492019db21b97b011fac8cc20b2",
     "postcheck_sha256": "37c35ed53ebb0c4650c37a881c3c3a4238cce7c4a5e9016faa035557e0223723",
@@ -209,7 +220,817 @@
     "unrelated_worktree_heads": {
       "hosta": "e23bbef4e040795008ad6a167100222d29b43001",
       "wakenet": "410bbd7365ca670c619efb0b3df926c47ff39e3d"
-    }
+    },
+    "runtime_code_commit": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+    "final_postcheck": {
+      "schema": "sophia-live-skills-postcheck-v1",
+      "passed": true,
+      "target": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+      "seconds": 14.806,
+      "before": {
+        "at_utc": "2026-11-24T04:13:45.776027+00:00",
+        "runtime_code_commit": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+        "selected_expert": {
+          "profile": "ARGON_DEEP",
+          "provider": "antigravity",
+          "model": "gemini-4-argon-medium",
+          "effort": "medium"
+        },
+        "expert_available": true,
+        "active_turns": 0,
+        "active_voice_streams": 0,
+        "active_inputs": 0,
+        "physical_transport_ready": true,
+        "physical_ready": true,
+        "mute_observed_and_preserved": false,
+        "session": {
+          "state": "ready",
+          "ready": true,
+          "capture_connected": true,
+          "muted": false,
+          "generation_allowed": true,
+          "expert_active": false
+        },
+        "lifecycle": {
+          "attached": true,
+          "reader_running": true,
+          "maintenance_running": true,
+          "transport_epoch": 1,
+          "reconnect_attempts": 0
+        },
+        "gateway": {
+          "device_protocol_confirmed": true,
+          "cloud_ready": true,
+          "input_open": false,
+          "received_packets": 834,
+          "application_keepalives_sent": 11,
+          "device_control_messages": 12,
+          "device_mute_revision": 0,
+          "error_present": false
+        },
+        "gateway_age_seconds": 0.15,
+        "memory": {
+          "native": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          },
+          "local_admin": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          },
+          "private_admin": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          }
+        },
+        "conversation": {
+          "state": "applied",
+          "settings_revision": "99751508a9c429b03e82c31ceb525e86777ca8e89239c88843ab80587792df57",
+          "capabilities_revision": "86d1220cae5996ec75de5256d4a9e549578ddf1f4d2f489d0caaa201ee1d7332",
+          "provider_acknowledged": true,
+          "capabilities": {
+            "clock": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "time",
+                "date",
+                "weekday"
+              ]
+            },
+            "timer": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "start",
+                "remaining",
+                "cancel"
+              ],
+              "display": "unavailable",
+              "signal": "unconfirmed"
+            },
+            "weather": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "current",
+                "forecast"
+              ]
+            },
+            "utilities": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "calculate",
+                "convert_units"
+              ]
+            },
+            "memory": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "scoped_recall"
+              ]
+            },
+            "expert": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "conversation_mode",
+              "actions": [
+                "select_mode",
+                "delegate_question"
+              ]
+            },
+            "visual": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "visual_request",
+              "actions": [
+                "find_image",
+                "show_image"
+              ]
+            },
+            "tv": {
+              "enabled": false,
+              "implemented": false,
+              "state": "not_connected",
+              "reason": "tv_adapter_not_connected",
+              "tool": null,
+              "actions": []
+            },
+            "shell": {
+              "enabled": false,
+              "implemented": false,
+              "state": "restricted",
+              "reason": "shell_access_not_authorized",
+              "tool": null,
+              "actions": []
+            },
+            "files": {
+              "enabled": false,
+              "implemented": false,
+              "state": "restricted",
+              "reason": "file_access_not_authorized",
+              "tool": null,
+              "actions": []
+            }
+          },
+          "timer_delivery": {
+            "display_supported": false,
+            "signal_supported": true,
+            "capabilities_received": true,
+            "output_active": false
+          },
+          "guidance_exported": false,
+          "settings_written_by_deployer": false
+        },
+        "local_and_private_conversation_verified": true
+      },
+      "after": {
+        "at_utc": "2026-11-24T04:13:59.075259+00:00",
+        "runtime_code_commit": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+        "selected_expert": {
+          "profile": "ARGON_DEEP",
+          "provider": "antigravity",
+          "model": "gemini-4-argon-medium",
+          "effort": "medium"
+        },
+        "expert_available": true,
+        "active_turns": 0,
+        "active_voice_streams": 0,
+        "active_inputs": 0,
+        "physical_transport_ready": true,
+        "physical_ready": true,
+        "mute_observed_and_preserved": false,
+        "session": {
+          "state": "ready",
+          "ready": true,
+          "capture_connected": true,
+          "muted": false,
+          "generation_allowed": true,
+          "expert_active": false
+        },
+        "lifecycle": {
+          "attached": true,
+          "reader_running": true,
+          "maintenance_running": true,
+          "transport_epoch": 1,
+          "reconnect_attempts": 0
+        },
+        "gateway": {
+          "device_protocol_confirmed": true,
+          "cloud_ready": true,
+          "input_open": false,
+          "received_packets": 1001,
+          "application_keepalives_sent": 13,
+          "device_control_messages": 14,
+          "device_mute_revision": 0,
+          "error_present": false
+        },
+        "gateway_age_seconds": 3.362,
+        "memory": {
+          "native": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          },
+          "local_admin": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          },
+          "private_admin": {
+            "available": true,
+            "enabled": true,
+            "policy": {
+              "enabled": true,
+              "ttl_seconds": 43200,
+              "persist": true,
+              "summarize": true,
+              "background": true,
+              "supplement": true
+            },
+            "private_archive": false,
+            "trigger": "every_question",
+            "supplements_per_question": 1,
+            "working": {
+              "enabled": true,
+              "persistence_requested": true,
+              "persisted": true,
+              "version": 13,
+              "ttl_seconds": 43200,
+              "source_count": 3,
+              "available_exchanges": 2,
+              "completed_exchanges": 1,
+              "restored_exchanges": 2,
+              "error_present": false
+            },
+            "summary_worker": {
+              "enabled_for_scope": true,
+              "active": false,
+              "known_primary_tokens": 0,
+              "scope_tokens_used_or_reserved": 0,
+              "global_tokens_used_or_reserved": 0,
+              "available_tokens": 0,
+              "daily_token_limit": 2000,
+              "primary_usage_fraction_limit": 0.1,
+              "unknown_usage_attempts": 0,
+              "queued": 0,
+              "spoken_responses_created": 0
+            },
+            "lookup": {
+              "queries": 0,
+              "useful_results": 0,
+              "supplements": 0,
+              "discarded": 0
+            },
+            "checkpoint_observed_by_runtime": true
+          }
+        },
+        "conversation": {
+          "state": "applied",
+          "settings_revision": "99751508a9c429b03e82c31ceb525e86777ca8e89239c88843ab80587792df57",
+          "capabilities_revision": "86d1220cae5996ec75de5256d4a9e549578ddf1f4d2f489d0caaa201ee1d7332",
+          "provider_acknowledged": true,
+          "capabilities": {
+            "clock": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "time",
+                "date",
+                "weekday"
+              ]
+            },
+            "timer": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "start",
+                "remaining",
+                "cancel"
+              ],
+              "display": "unavailable",
+              "signal": "unconfirmed"
+            },
+            "weather": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "current",
+                "forecast"
+              ]
+            },
+            "utilities": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "calculate",
+                "convert_units"
+              ]
+            },
+            "memory": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "gobot_tool",
+              "actions": [
+                "scoped_recall"
+              ]
+            },
+            "expert": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "conversation_mode",
+              "actions": [
+                "select_mode",
+                "delegate_question"
+              ]
+            },
+            "visual": {
+              "enabled": true,
+              "implemented": true,
+              "state": "available",
+              "reason": null,
+              "tool": "visual_request",
+              "actions": [
+                "find_image",
+                "show_image"
+              ]
+            },
+            "tv": {
+              "enabled": false,
+              "implemented": false,
+              "state": "not_connected",
+              "reason": "tv_adapter_not_connected",
+              "tool": null,
+              "actions": []
+            },
+            "shell": {
+              "enabled": false,
+              "implemented": false,
+              "state": "restricted",
+              "reason": "shell_access_not_authorized",
+              "tool": null,
+              "actions": []
+            },
+            "files": {
+              "enabled": false,
+              "implemented": false,
+              "state": "restricted",
+              "reason": "file_access_not_authorized",
+              "tool": null,
+              "actions": []
+            }
+          },
+          "timer_delivery": {
+            "display_supported": false,
+            "signal_supported": true,
+            "capabilities_received": true,
+            "output_active": false
+          },
+          "guidance_exported": false,
+          "settings_written_by_deployer": false
+        },
+        "local_and_private_conversation_verified": true
+      },
+      "deltas": {
+        "received_packets": 167,
+        "application_keepalives_sent": 2,
+        "device_control_messages": 2
+      },
+      "owner_activity_observed": false,
+      "source_usage_unchanged": true,
+      "source_wip_preserved": true,
+      "firmware_changed_by_deployment": false,
+      "windows_gate_summary": "1635 passed, 2 skipped in 272.25s (0:04:32)",
+      "windows_gate_seconds": 275.66,
+      "preservation_counts": {
+        "policies": 72,
+        "ledgers": 23,
+        "profiles": 1,
+        "configuration": 2
+      },
+      "working_memory_policy_sha256": "a99cf68816903f2ee11e1462dacf48ddec80bfd3f2b0a4fde971fd6e7f93d9d1",
+      "deployment_helper_manifest_and_memory_receipts_verified": true,
+      "additive_timer_schema": {
+        "allowed_schema_sha256": "4322285ecb6db85c467358afc2e03cff93306a4bb51e7914ba10c2961479e3fe",
+        "added_schema_objects": [
+          "index:timer_alarm_scope",
+          "index:timer_binding_scope",
+          "table:timer_alarm_deliveries",
+          "table:timer_bindings",
+          "table:timer_scope_versions"
+        ],
+        "new_timer_tables_empty": true,
+        "existing_timer_receipts_preserved": true,
+        "old_unbound_timers_not_adopted": true,
+        "rollback_drops_timer_schema": false,
+        "rollback_restores_timer_database": false
+      },
+      "expert_readiness": {
+        "schema": "sophia-expert-readiness-v1",
+        "at_utc": "2026-11-24T04:14:00.579916+00:00",
+        "read_only": true,
+        "new_model_calls": 0,
+        "subprocesses_started": 0,
+        "credentials_contents_read": false,
+        "household_text_exported": false,
+        "scope": {
+          "profile": "sophia_owner_terminal",
+          "epoch": "sophia-owner-terminal-20261119",
+          "binding_sha256": "dc9f7f7c0b050f110a8651a8fbc8159269f98ffb2db8d3ee6192621495928c76",
+          "original_approval_binding_verified": true,
+          "enabled": true,
+          "expires_at": null,
+          "expert_jobs_allowed": true,
+          "allowed_profiles": [
+            "ARGON_DEEP"
+          ],
+          "max_expert_jobs": null,
+          "job_timeout_seconds": 90,
+          "max_context_tokens": 6000,
+          "max_result_characters": 24000,
+          "stt_model": "gpt-live-transcribe",
+          "max_stt_audio_seconds": 180,
+          "narrator_model": "gpt-realtime-2.1-mini",
+          "narrator_voice": "marin",
+          "max_narrator_responses": null,
+          "max_narrator_characters": null,
+          "private_memory_authorized": false
+        },
+        "agents": {
+          "codex": {
+            "installed": true,
+            "oauth_cached": true,
+            "isolation_verified": true,
+            "available": true,
+            "reason": null
+          },
+          "antigravity": {
+            "installed": true,
+            "oauth_cached": true,
+            "isolation_verified": true,
+            "available": true,
+            "reason": null
+          }
+        },
+        "profiles": [
+          {
+            "profile": "ARGON_DEEP",
+            "provider": "antigravity",
+            "model": "gemini-4-argon-medium",
+            "effort": "medium",
+            "metadata_verified": true,
+            "allowed_in_current_scope": true
+          },
+          {
+            "profile": "SOL_HIGH",
+            "provider": "codex",
+            "model": "gpt-6.1-sol",
+            "effort": "high",
+            "metadata_verified": true,
+            "allowed_in_current_scope": false
+          },
+          {
+            "profile": "SOL_XHIGH",
+            "provider": "codex",
+            "model": "gpt-6.1-sol",
+            "effort": "xhigh",
+            "metadata_verified": true,
+            "allowed_in_current_scope": false
+          },
+          {
+            "profile": "ASTRA_HIGH",
+            "provider": "codex",
+            "model": "gpt-6-astra",
+            "effort": "high",
+            "metadata_verified": true,
+            "allowed_in_current_scope": false
+          },
+          {
+            "profile": "ASTRA_MEDIUM",
+            "provider": "codex",
+            "model": "gpt-6-astra",
+            "effort": "medium",
+            "metadata_verified": true,
+            "allowed_in_current_scope": false
+          }
+        ],
+        "selected_expert": {
+          "profile": "ARGON_DEEP",
+          "provider": "antigravity",
+          "model": "gemini-4-argon-medium",
+          "effort": "medium",
+          "metadata_verified": true,
+          "allowed_in_current_scope": true
+        },
+        "cli_metadata_admission_ready": true,
+        "speech_ledger": {
+          "available": true,
+          "authorization_mismatches": 0,
+          "operations": {}
+        },
+        "expert_ledger": {
+          "available": true,
+          "authorization_mismatches": 0,
+          "attempts": 0,
+          "unconfirmed_provider_calls": 0
+        },
+        "cached_public_cue": {
+          "status": "ready",
+          "model": "gpt-realtime-2.1-mini",
+          "voice": "marin",
+          "runtime_generation": false,
+          "sha256": "f53f9f2c7d6f26d7bf72dbbe12a386cb4276b67f3b65321523a772703d9f80d1",
+          "duration_seconds": 2.25
+        },
+        "runtime_snapshot": {
+          "provided": false,
+          "http_requests_made": 0,
+          "reason": "existing_endpoint_snapshot_not_supplied"
+        },
+        "pipeline_scope": {
+          "transport": "B_WS",
+          "expert_answer_stream": "verified_answer_delta",
+          "narrator": "SpeechFormatter/SpeechTurn",
+          "tts_model": "gpt-realtime-2.1-mini",
+          "tts_voice": "marin",
+          "runtime_hooks_checked": false,
+          "provider_quota_remaining_checked": false,
+          "provider_inference_checked": false,
+          "physical_speech_acceptance_checked": false
+        }
+      },
+      "evidence_sha256": {
+        "source_receipt": "6cb85659edd6735f5d8352cc1faf2d73f8f19156fd14cdb804a23a36b06c9e6e",
+        "source_deployment": "de336f2bdfcd33972d196936877e7b7b7469666f5a927f92196ad14a4f0b1b9c",
+        "windows_gate": "dee9d7845b0d31d389e46074205b367ad3b99cc9baff9774dbd23a657a4ca139",
+        "deployer": "563b114e877febde9eedad4da411dea191801492019db21b97b011fac8cc20b2"
+      },
+      "raw_audio_saved": false,
+      "household_transcripts_exported": false,
+      "new_model_calls": 0,
+      "live_model_answer_tested": false,
+      "settings_written": false,
+      "report_written": false,
+      "configured_instruction_live_model_tested": false,
+      "active_conversation_hot_reload_live_tested": false,
+      "timer_alarm_live_tested": false,
+      "timer_display_live_tested": false,
+      "head": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+      "head_equals_loaded_runtime": true
+    },
+    "source_publication_verified": true,
+    "new_model_calls": 0,
+    "settings_written": false
   },
   "unchanged": {
     "working_memory_ttl_seconds": 43200,
@@ -218,5 +1039,6 @@
     "private_family_acl": true,
     "television_adapter_connected": false
   },
-  "initial_implementation_commit": "2d3fb9641e0f43f1862487b6457ccd4100f0cbf4"
+  "initial_implementation_commit": "2d3fb9641e0f43f1862487b6457ccd4100f0cbf4",
+  "source_commit": "b2a19f9946e7d99a4b91b94bed97b40b828b717d"
 }
