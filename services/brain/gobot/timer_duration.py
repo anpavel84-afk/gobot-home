@@ -32,7 +32,7 @@ _REVERSE_REQUEST = re.compile(r'^'+_PREFIX+r'(.+?)[,\s]+'+_POLITE+_VERBS+_FILL+r
 def _clean(text):
     if not isinstance(text,str) or len(text)>4096:
         return ''
-    return ' '.join(text.casefold().replace('ё','е').replace('\u00a0',' ').strip().split()).rstrip('!?').strip()
+    return ' '.join(text.casefold().replace('ё','е').replace('\u00a0',' ').strip().split()).rstrip('!?.').strip()
 
 
 def _words_to_digits(text):
@@ -98,12 +98,22 @@ def _bare_seconds(text, *, colon_allowed=False):
     return int(total) if total==total.to_integral_value() else None
 
 
-def timer_seconds(text):
+def _duration_reply(text):
+    # Ellipsis belongs ONLY to an existing timer clarification, never to a
+    # number recalled from an unrelated discussion.
+    text=re.sub(r'^'+_PREFIX, '', _clean(text))
+    return re.sub(r'^(?:поставь(?:те)?|засеки(?:те)?)[,\s]+', '', text)
+
+
+def timer_seconds(text, *, pending=False):
     text=_clean(text)
     # Try complete duration first, then a bounded direct request. Never extract
     # a number from arbitrary prose or silently skip a second command.
     value=_bare_seconds(text,colon_allowed=True)
     if value is not None:return value
+    if pending:
+        value=_bare_seconds(_duration_reply(text),colon_allowed=True)
+        if value is not None:return value
     match=_REQUEST.fullmatch(text) or _REVERSE_REQUEST.fullmatch(text)
     return _bare_seconds(match[1],colon_allowed=True) if match else None
 
@@ -111,7 +121,7 @@ def timer_seconds(text):
 def is_timer_duration_reply(text):
     # No command stripping here: a bare duration requires an existing pending
     # timer request in the native executor.
-    return _bare_seconds(text,colon_allowed=True) is not None
+    return _bare_seconds(_duration_reply(text),colon_allowed=True) is not None
 
 
 def source_timer_seconds(text,source):
@@ -124,7 +134,7 @@ def source_timer_seconds(text,source):
     if (not isinstance(text,str) or not isinstance(source,str) or not 1<=len(source)<=120 or
             source!=source.strip()):
         raise ValueError('timer_duration_source_mismatch')
-    whole=timer_seconds(text)
+    whole=timer_seconds(text,pending=True)
     if whole is not None:
         # Equivalence is safe only when the complete original request/reply
         # contains one unambiguous duration. Conflicting values still fail.

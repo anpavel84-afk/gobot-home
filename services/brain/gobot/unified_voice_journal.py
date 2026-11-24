@@ -129,7 +129,7 @@ BOOLEANS = {
     'resume_pending', 'resume_capture',
     'device_reported', 'interrupt', 'named_question', 'activation_only',
 }
-CONTAINERS = {'timings', 'timings_ms', 'usage', 'input_token_details',
+CONTAINERS = {'result', 'evidence', 'arguments', 'timings', 'timings_ms', 'usage', 'input_token_details',
               'output_token_details', 'cached_tokens_details', 'narrator_usage',
               'responses', 'job', 'availability'}
 ENUMS = {
@@ -149,7 +149,8 @@ ENUMS = {
     'provider': {'openai', 'codex', 'antigravity'},
     'format': {'pcm16', 'pcm_s16le'},
     'playback': {'client_playback_reported', 'unconfirmed_or_interrupted'},
-    'name': {'gobot_tool', 'expert_propose', 'expert_start', 'expert_cancel',
+    'operation': {'start', 'status', 'cancel'},
+    'name': {'timer_action', 'conversation_mode', 'gobot_tool', 'expert_propose', 'expert_start', 'expert_cancel',
              'expert_status', 'expert_list_profiles', 'visual_query'},
     'underrun_measurement': {'not_instrumented'},
     'stage': CAPTURE_BOUNDARY_STAGES,
@@ -157,6 +158,8 @@ ENUMS = {
     'clock_domain': {'capture_16k', 'provider_input', 'provider_input_after_clear'},
     'boundary': {'not_applicable', 'unmapped', 'near_detector', 'after_detector'},
 }
+NUMBERS |= {'duration_seconds'}
+BOOLEANS |= {'executed', 'replayed', 'needs_parameters'}
 CODES = {
     'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
     'closed', 'user_stop', 'client_disconnected', 'output_backpressure',
@@ -194,6 +197,11 @@ CODES = {
     'wake_substantial_question', 'wake_endpoint_near_detector',
     'wake_question_after_detector', 'wake_local_stop',
 }
+CODES |= {'invalid_timer_arguments', 'invalid_timer_duration', 'timer_duration_source_required',
+    'timer_action_context_changed', 'action_payload_conflict', 'timer_selection_required',
+    'timer_current_user_command_required', 'timer_duration_ambiguous', 'invalid_timer_action',
+    'current_user_command_required', 'timer_target_source_mismatch', 'timer_duration_source_mismatch',
+    'timer_action_not_executed', 'capability_disabled_by_owner', 'confirmed_user_command_required'}
 EVENTS = {
     'cloud_ready', 'first_audio_packet', 'expert_job_accepted', 'cached_cue_queued',
     'cached_cue_started', 'expert_context_synced', 'pre_roll_flushed',
@@ -256,7 +264,11 @@ def metadata(value, depth=0):
             result[key] = item
         elif key in ENUMS and isinstance(item, str):
             result[key] = item if item in ENUMS[key] else 'other'
-        elif key in {'code', 'error_code', 'reason'} and isinstance(item, str):
+        elif key == 'duration_text' and isinstance(item, str):
+            from .timer_duration import timer_seconds
+            seconds = timer_seconds(item)
+            if seconds is not None and 0 <= seconds <= 86400:result['duration_seconds'] = seconds
+        elif key in {'code', 'error', 'error_code', 'reason'} and isinstance(item, str):
             result[key] = item if item in CODES else 'other'
         elif key in {'event_type', 'event'} and isinstance(item, str):
             result[key] = item if item in EVENTS else 'other'

@@ -58,6 +58,7 @@ class TimerCall:
     transport_epoch: int
     binding: tuple
     arguments: str
+    selected_mode: str = 'fast'
 
 
 class DirectTimers:
@@ -92,7 +93,7 @@ class DirectTimers:
         s, turn = self.session, call.turn
         return bool(turn is s.current and turn and not turn.cancelled and not turn.local_control
             and s.ready and s.attached and not s.closed and not s._closing and not s.muted
-            and not s._stop_count and s.selected_mode == 'fast'
+            and not s._stop_count and s.selected_mode == call.selected_mode
             and s._input_gate_epoch == call.input_epoch and s.transport_epoch == call.transport_epoch
             and conversation_binding(s) == call.binding
             and (not final or turn.query == call.instruction and turn.input_revision == call.input_revision))
@@ -107,7 +108,7 @@ class DirectTimers:
         if turn is not s.current or not turn:
             return None
         call = TimerCall(call_id, response_id, turn, turn.query, turn.input_revision,
-            s._input_gate_epoch, s.transport_epoch, conversation_binding(s), event.get('arguments', '{}'))
+            s._input_gate_epoch, s.transport_epoch, conversation_binding(s), event.get('arguments', '{}'), s.selected_mode)
         if not self.current(call, final=False):
             return None
         s.calls.add(call_id)
@@ -115,6 +116,57 @@ class DirectTimers:
         while len(self.pending) > 32:
             self.pending.pop(next(iter(self.pending)))
         return call
+
+    async def local_input(self, turn):
+        """A completed expert-input transcript may request a local timer, not CLI.
+
+        This application action has no invented provider function call. Preserve
+        the persistent expert selection; use its existing native voice for ACK.
+        """
+        from .quick_intents import resolve_quick
+        s = self.session
+        call = TimerCall('', '', turn, turn.query, turn.input_revision,
+            s._input_gate_epoch, s.transport_epoch, conversation_binding(s), '{}', s.selected_mode)
+        if not self.current(call):return False
+        req = self.request(turn.query, turn.id)
+        context = await asyncio.to_thread(s.manager.brain.memory.context, req)
+        quick = resolve_quick(turn.query, context)
+        if not quick or not (quick.executor in {'timer', 'timer_status'} or
+                quick.executor == 'quick_clarify' and quick.intent.startswith('timer_')):return False
+        if not self.current(call):return True
+        try:
+            permission = await s.require_capability('timer')
+            def authorized():
+                if not self.current(call):return False
+                try:return s.timer_scope_authorized() and s.capabilities.settings()['revision'] == permission['settings_revision']
+                except (ValueError, OSError):return False
+            slots = {**quick.slots, 'intent':quick.intent, 'status':quick.status, 'reason':quick.reason}
+            result = await asyncio.to_thread(s.manager.brain.tools.execute, quick.executor, req, slots,
+                action_id='native-timer:'+turn.id, is_current=authorized)
+            if not await asyncio.to_thread(authorized):return True
+            if result.widget:
+                frame = s.manager.brain.visual.timer(req, result.widget)
+                s.emit('visual_response', presentation=frame.model_dump())
+            await self.refresh(force=True)
+            output = {'text':result.text, 'evidence':result.evidence,
+                'executed':(result.evidence or {}).get('executed') is True}
+        except (ValueError, PermissionError) as error:
+            if not self.current(call):return True
+            allowed = {'capability_disabled_by_owner', 'conversation_settings_unavailable',
+                'capability_unavailable', 'invalid_timer_duration', 'action_payload_conflict',
+                'timer_action_context_changed'}
+            output = {'executed':False, 'error':str(error) if str(error) in allowed else 'timer_action_not_executed'}
+        if not self.current(call):return True
+        s.manager.journal.session_event(s, 'B', 'tool_result',
+            {'name':'timer_action', 'result':output})
+        turn.mode_action_handled = True
+        turn.mode_action_ack = output
+        # This completed, explicitly activated input may reserve its ordinary
+        # acknowledgement under the existing B allowance. No CLI or retry.
+        await s.admission(explicit_wake=True)
+        if not self.current(call):return True
+        await s.response()
+        return True
 
     async def execute(self, call_id, arguments, turn):
         call = self.pending.pop(call_id, None)

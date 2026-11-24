@@ -32,7 +32,7 @@ def test_250_timer_phrasings_create_actual_scoped_timer(settings,verb,prefix,dur
     assert result.widget['payload']['duration_ms']==seconds*1000
     assert 'нет активных' in tools.execute('timer_status',req.model_copy(update={'device_id':'synthetic-b'})).text
 
-@pytest.mark.parametrize('query',['Не ставь таймер на пять минут','Можешь не ставить таймер на пять минут','Расскажи как засечь таймер на пять минут','Поставь таймер на пять или десять минут','Засеки три минуты и удали файл','Он сказал: поставь таймер на пять минут','Если поставить таймер на пять минут что будет','Таймер на минус пять минут','Засеки сто пять минут'])
+@pytest.mark.parametrize('query',['Не ставь таймер на пять минут','Можешь не ставить таймер на пять минут','Расскажи как засечь таймер на пять минут','Поставь таймер на пять или десять минут','Засеки три минуты и удали файл','Он сказал: поставь таймер на пять минут','Если поставить таймер на пять минут что будет','Таймер на минус пять минут','Засеки сто тысяч пять минут'])
 def test_negative_or_ambiguous_timer_cannot_create_shorter_action(query):
     q=resolve_quick(query)
     assert not q or q.executor!='timer' or q.status!='validated' or not q.slots.get('seconds') or q.slots['seconds']<=0
@@ -186,3 +186,8 @@ def test_new_developer_financial_guard_does_not_reset_old_usage(tmp_path):
     with pytest.raises(PermissionError,match='developer_estimate_limit'):owner.reserve('owner','live_backend','second',estimate=.2,origin='developer')
     owner.reserve('owner','live_backend','third',estimate=.01,origin='developer')
     assert owner.status('owner')['attempts_today']=={'live':1,'live_backend':1}
+
+
+def test_compound_hundred_duration_is_complete_not_its_tail():
+    q=resolve_quick('Засеки сто пять минут')
+    assert q.executor=='timer' and q.status=='validated' and q.slots['seconds']==6300

@@ -278,7 +278,7 @@ class LocalTools:
             if duration_text is None:
                 # The current transcript can already contain a complete duration
                 # even when the model forgot its optional argument.
-                seconds=timer_seconds(req.text)
+                seconds=timer_seconds(req.text,pending=True)
                 if seconds is None:
                     self.native_timer_pending(req,action_id,is_current)
                     return ToolResult('На сколько минут или секунд поставить таймер?',

@@ -57,7 +57,6 @@ def test_semantic_action_accepts_current_duration_without_command_phrase_allowli
     ('Поставь таймер на один час, тридцать минут.', 'тридцать минут'),
     ('Поставь таймер на пять минут или десять минут.', 'пять минут'),
     ('Поставь таймер на пять минут или десять минут.', 'десять минут'),
-    ('Поставь таймер на пять минут.', '5 минут'),
     ('Поставь таймер на пять минут.', 'десять минут'),
     ('Повтори «Поставь таймер на пять минут».', 'пять минут'),
 ])
@@ -205,3 +204,9 @@ def test_native_status_cannot_publish_or_record_list_after_scope_revocation(tool
                       is_current=lambda: valid[0])
     assert bool(reads) == valid_before_read
     assert tools.timer_context(req) == {}
+
+
+def test_normalized_duration_is_equivalent_to_original_words(tools):
+    result=action(tools,request('Поставь таймер на пять минут.'),'start',duration_text='300 секунд')
+    assert result.evidence['executed'] and result.evidence['duration_seconds']==300
+    assert count(tools)==1

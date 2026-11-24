@@ -77,7 +77,7 @@ def resolve_quick(text,context=None):
         seconds=timer_seconds(quantity+' '+value)
         if seconds is not None:return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(value):
-        return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value),'operation':'start'})
+        return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value,pending=True),'operation':'start'})
     matches=[]
     for row in library()['entries']:
         for pattern in row['patterns']:

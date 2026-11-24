@@ -2219,6 +2219,9 @@ class DirectSession(NativeSession):
                     if turn.local_control:
                         return  # A mode/Stop command is never an expert task.
                     self.require_input_gate(input_epoch)
+                    if await self.timers.local_input(turn):
+                        return  # Local actions never consume CLI quota or alter expert selection.
+                    self.require_input_gate(input_epoch)
                     if (await asyncio.to_thread(self.selected_expert))['profile'] != profile:
                         raise PermissionError('expert_profile_changed_during_input')
                     await self.require_capability('expert')
