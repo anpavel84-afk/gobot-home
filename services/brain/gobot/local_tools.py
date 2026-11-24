@@ -252,8 +252,8 @@ class LocalTools:
         """Native semantic action: original user text, server scope and turn ID.
 
         The conversational model interprets intent; it cannot supply a rewritten
-        request, duration in seconds, owner, or approval. Its selected duration
-        must be an exact complete span of the current server-owned utterance.
+        request, owner, or approval. A normalized duration is accepted only when
+        independently verified against the complete server-owned utterance.
         """
         if operation not in ('start','status','cancel') or target not in ('only','all','ordinal'):
             raise ValueError('invalid_timer_action')
@@ -270,16 +270,21 @@ class LocalTools:
             return self.execute('timer_status',req,action_id=action_id,is_current=is_current)
         if operation=='start':
             if target!='only' or ordinal is not None:raise ValueError('invalid_timer_action')
-            if duration_text is None:
-                self.native_timer_pending(req,action_id,is_current)
-                return ToolResult('На сколько минут или секунд поставить таймер?',
-                    evidence={'method':'timer_state','executed':False,'needs_parameters':True,'missing_slots':['duration']})
-            from .timer_duration import source_timer_seconds,is_timer_duration_reply
+            from .timer_duration import source_timer_seconds,is_timer_duration_reply,timer_seconds
             if is_timer_duration_reply(req.text):
                 pending=self.memory.context(req).get('pending_action')
                 if not pending or pending.get('kind')!='timer_duration' or pending.get('expires',0)<=time.time():
                     raise PermissionError('current_user_command_required')
-            seconds=source_timer_seconds(req.text,duration_text)
+            if duration_text is None:
+                # The current transcript can already contain a complete duration
+                # even when the model forgot its optional argument.
+                seconds=timer_seconds(req.text)
+                if seconds is None:
+                    self.native_timer_pending(req,action_id,is_current)
+                    return ToolResult('На сколько минут или секунд поставить таймер?',
+                        evidence={'method':'timer_state','executed':False,'needs_parameters':True,'missing_slots':['duration']})
+            else:
+                seconds=source_timer_seconds(req.text,duration_text)
             if seconds is None or not 1<=seconds<=86400:raise ValueError('invalid_timer_duration')
             return self.start_timer_once(req,seconds,action_id,is_current=is_current)
         if duration_text is not None:raise ValueError('invalid_timer_action')
