@@ -171,6 +171,14 @@ def sophia_transport_failure(error, stats, *, output_active=False, age_seconds=0
     close_code = getattr(getattr(error, 'rcvd', None), 'code', None)
     if type(close_code) is int and 1000 <= close_code <= 4999:
         value['websocket_close_code'] = close_code
+    stage = stats.get('transport_failure_stage')
+    if stage in {'receive', 'uplink', 'cloud', 'status_tick', 'run'}:
+        value['failure_stage'] = stage
+    sent = getattr(error, 'sent', None)
+    if type(getattr(sent, 'code', None)) is int:
+        value['sent_close_code'] = sent.code
+    if getattr(sent, 'reason', None) == 'keepalive ping timeout':
+        value['keepalive_timeout'] = True
     return value
 
 

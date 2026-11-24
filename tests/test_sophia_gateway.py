@@ -292,3 +292,15 @@ def test_service_cue_finish_never_opens_microphone_by_itself():
                          'stream_epoch': 'capture', 'sample_floor': 0})
         assert not c.forward and c.ring.blocked and c.ring.cursor is None
     asyncio.run(run())
+
+
+def test_transport_failure_distinguishes_failed_leg_and_ping_timeout_without_text():
+    from types import SimpleNamespace
+    from gobot_device_gateway import sophia_transport_failure
+    error=RuntimeError('private payload must never be logged')
+    error.sent=SimpleNamespace(code=1011,reason='keepalive ping timeout')
+    value=sophia_transport_failure(error,{'transport_failure_stage':'cloud'})
+    assert value['failure_stage']=='cloud' and value['sent_close_code']==1011 and value['keepalive_timeout']
+    assert 'private payload' not in str(value)
+    value=sophia_transport_failure(RuntimeError('secret'),{'transport_failure_stage':'secret'})
+    assert 'failure_stage' not in value and 'secret' not in str(value)

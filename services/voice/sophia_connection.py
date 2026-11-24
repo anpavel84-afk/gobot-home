@@ -464,7 +464,13 @@ class SophiaConnection:
                     self.spawn(self.cloud()), self.spawn(self.status_tick()), self.spawn(self.timers.run())]
             done, _ = await asyncio.wait(core, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
-                task.result()
+                try:
+                    task.result()
+                except Exception:
+                    # Both peers use WebSockets: keep the failed leg distinct
+                    # without logging payloads, URLs, tokens or exception text.
+                    self.stats['transport_failure_stage'] = task.get_coro().__name__
+                    raise
         finally:
             self.fence_transport_end()
             try:
