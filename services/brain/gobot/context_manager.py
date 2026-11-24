@@ -33,7 +33,8 @@ def tokens(value):
 
 _MESSAGE_FIELDS=('id','turn_id','role','content','heard','status','playback',
                  'playback_complete','content_complete','excerpted','source_ids',
-                 'provenance','content_coverage','source_characters')
+                 'provenance','content_coverage','source_characters','created_at',
+                 'local_date','timezone','source_kind','context_only')
 
 
 def _message_excerpt(item,limit):

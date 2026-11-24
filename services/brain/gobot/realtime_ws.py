@@ -389,6 +389,8 @@ class DirectSession(NativeSession):
                     return {'sent': False}
                 if not await asyncio.to_thread(self.capabilities.enabled_now, 'memory'):
                     return {'sent': False}
+                if not await asyncio.to_thread(self.memory_flow.archive_current,turn):
+                    return {'sent': False}
                 if (transport != self.transport_epoch or turn.input_revision != revision or
                         not self.response_scope_current(epoch, turn)):
                     return {'sent': False}
@@ -1324,6 +1326,12 @@ class DirectSession(NativeSession):
                 if self.response_scope_current(input_epoch, turn):
                     self.pending_response = False
                 return False
+        if (reason == 'working_memory_supplement' or self.memory_flow.archive_provider or
+                self.memory_flow._archive_context_invalid):
+            if not await asyncio.to_thread(self.memory_flow.archive_current,turn):
+                if self.response_scope_current(input_epoch,turn):
+                    self.pending_response = False
+                return False
         # Restrictive settings are read off the audio loop. Stop/new input may
         # win while that read waits, including under the provider writer lock.
         return self.response_scope_current(input_epoch, turn)
@@ -1380,6 +1388,8 @@ class DirectSession(NativeSession):
                 or input_epoch != self._input_gate_epoch or transport_epoch != self.transport_epoch):
             return
         await super().input_text(turn, text)
+        if turn.req and turn.query == text and not turn.local_control:
+            self.memory_flow.accepted_question(turn)
         if turn is self.current and self.selected_mode == 'fast':
             if preferences is None or not preferences['skills']['memory']:
                 self.memory_flow.cancel()
@@ -1453,6 +1463,7 @@ class DirectSession(NativeSession):
         stored = turn.stored
         await super().finish(turn, heard)
         if not stored and turn.stored:
+            self.memory_flow.played_answer(turn,heard)
             # Explicit identity matters when a late result closes an older
             # turn. Only the separately authorized diagnostic wrapper accepts
             # this hook; the default content-free journal ignores its kind.
@@ -2594,6 +2605,10 @@ class DirectSession(NativeSession):
                     self.manager.brain._working_memory_cleanup_after = now+60.
                     with suppress(Exception):
                         await asyncio.to_thread(self.manager.brain.memory.purge_expired_working)
+                if now >= getattr(self,'_archive_refresh_after',0.):
+                    self._archive_refresh_after = now+2.
+                    with suppress(Exception):
+                        await self.memory_flow.refresh_archive()
                 if (self.access.confirmed_profile_id and self.manager.identity.family and
                         not await asyncio.to_thread(self.manager.identity.family.session_valid,
                             self.access.confirmed_profile_id, self.offer.confirmed_profile_epoch)):
@@ -2697,6 +2712,7 @@ class DirectSession(NativeSession):
                 'conversation_settings': self.capabilities.status(),
                 'timers': self.timers.status(),
                 'working_memory': self.memory_flow.status(),
+                'native_archive': self.memory_flow.archive_status(),
                 'empty_restore_eligible': bool(self.closed and (self._empty_setup_failed or self._empty_detached_expired))}
 
 

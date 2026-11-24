@@ -33,6 +33,11 @@ PIN для уже доступной текущей беседы и не гов�
 пользователь не обязательно слышал ответ. Не называй такой ответ договорённостью.
 Если связанный контекст придёт позже, сервер при необходимости разрешит одно
 короткое продолжение. Не запускай самостоятельно второй полный ответ.
+При включённом владельцем архиве колонки сервер также ищет сохранённые разговоры
+прошлых дней. source_kind=device_archive и local_date/timezone обозначают
+исходник и дату обсуждения, а не дату проверенного факта. Это архив данной
+колонки, не закрытая личная история семьи. Используй только доставленные
+источники; отсутствие результата не доказывает, что разговора никогда не было.
 '''
 
 SUPPLEMENT_INSTRUCTIONS = '''
@@ -68,10 +73,210 @@ class DialogueMemory:
         self.acks = {}
         self.last = {'state': 'disabled', 'queries': 0, 'useful_results': 0,
                      'supplements': 0, 'discarded': 0}
+        self.archive_binding = None
+        self.archive_configuration = None
+        self.archive_metadata = {'available': False}
+        self._archive_context_invalid = False
+        self.archive_provider = None
+        self._archive_binding_request = None
+        self._archive_binding_revision = 0
+        self._archive_closed = False
         session.manager.brain._working_memory_flows.add(self)
 
     def request(self):
         return self.session.request('Контекст текущей беседы', self.session.id)
+
+    def resolve_archive_binding(self):
+        from .native_archive import enrolled_binding
+        s = self.session
+        if (s.source != 'device' or s.offer.device_id != s.offer.client_id or
+                s.offer.developer_acceptance or s.offer.profile_epoch or
+                s.access.confirmed_profile_id or s.offer.personalization_mode != 'guest'):
+            raise PermissionError('archive_binding_invalid')
+        return enrolled_binding(s.manager.brain.configuration.devices,
+                                s.offer.device_id,s.offer.client_id)
+
+    def archive_binding_current(self, binding, *, accepted_source=False):
+        try:
+            return (accepted_source or not self.session.closed) and self.resolve_archive_binding() == binding
+        except Exception:
+            return False
+
+    def unbind_archive(self):
+        self._archive_binding_revision += 1
+        request,self._archive_binding_request = self._archive_binding_request,None
+        if request is not None:
+            self.memory.unbind_native_archive(request)
+
+    async def configure_archive(self, *, force=False):
+        if self._archive_closed or self.archive_configuration is not None and not force:
+            return
+        self.unbind_archive()
+        revision = self._archive_binding_revision
+        try:
+            binding = await asyncio.to_thread(self.resolve_archive_binding)
+            metadata = await asyncio.to_thread(self.memory.native_archive.status,binding)
+            if revision != self._archive_binding_revision or self._archive_closed:
+                return
+            if not self.archive_binding_current(binding):
+                raise PermissionError('archive_binding_invalid')
+            self.archive_binding = binding
+            self.archive_metadata = metadata
+            self.archive_configuration = {key:metadata[key] for key in ('policy','generation','revision')}
+            if metadata['policy']['read_enabled']:
+                # Teardown/profile transitions may scrub access before unbind.
+                # Retain the exact request that selected this working scope.
+                request = self.request()
+                self.memory.bind_native_archive(request,binding,metadata['generation'],
+                    lambda:self.archive_binding_current(binding) and
+                    (not hasattr(self.session,'capabilities') or self.session.capabilities.enabled_now('memory')))
+                self._archive_binding_request = request
+        except Exception:
+            if revision != self._archive_binding_revision or self._archive_closed:
+                return
+            self.archive_binding = None
+            self.archive_configuration = {'policy':{'read_enabled':False,'write_enabled':False},'generation':0,'revision':0}
+            self.archive_metadata = {'available':False,'last_error':'archive_binding_unavailable'}
+
+    def archive_status(self):
+        result = dict(self.archive_metadata)
+        if self.archive_binding:
+            result['last_error'] = self.memory.native_archive.last_errors.get(self.archive_binding.key)
+        return result
+
+    def archive_current(self, turn=None):
+        if self._archive_context_invalid:
+            return False
+        if self.archive_provider and not (
+                self.archive_binding_current(self.archive_provider[0]) and
+                self.memory.native_archive.current(*self.archive_provider,read=True)):
+            return False
+        state = self.turn
+        if not state or turn is not None and state['turn'] is not turn:
+            return True
+        archive = state.get('archive')
+        return (not archive or self.archive_binding_current(archive[0]) and
+                self.memory.native_archive.current(archive[0],archive[1],read=True))
+
+    async def refresh_archive(self):
+        """Metadata refresh is outside the input/answer critical path."""
+        try:
+            binding = await asyncio.wait_for(asyncio.to_thread(self.resolve_archive_binding),1.)
+            metadata = await asyncio.wait_for(asyncio.to_thread(self.memory.native_archive.status,binding),1.)
+            latest = {key:metadata[key] for key in ('policy','generation','revision')}
+        except Exception:
+            if self.archive_provider:
+                self._archive_context_invalid = True
+            return
+        if (binding == self.archive_binding and latest == self.archive_configuration and
+                not self._archive_context_invalid):
+            self.archive_metadata = metadata
+            return
+        needs_reset = bool(self.archive_provider or self._archive_context_invalid)
+        if needs_reset:
+            # External revocation or retention expiry can happen without an
+            # admin HTTP call. Close output first, then replace old provider
+            # history; never retry the interrupted question as another response.
+            self._archive_context_invalid = True
+            await self.session.stop(_preserve_mode=True)
+            await self.archive_changed(clear_context=True)
+        else:
+            self.cancel()
+            await self.configure_archive(force=True)
+            self.configured = None
+            await self.configure()
+
+    def require_archive_idle(self):
+        s = self.session
+        if (s.input_open or s.speaking or s.generating or s.response_requested or
+                s.pending_response or s.experts.active() or s._wake_fragment is not None or
+                s.state not in {'ready','blocked','muted'} or
+                s._guard_task is not None and not s._guard_task.done()):
+            raise ValueError('archive_change_requires_idle')
+
+    async def archive_changed(self, *, clear_context=False):
+        s = self.session
+        self._archive_context_invalid = True
+        s._input_gate_epoch += 1
+        self.cancel()
+        s.manager.memory_summary.invalidate(self.request())
+        if clear_context:
+            await asyncio.to_thread(self.memory.clear_working_scope,self.request())
+            self.known_sources.clear(); self.native_turns.clear(); self.summary_revision = None
+        await self.configure_archive(force=True)
+        self.configured = None
+        await self.configure()
+        if s.ready:
+            try:
+                await s.rotate(force=True)
+            except Exception:
+                raise RuntimeError('archive_context_reset_required') from None
+        # An unready transport must pass build/adopt before it can answer.
+
+    def accepted_question(self, turn):
+        binding, configuration = self.archive_binding, self.archive_configuration
+        if (not binding or not configuration or not configuration['policy']['write_enabled'] or
+                not turn.req or turn.cancelled or turn.local_control):
+            return
+        s = self.session
+        revision = turn.input_revision
+        generation = configuration['generation']
+        # Keep the accepted source immutable; a queue job is never a fresh user request.
+        text, turn_id, conversation = turn.query,turn.id,turn.req.conversation_id
+        accepted_at = time.time()
+        turn.archive_generation = generation
+        turn.archive_binding = binding
+        def current():
+            # Normal session teardown scrubs the mutable text after accepting
+            # it. Only an actual source revision invalidates this frozen receipt.
+            return (revision==turn.input_revision and
+                    self.archive_binding_current(binding,accepted_source=True))
+        from .working_memory import source_message
+        with self.memory.transient_lock:
+            row = self.memory.transient.get(turn_id)
+            aliases = [source_message(turn_id,row,'user')['id']] if row else []
+        self.memory.native_archive.enqueue(binding,'question',is_current=current,
+            source_turn_id=turn_id,conversation_id=conversation,text=text,generation=generation,
+            input_revision=revision,aliases=aliases,accepted_at=accepted_at)
+
+    def played_answer(self, turn, heard):
+        if not heard or turn.truncated or not turn.answer:
+            return
+        binding = getattr(turn,'archive_binding',None)
+        generation = getattr(turn,'archive_generation',None)
+        if not binding or generation is None:
+            return
+        s = self.session
+        revision = turn.input_revision
+        text = turn.answer
+        played_at = time.time()
+        def current():
+            return revision==turn.input_revision and self.archive_binding_current(binding,accepted_source=True)
+        from .working_memory import source_message
+        with self.memory.transient_lock:
+            row = self.memory.transient.get(turn.id)
+            aliases = [source_message(turn.id,row,'assistant')['id']] if row else []
+        self.memory.native_archive.enqueue(binding,'answer',is_current=current,
+            source_turn_id=turn.id,text=text,generation=generation,component='fast',
+            source_revision=max(1,turn.generation_sequence),provider='openai:'+s.policy.model,
+            heard=True,complete=True,aliases=aliases,played_at=played_at)
+
+    def expert_played(self, job):
+        s = self.session
+        turn = next((item for item in s.turns if item.id == job.turn_id),None)
+        binding = getattr(turn,'archive_binding',None)
+        generation = getattr(turn,'archive_generation',None)
+        text = job.played_text
+        if not binding or generation is None or not text or job.owner != s.access.effective_scope:
+            return
+        revision = turn.input_revision
+        def current():
+            return revision==turn.input_revision and self.archive_binding_current(binding,accepted_source=True)
+        self.memory.native_archive.enqueue(binding,'answer',is_current=current,
+            source_turn_id=turn.id,text=text,generation=generation,component='expert:'+job.id,
+            source_revision=len(text)*2+int(job.playback_complete),
+            provider=job.profile['provider']+':'+job.profile['model'],heard=True,
+            complete=bool(job.playback_complete),played_at=time.time())
 
     def eligibility(self):
         s = self.session
@@ -110,6 +315,7 @@ class DialogueMemory:
             await asyncio.to_thread(self.memory.clear_working_scope, req, disable=True)
 
     async def configure(self):
+        await self.configure_archive()
         async with self.configuration_lock:
             try:
                 policy = await asyncio.to_thread(self.current_policy)
@@ -129,6 +335,8 @@ class DialogueMemory:
                 with suppress(Exception):
                     await self.disable_registered_scope()
                 self.last['state'] = 'configuration_unavailable'
+            self.enabled = self.enabled or bool(self.archive_configuration and
+                self.archive_configuration['policy']['read_enabled'])
         return self.status()
 
     def status(self):
@@ -187,6 +395,8 @@ class DialogueMemory:
         return self.status()
 
     def adopt(self, instructions):
+        self._archive_context_invalid = False
+        self.archive_provider = None
         self.cancel()
         self.items.clear()
         self.known_sources.clear()
@@ -216,7 +426,8 @@ class DialogueMemory:
 
     def valid(self, state):
         s, turn = self.session, state['turn']
-        return bool(self.enabled and (not hasattr(s,'capabilities') or s.capabilities.configured_enabled('memory'))
+        return bool(self.enabled and not self._archive_context_invalid and
+                    (not hasattr(s,'capabilities') or s.capabilities.configured_enabled('memory'))
                     and self.turn is state and turn is s.current
                     and state['revision'] == turn.input_revision
                     and state['transport'] == s.transport_epoch
@@ -239,6 +450,8 @@ class DialogueMemory:
                  'hot_ready': asyncio.Event(), 'prepared': False, 'exclude': set(),
                  'lookup_done': False, 'late': False, 'attempted': False,
                  'result': None, 'started': time.monotonic()}
+        if self.archive_binding and self.archive_configuration['policy']['read_enabled']:
+            state['archive'] = (self.archive_binding,self.archive_configuration['generation'])
         self.turn = state
         self.native_turns.add(turn.id)
         self.last.update(state='searching', queries=self.last['queries']+1)
@@ -322,6 +535,11 @@ class DialogueMemory:
             if not receipt or not receipt.get('sent'):
                 return None
             sent = True
+            if state.get('archive') and (any(item.get('source_kind')=='device_archive'
+                    for item in payload.get('messages',[])) or
+                    any(str(ident).startswith('archive:') for ident in payload.get('source_ids',[]))):
+                # Even a lost ACK does not prove that the provider has no copy.
+                self.archive_provider = state['archive']
             self.items.append(ident)
             while len(self.items) > 4:
                 old = self.items.pop(0)
@@ -363,12 +581,13 @@ class DialogueMemory:
             packet = await asyncio.to_thread(self.session.manager.brain.context_manager.pack,
                 req.text, {'messages': result.get('messages', []),
                            'summary': result.get('summary', ''),
+                           'summary_sources': result.get('summary_source_ids',[]),
                            '_memory_meta': {'coverage': result.get('coverage', 'partial')}}, 'FAST_CHAT')
             if not self.valid(state):
                 return
             payload = {'kind': 'related_context', 'question_turn': state['turn'].id,
                        'messages': packet.get('messages', []), 'summary': packet.get('summary', ''),
-                       'source_ids': result.get('source_ids', []),
+                       'source_ids': packet.get('_context_meta',{}).get('source_message_ids',[]),
                        'context_version': result.get('context_version'),
                        'coverage': result.get('coverage', 'partial'), 'not_a_user_request': True,
                        'historical_assistant_claims_are_not_verified_facts': True}
@@ -400,7 +619,8 @@ class DialogueMemory:
     def adds_information(payload, answer):
         # Only skip a result whose actual quoted text is already present. Topic
         # overlap alone must not hide a useful earlier constraint or decision.
-        fragments = [item.get('content', '').strip() for item in payload.get('messages', [])]
+        fragments = [item.get('content', '').strip() for item in payload.get('messages', [])
+                     if not item.get('context_only')]
         fragments = [value for value in fragments if len(value) >= 12]
         if not fragments:
             return bool(payload.get('summary'))
@@ -450,5 +670,7 @@ class DialogueMemory:
                 'tool_choice': 'none', 'max_output_tokens': 384}
 
     async def close(self):
+        self._archive_closed = True
         self.cancel()
+        self.unbind_archive()
         self.session.manager.brain._working_memory_flows.discard(self)

@@ -33,6 +33,70 @@ ADMIN_HEADERS = {
 }
 
 
+ARCHIVE_ERROR_CODES = frozenset({
+    'archive_unavailable', 'archive_policy_fields', 'archive_policy_boolean',
+    'archive_retention_range', 'archive_timezone_invalid', 'archive_binding_invalid',
+    'archive_revision_conflict', 'archive_operation_conflict',
+    'archive_operation_id_required', 'archive_owner_required', 'archive_context_changed',
+    'archive_disabled', 'archive_clear_confirmation_required',
+    'archive_exact_device_required', 'archive_change_requires_idle',
+    'invalid_archive_control', 'archive_record_failed', 'archive_lookup_failed',
+    'archive_context_reset_required',
+    'archive_binding_unavailable', 'archive_write_queue_full', 'archive_source_context_changed',
+    'archive_write_timeout', 'archive_write_unavailable',
+})
+
+
+def safe_archive_status(value):
+    """Owner-facing counts/settings only; never archive text or scope keys."""
+    value = value if isinstance(value, dict) else {}
+    result = {}
+    for key in ('available', 'read_effective', 'lookup_blocked_by_skill'):
+        if type(value.get(key)) is bool:
+            result[key] = value[key]
+    if value.get('private_archive') is False:
+        result['private_archive'] = False
+    if value.get('historical_import') is False:
+        result['historical_import'] = False
+    for key in ('revision', 'generation'):
+        if type(value.get(key)) is int and 0 <= value[key] <= 2**53-1:
+            result[key] = value[key]
+    try:
+        from .native_archive import validate_policy
+        result['policy'] = validate_policy(value.get('policy'))
+    except (ValueError, TypeError):
+        result['policy'] = {}
+    result['counts'] = {key: number for key in ('turns', 'messages', 'topics', 'blocks', 'backlog')
+                        if type(number := (value.get('counts') or {}).get(key)) is int
+                        and 0 <= number <= 2**53-1} if isinstance(value.get('counts'), dict) else {}
+    for key in ('oldest_at', 'newest_at', 'last_write_at'):
+        number = value.get(key)
+        if number is None:
+            result[key] = None
+        elif type(number) in (int, float) and 0 <= number <= 1e12 and math.isfinite(number):
+            result[key] = number
+    for key, allowed in (
+        ('storage', {'sqlite_plaintext_windows_acl'}),
+        ('coverage', {'since_enabled'}),
+        ('scope', {'device_archive'}),
+    ):
+        if isinstance(value.get(key), str) and value[key] in allowed:
+            result[key] = value[key]
+    error = value.get('last_error')
+    result['last_error'] = error if error is None or isinstance(error, str) and error in ARCHIVE_ERROR_CODES else 'archive_unavailable'
+    if 'operation' in value:
+        operation = value['operation']
+        result['operation'] = None
+        if (isinstance(operation, dict)
+                and isinstance(operation.get('id'), str)
+                and re.fullmatch(r'[A-Za-z0-9_-]{16,80}', operation['id'])
+                and type(operation.get('applied_revision')) is int
+                and 0 < operation['applied_revision'] <= result.get('revision', -1)
+                and type(operation.get('replayed')) is bool):
+            result['operation'] = {key: operation[key] for key in ('id', 'applied_revision', 'replayed')}
+    return result
+
+
 def owner_boundary(root):
     """Return a request check with a stable, non-secret pseudonymous actor."""
     config_path = Path(root)/'data/sophia-admin-owner.json'
@@ -136,6 +200,9 @@ def safe_runtime_status(payload, *, observed_at, gateway_observed_at):
             'display','signal','display_supported','signal_supported','capabilities_received',
             'snapshot_revision','display_state','pending_claims','output_active','checked_at','error',
         })
+        archive = session.get('lifecycle', {}).get('native_archive')
+        if isinstance(archive, dict):
+            item['lifecycle']['native_archive'] = safe_archive_status(archive)
         capabilities = session.get('capabilities')
         if isinstance(capabilities, dict):
             public = fields(capabilities, {'version', 'settings_revision', 'revision'})

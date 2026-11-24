@@ -31,6 +31,32 @@ from .speech_openings import OpeningCache
 from .quick_intents import resolve_quick
 from .settings_tools import SettingsTools
 
+NATIVE_ARCHIVE_EXPIRY_INTERVAL_SECONDS = 60.
+
+
+async def expire_native_archive(service, stop):
+    """Apply the owner's retention period even while the column is disconnected."""
+    state = service.native_archive_expiry_status = {
+        'running': True, 'expired': 0, 'error': None, 'checked_at': None}
+    try:
+        while not stop.is_set():
+            try:
+                state['expired'] += await asyncio.to_thread(service.memory.native_archive.expire)
+                state['error'] = None
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # Database exceptions can include conversation content or paths.
+                state['error'] = 'archive_expiry_unavailable'
+            state['checked_at'] = time.time()
+            try:
+                await asyncio.wait_for(stop.wait(), NATIVE_ARCHIVE_EXPIRY_INTERVAL_SECONDS)
+            except TimeoutError:
+                pass
+    finally:
+        state['running'] = False
+
+
 class Service:
     def __init__(self,settings):
         self.presentation_planner=MultimodalResponsePlanner()
@@ -448,20 +474,39 @@ def create_app(settings=None):
         from .direct_timers import expire_timers
         timer_stop=asyncio.Event()
         timer_worker=asyncio.create_task(expire_timers(service,timer_stop))
-        yield
-        timer_stop.set()
-        await timer_worker
-        jobs=list(service.warm_photos.values())
-        for _,task,timer in jobs:timer.cancel();task.cancel()
-        await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)
-        service.warm_photos.clear()
-        for flag in service.running.values():flag.set()
-        await direct_browser.shutdown()
-        if direct_board:await direct_board.shutdown()
-        await live.shutdown()
-        if board_realtime:await board_realtime.shutdown()
-        await realtime.shutdown()
-        await identity.close()
+        archive_stop=asyncio.Event()
+        archive_worker=asyncio.create_task(expire_native_archive(service,archive_stop))
+        try:
+            yield
+        finally:
+            timer_stop.set()
+            archive_stop.set()
+            failures=[]
+            async def cleanup(awaitable):
+                try:
+                    return await awaitable
+                except BaseException as error:
+                    failures.append(error)
+            workers=await cleanup(asyncio.gather(timer_worker,archive_worker,return_exceptions=True))
+            failures.extend(error for error in (workers or []) if isinstance(error,BaseException))
+            try:
+                jobs=list(service.warm_photos.values())
+                for _,task,timer in jobs:timer.cancel();task.cancel()
+                await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)
+                service.warm_photos.clear()
+                for flag in service.running.values():flag.set()
+            except BaseException as error:
+                failures.append(error)
+            # An error closing one transport must not skip later producers.
+            for manager in (direct_browser,direct_board,live,board_realtime,realtime):
+                if manager is not None:
+                    await cleanup(manager.shutdown())
+            await cleanup(identity.close())
+            # Voice shutdown can submit the final physically heard prefix.
+            # Attempt every producer's cleanup before draining accepted records.
+            await cleanup(service.memory.native_archive.close(grace_seconds=2))
+            if failures:
+                raise failures[0]
     app=FastAPI(lifespan=lifespan,docs_url=None,redoc_url=None,openapi_url=None);app.state.service=service
     async def auth(request:Request):
         if not hmac.compare_digest(request.headers.get('authorization',''),'Bearer '+settings.api_token):raise HTTPException(401,'Authentication required')

@@ -411,8 +411,8 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
                                    gateway_observed_at=payload.get('gateway_observed_at'))
 
     from .sophia_admin import attach_sophia_admin
-    attach_sophia_admin(app, root, authenticate=admin_authenticate,
-                        runtime_status=admin_runtime_status)
+    admin_service = attach_sophia_admin(app, root, authenticate=admin_authenticate,
+                                        runtime_status=admin_runtime_status)
 
     @app.post('/api/sophia/control')
     async def control(request: Request):
@@ -482,6 +482,60 @@ def attach_sophia_panel(app, main_root, *, client_factory=httpx.AsyncClient,
             if body['confirm'] is not True:raise HTTPException(422,'working_memory_clear_confirmation_required')
         else:raise HTTPException(422,'invalid_working_memory_control')
         return await memory_proxy(body)
+
+    async def archive_proxy(actor, body=None, *, operation_id=None):
+        from .sophia_admin_access import ARCHIVE_ERROR_CODES, safe_archive_status
+        try:
+            # Reuse the enrolled profile, even with the column/voice offline.
+            record = await asyncio.to_thread(admin_service.read)
+            config, auth = await asyncio.to_thread(connection)
+            if config['device_id'] != record['target']:
+                raise HTTPException(409, 'archive_context_changed')
+            scope = {'source': 'device', 'device_id': record['target'], 'client_id': record['target']}
+            actor_id = admin_service._actor(actor)
+            async with client_factory(trust_env=False, timeout=12) as client:
+                if body is None:
+                    if operation_id is not None:
+                        scope.update(operation_id=operation_id, actor_id=actor_id)
+                    result = await client.get(backend+'/archive', headers=auth, params=scope)
+                else:
+                    result = await client.post(backend+'/archive', headers=auth,
+                                               json={**body, **scope, 'actor_id': actor_id})
+            value = result.json()
+            if not isinstance(value, dict):
+                raise HTTPException(503, 'archive_unavailable')
+            if result.status_code != 200:
+                code = value.get('detail')
+                raise HTTPException(result.status_code, code if isinstance(code, str)
+                                    and code in ARCHIVE_ERROR_CODES else 'archive_unavailable')
+            state = safe_archive_status(value.get('archive'))
+            if body is not None and (value.get('accepted') is not True
+                    or not state.get('operation') or state['operation']['id'] != body['operation_id']
+                    or state['operation']['applied_revision'] != body['expected_revision']+1):
+                raise HTTPException(503, 'archive_unavailable')
+            return JSONResponse({'archive': state, 'observed_at': time.time(),
+                **({'accepted': True} if body is not None else {})}, headers=ADMIN_HEADERS)
+        except (OSError, ValueError, KeyError, httpx.HTTPError):
+            raise HTTPException(503, 'archive_unavailable') from None
+
+    @app.get('/api/sophia/admin/archive')
+    async def admin_archive_status(request: Request):
+        actor = admin_authenticate(request)
+        if (set(request.query_params)-{'operation_id'}
+                or len(request.query_params.getlist('operation_id')) > 1):
+            raise HTTPException(422, 'invalid_archive_control')
+        operation_id = request.query_params.get('operation_id')
+        if operation_id is not None and not re.fullmatch(r'[A-Za-z0-9_-]{16,80}', operation_id):
+            raise HTTPException(422, 'archive_operation_id_required')
+        return await archive_proxy(actor, operation_id=operation_id)
+
+    @app.post('/api/sophia/admin/archive')
+    async def admin_archive_control(request: Request):
+        actor = admin_authenticate(request, write=True)
+        from .realtime_api import bounded_json
+        from .sophia_admin import validate_archive_control
+        body = validate_archive_control(await bounded_json(request, 2000))
+        return await archive_proxy(actor, body)
 
     @app.post('/api/sophia/browser/bind')
     async def browser_bind(request: Request):

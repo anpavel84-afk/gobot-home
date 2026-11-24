@@ -63,6 +63,8 @@
   let reviewAfterVerify = false;
   let memoryState=null,memoryDraft=null,memoryProblem='',memoryBusy=false,memoryLoading=false,memoryConflict=false,memoryObserved=null,memoryReadGeneration=0;
   const MEMORY_FIELDS=['enabled','ttl_seconds','persist','summarize','background','supplement'];
+  let archiveState=null,archiveDraft=null,archiveProblem='',archiveBusy=false,archiveLoading=false,archiveConflict=false,archiveObserved=null,archiveReadGeneration=0,archivePending=null,archiveReview=null;
+  const ARCHIVE_FIELDS=['write_enabled','read_enabled','retention_days','timezone'];
   const errorMessages = {
     sophia_admin_private_owner_only:'Панель доступна локально на PLAN или через приватный адрес Tailscale владельца.',
     sophia_admin_owner_binding_unavailable:'Не удалось прочитать привязку владельца панели. Требуется восстановление настройки на PLAN.',
@@ -110,6 +112,27 @@
     working_memory_policy_invalid:'Настройки памяти на PLAN требуют проверки. Новые значения не подтверждены.',
     working_memory_clear_confirmation_required:'Подтвердите очистку рабочей памяти в окне проверки.',
     invalid_working_memory_control:'Сервер не принял изменение памяти. Обновите настройки и повторите выбор.',
+    archive_unavailable:'Архив на PLAN сейчас недоступен. Сохранённые разговоры не считаются удалёнными.',
+    archive_revision_conflict:'Настройки или содержимое архива изменились. Загрузите состояние и проверьте действие заново.',
+    archive_operation_conflict:'Этот идентификатор операции уже связан с другим действием. Архив не перезаписан.',
+    archive_context_changed:'Привязка колонки или текущий разговор изменились. Обновите состояние архива.',
+    archive_context_reset_required:'Настройки архива сохранены, но обновление голосового контекста не подтверждено. Проверьте состояние перед продолжением разговора.',
+    archive_change_requires_idle:'Сейчас идёт разговор. Измените архив между репликами или после остановки ответа.',
+    archive_timezone_invalid:'Укажите существующий часовой пояс, например America/Sao_Paulo или UTC.',
+    archive_retention_range:'Срок архива должен быть от 1 до 36500 дней либо «До удаления».',
+    archive_policy_fields:'Сервер не принял поля настроек архива. Обновите страницу.',
+    archive_policy_boolean:'Переключатели архива должны быть включены или выключены.',
+    archive_binding_invalid:'Архив не привязан к существующему профилю этой колонки.',
+    archive_binding_unavailable:'Не удалось подтвердить привязку архива к этой колонке.',
+    archive_write_queue_full:'Очередь сохранения заполнена; одна из новых реплик не записана.',
+    archive_source_context_changed:'Одна из записей отменена после смены настроек или контекста.',
+    archive_write_timeout:'Подтверждение сохранения одной из реплик не получено.',
+    archive_write_unavailable:'Не удалось сохранить одну из новых реплик. Проверьте доступ к базе на PLAN.',
+    archive_exact_device_required:'Управление архивом разрешено только для выбранной колонки.',
+    archive_owner_required:'Изменять архив может владелец этой панели.',
+    archive_operation_id_required:'Не удалось проверить идентификатор изменения архива.',
+    archive_clear_confirmation_required:'Удаление архива требует отдельного подтверждения.',
+    invalid_archive_control:'Сервер не принял действие с архивом. Обновите состояние.',
     operation_id_conflict:'Такая операция уже существует с другими значениями. Обновите настройки.',
     request_failed:'Не удалось связаться с PLAN. Проверьте сеть и Tailscale, затем обновите страницу.',
     request_timeout:'Сервер не ответил вовремя. Результат сохранения пока неизвестен — проверьте состояние.',
@@ -161,11 +184,11 @@
   const session = () => runtime().brain?.sessions?.[0] || {};
   const device = () => runtime().device || {};
   const admission = () => runtime().brain?.admission || {};
-  const canEdit = () => saved !== null && !problem && !busy && !memoryBusy && !conflict && !pendingApply;
+  const canEdit = () => saved !== null && !problem && !busy && !memoryBusy && !archiveBusy && !conflict && !pendingApply;
   const conversationHasChanges=()=>!!savedConversation&&!!draftConversation&&(savedConversation.guidance!==draftConversation.guidance||SKILL_IDS.some(id=>savedConversation.skills[id]!==draftConversation.skills[id]));
   const hasChanges = () => saved !== null && (draftEnabled !== saved.enabled || !!draftCandidate || conversationHasChanges());
   const memoryHasChanges=()=>!!memoryState?.policy&&!!memoryDraft&&MEMORY_FIELDS.some(key=>memoryDraft[key]!==memoryState.policy[key]);
-  const memoryCanEdit=()=>memoryState?.available===true&&!memoryProblem&&!memoryBusy&&!busy&&!memoryConflict;
+  const memoryCanEdit=()=>memoryState?.available===true&&!memoryProblem&&!memoryBusy&&!archiveBusy&&!busy&&!memoryConflict;
   function acceptMemory(value,{reset=false}={}) {
     const next=value?.memory,policy=next?.policy;
     if(!next||!policy||typeof policy.enabled!=='boolean'||!Number.isInteger(policy.ttl_seconds)||MEMORY_FIELDS.filter(key=>key!=='ttl_seconds').some(key=>typeof policy[key]!=='boolean')){
@@ -182,6 +205,38 @@
     try{const value=await api('/memory');if(generation===memoryReadGeneration)acceptMemory(value,{reset});}
     catch(error){if(generation===memoryReadGeneration)memoryProblem=humanError(error);}
     finally{memoryLoading=false;if(renderPage&&!memoryBusy)render();}
+  }
+  const archiveHasChanges=()=>!!archiveState?.policy&&!!archiveDraft&&ARCHIVE_FIELDS.some(key=>archiveDraft[key]!==archiveState.policy[key]);
+  const archiveDraftValid=()=>!!archiveDraft&&Number.isInteger(archiveDraft.retention_days)&&archiveDraft.retention_days>=0&&archiveDraft.retention_days<=36500&&typeof archiveDraft.timezone==='string'&&/^[A-Za-z0-9_+\-/]{1,64}$/.test(archiveDraft.timezone);
+  const archiveCanEdit=()=>archiveState?.available===true&&!archiveProblem&&!archiveBusy&&!memoryBusy&&!busy&&!archiveConflict&&!archivePending;
+  function acceptArchive(value,{reset=false}={}) {
+    const next=value?.archive,policy=next?.policy;
+    if(!next||typeof next.available!=='boolean'||!policy||typeof policy.write_enabled!=='boolean'||typeof policy.read_enabled!=='boolean'||!Number.isSafeInteger(policy.retention_days)||policy.retention_days<0||policy.retention_days>36500||typeof policy.timezone!=='string'||policy.timezone.length>64||!Number.isSafeInteger(next.revision)||next.revision<0||!Number.isSafeInteger(next.generation)||next.generation<0){
+      const error=new Error('invalid_archive_status');error.code='archive_unavailable';throw error;
+    }
+    const dirty=archiveHasChanges();
+    if(reset||!archiveDraft||!dirty||ARCHIVE_FIELDS.every(key=>archiveDraft[key]===policy[key])){archiveDraft=clone(policy);archiveConflict=false;}
+    else if(next.revision!==archiveState.revision)archiveConflict=true;
+    archiveState=next;archiveObserved=value.observed_at;archiveProblem='';
+  }
+  async function loadArchive({reset=false,renderPage=false,resolve=false}={}) {
+    if(archiveLoading||archiveBusy)return;
+    archiveLoading=true;const generation=archiveReadGeneration,pending=archivePending;
+    try {
+      const value=await api('/archive'+(pending?'?operation_id='+encodeURIComponent(pending.body.operation_id):''));
+      if(generation!==archiveReadGeneration)return;
+      if(pending&&value?.archive?.operation?.id===pending.body.operation_id&&value.archive.operation.applied_revision===pending.body.expected_revision+1){
+        archivePending=null;archiveReview=null;acceptArchive(value,{reset:true});
+        if(resolve)toast('Операция с архивом подтверждена. Показано текущее состояние сервера.');
+      } else {
+        acceptArchive(value,{reset});
+        if(pending){
+          archivePending.checkedMissing=value?.archive?.operation===null;
+          archiveProblem='Подтверждение этой операции пока не найдено. Новые изменения заблокированы; можно проверить ещё раз или повторить тот же запрос.';
+        }
+      }
+    } catch(error){if(generation===archiveReadGeneration)archiveProblem=humanError(error);}
+    finally{archiveLoading=false;if(renderPage&&!archiveBusy)render();}
   }
   function modeName(mode) { return mode==='fast'?'Быстрый разговор':mode==='expert'?'Эксперт':'Не получен'; }
   function phaseName() {
@@ -224,7 +279,7 @@
   function conversationControls() {
     if(!draftConversation)return '<p>Настройки разговора ещё не получены.</p>';
     const disabled=canEdit()?'':'disabled',states=capabilities().capabilities||{};
-    return `<div class="conversation-controls"><div class="field"><label class="field-label" for="conversation-guidance">Как Софии отвечать</label><textarea id="conversation-guidance" rows="4" maxlength="1500" ${disabled} aria-describedby="conversation-guidance-hint">${esc(draftConversation.guidance)}</textarea><span class="field-hint" id="conversation-guidance-hint">Пожелания о стиле, подробности и общении. До 1500 символов. Например: «Отвечай кратко; сложные термины объясняй на примере».</span></div>${SKILL_IDS.map(id=>`<div class="toggle-field"><div><label class="field-label" for="skill-enabled-${id}">${esc(SKILL_LABELS[id])}</label><span class="field-hint">${esc(({available:'Серверный маршрут доступен',disabled:'Выключено владельцем',blocked:'Нужен действующий допуск',unconfirmed:'Разрешено настройкой; свежая проверка пока не получена'}[states[id]?.state]||'Состояние не получено')+(id==='timer'?`. Экран: ${deliveryLabel(states[id]?.display)}; сигнал: ${deliveryLabel(states[id]?.signal)}.`:''))}</span></div><label class="switch"><input type="checkbox" id="skill-enabled-${id}" data-skill-enabled="${id}" ${draftConversation.skills[id]?'checked':''} ${disabled}><span class="switch-track"></span></label></div>`).join('')}<p class="note">Переключатели разрешают использовать уже подключённые возможности. Телевизор пока не подключён; доступ к файлам и командам компьютера закрыт. Права на личную память и расходы проверяются отдельно. Выключение «Обращения к памяти» останавливает новый поиск и дополнения, но не удаляет историю и не меняет срок хранения.</p><p class="note" data-conversation-application>${esc(conversationApplicationText())}</p><div class="section-actions">${button('Проверить изменения','review',canEdit()&&hasChanges()?'':'disabled','primary')}${button('Сбросить пожелания','guidance-reset',canEdit()&&draftConversation.guidance?'':'disabled')}${hasChanges()?button('Отменить черновик','discard',canEdit()?'':'disabled'):''}</div></div>`;
+    return `<div class="conversation-controls"><div class="field"><label class="field-label" for="conversation-guidance">Как Софии отвечать</label><textarea id="conversation-guidance" rows="4" maxlength="1500" ${disabled} aria-describedby="conversation-guidance-hint">${esc(draftConversation.guidance)}</textarea><span class="field-hint" id="conversation-guidance-hint">Пожелания о стиле, подробности и общении. До 1500 символов. Например: «Отвечай кратко; сложные термины объясняй на примере».</span></div>${SKILL_IDS.map(id=>`<div class="toggle-field"><div><label class="field-label" for="skill-enabled-${id}">${esc(SKILL_LABELS[id])}</label><span class="field-hint">${esc(({available:'Серверный маршрут доступен',disabled:'Выключено владельцем',blocked:'Нужен действующий допуск',unconfirmed:'Разрешено настройкой; свежая проверка пока не получена'}[states[id]?.state]||'Состояние не получено')+(id==='timer'?`. Экран: ${deliveryLabel(states[id]?.display)}; сигнал: ${deliveryLabel(states[id]?.signal)}.`:''))}</span></div><label class="switch"><input type="checkbox" id="skill-enabled-${id}" data-skill-enabled="${id}" ${draftConversation.skills[id]?'checked':''} ${disabled}><span class="switch-track"></span></label></div>`).join('')}<p class="note">Переключатели разрешают использовать уже подключённые возможности. Телевизор пока не подключён; доступ к файлам и командам компьютера закрыт. Права на личную память и расходы проверяются отдельно. Выключение «Обращения к памяти» останавливает поиск и дополнения. Сохранение новых разговоров продолжается по отдельной настройке архива; его можно выключить в разделе «Люди и память».</p><p class="note" data-conversation-application>${esc(conversationApplicationText())}</p><div class="section-actions">${button('Проверить изменения','review',canEdit()&&hasChanges()?'':'disabled','primary')}${button('Сбросить пожелания','guidance-reset',canEdit()&&draftConversation.guidance?'':'disabled')}${hasChanges()?button('Отменить черновик','discard',canEdit()?'':'disabled'):''}</div></div>`;
   }
   function skillState(s) {
     const capability=capabilities().capabilities?.[({utility:'utilities',visuals:'visual'}[s.id]||s.id)];
@@ -239,7 +294,7 @@
     const capability=capabilities().capabilities?.[({utility:'utilities',visuals:'visual'}[s.id]||s.id)];
     if(capability?.state==='disabled')return 'Выключено владельцем';
     if(s.id==='timer'&&capability)return `Серверный таймер · экран: ${deliveryLabel(capability.display)} · сигнал: ${deliveryLabel(capability.signal)}`;
-    if(s.id==='memory')return !memoryState||memoryProblem?'Состояние не получено':memoryState.enabled?`Рабочая память · ${memoryState.policy.ttl_seconds/3600} ч`:'Рабочая память выключена';
+    if(s.id==='memory')return [!memoryState||memoryProblem?'Рабочий контекст не получен':memoryState.enabled?`Рабочая память · ${memoryState.policy.ttl_seconds/3600} ч`:'Рабочая память выключена',archiveState&&!archiveProblem?(archiveState.policy.write_enabled?'Архив сохраняется':'Запись архива выключена'):'Архив не получен'].join(' · ');
     if (s.id==='weather') return !saved?'Профиль ещё не загружен':saved.enabled?(saved.location_name||'Выберите город'):'Погода выключена';
     if (s.id==='expert') return session().selected_expert?.model || 'Профиль не получен';
     if (s.id==='fast') return !snapshot?'Состояние не загружено':phaseName();
@@ -250,11 +305,12 @@
     $('connectionLabel').textContent=problem?'Нет связи':snapshot?'PLAN · подключено':'Подключение…';
     $('connectionStrip').classList.toggle('connection-error',!!problem);
     $('connectionDescription').textContent=problem || (snapshot?`Настройки колонки Spotpear. Обновлено ${dateTime(snapshot.observed_at || lastLoaded)}. Сохранение меняет настройки на PLAN.`:'Загружаем настройки колонки с PLAN…');
-    $('refreshButton').disabled=loading||busy||memoryBusy;
+    $('refreshButton').disabled=loading||busy||memoryBusy||archiveBusy;
     const count=saved?reviewDiff().length:0;
     const memoryOnly=!count&&memoryHasChanges();
-    $('reviewButton').disabled=memoryOnly?!memoryCanEdit():!count||busy||memoryBusy||!!problem||conflict||!!pendingApply;
-    $('reviewButton').textContent=memoryOnly?'Проверить память':count?`Проверить изменения · ${count}`:'Нет изменений';
+    const archiveOnly=!count&&!memoryOnly&&archiveHasChanges();
+    $('reviewButton').disabled=memoryOnly?!memoryCanEdit():archiveOnly?!archiveCanEdit()||!archiveDraftValid():!count||busy||memoryBusy||archiveBusy||!!problem||conflict||!!pendingApply;
+    $('reviewButton').textContent=memoryOnly?'Проверить память':archiveOnly?'Проверить архив':count?`Проверить изменения · ${count}`:'Нет изменений';
   }
   function acceptSnapshot(value,{reset=false}={}) {
     if (!value || !value.target || typeof value.revision!=='string' || typeof value.settings?.weather?.enabled!=='boolean') {
@@ -273,10 +329,10 @@
     lastLoaded=Date.now();problem='';
   }
   async function load({manual=false,reset=false}={}) {
-    if (loading || busy || memoryBusy) return;
+    if (loading || busy || memoryBusy || archiveBusy) return;
     loading=true;const seq=++loadSequence;updateHeader();
     try {
-      const [value]=await Promise.all([api('/snapshot'),loadMemory()]);
+      const [value]=await Promise.all([api('/snapshot'),loadMemory(),loadArchive()]);
       if (seq!==loadSequence)return;
       acceptSnapshot(value,{reset});
       if (manual || conflict || !$('settingsDialog').open && !$('reviewDialog').open) render();
@@ -381,8 +437,8 @@
       ${toggle('background','Проверять контекст на каждый вопрос','Искать полезные связи с разговором параллельно с ответом, без слова «помнишь».')}
       ${toggle('supplement','Дополнять текущий ответ','Разрешить одно короткое дополнение по полезной поздней находке. Оно учитывается как часть расходов разговора.')}
       ${toggle('summarize','Собирать смысловые сводки','Обновлять цели, условия и открытые вопросы в пределах отдельного ограниченного бюджета.')}</div>
-      <div class="section-actions">${button('Проверить и сохранить','memory-review',memoryCanEdit()&&memoryHasChanges()?'':'disabled','primary')}${button('Обновить','memory-refresh',memoryBusy||memoryLoading?'disabled':'')}${memoryHasChanges()||memoryConflict?button(memoryConflict?'Загрузить значения сервера':'Отменить изменения','memory-discard',memoryBusy||memoryLoading?'disabled':''):''}${button('Очистить память','memory-clear',memoryCanEdit()?'':'disabled','danger')}</div>
-      <p class="note">Изменение и очистка выполняются между репликами. Личная история семьи имеет отдельные права доступа.</p>`;
+      <div class="section-actions">${button('Проверить и сохранить','memory-review',memoryCanEdit()&&memoryHasChanges()?'':'disabled','primary')}${button('Обновить','memory-refresh',memoryBusy||memoryLoading?'disabled':'')}${memoryHasChanges()||memoryConflict?button(memoryConflict?'Загрузить значения сервера':'Отменить изменения','memory-discard',memoryBusy||memoryLoading?'disabled':''):''}${button('Очистить рабочий контекст','memory-clear',memoryCanEdit()?'':'disabled','danger')}</div>
+      <p class="note">Этот срок относится к быстрому рабочему контексту. Архив прошлых дней настраивается отдельно и от этой очистки не удаляется. Изменения применяются между репликами.</p>`;
   }
   function memoryDiagnostics() {
     if(!memoryState)return `<p>${esc(memoryProblem||'Состояние ещё не получено.')}</p>`;
@@ -395,8 +451,29 @@
     return `<dl>${row('Состояние',chip(memoryState.enabled?'Включена':'Выключена',memoryState.enabled?'green':'gray'))}${row('Фрагментов разговора',esc(number(current.available_exchanges)))}${row('Завершённых обменов',esc(number(current.completed_exchanges)))}${row('Версия контекста',esc(number(current.version)))}${row('После перезапуска восстановлено',esc(number(current.restored_exchanges)))}${row('Хранение',esc(storage))}${row('Последняя проверка',esc(lookupLabels[lookup.state]||'Не получено'))}${row('Проверено вопросов',esc(number(lookup.queries)))}${row('Полезных находок',esc(number(lookup.useful_results)))}${row('Запрошено дополнений',esc(number(lookup.supplements)))}${row('Последний поиск',typeof lookup.last_lookup_ms==='number'?esc(lookup.last_lookup_ms+' мс'):'Не измерен')}${row('Сводка',esc(current.summary_kind==='grounded_semantic_working_summary'?'Смысловая сводка с источниками':current.summary_kind==='attributed_working_sources'?'Рабочие заметки с источниками':'Не получено'))}${row('Фоновая обработка',esc(workerLabels[worker.last_state]||'Не получено'))}${row('Бюджет сводок за день UTC',typeof worker.global_tokens_used_or_reserved==='number'&&typeof worker.daily_token_limit==='number'?esc(worker.global_tokens_used_or_reserved+' / '+worker.daily_token_limit+' токенов'):'Не получено')}${row('Неуточнённых расходов',esc(number(worker.unknown_usage_attempts)))}${row('Обновлено',esc(dateTime(memoryObserved)))}</dl><p class="note">Здесь только состояния и счётчики. Тексты беседы, ключи и личный архив в панель не передаются.</p>`;
   }
   function renderPrivacy() {
-    return heading('Люди и память','Права управления отделены от личности собеседника и личной памяти.','ДОСТУП И ДАННЫЕ')+
-      `<div class="two-col"><div class="stack">${panel('Рабочая память беседы','Настройки действуют для этой колонки',memoryControls())}${panel('Доступ к настройкам','Проверяется сервером для этой панели',`<ul class="service-list"><li><div><strong>Владелец панели</strong><small>Локальный доступ PLAN или разрешённая учётная запись Tailscale</small></div>${chip(snapshot&&!problem?'Доступ подтверждён':'Не подтверждён',snapshot&&!problem?'green':'amber')}</li><li><div><strong>Собеседник колонки</strong><small>Голос не даёт прав владельца панели</small></div>${chip('Отдельная проверка','blue')}</li><li><div><strong>Личный архив</strong><small>На этой странице не загружается</small></div>${chip('Нет доступа')}</li></ul>`)}</div><div class="stack">${panel('Состояние памяти','Данные текущего Brain на PLAN',memoryDiagnostics())}${panel('Текстовый журнал','Панель не извлекает домашние реплики',fields(['privacy.debug','privacy.retention']))}${panel('Что хранится в панели','Личные данные остаются в существующей системе',`<ul class="check-list"><li>${icon('server')}<span>Настройки сохраняются на PLAN для этой колонки.</span></li><li>${icon('lock')}<span>Ключи сервисов не возвращаются в браузер.</span></li><li>${icon('mic')}<span>Панель не запрашивает микрофон и не записывает звук.</span></li><li>${icon('history')}<span>Рабочая память и диагностический журнал имеют отдельные сроки и очистку.</span></li></ul>`)}</div></div>`;
+    return heading('Люди и память','Рабочий контекст помогает сейчас, архив сохраняет разговоры прошлых дней.','ДОСТУП И ДАННЫЕ')+
+      `<div class="two-col"><div class="stack">${panel('Архив разговоров этой колонки','Настройки доступны и без активного голосового соединения',archiveControls())}${panel('Рабочая память беседы','Короткий контекст для быстрого ответа',memoryControls())}${panel('Доступ к настройкам','Проверяется сервером для этой панели',`<ul class="service-list"><li><div><strong>Владелец панели</strong><small>Локальный доступ PLAN или разрешённая учётная запись Tailscale</small></div>${chip(snapshot&&!problem?'Доступ подтверждён':'Не подтверждён',snapshot&&!problem?'green':'amber')}</li><li><div><strong>Собеседник колонки</strong><small>Архив относится к этой колонке. Голос не даёт прав владельца панели.</small></div>${chip('Отдельная проверка','blue')}</li><li><div><strong>Личные архивы Family</strong><small>Эти настройки не открывают историю отдельных членов семьи.</small></div>${chip('Нет доступа')}</li></ul>`)}</div><div class="stack">${panel('Что уже сохранено','Подтверждённое покрытие архива на PLAN',archiveDiagnostics())}${panel('Состояние рабочей памяти','Данные текущего Brain на PLAN',memoryDiagnostics())}${panel('Текстовый журнал','Панель не извлекает домашние реплики',fields(['privacy.debug','privacy.retention']))}${panel('Что хранится в панели','Личные данные остаются в существующей системе',`<ul class="check-list"><li>${icon('server')}<span>Настройки сохраняются на PLAN для этой колонки.</span></li><li>${icon('lock')}<span>Ключи сервисов не возвращаются в браузер.</span></li><li>${icon('mic')}<span>Панель не запрашивает микрофон и не записывает звук.</span></li><li>${icon('history')}<span>Рабочий контекст, архив и диагностический журнал имеют отдельные сроки и очистку.</span></li></ul>`)}</div></div>`;
+  }
+  function archiveControls() {
+    if(!archiveState)return `<p>${esc(archiveProblem||'Читаем настройки архива…')}</p>${button('Обновить архив','archive-refresh',archiveLoading?'disabled':'')}`;
+    const policy=archiveDraft||archiveState.policy,disabled=archiveCanEdit()?'':'disabled';
+    const toggle=(key,label,hint)=>`<div class="toggle-field"><div><label class="field-label" for="archive-${key}">${esc(label)}</label><span class="field-hint" id="archive-${key}-hint">${esc(hint)}</span></div><label class="switch"><input id="archive-${key}" type="checkbox" data-archive-field="${key}" ${policy[key]?'checked':''} ${disabled} aria-describedby="archive-${key}-hint"><span class="switch-track"></span></label></div>`;
+    return (archiveProblem?`<p class="memory-warning" role="status">${esc(archiveProblem)}</p>`:'')+
+      (archiveConflict?'<p class="memory-warning" role="status">На сервере другая версия архива. Загрузите её перед новым изменением.</p>':'')+
+      `<div class="archive-controls">${toggle('write_enabled','Сохранять новые разговоры','Сохранять подтверждённые реплики этой колонки для следующих дней. Выключение записи оставляет существующий архив.')}
+      ${toggle('read_enabled','Использовать архив в ответах','Находить связанные разговоры прошлых дней. Для поиска также должно быть включено умение «Обращение к памяти».')}
+      <div class="field"><label class="field-label" for="archive-retention">Срок хранения архива</label><select id="archive-retention" data-archive-retention ${disabled}><option value="0" ${policy.retention_days===0?'selected':''}>До удаления</option><option value="days" ${policy.retention_days>0?'selected':''}>Заданное число дней</option></select><span class="field-hint">Срок рабочего контекста в часах не ограничивает архив.</span></div>
+      ${policy.retention_days>0?`<div class="field"><label class="field-label" for="archive-days">Хранить, дней</label><input id="archive-days" type="number" min="1" max="36500" step="1" data-archive-field="retention_days" value="${esc(policy.retention_days)}" ${disabled}><span class="field-hint">По истечении срока старые записи и связанные блоки удаляются.</span></div>`:''}
+      <div class="field"><label class="field-label" for="archive-timezone">Часовой пояс архива</label><input id="archive-timezone" type="text" maxlength="64" data-archive-field="timezone" value="${esc(policy.timezone)}" ${disabled} aria-describedby="archive-timezone-hint"><span class="field-hint" id="archive-timezone-hint">Для «вчера» и «позавчера», например America/Sao_Paulo.</span></div></div>
+      ${archiveState.lookup_blocked_by_skill?'<p class="note">Умение «Обращение к памяти» выключено: поиск и дополнения из архива остановлены. Запись архива этим не выключается. Чтобы остановить её, выключите «Сохранять новые разговоры».</p>':''}
+      <div class="section-actions">${button('Проверить и сохранить архив','archive-review',archiveCanEdit()&&archiveHasChanges()&&archiveDraftValid()?'':'disabled','primary')}${button(archivePending?'Проверить результат':'Обновить архив','archive-refresh',archiveBusy||archiveLoading?'disabled':'')}${!archivePending&&(archiveHasChanges()||archiveConflict)?button('Загрузить значения сервера','archive-discard',archiveBusy||archiveLoading?'disabled':''):''}${archivePending?.checkedMissing?button('Повторить тот же запрос','archive-retry',archiveBusy||archiveLoading?'disabled':''):''}${button('Удалить архив колонки','archive-clear',archiveCanEdit()?'':'disabled','danger')}</div>
+      <p class="note">Начало сохранения — после включения. Старые диагностические журналы не импортируются, отсутствующие разговоры не восстанавливаются. Архив хранится в базе на PLAN под правами учётной записи Windows, без отдельного шифрования текста.</p>`;
+  }
+  function archiveDiagnostics() {
+    if(!archiveState)return `<p>${esc(archiveProblem||'Состояние архива ещё не получено.')}</p>`;
+    const counts=archiveState.counts||{},number=value=>Number.isSafeInteger(value)?value:'Не получено';
+    const lookup=archiveState.read_effective===true?'Включено':archiveState.lookup_blocked_by_skill?'Выключено умение памяти':'Выключено настройкой архива';
+    return `<dl>${row('Сохранение новых реплик',esc(archiveState.policy.write_enabled?'Включено':'Выключено'))}${row('Поиск в ответах',esc(lookup))}${row('Хранение',esc(archiveState.policy.retention_days===0?'До удаления':archiveState.policy.retention_days+' дней'))}${row('Сохранённых обменов',esc(number(counts.turns)))}${row('Реплик с источниками',esc(number(counts.messages)))}${row('Тем',esc(number(counts.topics)))}${row('Блоков контекста',esc(number(counts.blocks)))}${row('Ожидает обработки',esc(number(counts.backlog)))}${row('Самый ранний разговор',esc(dateTime(archiveState.oldest_at)))}${row('Самый поздний разговор',esc(dateTime(archiveState.newest_at)))}${row('Последнее сохранение',esc(dateTime(archiveState.last_write_at)))}${row('Последняя ошибка',esc(archiveState.last_error?errorMessages[archiveState.last_error]||'Ошибка архива':archiveProblem?'Состояние не подтверждено':'Не зарегистрирована'))}${row('Обновлено',esc(dateTime(archiveObserved)))}</dl><p class="note">Здесь только счётчики и даты. Тексты, названия тем и личные архивы членов семьи в панель не передаются. Пустое покрытие означает отсутствие сохранённых записей, а не отсутствие разговора в прошлом.</p>`;
   }
   function renderCosts() {
     const budget=runtime().brain?.status?.budget || null;
@@ -479,8 +556,49 @@
       toast(!error.status||error.status>=500?'Подтверждение изменения памяти не получено. Обновите состояние перед следующим действием.':memoryProblem);
     } finally {memoryBusy=false;render();}
   }
+  function openArchiveReview() {
+    if(!archiveCanEdit()||!archiveHasChanges()||!archiveDraftValid())return;
+    archiveReview={action:'configure',values:clone(archiveDraft),expected_revision:archiveState.revision};
+    const names={write_enabled:'Сохранение новых разговоров',read_enabled:'Использование архива в ответах',retention_days:'Срок хранения',timezone:'Часовой пояс'};
+    const format=(key,value)=>key==='retention_days'?(value===0?'До удаления':value+' дней'):changeValue(value);
+    const changed=ARCHIVE_FIELDS.filter(key=>archiveDraft[key]!==archiveState.policy[key]);
+    const shorter=archiveDraft.retention_days>0&&(archiveState.policy.retention_days===0||archiveDraft.retention_days<archiveState.policy.retention_days);
+    const body=`<div class="dialog-body"><div class="review-list">${changed.map(key=>`<div class="review-row"><strong>${esc(names[key])}</strong><div class="review-values"><span>${esc(format(key,archiveState.policy[key]))}</span>${icon('chevron')}<strong>${esc(format(key,archiveDraft[key]))}</strong></div></div>`).join('')}</div><p class="note">Выключение записи или поиска не удаляет существующий архив. ${shorter?'Сокращение срока приведёт к удалению записей старше нового срока; текущий контекст будет обновлён.':archiveState.policy.read_enabled&&!archiveDraft.read_enabled?'Существующий архив останется. Текущий голосовой контекст будет сброшен, чтобы прежние архивные фрагменты больше не использовались.':'Рабочая память в часах и личные архивы Family сохраняют свои отдельные правила.'}</p></div>`;
+    showDialog(dialogShell('Проверить настройки архива','Только разговоры этой колонки, начиная с включения сохранения.',body,button('Отмена','close-dialog','','subtle')+button('Сохранить архив на PLAN','archive-apply','','primary'),'АРХИВ РАЗГОВОРОВ'));
+  }
+  function openArchiveClear() {
+    if(!archiveCanEdit())return;
+    archiveReview={action:'clear',confirm:true,expected_revision:archiveState.revision};
+    showDialog(dialogShell('Удалить архив этой колонки?','Удалённые записи и блоки контекста восстановить нельзя.',`<div class="dialog-body"><p>Будут удалены сохранённые разговоры этой колонки, их поисковые записи и блоки контекста. Текущий рабочий контекст будет сброшен, чтобы удалённые сведения не продолжали использоваться в ответе.</p><p class="note">Настройки записи сохранятся: если сохранение включено, новые разговоры снова попадут в архив. Личные архивы Family и диагностический журнал этой операцией не очищаются.</p></div>`,button('Отмена','close-dialog','','subtle')+button('Удалить архив сейчас','archive-clear-confirm','','danger'),'УДАЛЕНИЕ АРХИВА'));
+  }
+  async function changeArchive(action,{retry=false}={}) {
+    if(archiveBusy||memoryBusy||busy)return;
+    let body;
+    if(retry){
+      if(!archivePending?.checkedMissing)return;
+      body=clone(archivePending.body);
+    } else {
+      if(!archiveCanEdit()||archiveReview?.action!==action)return;
+      if(archiveReview.expected_revision!==archiveState.revision||(action==='configure'&&ARCHIVE_FIELDS.some(key=>archiveReview.values[key]!==archiveDraft[key]))){
+        closeDialog();toast('Архив или черновик изменился. Проверьте действие ещё раз.');return;
+      }
+      body={...clone(archiveReview),operation_id:operationId()};
+    }
+    archivePending={body:clone(body),checkedMissing:false};archiveBusy=true;archiveReadGeneration++;updateHeader();
+    document.querySelectorAll('#dialogContent button').forEach(button=>button.disabled=true);
+    try {
+      const value=await api('/archive',body);
+      if(value.accepted!==true||value.archive?.operation?.id!==body.operation_id||value.archive.operation.applied_revision!==body.expected_revision+1){const error=new Error('archive_ack_missing');error.code='request_timeout';throw error;}
+      acceptArchive(value,{reset:true});archivePending=null;archiveReview=null;closeDialog();
+      toast(action==='clear'?'Сервер подтвердил удаление архива этой колонки.':'Настройки архива сохранены на PLAN.');
+    } catch(error) {
+      if(error.status&&error.status<500){archivePending=null;if(error.code==='archive_revision_conflict')archiveConflict=true;}
+      archiveProblem=humanError(error);closeDialog();
+      toast(archivePending?'Подтверждение операции с архивом не получено. Сначала проверьте её результат.':archiveProblem);
+    } finally{archiveBusy=false;render();}
+  }
   function openSkill(id,tab='settings') {
-    if(id==='memory'){closeDialog();navigate('privacy');loadMemory({renderPage:true});return;}
+    if(id==='memory'){closeDialog();navigate('privacy');Promise.all([loadMemory(),loadArchive()]).then(render);return;}
     const s=data.skills.find(x=>x.id===id);if(!s)return;openedSkill=id;skillTab=tab;
     let content='';
     if(tab==='overview')content=badge(skillState(s))+`<p>${esc(s.detail)}</p><div class="quote">${esc(s.example)}</div><dl>${row('Сервис',esc(s.service))}${row('Разговорный режим',esc(s.mode))}${row('Устройство','Spotpear')}</dl>`;
@@ -661,11 +779,17 @@
   function exportReport() {
     if(!snapshot)return;
     const proof=currentProof;
+    const archiveReport=archiveState?{available:archiveState.available,revision:archiveState.revision,
+      write_enabled:archiveState.policy.write_enabled,read_enabled:archiveState.policy.read_enabled,
+      retention_days:archiveState.policy.retention_days,read_effective:archiveState.read_effective,
+      counts:archiveState.counts,oldest_at:archiveState.oldest_at,newest_at:archiveState.newest_at,
+      last_write_at:archiveState.last_write_at,last_error:archiveState.last_error,private_archive:false}:null;
     const report={kind:'sophia_admin_safe_status',generated_at:new Date().toISOString(),observed_at:snapshot.observed_at,server_reachable:!problem,
       device_protocol_confirmed:device().device_protocol_confirmed===true,voice_ready:session().ready===true,mode:session().input_mode || device().mode || null,
       phase:device().voice_phase || session().state || null,voice:device().voice || session().voice || null,
       weather:{enabled:saved?.enabled===true,provider:saved?.provider || null,location_configured:!!saved?.location_name,check:proof?{verified:proof.verified===true,checked_at:proof.checked_at,expires_at:proof.expires_at,duration_ms:proof.duration_ms,data_age_seconds:proof.data_age_seconds}:null},
       working_memory:memoryProblem?{available:false}:memoryState,
+      conversation_archive:archiveProblem?{available:false}:archiveReport,
       measured_voice_latency:null,dma_underrun_measurement:'not_available',contains_dialogue:false,contains_location:false};
     const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='sophia-admin-status.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Скачан отчёт без ключей, города, координат и реплик.');
   }
@@ -683,6 +807,13 @@
     if(action==='memory-clear-confirm')await changeMemory('clear');
     if(action==='memory-refresh')await loadMemory({renderPage:true});
     if(action==='memory-discard')await loadMemory({reset:true,renderPage:true});
+    if(action==='archive-review')openArchiveReview();
+    if(action==='archive-apply')await changeArchive('configure');
+    if(action==='archive-clear')openArchiveClear();
+    if(action==='archive-clear-confirm')await changeArchive('clear');
+    if(action==='archive-refresh')await loadArchive({renderPage:true,resolve:true});
+    if(action==='archive-discard')await loadArchive({reset:true,renderPage:true});
+    if(action==='archive-retry')await changeArchive(archivePending?.body.action,{retry:true});
     if(action==='skill-tab'){openSkill(openedSkill,el.dataset.tab);$('skill-tab-'+el.dataset.tab)?.focus();}
     if(action==='close-dialog')closeDialog();if(action==='close-review')$('reviewDialog').close();
     if(action==='category'){category=el.dataset.category;$('skillResults').innerHTML=skillRows();document.querySelectorAll('[data-action="category"]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.category===category)));announceFilters();}
@@ -714,6 +845,10 @@
     }
     if(el.id==='skillSearch'){searchText=el.value;$('skillResults').innerHTML=skillRows();announceFilters();}
     if(el.id==='citySearch'&&$('citySearchButton'))$('citySearchButton').disabled=busy||el.value.trim().length<2;
+    if(ARCHIVE_FIELDS.includes(el.dataset.archiveField)&&!['write_enabled','read_enabled'].includes(el.dataset.archiveField)&&archiveCanEdit()){
+      archiveDraft[el.dataset.archiveField]=el.dataset.archiveField==='retention_days'?(el.value.trim()!==''&&Number(el.value)>0?Number(el.value):NaN):el.value;
+      updateHeader();document.querySelectorAll('[data-action="archive-review"]').forEach(button=>button.disabled=!archiveHasChanges()||!archiveDraftValid());
+    }
   });
   document.addEventListener('change',event=>{
     const el=event.target;if(el.id==='statusFilter'){filterStatus=el.value;$('skillResults').innerHTML=skillRows();announceFilters();}
@@ -723,6 +858,12 @@
     if(MEMORY_FIELDS.includes(el.dataset.memoryField)&&memoryCanEdit()){
       memoryDraft[el.dataset.memoryField]=el.dataset.memoryField==='ttl_seconds'?Number(el.value):el.checked;
       updateHeader();render();
+    }
+    if(el.dataset.archiveRetention!==undefined&&archiveCanEdit()){
+      archiveDraft.retention_days=el.value==='days'?(archiveDraft.retention_days||30):0;updateHeader();render();
+    }
+    if(['write_enabled','read_enabled'].includes(el.dataset.archiveField)&&archiveCanEdit()){
+      archiveDraft[el.dataset.archiveField]=el.checked;updateHeader();render();
     }
     if(el.dataset.field==='weather.enabled'&&canEdit()){
       draftEnabled=el.checked;
@@ -743,11 +884,11 @@
     }
   });
   $('settingsDialog').addEventListener('cancel',()=>{dialogSequence++;cityRequest++;});
-  $('reviewButton').addEventListener('click',()=>memoryHasChanges()&&!hasChanges()?openMemoryReview():openReview());
+  $('reviewButton').addEventListener('click',()=>!hasChanges()?(memoryHasChanges()?openMemoryReview():archiveHasChanges()?openArchiveReview():openReview()):openReview());
   $('menuButton').addEventListener('click',openMobile);$('mobileNavClose').addEventListener('click',()=>closeMobile(true));$('mobileBackdrop').addEventListener('click',()=>closeMobile(true));
   $('sidebar').addEventListener('click',event=>{if(narrowScreen.matches&&event.target.closest('a')){closeMobile();$('main').focus({preventScroll:true});}});
   window.addEventListener('hashchange',()=>{closeMobile();render();window.scrollTo(0,0);$('main').focus({preventScroll:true});});
-  window.addEventListener('beforeunload',event=>{if(hasChanges()||memoryHasChanges()||pendingApply||memoryBusy){event.preventDefault();event.returnValue='';}});
+  window.addEventListener('beforeunload',event=>{if(hasChanges()||memoryHasChanges()||archiveHasChanges()||pendingApply||memoryBusy||archivePending||archiveBusy){event.preventDefault();event.returnValue='';}});
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)load();});
   render();closeMobile();load({manual:true});
   setInterval(()=>{if(!document.hidden&&!busy&&!loading&&!pendingApply)load();},15000);

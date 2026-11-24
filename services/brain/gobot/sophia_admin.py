@@ -5,8 +5,9 @@ provider URL. Reads use the existing DeviceStore database without creating a
 profile. Weather setup follows SettingsTools' find -> explicit choice -> source
 verification -> save/readback sequence, with a revision fence for web editors.
 
-Weather and bounded conversation preferences are writable here. Voice grants,
-firmware, household history, credentials and model selection stay outside it.
+Weather and bounded conversation preferences are writable here. Archive controls
+bind to this existing device profile; they never grant access to Family history.
+Voice grants, firmware, credentials and model selection stay outside it.
 """
 import asyncio
 import hashlib
@@ -59,6 +60,38 @@ def _safe_weather(weather):
 
 def _fail(status, code):
     raise HTTPException(status, code)
+
+
+def validate_archive_control(body):
+    """Bounded owner command; archive scope and identity are never browser input."""
+    from .native_archive import validate_policy
+    if not isinstance(body, dict):
+        _fail(422, 'invalid_archive_control')
+    action = body.get('action')
+    fields = {'action', 'expected_revision', 'operation_id'}
+    if action == 'configure':
+        fields.add('values')
+    elif action == 'clear':
+        fields.add('confirm')
+    else:
+        _fail(422, 'invalid_archive_control')
+    if (set(body) != fields or type(body.get('expected_revision')) is not int
+            or not 0 <= body['expected_revision'] <= 2**53-1):
+        _fail(422, 'invalid_archive_control')
+    if (not isinstance(body.get('operation_id'), str)
+            or not re.fullmatch(r'[A-Za-z0-9_-]{16,80}', body['operation_id'])):
+        _fail(422, 'archive_operation_id_required')
+    if action == 'clear':
+        if body['confirm'] is not True:
+            _fail(422, 'archive_clear_confirmation_required')
+    else:
+        try:
+            validate_policy(body['values'])
+        except (ValueError, TypeError) as error:
+            from .sophia_admin_access import ARCHIVE_ERROR_CODES
+            code = str(error)
+            _fail(422, code if code in ARCHIVE_ERROR_CODES else 'invalid_archive_control')
+    return body
 
 
 class SophiaAdmin:
@@ -130,6 +163,21 @@ class SophiaAdmin:
                 return self._existing(db, target)
         except (sqlite3.Error, OSError, ValueError, TypeError):
             _fail(503, 'admin_profile_unavailable')
+
+    def archive_binding(self):
+        """Resolve existing enrollment without a provider session or profile creation."""
+        from .native_archive import ArchiveBinding
+        record = self.read()
+        binding = ArchiveBinding(device_id=record['target'], client_id=record['target'],
+                                 owner_id=record['owner'])
+        return binding, record
+
+    def archive_binding_current(self, binding):
+        try:
+            current, _ = self.archive_binding()
+            return current == binding
+        except HTTPException:
+            return False
 
     def _expire(self):
         now = self.clock()

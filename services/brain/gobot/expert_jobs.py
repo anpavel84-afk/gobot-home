@@ -122,6 +122,8 @@ class ExpertJob:
     remember:bool=False
     confirmation_turn_id:str|None=None
     packet:dict=field(default_factory=dict)
+    archive_context:tuple|None=None
+    memory_context:bool=False
     already_explained:str=''
     timeout_seconds:int=90
     max_result_characters:int=24000
@@ -263,6 +265,18 @@ class ExpertJobs:
         if job.profile_id:
             return bool(s.manager.identity.family.session_valid(job.profile_id,job.profile_epoch))
         return True # Synthetic unprofiled unit harness; runtime admission requires an adult.
+
+    def context_current(self,job):
+        """A prepared source packet is revocable until the actual dispatch."""
+        s=self.session
+        capabilities=getattr(s,'capabilities',None)
+        if job.memory_context and capabilities and not capabilities.enabled_now('memory'):
+            return False
+        if job.archive_context:
+            flow=getattr(s,'memory_flow',None)
+            return bool(flow and flow.archive_binding_current(job.archive_context[0]) and
+                s.manager.brain.memory.native_archive.current(*job.archive_context,read=True))
+        return True
 
     def persist(self,job):
         store=getattr(getattr(self.session,'manager',None),'expert_store',None)
@@ -427,6 +441,7 @@ class ExpertJobs:
             job.max_result_characters=getattr(policy,'max_result_characters',24000)
             job.context_token_limit=getattr(policy,'max_context_tokens',3000)
             if hasattr(self.session,'manager'):job.packet=await self.prepare_packet(job)
+            if not await asyncio.to_thread(self.context_current,job):raise PermissionError('expert_context_changed')
             if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
             self.require_mode_action_authority(job)
             if getattr(policy,'owner_full_test',False):
@@ -437,6 +452,7 @@ class ExpertJobs:
             # separate Owner Full Test ledger, not a phone grant on a board.
             reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session.offer,'owner_test_binding',None))
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
+            if not await asyncio.to_thread(self.context_current,job):raise PermissionError('expert_context_changed')
             self.require_mode_action_authority(job)
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.grant_authorization=reserved.authorization
@@ -542,8 +558,35 @@ class ExpertJobs:
         s=self.session
         req=ChatRequest(text=job.task,device_id=s.access.effective_scope,conversation_id=s.access.context_conversation,
                         remember=False,turn_id=job.id,provider=job.profile['provider'],model_id=job.profile['model'],usage_consent=True)
-        context=await asyncio.to_thread(s.manager.brain.memory.context,req)
+        capabilities=getattr(s,'capabilities',None)
+        memory_enabled=not capabilities or await asyncio.to_thread(capabilities.enabled_now,'memory')
+        context=await asyncio.to_thread(s.manager.brain.memory.context,req) if memory_enabled else {}
+        job.archive_context=None
+        flow=getattr(s,'memory_flow',None)
+        if memory_enabled and flow and flow.archive_binding and flow.archive_configuration['policy']['read_enabled']:
+            try:
+                archive_snapshot=(flow.archive_binding,flow.archive_configuration['generation'])
+                lookup=req.model_copy(update={'turn_id':job.turn_id or job.id,
+                    'profile_epoch':getattr(s.offer,'profile_epoch',None)})
+                recalled=await asyncio.wait_for(asyncio.to_thread(s.manager.brain.memory.recall,lookup,
+                    exclude_source_ids=[item['id'] for item in context.get('messages',[]) if item.get('id')]),2.)
+                if (recalled.get('useful') and self.authorized_owner(job) and
+                        (not capabilities or await asyncio.to_thread(capabilities.enabled_now,'memory')) and
+                        flow.archive_binding_current(archive_snapshot[0]) and
+                        await asyncio.to_thread(s.manager.brain.memory.native_archive.current,*archive_snapshot,read=True)):
+                    context={**context,'messages':context.get('messages',[])+recalled.get('messages',[])}
+                    if not context.get('summary') and recalled.get('summary'):
+                        context['summary']=recalled['summary'];context['summary_sources']=recalled.get('summary_source_ids',[])
+                    if (any(item.get('source_kind')=='device_archive' for item in recalled.get('messages',[])) or
+                            any(str(ident).startswith('archive:') for ident in context.get('summary_sources',[]))):
+                        job.archive_context=archive_snapshot
+            except (TimeoutError,PermissionError,ValueError):
+                pass
         packet=await asyncio.to_thread(s.manager.brain.context_manager.pack,req.text,context,'REASONING')
+        job.memory_context=bool(packet.get('messages') or packet.get('summary') or packet.get('retrieved'))
+        if not any(str(ident).startswith('archive:') for ident in packet.get('_context_meta',{}).get('source_message_ids',[])):
+            job.archive_context=None
+        if not await asyncio.to_thread(self.context_current,job):raise PermissionError('expert_context_changed')
         # Bound the whole packet; never slice JSON into invalid/unattributed fragments.
         from .context_manager import tokens,serialize_context
         packet['dialogue_state']={'expert_deliverable':'Give checkable conclusions, arguments, assumptions, source status, uncertainty and caveats. No hidden chain-of-thought. Current facts require supplied sources; another model is not independent factual evidence.',
@@ -576,6 +619,7 @@ class ExpertJobs:
         # a fallback preparation inside the same original CLI deadline too.
         async with asyncio.timeout_at(cli_deadline):
             packet=job.packet or await self.prepare_packet(job)
+        if not await asyncio.to_thread(self.context_current,job):raise PermissionError('expert_context_changed')
         result=''
         # The producer owns the original CLI deadline. A slow speaker never
         # stretches the CLI request or blocks reading its already-paid result.
@@ -584,14 +628,16 @@ class ExpertJobs:
         pending=deque();changed=asyncio.Event();producer_done=False;producer_error=None
         async def produce():
             nonlocal result,producer_done,producer_error
-            iterator=bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile'])
+            iterator=None
             received=0
             try:
+                if not self.context_current(job):raise PermissionError('expert_context_changed')
+                iterator=bridge_stream(s.manager.brain.settings,req,packet,expert_profile=job.profile['profile'])
                 async with asyncio.timeout_at(cli_deadline):
                     async for delta in iterator:
                         received+=1
                         if received%64==0:await asyncio.sleep(0)
-                        if not self.authorized_owner(job) or job.state=='cancelled':raise asyncio.CancelledError()
+                        if not self.authorized_owner(job) or job.state=='cancelled' or not self.context_current(job):raise asyncio.CancelledError()
                         if isinstance(delta,AnswerDelta):
                             if delta.job_id not in {None,job.id}:raise ValueError('expert_delta_job_mismatch')
                             if not delta.speakable:continue
@@ -635,7 +681,8 @@ class ExpertJobs:
                 target=self.session
                 current=getattr(target,'current',None)
                 return bool(not self.detached and not target.closed and not job.speech_cancelled and
-                    job.revision==self.revision() and current is not None and not current.cancelled and self.authorized_owner(job))
+                    job.revision==self.revision() and current is not None and not current.cancelled and
+                    self.authorized_owner(job) and self.context_current(job))
             events=expert_voiced_events(options.get('speech'),source(),job_id=job.id,
                 conversation_id=job.conversation,turn_id=job.turn_id or job.id,response_id=job.response_id,
                 voice=options.get('voice','marin'),paid_tts_consent=options.get('paid_tts_consent',False),
@@ -712,6 +759,8 @@ class ExpertJobs:
                 await asyncio.to_thread(brain.memory.finish,req,'completed',payload,job.profile['provider'],[])
                 job.context_recorded=True
             else:await asyncio.to_thread(brain.memory.complete_native_continuation,req,payload,job.profile['provider'],[])
+        flow=getattr(self.session,'memory_flow',None)
+        if flow:flow.expert_played(job)
 
     async def run(self,job):
         s=self.session
@@ -728,11 +777,12 @@ class ExpertJobs:
                         allowed=bool(active_policy.enabled and active_policy.authorization==job.grant_authorization and
                                      job.profile['profile'] in getattr(active_policy,'allowed_profiles',[job.profile['profile']]))
                     except Exception:allowed=False
-                    if not allowed or not self.authorized_owner(job):
+                    if not allowed or not self.authorized_owner(job) or not await asyncio.to_thread(self.context_current,job):
                         job.error='expert_context_changed'
                         if job.worker:job.worker.cancel()
                         return
             watcher=asyncio.create_task(watch_authorization())
+            if not await asyncio.to_thread(self.context_current,job):raise PermissionError('expert_context_changed')
             if self.executor==self.execute:
                 # execute() independently bounds its CLI reader; its bounded
                 # narrator may continue after a successful CLI has finished.

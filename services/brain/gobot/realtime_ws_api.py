@@ -8,7 +8,9 @@ import contextlib
 import hmac
 import json
 import math
+from pathlib import Path
 import re
+import sqlite3
 import time
 from collections import deque
 
@@ -129,6 +131,136 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
         flow=getattr(active[0],'memory_flow',None)
         if flow is None:raise HTTPException(409,'working_memory_unavailable')
         return flow
+
+    def archive_context(source, device_id, client_id):
+        """The permanent column archive does not require a paid/live session."""
+        from .sophia_admin import SophiaAdmin
+        if (source != 'device' or not isinstance(device_id, str)
+                or not isinstance(client_id, str) or device_id != client_id
+                or not re.fullmatch(r'spotpear-[a-f0-9]{12}', device_id)):
+            raise HTTPException(422, 'archive_exact_device_required')
+        manager = manager_for('device')
+        memory = getattr(getattr(manager, 'brain', None), 'memory', None)
+        service = getattr(memory, 'native_archive', None)
+        if service is None:
+            raise HTTPException(503, 'archive_unavailable')
+        admin = SophiaAdmin(Path(memory.path).resolve().parent.parent)
+        binding, record = admin.archive_binding()
+        if device_id != record['target']:
+            raise HTTPException(403, 'archive_exact_device_required')
+        return service, admin, binding, record
+
+    def archive_public(state, record):
+        from .sophia_admin_access import safe_archive_status
+        state = dict(state)
+        skill = record['profile'].conversation.skills.memory
+        state['lookup_blocked_by_skill'] = not skill
+        state['read_effective'] = skill and state.get('policy', {}).get('read_enabled') is True
+        return safe_archive_status(state)
+
+    def archive_error(error):
+        from .sophia_admin_access import ARCHIVE_ERROR_CODES
+        code = str(error)
+        code = code if code in ARCHIVE_ERROR_CODES else 'archive_unavailable'
+        status = (409 if code in {'archive_revision_conflict', 'archive_operation_conflict',
+                                  'archive_context_changed', 'archive_change_requires_idle'}
+                  else 403 if code in {'archive_owner_required', 'archive_binding_invalid'}
+                  else 503 if code in {'archive_unavailable', 'archive_context_reset_required'} else 422)
+        return HTTPException(status, code)
+
+    @app.get('/api/v1/voice-ws/archive', dependencies=[Depends(auth)])
+    async def archive_status(request: Request, source: str = 'device', device_id: str = '',
+                             client_id: str = '', operation_id: str | None = None,
+                             actor_id: str | None = None):
+        fields = {'source', 'device_id', 'client_id', 'operation_id', 'actor_id'}
+        if (set(request.query_params)-fields
+                or any(len(request.query_params.getlist(key)) != 1 for key in request.query_params)
+                or operation_id is not None and (not re.fullmatch(r'[A-Za-z0-9_-]{16,80}', operation_id)
+                    or actor_id is None or not re.fullmatch(r'[a-f0-9]{64}', actor_id))
+                or operation_id is None and actor_id is not None):
+            raise HTTPException(422, 'invalid_archive_control')
+        try:
+            service, admin, binding, record = await asyncio.to_thread(
+                archive_context, source, device_id, client_id)
+            state = await asyncio.to_thread(service.status, binding,
+                                           operation_id=operation_id, actor_id=actor_id)
+            if not await asyncio.to_thread(admin.archive_binding_current, binding):
+                raise HTTPException(409, 'archive_context_changed')
+            return JSONResponse({'archive': archive_public(state, record), 'observed_at': time.time()},
+                                headers={'Cache-Control': 'no-store, private'})
+        except (PermissionError, ValueError, TypeError) as error:
+            raise archive_error(error) from None
+        except RuntimeError as error:
+            raise archive_error(error) from None
+        except (OSError, sqlite3.Error):
+            raise HTTPException(503, 'archive_unavailable') from None
+
+    @app.post('/api/v1/voice-ws/archive', dependencies=[Depends(auth)])
+    async def archive_control(request: Request):
+        from .sophia_admin import validate_archive_control
+        data = await bounded_json(request, 2500)
+        scope_fields = {'source', 'device_id', 'client_id', 'actor_id'}
+        body = {key: value for key, value in data.items() if key not in scope_fields}
+        validate_archive_control(body)
+        if (not isinstance(data.get('actor_id'), str)
+                or not re.fullmatch(r'[a-f0-9]{64}', data['actor_id'])):
+            raise HTTPException(422, 'archive_owner_required')
+        try:
+            service, admin, binding, record = await asyncio.to_thread(
+                archive_context, data.get('source'), data.get('device_id'), data.get('client_id'))
+            sessions = [session for session in sessions_for(manager_for('device'), binding.device_id)
+                        if session.offer.client_id == binding.client_id]
+            flows = []
+            async with contextlib.AsyncExitStack() as locks:
+                for session in sorted(sessions, key=lambda item: item.id):
+                    flow = getattr(session, 'memory_flow', None)
+                    if flow is None or not hasattr(flow, 'require_archive_idle'):
+                        raise HTTPException(409, 'archive_change_requires_idle')
+                    await locks.enter_async_context(session.lock)
+                    await locks.enter_async_context(session.activation_lock)
+                    flow.require_archive_idle()
+                    flows.append(flow)
+
+                def current():
+                    if not admin.archive_binding_current(binding):
+                        return False
+                    try:
+                        for flow in flows:
+                            if flow.session.closed:
+                                return False
+                            flow.require_archive_idle()
+                        return True
+                    except (ValueError, PermissionError):
+                        return False
+
+                previous = await asyncio.to_thread(service.status, binding)
+                method = service.configure if body['action'] == 'configure' else service.clear
+                args = [binding]
+                if body['action'] == 'configure':
+                    args.append(body['values'])
+                args.append(body['expected_revision'])
+                state = await asyncio.to_thread(method, *args, operation_id=body['operation_id'],
+                    actor_id=data['actor_id'], is_current=current)
+                old_policy, policy = previous['policy'], state['policy']
+                shorter = policy['retention_days'] > 0 and (old_policy['retention_days'] == 0
+                    or policy['retention_days'] < old_policy['retention_days'])
+                clear_context = body['action'] == 'clear' or shorter or (
+                    old_policy['read_enabled'] and not policy['read_enabled'])
+                if state.get('operation', {}).get('replayed') is not True:
+                    for flow in flows:
+                        await flow.archive_changed(clear_context=clear_context)
+            public = archive_public(state, record)
+            if (not public.get('operation') or public['operation']['id'] != body['operation_id']
+                    or public['operation']['applied_revision'] != body['expected_revision']+1):
+                raise HTTPException(503, 'archive_unavailable')
+            return JSONResponse({'accepted': True, 'archive': public, 'observed_at': time.time()},
+                                headers={'Cache-Control': 'no-store, private'})
+        except (PermissionError, ValueError, TypeError) as error:
+            raise archive_error(error) from None
+        except RuntimeError as error:
+            raise archive_error(error) from None
+        except (OSError, sqlite3.Error):
+            raise HTTPException(503, 'archive_unavailable') from None
 
     @app.get('/api/v1/voice-ws/memory',dependencies=[Depends(auth)])
     async def memory_status(source:str='device',device_id:str='',client_id:str='',

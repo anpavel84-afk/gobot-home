@@ -34,6 +34,9 @@ class Memory:
         self.archive=Archive(self);self.transient={};self.transient_lock=threading.RLock();self.visual_cancelled={};self.transient_pending={}
         from .working_memory import WorkingMemory
         self.working=WorkingMemory(self,protect=working_protect,unprotect=working_unprotect)
+        from .native_archive import NativeArchiveService
+        self.native_archive=NativeArchiveService(self)
+        self.native_archive_bindings={}
     def set_pending(self,req,kind,payload=None):
         from uuid import uuid4
         action={'id':str(uuid4()),'kind':kind,'payload':{**(payload or {}),'_profile_epoch':req.profile_epoch},'expires':time.time()+120}
@@ -202,7 +205,62 @@ class Memory:
     def purge_expired_working(self):
         return self.working.purge_expired()
     def recall(self,req,*,limit=4,exclude_source_ids=()):
-        return self.working.recall(req,limit=limit,exclude_source_ids=exclude_source_ids)
+        result=self.working.recall(req,limit=limit,exclude_source_ids=exclude_source_ids)
+        # Preserve the actual references of the existing grounded working
+        # notes, so a later packet cannot mark omitted quotes as delivered.
+        summary_ids=[]
+        if result.get('summary'):
+            notes=json.loads(result['summary'])
+            for values in notes.values():
+                if isinstance(values,list):
+                    for item in values:
+                        if isinstance(item,dict):summary_ids.extend(item.get('source_ids',[item['id']] if 'id' in item else []))
+        result['summary_source_ids']=list(dict.fromkeys(summary_ids))
+        with self.transient_lock:
+            binding=self.native_archive_bindings.get((req.device_id,req.conversation_id,req.profile_epoch))
+        if not binding:return result
+        excluded=set(exclude_source_ids)
+        # An excluded ID alone is not evidence of a question. Resolve only a
+        # still-current source in this exact working scope before using it as
+        # the context-only anchor of a newly heard archived answer.
+        from .working_memory import scope_key,excerpt
+        with self.transient_lock:
+            known_questions={item['turn_id']:item for item in self.working._messages(
+                self.working._rows(scope_key(req),exclude_turn=req.turn_id))
+                if item['role']=='user' and item['id'] in excluded}
+        native=self.native_archive.recall(binding['binding'],req.text,generation=binding['generation'],
+            exclude_source_ids=(*exclude_source_ids,*result.get('source_ids',[])),
+            paired_source_ids=[item['id'] for item in result.get('messages',[]) if item.get('role')=='user']+
+                [item['id'] for item in known_questions.values()],
+            exclude_turn_id=req.turn_id,limit=limit,is_current=binding['is_current'])
+        if not native['useful']:return {**result,'archive_generation':native['archive_generation']}
+        # Both stores refer to the accepted source turn. Merge its new heard
+        # answer next to the one working question, before budgeted packing.
+        groups={}
+        for item in result.get('messages',[])+native['messages']:
+            groups.setdefault(item.get('turn_id') or item['id'],[]).append(item)
+        for turn,group in groups.items():
+            if group[0].get('role')=='user' or turn not in known_questions:continue
+            question=known_questions[turn]
+            content,shortened=excerpt(question['content'],1200)
+            group.insert(0,{'turn_id':turn,'role':'user','content':content,
+                'source_ids':[question['id']],'heard':True,'content_complete':not shortened,
+                'context_only':True,'provenance':'already_supplied_question_reference'})
+        messages=[item for group in groups.values() for item in group]
+        summary=result.get('summary') or native.get('summary','')
+        summary_ids=result['summary_source_ids'] if result.get('summary') else native.get('summary_source_ids',[])
+        return {**result,'useful':True,'status':'matched','messages':messages,
+                'summary':summary,'summary_source_ids':summary_ids,
+                'source_ids':list(dict.fromkeys([item['id'] for item in messages if item.get('id')]+summary_ids)),
+                'archive_generation':native['archive_generation'],'coverage':'working_and_saved_device_conversations',
+                'lookup_kind':'local_working_and_archive_sources','reason':'relevant_prior_context'}
+    def bind_native_archive(self,req,binding,generation,is_current):
+        with self.transient_lock:
+            self.native_archive_bindings[(req.device_id,req.conversation_id,req.profile_epoch)]={
+                'binding':binding,'generation':generation,'is_current':is_current}
+    def unbind_native_archive(self,req):
+        with self.transient_lock:
+            self.native_archive_bindings.pop((req.device_id,req.conversation_id,req.profile_epoch),None)
     def summary_snapshot(self,req,*,max_messages=16):
         return self.working.summary_snapshot(req,max_messages=max_messages)
     def apply_summary(self,req,summary,*,source_version=None,source_ids=None,complete_source_ids=None):
