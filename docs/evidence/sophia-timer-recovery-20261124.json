@@ -92,5 +92,11 @@
   },
   "human_lcd_and_alarm_acceptance": false,
   "public_transcripts_or_secrets_exported": false,
-  "master_changed": false
+  "master_changed": false,
+  "latest_gateway_source": "260eeb8",
+  "manual_acceptance": "blocked_startup_connection_delay",
+  "latest_stable_ready_confirmed": false,
+  "implicit_legacy_fallback_blocked": true,
+  "cold_wake_firmware_fix_installed": false,
+  "gateway_native_gate_tests_passed": 127
 }
