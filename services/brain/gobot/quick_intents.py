@@ -78,6 +78,12 @@ def resolve_quick(text,context=None):
         if seconds is not None:return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(value):
         return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value),'operation':'start'})
+    # A complete, unambiguous timer command is a validated local action, even
+    # when its natural word order is not present in the legacy phrase catalogue.
+    # A bare duration is never a new command without the pending check above.
+    seconds=timer_seconds(text)
+    if seconds is not None and not is_timer_duration_reply(text):
+        return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     matches=[]
     for row in library()['entries']:
         for pattern in row['patterns']:
