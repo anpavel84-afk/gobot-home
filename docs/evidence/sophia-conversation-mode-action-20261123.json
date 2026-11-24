@@ -1,7 +1,7 @@
 {
   "schema": "sophia-conversation-mode-action-evidence-v1",
   "date": "2026-11-23",
-  "phase": "local_gate_passed_native_gate_pending",
+  "phase": "installed_and_verified",
   "source_base": "0ff1ebfa6793687c3e9d4a00069f18851c5d8931",
   "prior_runtime": "9d8b2a73bf9446644923d68cd0b3d88593224625",
   "requested_behavior": "semantic_current_user_mode_action_and_grounded_question_handoff",
@@ -132,7 +132,9 @@
   "deployment_inputs": {
     "helper_sha256": "1e43e16992ed92bc9947c5927232c3d101ed734617afa6f0d2e1d1cc2841bb12",
     "manifest_sha256": "cbb4bafbe03e82b7e6e343dc55e2d11faf1d3ee2b6278505bc921d2c5786bcb5",
-    "helper_local_checks": 22
+    "helper_local_checks": 22,
+    "postcheck_sha256": "5403b2c7355cb01fecec5baeafcd444d812d6d2eeb836a6ab99b93f3196ebd53",
+    "docs_publisher_sha256": "c8d587311f07b7a72c1e08460abe8b7caf67b9a3d76da4ecd8499e9ee2345aea"
   },
   "scope_preservation": {
     "policies": 72,
@@ -148,5 +150,96 @@
     "failure": "expert_profile_not_in_budget",
     "reproduced_with_base_expert_jobs_module": true,
     "admission_or_test_relaxed": false
+  },
+  "windows_gate": {
+    "passed": true,
+    "files": 58,
+    "tests_passed": 1000,
+    "summary": "1000 passed in 203.08s (0:03:23)",
+    "pytest_seconds": 203.08,
+    "isolated_source_rollback_reapply_passed": true,
+    "new_model_calls": 0,
+    "seconds": 205.58
+  },
+  "predeployment_idle_reconciliation": {
+    "at_utc": "2026-11-24T02:44:54.221380+00:00",
+    "supported_action": "stop",
+    "performed": true,
+    "before_state": "disconnected",
+    "after_state": "ready",
+    "observed_packet_delta_before_action": 84,
+    "same_session_and_transport_verified": true,
+    "observed_active_turns": 0,
+    "observed_active_streams": 0,
+    "observed_active_inputs": 0,
+    "observed_expert_active": false,
+    "new_model_requests_sent": 0,
+    "grant_or_policy_writes": 0,
+    "deployment_guards_relaxed": false,
+    "short_initial_probes_without_control_action": 2,
+    "snapshot_publication_seconds": 5,
+    "observation_seconds": 6,
+    "helper_sha256": "440cf23db905221805c3d7480a06a2249367d11b7fb7156a89dafe51845a970e"
+  },
+  "deployment": {
+    "source_commit": "150ec61a3b098dd669a47db83acae2fbc747cec9",
+    "at_utc": "2026-11-24T02:47:46.055594+00:00",
+    "at_owner_local": "2026-11-23T23:47:46.055594-03:00",
+    "physical_ready": true,
+    "session": {
+      "state": "ready",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "active_turns": 0,
+    "active_voice_streams": 0,
+    "active_inputs": 0,
+    "selected_expert": {
+      "profile": "ARGON_DEEP",
+      "provider": "antigravity",
+      "model": "gemini-4-argon-medium",
+      "effort": "medium"
+    },
+    "expert_available": true,
+    "cli_metadata_admission_ready": true,
+    "stable_observation_seconds": 14.125,
+    "counter_deltas": {
+      "received_packets": 249,
+      "application_keepalives_sent": 3,
+      "device_control_messages": 3
+    },
+    "owner_activity_observed": false,
+    "usage_unchanged": true,
+    "wip_preserved": true,
+    "firmware_changed": false,
+    "policies_profiles_ledgers_preserved": true,
+    "proof_sha256": {
+      "source_receipt": "3365db9c70abbddfee4edbd41e1e464a310b995a556c1f3e277a11f598d275c8",
+      "source_deployment": "b15711b3bdf3d14f862e5c097f07520ebd9ca66a225d9762130391437dba42ab",
+      "windows_gate": "aea229385ac727aa5445e621024c96e462796decbe0a72300da87532a7f3c3a4",
+      "deployer": "1e43e16992ed92bc9947c5927232c3d101ed734617afa6f0d2e1d1cc2841bb12"
+    },
+    "published_branches": [
+      "feat/sophia-conversation-mode-action-20261123",
+      "feat/host-integrator-sophia-unified-20261118"
+    ],
+    "master_merged": false,
+    "new_model_calls": 0,
+    "live_model_tool_selection_tested": false,
+    "live_expert_voice_tested": false,
+    "provider_quota_remaining_checked": false
+  },
+  "readiness_after": {
+    "expert_attempts": 0,
+    "expert_authorization_mismatches": 0,
+    "speech_authorization_mismatches": 0,
+    "speech_operations": {},
+    "cached_cue_ready": true,
+    "working_memory_restored_exchanges": 2,
+    "working_memory_error_present": false,
+    "gateway_error_present": false
   }
 }

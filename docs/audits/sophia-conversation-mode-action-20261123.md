@@ -114,3 +114,40 @@ is implied. The exact tested source, Windows gate, deployment outcome, and
 remaining manual acceptance are recorded in
 [the evidence record](../evidence/sophia-conversation-mode-action-20261123.json)
 and [CURRENT_STATUS](../CURRENT_STATUS.md).
+
+## Installed result
+
+Source `150ec61a3b098dd669a47db83acae2fbc747cec9` was installed on PLAN and
+published to the feature and integration branches. The final read-only
+postcheck at **2026-11-24 02:47:46 UTC / 23 November 23:47:46 BRT** confirmed
+that exact loaded runtime, a ready attached physical transport, unmuted
+capture, no active turns/inputs/experts, and no Gateway error. Counters advanced
+by 249 packets, three application keepalives and three device controls across
+the 14.125-second postcheck. The existing admin was verified locally and over
+its owner-only private HTTPS address.
+
+The same 58-file gate passed locally (**999 passed, one Windows-only skip**)
+and on native Windows (**1000 passed**, including actual DPAPI). The source
+includes 72 new regression cases. The final independent review found no
+remaining blocker; accepted-job Stop/Mute/detach/reattach were also checked
+with mocked providers. An older child-profile test outside this declared gate
+has a fixture without an allowed expert grant; its earlier rejection was
+reproduced with the base ExpertJobs module and was not weakened.
+
+Before deployment, the previous transport had recovered but its old state
+still said disconnected. Two short observation probes stopped before any
+control action. A six-second interval spanning the Gateway's five-second status
+publication confirmed the same idle session, same transport and advancing
+packets. One supported Stop reconciled the state before the unchanged strict
+deployment checks. No readiness guard was relaxed. This is an operational
+recovery record, not a claim that the old reconnect-state defect was separately
+redesigned by this change.
+
+The deployment preserved 72 policies, 23 usage databases, one profile database,
+two configuration files, both worktrees' existing work, and the original
+working-memory policy and checkpoint bindings. Two temporary exchanges were
+restored without error. Existing production usage was unchanged; expert
+attempts and expert speech operations were still zero. No rollback, master
+merge, firmware change, grant change, automatic paid trial or household-text
+export occurred. Actual natural-language tool selection and physical expert
+speech remain untested by this installation procedure.
