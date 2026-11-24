@@ -78,12 +78,6 @@ def resolve_quick(text,context=None):
         if seconds is not None:return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     if pending and pending.get('kind')=='timer_duration' and pending.get('expires',0)>time.time() and is_timer_duration_reply(value):
         return QuickIntent('timer_start','timer',{'seconds':timer_seconds(value),'operation':'start'})
-    # A complete, unambiguous timer command is a validated local action, even
-    # when its natural word order is not present in the legacy phrase catalogue.
-    # A bare duration is never a new command without the pending check above.
-    seconds=timer_seconds(text)
-    if seconds is not None and not is_timer_duration_reply(text):
-        return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     matches=[]
     for row in library()['entries']:
         for pattern in row['patterns']:
@@ -109,6 +103,12 @@ def resolve_quick(text,context=None):
     unique={m.intent:m for priority,m in matches if priority==best}
     if len(unique)>1:return QuickIntent('ambiguous','quick_clarify',{},'rejected','multiple_intents')
     if unique:return next(iter(unique.values()))
+    # A complete, unambiguous timer command is a validated local action, even
+    # when its natural word order is not present in the legacy phrase catalogue.
+    # A bare duration is never a new command without the pending check above.
+    seconds=timer_seconds(text)
+    if seconds is not None and not is_timer_duration_reply(text):
+        return QuickIntent('timer_start','timer',{'seconds':seconds,'operation':'start'})
     # Command-shaped but unsupported timer syntax is a clarification, never a
     # second permissive route into the executor. Questions are not commands.
     if re.match(r'^(?:(?:поставь|поставить|установи|установить|запусти|запустить|включи|включить|отмени|останови|выключи|убери)\b.*таймер|таймер\b|(?:засеки|засечь|засекай|отсчитай|отсчитать)\b)',value):
