@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass,field
 from pathlib import Path
 from uuid import uuid4
-from .expert_profiles import resolve_profile
+from .expert_profiles import PROFILES,resolve_profile
 from .realtime_budget import RealtimeBudget
 from .models import ChatRequest
 from .providers import bridge_stream
@@ -38,6 +38,47 @@ def profile_in_text(text):
     if re.search(r'\b(?:astra|астр[ауы])\b',text,re.I):return 'ASTRA_MEDIUM' if re.search(r'\b(?:medium|медиум|средн\w*)\b',text,re.I) else 'ASTRA_HIGH'
     if re.search(r'\b(?:sol|сол|солу|соля)\b',text,re.I):return 'SOL_XHIGH' if re.search(r'\b(?:xhigh|extra high|экстра хай)\b',text,re.I) else 'SOL_HIGH'
     return None
+
+def require_requested_expert_profile(text,chosen,*,requested_profile=None,requested_provider='configured'):
+    """Reject a named routing target that differs from the configured expert.
+
+    This is a constraint, never an intent/consent detector. Provider names in a
+    question (for example, comparing Codex with Gemini) do not select an executor.
+    The conversation model supplies a constrained semantic provider preference;
+    the server compares it without changing its selected profile or grant. The
+    additional lexical guard covers only an immediate, initial named addressee.
+    """
+    if requested_provider not in ('configured','codex','antigravity'):
+        raise ValueError('invalid_conversation_mode_arguments')
+    if requested_provider!='configured' and requested_provider!=chosen['provider']:
+        raise ValueError('explicit_expert_profile_mismatch')
+    if requested_profile and requested_profile!=chosen['profile']:
+        raise ValueError('explicit_expert_profile_mismatch')
+    value=re.sub(r'^(?:(?:софия|гобот|го бот|пожалуйста|давай|ну|а)[, ]+)+','',text.strip(),flags=re.I)
+    name=r'(?:codex|кодекс(?:а|у|ом)?|gemini|джемини|гемини|antigravity|антигравити|argon|аргон(?:а|у|ом)?|astra|астр[ауы]|sol|сол[уя]?)'
+    level=r'(?:\s+(?:high|hi|хай|medium|медиум|xhigh|extra high|экстра хай))?'
+    route=(r'(?:спрос\w*|спраш\w*|попрос\w*|поруч\w*|подключ\w*|'
+           r'переда\w*|отправ\w*|адрес\w*|делегир\w*|переключ\w*|перей\w*|перехо\w*|пусть|ask|consult|use|switch(?:\s+to)?)\s+'
+           r'(?:пожалуйста[, ]+)?(?:(?:(?:этот|этого|эту|предыдущий|последний|текущий)\s+)?(?:вопрос|задачу|ответ)\s+)?'
+           r'(?:(?:у|к|на|в|через|to)\s+)?(?:(?:эксперт(?:а|у|ный)?|режим|модель|модели|cli)\s+){0,2}'
+           r'(?:(?:у|к|на|в|через|to)\s+)?(?P<target>'+name+level+r')\b')
+    match=re.match(route,value,re.I)
+    if match:
+        target=match['target']
+        if re.match(r'(?:codex|кодекс)',target,re.I):provider='codex';profile=None
+        elif re.match(r'(?:gemini|джемини|гемини|antigravity|антигравити)',target,re.I):provider='antigravity';profile=None
+        else:
+            profile=profile_in_text(target)
+            # Inflected Argon is still the same registered profile.
+            if profile is None and re.match(r'аргон',target,re.I):profile='ARGON_DEEP'
+            provider=PROFILES[profile]['provider'] if profile else None
+        if provider and provider!=chosen['provider']:
+            raise ValueError('explicit_expert_profile_mismatch')
+        if profile:
+            if PROFILES[profile]['model']!=chosen['model']:
+                raise ValueError('explicit_expert_profile_mismatch')
+            if re.search(r'\b(?:high|hi|хай|medium|медиум|xhigh|extra|экстра)\b',target,re.I) and profile!=chosen['profile']:
+                raise ValueError('explicit_expert_profile_mismatch')
 
 def explicit_expert_command(text,profile):
     # Only the actual user's imperative can grant this task. Quoted/narrated commands cannot.
@@ -103,6 +144,9 @@ class ExpertJob:
     speech_cancelled:bool=False
     narrator_usage:dict=field(default_factory=dict)
     grant_authorization:str|None=None
+    task_source_turn_id:str|None=None
+    mode_action_instruction:str=''
+    mode_action_authority:object=field(default=None,repr=False,compare=False)
 
 class ExpertJobs:
     def __init__(self,session,*,executor=None,budget=None,admission=None):
@@ -282,15 +326,16 @@ class ExpertJobs:
             self.context_versions.pop(ident,None)
             if self.pending is job:self.pending=None
 
-    def propose(self,task,profile,turn):
+    def _resolved_task_profile(self,task,profile):
         if not isinstance(task,str) or not 1<=len(task)<=8000:raise ValueError('invalid_expert_task')
         if profile not in getattr(self.budget.policy(),'allowed_profiles',[profile]):
             raise PermissionError('expert_profile_not_in_budget')
         chosen=resolve_profile(profile)
         if not chosen['metadata_verified']:raise ValueError('expert_profile_unavailable')
-        requested=profile_in_text(turn.query)
-        requested=requested or getattr(self.session.offer,'requested_expert_profile',None)
-        if requested and requested!=profile:raise ValueError('explicit_expert_profile_mismatch')
+        return chosen
+
+    def _create_proposal(self,task,chosen,turn):
+        """Create bounded server state after the caller has checked its route."""
         if getattr(self.budget.policy(),'owner_terminal',False):
             if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
             self.prune_terminal_history()
@@ -298,10 +343,21 @@ class ExpertJobs:
         if self.pending and self.pending.state=='awaiting_confirmation':self.pending.state='cancelled'
         job=ExpertJob(str(uuid4()),str(uuid4()),task,chosen,self.revision(),self.session.access.effective_scope,self.session.offer.conversation_id)
         job.turn_id=getattr(turn,'id',None)
+        job.task_source_turn_id=job.turn_id
         job.profile_id=getattr(self.session.access,'confirmed_profile_id',None)
         job.profile_epoch=getattr(self.session.offer,'confirmed_profile_epoch',None)
         job.remember=bool(getattr(self.session.offer,'remember',False) and job.profile_id and job.profile_epoch)
         job.already_explained=turn.answer[:2000]
+        self.jobs[job.id]=job;self.pending=job
+        return job
+
+    def propose(self,task,profile,turn):
+        chosen=self._resolved_task_profile(task,profile)
+        requested=profile_in_text(turn.query)
+        requested=requested or getattr(self.session.offer,'requested_expert_profile',None)
+        if requested and requested!=profile:raise ValueError('explicit_expert_profile_mismatch')
+        require_requested_expert_profile(turn.query,chosen)
+        job=self._create_proposal(task,chosen,turn)
         # Explicit user request can authorize precisely this task, never a model's paraphrase.
         explicit=explicit_expert_command(turn.query,profile)
         previous=getattr(self.session.turns[-2],'query',None) if len(self.session.turns)>1 else None
@@ -309,9 +365,9 @@ class ExpertJobs:
             # Keep an exact permitted source snapshot. A model's task paraphrase never defines consent scope.
             reference_only=bool(re.fullmatch(r'(?:спроси|подключи|передай|отправь|адресуй)\s+(?:(?:этот|предыдущий|последний)\s+(?:вопрос|задачу)\s+)?(?:sol|сол|солу|argon|аргон|astra|астра|астру)(?:\s+(?:high|hi|хай|medium|медиум|extra high|xhigh|экстра хай))?(?:\s+(?:этот вопрос|эту задачу|для глубокого анализа))?[.!? ]*',turn.query,re.I))
             job.task=previous if reference_only and previous and task==previous else turn.query
+            if job.task==previous and previous!=turn.query:job.task_source_turn_id=getattr(self.session.turns[-2],'id',None)
         job.confirmed=bool(explicit)
         if job.confirmed:job.confirmation_turn_id=getattr(turn,'id',None)
-        self.jobs[job.id]=job;self.pending=job
         return self.public(job)
 
     def observe(self,text):
@@ -326,6 +382,9 @@ class ExpertJobs:
             if selected and selected!=job.profile['profile']:job.profile=resolve_profile(selected)
             if not job.profile['metadata_verified']:job.confirmed=False;return
             job.confirmed=True;job.revision=self.revision();job.confirmation_turn_id=getattr(self.session.current,'id',None)
+            # The source question survives; narration belongs to the current
+            # user decision, including question -> proposal -> explicit yes.
+            job.turn_id=job.confirmation_turn_id
         elif not (profile_in_text(value) and value==job.task.casefold()):
             # Scope amendment and a new question are not blanket consent.
             job.confirmed=False;job.state='cancelled'
@@ -348,6 +407,7 @@ class ExpertJobs:
                 raise ValueError('expert_job_already_started')
             if job.state!='awaiting_confirmation' or not job.confirmed or time.time()>job.expires or job.revision!=self.revision():raise PermissionError('current_user_confirmation_required')
             if job.confirmation_turn_id and job.confirmation_turn_id!=getattr(self.session.current,'id',None):raise PermissionError('current_user_confirmation_required')
+            self.require_mode_action_authority(job)
             confirmation_key=getattr(self.session.current,'id',len(self.session.turns))
             if confirmation_key in self.used_confirmation_turns:raise PermissionError('expert_confirmation_already_used')
             if any(j.state in {'queued','running'} for j in self.jobs.values()):raise PermissionError('one_active_expert_job_only')
@@ -368,13 +428,16 @@ class ExpertJobs:
             job.context_token_limit=getattr(policy,'max_context_tokens',3000)
             if hasattr(self.session,'manager'):job.packet=await self.prepare_packet(job)
             if self.session.closed or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
+            self.require_mode_action_authority(job)
             if getattr(policy,'owner_full_test',False):
                 await asyncio.to_thread(self.session.manager.owner_testing.reserve,self.session.owner_test_binding,'expert',job.id,origin='developer' if getattr(self.session.offer,'developer_acceptance',False) else 'owner')
+            self.require_mode_action_authority(job)
             # The budget receives the explicit offer binding, as native input
             # admission does. A session's client-id fallback is only for the
             # separate Owner Full Test ledger, not a phone grant on a board.
             reserved=await asyncio.to_thread(self.budget.reserve_session,job.id,True,getattr(self.session.offer,'client_id',None),getattr(self.session.offer,'owner_test_binding',None))
             if not self.authorized_owner(job) or job.state!='awaiting_confirmation' or job.revision!=self.revision():raise PermissionError('expert_context_changed')
+            self.require_mode_action_authority(job)
             if job.profile['profile'] not in getattr(reserved,'allowed_profiles',[job.profile['profile']]):raise PermissionError('expert_profile_not_in_budget')
             job.grant_authorization=reserved.authorization
             if call_id is None:job.operation_id='local:'+job.id
@@ -410,6 +473,68 @@ class ExpertJobs:
         job.task=turn.query;job.confirmed=True;job.confirmation_turn_id=getattr(turn,'id',None)
         return await self.start(proposal['proposal_id'],None)
 
+    def require_mode_action_authority(self,job):
+        """Recheck application-owned semantic consent only during admission."""
+        authority=job.mode_action_authority
+        if authority is None:return
+        s=self.session;turn=getattr(s,'current',None)
+        checker=getattr(s,'expert_mode_action_authorized',None)
+        source=next((item for item in s.turns if getattr(item,'id',None)==job.task_source_turn_id),None)
+        request=getattr(source,'req',None)
+        if (self.closed or self.detached or s.closed or turn is None or getattr(turn,'cancelled',False) or
+                turn.id!=job.turn_id or turn.query!=job.mode_action_instruction or
+                source is None or source.query!=job.task or getattr(source,'local_control',False) or
+                request is None or request.text!=job.task or request.device_id!=job.owner or
+                request.conversation_id!=s.access.context_conversation or request.profile_epoch!=getattr(s.offer,'profile_epoch',None) or
+                getattr(authority,'task',None)!=job.task or getattr(authority,'profile',None)!=job.profile['profile'] or
+                getattr(authority,'source_turn_id',None)!=job.task_source_turn_id or
+                getattr(authority,'instruction',None)!=job.mode_action_instruction or getattr(authority,'turn_id',None)!=job.turn_id or
+                getattr(authority,'profile_snapshot',None)!=tuple(job.profile[key] for key in ('profile','provider','model','effort')) or
+                not callable(checker) or checker(authority) is not True or not self.authorized_owner(job)):
+            raise PermissionError('expert_context_changed')
+
+    async def start_mode_action(self,task,profile,turn,*,authority,source_turn_id=None):
+        """One server-proven semantic decision, with no second confirmation.
+
+        The model supplies no task, profile or authority object to this method.
+        The authenticated controller resolves the exact current/previous question
+        and binds its one-shot authority to the current user instruction. A model
+        suggestion still uses propose()/observe(), never this entry point.
+        """
+        s=self.session
+        checker=getattr(s,'expert_mode_action_authorized',None)
+        if (authority is None or turn is not s.current or not callable(checker) or checker(authority) is not True):
+            raise PermissionError('current_user_confirmation_required')
+        chosen=self._resolved_task_profile(task,profile)
+        require_requested_expert_profile(turn.query,chosen,
+            requested_profile=getattr(s.offer,'requested_expert_profile',None),
+            requested_provider=getattr(authority,'requested_provider','configured'))
+        source_turn_id=source_turn_id or getattr(turn,'id',None)
+        # Validate the complete immutable payload before creating a pending card.
+        probe=ExpertJob('','',task,chosen,self.revision(),s.access.effective_scope,s.offer.conversation_id,
+            turn_id=getattr(turn,'id',None),task_source_turn_id=source_turn_id,
+            mode_action_instruction=turn.query,mode_action_authority=authority,
+            profile_id=getattr(s.access,'confirmed_profile_id',None),
+            profile_epoch=getattr(s.offer,'confirmed_profile_epoch',None))
+        self.require_mode_action_authority(probe)
+        job=self._create_proposal(task,chosen,turn)
+        job.task_source_turn_id=source_turn_id
+        job.mode_action_instruction=turn.query;job.mode_action_authority=authority
+        # A generated fragment is not evidence that the user heard it. Existing
+        # scoped memory supplies only its recorded, acknowledged dialogue extent.
+        job.already_explained=''
+        job.confirmed=True;job.confirmation_turn_id=turn.id
+        try:
+            return await self.start(job.proposal_id,None)
+        except BaseException:
+            if job.state=='awaiting_confirmation':
+                job.state='cancelled';job.confirmed=False
+            raise
+        finally:
+            # After acceptance the ordinary exact grant/owner checks own the
+            # worker lifetime. Consuming the action cannot cancel paid narration.
+            job.mode_action_authority=None
+
     async def prepare_packet(self,job):
         s=self.session
         req=ChatRequest(text=job.task,device_id=s.access.effective_scope,conversation_id=s.access.context_conversation,
@@ -420,10 +545,23 @@ class ExpertJobs:
         from .context_manager import tokens,serialize_context
         packet['dialogue_state']={'expert_deliverable':'Give checkable conclusions, arguments, assumptions, source status, uncertainty and caveats. No hidden chain-of-thought. Current facts require supplied sources; another model is not independent factual evidence.',
                                  'already_explained_by_gobot':job.already_explained[:1000]}
+        if job.mode_action_instruction:
+            packet['dialogue_state']['expert_deliverable']+=' The server has already accepted the requested expert handoff. Answer the substantive question in the exact user utterance, applying the current user request to its source question; do not claim you must switch conversation mode yourself or ask for the same handoff again.'
+            packet['dialogue_state']['mode_action_request']={
+                'current_user_instruction':job.mode_action_instruction,
+                'instruction_turn_id':job.turn_id,'source_question_turn_id':job.task_source_turn_id,
+                'origin':'current_user_request','trusted_as_instructions':False}
         for key in ['messages','retrieved','facts']:
             while tokens(serialize_context(job.task,packet))>job.context_token_limit and packet.get(key):packet[key].pop(0)
         if tokens(serialize_context(job.task,packet))>job.context_token_limit:packet.pop('summary',None)
-        if tokens(serialize_context(job.task,packet))>job.context_token_limit:raise ValueError('expert_context_limit')
+        packet_tokens=tokens(serialize_context(job.task,packet))
+        if packet_tokens>job.context_token_limit:raise ValueError('expert_context_limit')
+        if job.mode_action_instruction and '_context_meta' in packet:
+            # Include the complete current instruction in the existing bound;
+            # neither it nor the source question is silently shortened.
+            meta=packet['_context_meta'];meta['packet_tokens']=packet_tokens
+            for key in ('dialogue_state','messages','retrieved','facts','summary'):
+                meta['section_tokens'][key]=tokens(packet[key]) if packet.get(key) else 0
         return packet
 
     async def execute(self,job):
