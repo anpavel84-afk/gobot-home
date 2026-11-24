@@ -237,36 +237,59 @@ def test_single_target_never_silently_chooses_running_over_completed_timer(tmp_p
     assert not service.current(req, now=1002)
 
 
-def test_timer_capacity_never_evicts_current_timers_and_failed_action_cannot_replay_later(tmp_path):
+@pytest.mark.parametrize('elapsed_seconds', [0, 48*3600])
+def test_timer_capacity_never_evicts_current_timers_and_failed_action_cannot_replay_later(tmp_path, elapsed_seconds):
     memory, service, req = setup(tmp_path)
     current = [service.start(req, 30+n, action_id='start-'+str(n)) for n in range(16)]
-    result = service.start(req, 60, action_id='overflow')
+    now = 1000+elapsed_seconds
+    restored = TimerService(memory, clock=lambda: now)
+    result = restored.start(req, 60, action_id='overflow')
     assert not result['executed'] and result['reason'] == 'timer_limit_reached'
-    assert len(service.current(req)) == 16
-    assert {row['timer_id'] for row in service.snapshot(req)['timers']} == {row['timer_id'] for row in current}
-    service.cancel(req, current[0]['timer_id'], action_id='free-slot')
-    assert not service.start(req, 60, action_id='overflow')['executed']
-    new = service.start(req, 60, action_id='new-turn')
-    assert new['executed'] and len(service.current(req)) == 16
-    assert new['timer_id'] in {row['timer_id'] for row in service.snapshot(req)['timers']}
+    assert len(restored.current(req)) == 16
+    assert {row['timer_id'] for row in restored.snapshot(req)['timers']} == {row['timer_id'] for row in current}
+    assert {row['status'] for row in restored.current(req)} == {'expired' if elapsed_seconds else 'running'}
+    assert not restored.claim_due(req, 'restarted-device')
+    restored.cancel(req, current[0]['timer_id'], action_id='free-slot')
+    assert not restored.start(req, 60, action_id='overflow')['executed']
+    new = restored.start(req, 60, action_id='new-turn')
+    assert new['executed'] and len(restored.current(req)) == 16
+    assert {row['timer_id'] for row in restored.snapshot(req)['timers']} == {
+        row['timer_id'] for row in current[1:]} | {new['timer_id']}
 
 
-def test_latch_age_cleanup_updates_revision_but_keeps_action_and_delivery_fences(tmp_path):
+@pytest.mark.parametrize('delivery_state', ['pending', 'claimed', 'started'])
+def test_expired_latch_survives_48_hours_and_restart_until_explicit_dismissal(tmp_path, delivery_state):
     memory, service, req = setup(tmp_path)
     start = service.start(req, 1, action_id='original-turn')
-    alarm, = service.claim_due(req, 'before-restart', now=1002)
     old = service.snapshot(req, now=1002)
-    aged = service.snapshot(req, now=87402)
-    assert aged['timers'] == [] and aged['revision'] > old['revision']
-    assert service.snapshot(req, now=87403) == aged
-    assert not service.claim_due(req, 'after-restart', now=87403)
-    assert not service.ack(req, alarm['alarm_id'], alarm['claim_id'], 'finished', now=87403)
-    replay = service.start(req, 1., action_id='original-turn', now=87403)
+    alarm = None
+    if delivery_state != 'pending':
+        alarm, = service.claim_due(req, 'before-restart', now=1002)
+        if delivery_state == 'started':
+            assert service.ack(req, alarm['alarm_id'], alarm['claim_id'], 'started', now=1002)
+    now = 1002+48*3600
+    restored = TimerService(memory, clock=lambda: now)
+    aged = restored.snapshot(req)
+    assert aged == old
+    assert aged['timers'][0]['state'] == 'expired' and aged['timers'][0]['remaining_ms'] == 0
+    assert restored.snapshot(req, now=now+1) == aged
+    assert not restored.claim_due(req, 'after-restart')
+    if alarm:
+        assert not restored.ack(req, alarm['alarm_id'], alarm['claim_id'], 'finished')
+    replay = restored.start(req, 1., action_id='original-turn')
     assert replay['replayed'] and replay['timer_id'] == start['timer_id']
-    assert service.current(req, now=87403) == []
+    assert [row['id'] for row in restored.current(req)] == [start['timer_id']]
     with memory.connect() as db:
         assert db.execute('SELECT count(*) FROM timer_action_receipts').fetchone()[0] == 1
         assert db.execute('SELECT count(*) FROM timers').fetchone()[0] == 1
+        expected = 'suppressed' if delivery_state == 'pending' else 'unknown'
+        assert db.execute('SELECT state FROM timer_alarm_deliveries').fetchone()[0] == expected
+    dismissed = restored.cancel(req, action_id='explicit-dismiss')
+    assert dismissed['executed'] and dismissed['timer_cancelled_ids'] == [start['timer_id']]
+    assert restored.current(req) == []
+    cleared = restored.snapshot(req)
+    assert cleared['revision'] > aged['revision'] and cleared['timers'][0]['state'] == 'cancelled'
+    assert not restored.claim_due(req, 'after-dismissal')
 
 
 @pytest.mark.parametrize('valid_checks', [0,1])

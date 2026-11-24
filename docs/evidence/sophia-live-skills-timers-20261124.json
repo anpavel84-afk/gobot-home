@@ -1,7 +1,7 @@
 {
   "schema": "sophia-live-skills-timers-v1",
-  "recorded_at_utc": "2026-11-24T03:50:26.811200+00:00",
-  "state": "source_verified_pending_windows_gate_and_install",
+  "recorded_at_utc": "2026-11-24T04:05:43.838394+00:00",
+  "state": "final_source_verified_pending_repeated_windows_gate_and_install",
   "base_commit": "9dffdc196eb9a8203386cd170256b803f9a40213",
   "prior_runtime": "150ec61a3b098dd669a47db83acae2fbc747cec9",
   "feature_branch": "feat/sophia-live-skills-timers-20261124",
@@ -50,14 +50,17 @@
     "signal_priority": "wait_for_idle_preemptible_by_user",
     "uncertain_signal_replayed": false,
     "requires_connected_transport": true,
-    "physical_acceptance": false
+    "physical_acceptance": false,
+    "expired_latch": "until_explicit_dismissal",
+    "expired_latch_automatic_age_eviction": false,
+    "unknown_delivery_receipt_timeout_seconds": 86400
   },
   "firmware": {
     "candidate_version": "0.4.21-dev-sophia-timer-v4",
     "installed_version_unchanged": "0.4.20-dev-sophia-duck-v4",
     "rollback_app_sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
     "rollback_app_size": 3700240,
-    "candidate_built": false,
+    "candidate_built": true,
     "first_discovery": {
       "prepared": false,
       "built": false,
@@ -66,8 +69,61 @@
     },
     "patch_sha256": "c600a04310bbb0149f7a0ee0a8ca8b95443b2a8e8c7743d0135c574f4b7e6a9d",
     "baseline_full_guards_passed": 46,
-    "build_state": "attempt02_running",
-    "build_runner_sha256": "dc7a4ff8ef87e69052926de835ccd591dcc40002fc54d6295336c733e78cc555"
+    "build_state": "built_verified_staged_not_flashed",
+    "build_runner_sha256": "dc7a4ff8ef87e69052926de835ccd591dcc40002fc54d6295336c733e78cc555",
+    "build": {
+      "schema": 1,
+      "built": true,
+      "flashed": false,
+      "started_at": 1795492060.2772253,
+      "finished_at": 1795492222.0483139,
+      "build_seconds": 146.788,
+      "evidence": {
+        "schema": 1,
+        "candidate": {
+          "sha256": "2e0898e708728973561f3920ddcbebc3c744a488bbf8cac95c72b62891edd68b",
+          "bytes": 3701840,
+          "version": "0.4.21-dev-sophia-timer-v4",
+          "app_slot_free": 426928,
+          "chip": "esp32s3"
+        },
+        "rollback": {
+          "sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
+          "bytes": 3700240,
+          "version": "0.4.20-dev-sophia-duck-v4",
+          "app_slot_free": 428528,
+          "chip": "esp32s3"
+        },
+        "manifest_sha256": "de34839fe352bf32d1669560261079f22be2236ff2c660c8e74510b8497a27f5",
+        "patch_sha256": "c600a04310bbb0149f7a0ee0a8ca8b95443b2a8e8c7743d0135c574f4b7e6a9d",
+        "build_log_sha256": "87c37cb4071d38127b1060756ae9c98e34da94e13500197e888f5cbd3c6e6907",
+        "baseline_preserved": true,
+        "baseline_source_guards": 38,
+        "candidate_source_guards": 8,
+        "protected_source_guards": 31,
+        "protected_binary_guards": 6,
+        "sdkconfig_unchanged": true,
+        "sophia_model_embedded_exact_once": true,
+        "image_checksum_tool_required": true,
+        "flashed": false,
+        "physical_visible_countdown_verified": false,
+        "physical_audible_alarm_verified": false
+      },
+      "build_runner_sha256": "dc7a4ff8ef87e69052926de835ccd591dcc40002fc54d6295336c733e78cc555",
+      "build_report_sha256": "630cb21df8108f5a0f7ec8199a1ec994dad4a15f89fc0c4f147479aa3da6d6e5",
+      "image_checksum_valid": true,
+      "image_validation_hash_valid": true,
+      "esptool": "v5.3.dev2",
+      "idf": "v6.0.1",
+      "cpu_limit": 2,
+      "memory_limit": "4g",
+      "network": "none",
+      "new_model_calls": 0,
+      "rollback_on_PLAN_verified": true,
+      "candidate_on_PLAN_verified": true,
+      "candidate_on_PLAN_filename": "sophia-timer-v421-2e0898e70872.bin",
+      "transfer": "same_owner_private_taildrop"
+    }
   },
   "validation": {
     "python_test_files": 73,
@@ -76,16 +132,15 @@
       "tests/working_memory_admin_dom.cjs"
     ],
     "local_gate": {
-      "passed": 1633,
+      "passed": 1636,
       "failed": 0,
       "skipped": 1,
-      "summary": "1633 passed, 1 skipped, 1 warning in 70.92s (0:01:10)",
-      "at_utc": "2026-11-24T03:49:27.018310+00:00",
-      "seconds": 71.73,
+      "summary": "1636 passed, 1 skipped, 1 warning in 70.78s (0:01:10)",
+      "at_utc": "2026-11-24T04:05:00.834191+00:00",
+      "seconds": 71.7,
       "inputs_unchanged": true,
       "new_model_calls": 0
     },
-    "windows_gate": "not_run",
     "live_model_test": false,
     "physical_display_test": false,
     "physical_audio_test": false,
@@ -104,8 +159,8 @@
       }
     ],
     "operations_helper_tests": {
-      "passed": 91,
-      "seconds": 0.4,
+      "passed": 98,
+      "seconds": 0.39,
       "remote_mutations": 0
     },
     "independent_review": "completed_with_memory_race_corrected_and_rechecked",
@@ -114,14 +169,47 @@
       "all_resolved": true,
       "four_live_failures_reproduced_on_base": true,
       "tests_removed": 0
-    }
+    },
+    "initial_windows_gate": {
+      "target": "2d3fb9641e0f43f1862487b6457ccd4100f0cbf4",
+      "passed": 1632,
+      "skipped": 2,
+      "pytest_seconds": 277.25,
+      "browser_fixtures_passed": true,
+      "native_cpp_skipped_on_windows_passed_on_linux": true,
+      "isolated_source_rollback_reapply_passed": true,
+      "feature_published": true
+    },
+    "windows_gate": "pending_for_final_source_and_corrected_deployer",
+    "source_input_hashes_digest": "4aa5819c1d13a95f1cfcabecadfb80c609e91bd47ee4af6244356c9fc1bf92d8"
   },
   "deployment": {
     "installed": false,
     "firmware_changed": false,
-    "deployer_sha256": "bbe8bdc7e5717ba500170a3031b0b6976a4a7c293475b36605d85cb28d334f1d",
-    "postcheck_sha256": "094831d1afb4e1119743e56283de1320f31941971c6978c95aa42991041e1b7a",
-    "publication_helper_sha256": "7d36d0ac4563a013ca0cea729e69e12f7b92c1e90c0093e9cc70189d68177727"
+    "deployer_sha256": "563b114e877febde9eedad4da411dea191801492019db21b97b011fac8cc20b2",
+    "postcheck_sha256": "37c35ed53ebb0c4650c37a881c3c3a4238cce7c4a5e9016faa035557e0223723",
+    "publication_helper_sha256": "91c45521c3aee9696166903b8d6e2dbb48b2f46db3842b65c21045e80507a421",
+    "first_preflight": {
+      "service_restart": false,
+      "source_changed": false,
+      "reason": "protected_worktree_inventory_changed",
+      "actual_inventory": {
+        "root_dirty_files": 2,
+        "host_a_dirty_files": 64,
+        "wakenet_dirty_files": 0
+      },
+      "resolution": "include_the_existing_clean_third_worktree_in_exact_guard_and_preserve_all_three",
+      "repeat_native_gate_required_for_changed_deployer": true
+    },
+    "expected_worktree_dirty_counts": {
+      "root": 2,
+      "hosta": 64,
+      "wakenet": 0
+    },
+    "unrelated_worktree_heads": {
+      "hosta": "e23bbef4e040795008ad6a167100222d29b43001",
+      "wakenet": "410bbd7365ca670c619efb0b3df926c47ff39e3d"
+    }
   },
   "unchanged": {
     "working_memory_ttl_seconds": 43200,
@@ -129,5 +217,6 @@
     "expense_grants": true,
     "private_family_acl": true,
     "television_adapter_connected": false
-  }
+  },
+  "initial_implementation_commit": "2d3fb9641e0f43f1862487b6457ccd4100f0cbf4"
 }

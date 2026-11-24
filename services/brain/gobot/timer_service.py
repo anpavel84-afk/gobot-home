@@ -16,7 +16,7 @@ from uuid import uuid4
 ALARM_LATE_SECONDS = 120
 MAX_DELIVERY_BATCH = 16
 MAX_CURRENT_TIMERS = 16
-LATCH_SECONDS = 86400
+ALARM_RECEIPT_TIMEOUT_SECONDS = 86400
 TERMINAL_RECEIPTS = frozenset({'finished', 'cancelled', 'suppressed', 'unknown'})
 
 
@@ -124,8 +124,7 @@ class TimerService:
             query += " AND t.status='running' AND t.deadline>?"
             args += (now,)
         elif current:
-            query += " AND (t.status='running' OR (t.status='expired' AND t.deadline>=?))"
-            args += (now-LATCH_SECONDS,)
+            query += " AND t.status IN ('running','expired')"
         return db.execute(query+' ORDER BY t.deadline,t.id', args).fetchall()
 
     def active(self, req, *, now=None):
@@ -240,16 +239,11 @@ class TimerService:
                     (str(uuid4()), row['id'], row['scope_key'], revision, expires,
                      'pending' if now < expires else 'suppressed', now))
             db.execute("UPDATE timer_alarm_deliveries SET state='suppressed',updated_at=? WHERE state='pending' AND expires_at<=?", (now, now))
-            # A day-old latch leaves the bounded current set with a new revision.
-            # Keep the timer, action receipt and delivery fence for audit/replays.
-            aged = db.execute('''SELECT t.id,b.scope_key FROM timers t JOIN timer_bindings b ON b.timer_id=t.id
-                WHERE t.status='expired' AND t.deadline<?''', (now-LATCH_SECONDS,)).fetchall()
-            for row in aged:
-                revision = self._bump(db, row['scope_key'])
-                db.execute("UPDATE timers SET status='archived' WHERE id=?", (row['id'],))
-                db.execute('UPDATE timer_bindings SET revision=? WHERE timer_id=?', (revision, row['id']))
-                db.execute("UPDATE timer_alarm_deliveries SET state='unknown',updated_at=? WHERE timer_id=? AND state IN ('claimed','started')",
-                           (now, row['id']))
+            # A lost terminal receipt never permits another audible attempt.
+            # Its timeout does not dismiss the expired timer or free its slot.
+            db.execute("""UPDATE timer_alarm_deliveries SET state='unknown',updated_at=?
+                WHERE state IN ('claimed','started') AND claimed_at<?""",
+                (now, now-ALARM_RECEIPT_TIMEOUT_SECONDS))
             return len(rows)
 
     def snapshot(self, req, *, now=None):
