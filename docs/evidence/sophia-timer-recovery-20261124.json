@@ -94,9 +94,28 @@
   "public_transcripts_or_secrets_exported": false,
   "master_changed": false,
   "latest_gateway_source": "260eeb8",
-  "manual_acceptance": "blocked_startup_connection_delay",
+  "manual_acceptance": "owner_observed_start_and_native_display_alarm_receipts_passed_human_tone_pending",
   "latest_stable_ready_confirmed": false,
   "implicit_legacy_fallback_blocked": true,
   "cold_wake_firmware_fix_installed": false,
-  "gateway_native_gate_tests_passed": 127
+  "gateway_native_gate_tests_passed": 127,
+  "latest_manual_timer": {
+    "duration_seconds": 300,
+    "created_by_real_owner_request": true,
+    "owner_reported_started": true,
+    "server_action_executed": true,
+    "display_receipt_confirmed": true,
+    "terminal_timer_state": "expired",
+    "alarm_delivery_state": "finished",
+    "signal_receipt_confirmed": true,
+    "human_signal_audibility_confirmed": false,
+    "duplicates_created": 0,
+    "developer_model_calls": 0,
+    "server_or_board_restart_during_timer": false,
+    "first_input_asr_empty": true,
+    "next_input_asr_nonempty": true,
+    "tool_commit_after_nonempty_asr_seconds": 1.33,
+    "provider_error_events_before_commit": 2,
+    "exact_provider_error_codes_available": false
+  }
 }
