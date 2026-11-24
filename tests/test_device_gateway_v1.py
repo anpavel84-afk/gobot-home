@@ -177,3 +177,19 @@ def test_only_finalized_owned_mode_can_select_a(tmp_path,monkeypatch):
             assert await gateway.active_legacy_flow(client) is None
     asyncio.run(run())
     assert gateway.mode_flow is None
+
+
+@pytest.mark.parametrize('caps',[None,{'version':1},{'version':2,'local_wake_enabled':False,'capture':'continuous','pcm_stage':'pre_afe'}])
+def test_unified_sophia_cold_hello_cannot_start_legacy_livekit_or_reserve_turn(tmp_path,monkeypatch,caps):
+    monkeypatch.setattr(g,'PRIVATE',tmp_path)
+    hello={'type':'hello','version':1,'transport':'websocket','audio_params':{'format':'opus','sample_rate':16000,'channels':1,'frame_duration':60}}
+    if caps is not None:hello['host_stream']=caps
+    class Socket(FakeWS):
+        async def recv(self):return next(self.messages)
+    ws=Socket([json.dumps(hello)])
+    def forbidden(*a,**kw):raise AssertionError('Unexpected provider/legacy request')
+    gateway=g.Gateway({**CONFIG,'mode':'realtime_b','continuous_live':True,'unified_voice':{'enabled':True}},'fixture-key',client_factory=forbidden)
+    asyncio.run(gateway.handle(ws))
+    assert ws.closed==[(1008,'Sophia native transport required')]
+    assert gateway.stats['rejected']==1 and gateway.stats['captures']==0 and gateway.stats['accepted']==0
+    assert not gateway.active and not (tmp_path/'hardware-usage.json').exists()

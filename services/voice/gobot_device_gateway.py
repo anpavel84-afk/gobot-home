@@ -239,8 +239,9 @@ class Gateway:
             await ws.close(1013, 'Device busy'); return
         unified = self.config.get('unified_voice', {})
         if isinstance(unified, dict) and unified.get('enabled') is True:
-            # Negotiate before selecting a transport. Legacy firmware receives
-            # exactly its old handler; a v2 flag alone never starts capture.
+            # This enrolled device explicitly selects unified Sophia. A cold
+            # firmware fallback must not silently start the legacy/LiveKit stack.
+            # Comparison legacy routes remain available with unified disabled.
             from sophia_connection import SophiaConnection, PrefetchedSocket, supports_sophia_v2
             try:
                 first = await asyncio.wait_for(ws.recv(), 8)
@@ -271,7 +272,11 @@ class Gateway:
                         self.active = False
                         self.save_stats()
                     return
-                ws = PrefetchedSocket(ws, first)
+                self.stats['rejected'] += 1
+                self.stats['last_protocol_rejection'] = 'sophia_native_transport_required'
+                self.save_stats()
+                await ws.close(1008, 'Sophia native transport required')
+                return
             except (ValueError, TypeError, TimeoutError):
                 self.stats['rejected'] += 1
                 await ws.close(1008, 'Invalid voice capability handshake')
