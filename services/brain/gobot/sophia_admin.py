@@ -5,8 +5,8 @@ provider URL. Reads use the existing DeviceStore database without creating a
 profile. Weather setup follows SettingsTools' find -> explicit choice -> source
 verification -> save/readback sequence, with a revision fence for web editors.
 
-Only weather settings are writable here. Voice grants, firmware, household
-history, credentials and model selection are deliberately outside this schema.
+Weather and bounded conversation preferences are writable here. Voice grants,
+firmware, household history, credentials and model selection stay outside it.
 """
 import asyncio
 import hashlib
@@ -22,7 +22,8 @@ import time
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from .device_contract import DeviceProfile, WeatherPreferences
+from .device_contract import DeviceProfile, WeatherPreferences, ConversationPolicy, ConversationSkills
+from .conversation_capabilities import conversation_settings, effective_snapshot, public_snapshot
 from .realtime_api import bounded_json
 from .weather import WeatherClient, WeatherError
 
@@ -156,6 +157,7 @@ class SophiaAdmin:
                 check = None
             check = self._check_public(check) if check else None
         weather = record['profile'].weather
+        conversation = conversation_settings(record['profile'])
         home_context = {'weather_location_configured': weather.enabled,
                         'weather_location': weather.location_name if weather.enabled else None,
                         'location_basis': 'configured_device_home_not_live_gps'}
@@ -163,9 +165,15 @@ class SophiaAdmin:
             'ok': True, 'observed_at': self.clock(),
             'target': {'id': record['target'], 'label': 'Spotpear · София', 'kind': 'spotpear'},
             'revision': record['revision'],
-            'settings': {'weather': _safe_weather(weather)},
-            'supported_fields': ['weather.enabled', 'weather.location'],
-            'application': {**APPLICATION, 'expected_home_context_revision': _digest(_canonical(home_context))},
+            'settings': {'weather': _safe_weather(weather), 'conversation': conversation},
+            'capabilities': public_snapshot(effective_snapshot(conversation)),
+            'supported_fields': ['weather.enabled', 'weather.location',
+                                 'conversation.guidance', 'conversation.skills'],
+            'application': {**APPLICATION, 'expected_home_context_revision': _digest(_canonical(home_context)),
+                            'expected_conversation_revision': conversation['revision'],
+                            'conversation_status': 'waiting_provider_confirmation',
+                            'conversation_message': 'Пожелания и умения сохранены для этой колонки. '
+                                'Обновление открытого разговора подтверждается сервером отдельно.'},
             'weather_check': check,
         }
 
@@ -316,17 +324,33 @@ class SophiaAdmin:
         revision = body['expected_revision']
         patch = body['patch']
         if (not isinstance(revision, str) or not re.fullmatch('[a-f0-9]{64}', revision)
-                or not isinstance(patch, dict) or set(patch) != {'weather'}
-                or not isinstance(patch['weather'], dict) or not patch['weather']
-                or set(patch['weather'])-{'enabled', 'candidate_id', 'verification_id'}):
+                or not isinstance(patch, dict) or not patch
+                or set(patch)-{'weather', 'conversation'}):
             _fail(422, 'invalid_setting')
-        weather = patch['weather']
+        weather = patch.get('weather', {})
+        if 'weather' in patch and (not isinstance(weather, dict) or not weather
+                or set(weather)-{'enabled', 'candidate_id', 'verification_id'}):
+            _fail(422, 'invalid_setting')
         if 'enabled' in weather and type(weather['enabled']) is not bool:
             _fail(422, 'invalid_setting')
         for key in ('candidate_id', 'verification_id'):
             if key in weather and (not isinstance(weather[key], str)
                                   or not re.fullmatch('[a-f0-9]{32}', weather[key])):
                 _fail(422, 'invalid_setting')
+        if 'conversation' in patch:
+            conversation = patch['conversation']
+            if (not isinstance(conversation, dict) or not conversation
+                    or set(conversation)-{'guidance', 'skills'}):
+                _fail(422, 'invalid_setting')
+            try:
+                if 'guidance' in conversation:
+                    ConversationPolicy(guidance=conversation['guidance'])
+                if 'skills' in conversation:
+                    if not isinstance(conversation['skills'], dict) or not conversation['skills']:
+                        raise ValueError()
+                    ConversationSkills.model_validate(conversation['skills'])
+            except (ValueError, TypeError):
+                _fail(422, 'invalid_conversation_setting')
         if apply and (not isinstance(body['operation_id'], str)
                       or not re.fullmatch('[A-Za-z0-9_-]{16,80}', body['operation_id'])):
             _fail(422, 'invalid_operation_id')
@@ -335,7 +359,7 @@ class SophiaAdmin:
     def _proposed(self, actor_hash, record, body):
         if body['expected_revision'] != record['revision']:
             _fail(409, 'revision_conflict')
-        patch = body['patch']['weather']
+        patch = body['patch'].get('weather', {})
         current = record['profile'].weather
         enabled = patch.get('enabled', current.enabled)
         candidate_id = patch.get('candidate_id')
@@ -368,15 +392,45 @@ class SophiaAdmin:
                 changes.append({'field': 'weather.'+field, 'before': before, 'after': after})
         return proposed, changed, changes
 
+    @staticmethod
+    def _conversation_audit(policy):
+        # Free-form guidance belongs in the existing profile, never in an
+        # operation journal or a downloadable diagnostic report.
+        return {'guidance_changed_to': {'present': bool(policy.guidance),
+                    'characters': len(policy.guidance), 'sha256': _digest(policy.guidance)},
+                'skills': policy.skills.model_dump()}
+
+    def _proposed_conversation(self, record, body):
+        current = record['profile'].conversation
+        patch = body['patch'].get('conversation', {})
+        values = current.model_dump()
+        if 'guidance' in patch:
+            values['guidance'] = patch['guidance']
+        if 'skills' in patch:
+            values['skills'] = {**values['skills'], **patch['skills']}
+        proposed = ConversationPolicy.model_validate(values)
+        changes = []
+        if proposed.guidance != current.guidance:
+            changes.append({'field': 'conversation.guidance',
+                'before': self._conversation_audit(current)['guidance_changed_to'],
+                'after': self._conversation_audit(proposed)['guidance_changed_to']})
+        for name, enabled in proposed.skills.model_dump().items():
+            before = getattr(current.skills, name)
+            if before != enabled:
+                changes.append({'field': 'conversation.skills.'+name, 'before': before, 'after': enabled})
+        return proposed, proposed != current, changes
+
     def validate(self, actor, body):
         actor_hash = self._actor(actor)
         self._body(body)
         record = self.read()
         with self.lock:
             proposed, changed, changes = self._proposed(actor_hash, record, body)
+            conversation, conversation_changed, conversation_changes = self._proposed_conversation(record, body)
         return {'ok': True, 'revision': record['revision'], 'changes': changes,
-                'unchanged': not changed, 'weather': _safe_weather(proposed),
-                'application': dict(APPLICATION)}
+                'conversation_changes': conversation_changes,
+                'unchanged': not (changed or conversation_changed), 'weather': _safe_weather(proposed),
+                'conversation': conversation_settings(conversation), 'application': dict(APPLICATION)}
 
     @staticmethod
     def _operation_table(db):
@@ -406,10 +460,11 @@ class SophiaAdmin:
                     return {'ok': True, 'operation_id': body['operation_id'], 'idempotent': True,
                             'unchanged': False, 'settings': self._public(record), 'change': self._change(previous)}
                 proposed, changed, _ = self._proposed(actor_hash, record, body)
-                if not changed:
+                conversation, conversation_changed, _ = self._proposed_conversation(record, body)
+                if not (changed or conversation_changed):
                     return {'ok': True, 'operation_id': body['operation_id'], 'idempotent': False,
                             'unchanged': True, 'settings': self._public(record), 'change': None}
-                updated = record['profile'].model_copy(update={'weather': proposed})
+                updated = record['profile'].model_copy(update={'weather': proposed, 'conversation': conversation})
                 # Full existing DeviceProfile validation preserves its identity
                 # and all fields that are outside this route's tiny patch schema.
                 updated = DeviceProfile.model_validate(updated.model_dump())
@@ -417,6 +472,9 @@ class SophiaAdmin:
                 revision = _digest(raw)
                 before = _safe_weather(record['profile'].weather)
                 after = _safe_weather(proposed)
+                if conversation_changed:
+                    before['conversation'] = self._conversation_audit(record['profile'].conversation)
+                    after['conversation'] = self._conversation_audit(conversation)
                 at = self.clock()
                 self._operation_table(db)
                 result = db.execute('UPDATE profiles SET profile=? WHERE owner=? AND profile=?',
@@ -431,7 +489,7 @@ class SophiaAdmin:
                     _fail(503, 'admin_settings_readback_failed')
                 # Explicit commit before a success receipt or proof reassignment.
                 db.commit()
-                proof = self.verifications.get(body['patch']['weather'].get('verification_id'))
+                proof = self.verifications.get(body['patch'].get('weather', {}).get('verification_id'))
                 if proof and proof.get('place') == proposed and proof.get('revision') == record['revision']:
                     self._remember(self.checks, target, {**self._check_public(proof), 'revision': revision})
                 else:
@@ -504,13 +562,13 @@ def attach_sophia_admin(app, root, *, authenticate, runtime_status=None, weather
     @app.post(PREFIX+'/settings/validate')
     async def validate(request: Request):
         actor = await owner(request, write=True)
-        body = await bounded_json(request, 4096)
+        body = await bounded_json(request, 8192)
         return response(await asyncio.to_thread(service.validate, actor, body))
 
     @app.post(PREFIX+'/settings/apply')
     async def apply(request: Request):
         actor = await owner(request, write=True)
-        body = await bounded_json(request, 4096)
+        body = await bounded_json(request, 8192)
         return response(await asyncio.to_thread(service.apply, actor, body))
 
     return service

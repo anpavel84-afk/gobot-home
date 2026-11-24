@@ -305,7 +305,11 @@ def test_slow_snapshot_for_old_mode_cannot_overwrite_new_mode(tmp_path, settings
             pending = asyncio.create_task(session.publish_admission_status(force=True))
             assert await asyncio.to_thread(entered.wait, 1)
             switch = asyncio.create_task(session.select_mode('expert'))
-            await asyncio.sleep(0)
+            # Selecting expert now reads the current restrictive owner flag.
+            # Wait for the observable mode transition, not one scheduler tick.
+            async with asyncio.timeout(1):
+                while session.selected_mode != 'expert':
+                    await asyncio.sleep(.001)
             assert session.selected_mode == 'expert'
             release.set()
             await asyncio.gather(pending, switch)

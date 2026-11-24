@@ -18,7 +18,7 @@ from pathlib import Path
 
 DENIED = {'authorization','api_key','key','secret','password','cookie','cookies','headers',
           'sdp','audio','raw_audio','pcm','embedding','embeddings','fingerprint',
-          'instructions','context','packet','stdout','stderr','preferences','profile',
+          'instructions','context','packet','stdout','stderr','preferences','profile','guidance',
           'environment','env','latitude','longitude','input_audio','output_audio','voiceprint',
           'access_token','refresh_token','token','client_secret','session','input'}
 

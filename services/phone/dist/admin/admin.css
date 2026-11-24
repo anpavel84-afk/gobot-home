@@ -21,3 +21,4 @@
 .skill-intro{margin-bottom:22px}
 
 .memory-warning{padding:13px 15px;margin-bottom:18px;border:1px solid #e5c595;border-radius:9px;background:#fff8eb;color:#7a5528;font-size:.875rem;line-height:1.6}.memory-controls .field{margin-bottom:22px}.memory-controls .toggle-field>div{min-width:0}.memory-controls+.section-actions{flex-wrap:wrap}.memory-controls~.note{margin-top:18px}
+.conversation-controls textarea{width:100%;min-height:120px;resize:vertical;border:1px solid #cbd9d4;border-radius:9px;padding:12px;font:inherit;color:var(--ink);background:white;line-height:1.6}.conversation-controls textarea:focus-visible{outline:3px solid #178b80;outline-offset:3px}.conversation-controls textarea:disabled{background:#f1f4f3;color:#67746f}.conversation-controls .note{margin-top:16px}.conversation-controls .toggle-field>div{min-width:0}

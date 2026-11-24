@@ -1,0 +1,215 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "0.4.20-dev-sophia-duck-v4")
++set(PROJECT_VER "0.4.21-dev-sophia-timer-v4")
+ project(xiaozhi)
+diff --git a/main/application.cc b/main/application.cc
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -884,6 +884,7 @@
+     }
+     const auto rendered=touchui::Render(page);
+     HostAdmissionRendered(admission_notice,static_cast<uint8_t>(page.view),rendered);
++    HostTimerRendered(timer_key_==host_timer_ui_.Id() && !page.badge.empty(),rendered);
+ }
+ 
+ void Application::HandleToggleChatEvent() { TouchGesture(false,false); }
+diff --git a/main/application.h b/main/application.h
+--- a/main/application.h
++++ b/main/application.h
+@@ -23,6 +23,7 @@
+ #include "gobot_turn_guard.h"
+ #include "host_output_receipts.h"
+ #include "host_admission_ui.h"
++#include "host_timer_ui.h"
+ #include "host_barge_wake.h"
+ #include "notify/notify_player.h"
+ 
+@@ -150,6 +151,7 @@
+     std::string host_response_id_,host_output_kind_;
+     gobot_host::OutputReceipts host_output_receipts_;
+     gobot_host::AdmissionUi host_admission_ui_;
++    gobot_host::TimerUi host_timer_ui_;
+     gobot_host::InterruptLatch host_interrupt_;
+     bool host_interrupt_quiet_sent_=false;
+     bool host_touch_resume_pending_=false;
+@@ -177,6 +179,8 @@
+     void HostDriverOutputStarted();
+     void HostOnControl(const cJSON* root);
+     void HostAdmissionRendered(bool notice,uint8_t native_view,gobot_host::NativeRenderResult result);
++    void HostTimerControl(const cJSON* root);
++    void HostTimerRendered(bool timer_visible,gobot_host::NativeRenderResult result);
+     void HostControl(const std::string& type,const std::string& extras="");
+     uint64_t gobot_timer_end_ = 0;
+     int gobot_timer_seconds_ = -1;
+diff --git a/main/gobot_build_info.h b/main/gobot_build_info.h
+--- a/main/gobot_build_info.h
++++ b/main/gobot_build_info.h
+@@ -1,3 +1,3 @@
+ #pragma once
+ #define GOBOT_BUILD_EPOCH 1794492000
+-#define GOBOT_FIRMWARE_VERSION "0.4.20-dev-sophia-duck-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.21-dev-sophia-timer-v4"
+diff --git a/main/host_rc1_app.inc b/main/host_rc1_app.inc
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -25,6 +25,36 @@
+         (host_admission_ui_.RenderedNotice()?"true":"false")+",\"render_revision\":"+
+         std::to_string(host_admission_ui_.Revision())+",\"render_evidence\":\""+
+         host_admission_ui_.RenderEvidence()+"\"");
++}
++
++void Application::HostTimerControl(const cJSON* root) {
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    const auto session=gobot::String(root,"session_id",80);
++    const auto epoch=gobot::String(root,"epoch",80);
++    if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() || !session || !epoch ||
++       !ws->HostScope(session,epoch))return;
++    const auto revision=cJSON_GetObjectItem(root,"revision");
++    const auto remaining=cJSON_GetObjectItem(root,"remaining_ms");
++    const auto state=gobot::String(root,"state",8);
++    const auto id=cJSON_GetObjectItem(root,"timer_id");
++    if(!cJSON_IsNumber(revision) || !cJSON_IsNumber(remaining) || !cJSON_IsString(id))return;
++    const auto result=host_timer_ui_.Update(revision->valuedouble,state,id->valuestring,
++                                          remaining->valuedouble,gobot::NowMs());
++    if(result!=gobot_host::TimerUpdate::Accepted)return;
++    timer_key_=host_timer_ui_.Id();gobot_timer_end_=host_timer_ui_.Deadline();
++    timer_latched_=host_timer_ui_.Expired();
++    RenderGoBot(); // Presentation only; mute/capture/output/wake/grants stay unchanged.
++}
++
++void Application::HostTimerRendered(bool timer_visible,gobot_host::NativeRenderResult result) {
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() ||
++       !host_timer_ui_.ObserveRender(result,timer_visible))return;
++    HostControl("gobot_host_timer_ack",std::string(",\"revision\":")+
++        std::to_string(host_timer_ui_.Revision())+",\"state\":\""+host_timer_ui_.State()+
++        "\",\"timer_id\":\""+host_timer_ui_.Id()+"\",\"rendered\":"+
++        (host_timer_ui_.Rendered()?"true":"false")+",\"evidence\":\""+
++        host_timer_ui_.Evidence()+"\"");
+ }
+ 
+ void Application::HostFault(const char* reason) {
+@@ -255,6 +285,7 @@
+            !ws->HostReady(session,epoch,negotiated)) {HostFault("ready_invalid");return;}
+         host_interrupt_.Reset();
+         host_admission_ui_.Reset();
++        host_timer_ui_.ResetTransport(); // Keep the local deadline across reconnect.
+         host_ready_=true;host_touch_active_=false;host_ready_deadline_ms_=0;
+         host_output_epoch_=0;host_response_busy_=false;
+         if(ws->HostV2()) {
+@@ -276,6 +307,7 @@
+         RenderGoBot();return;
+     }
+     if(!host_ready_ || !ws->HostScope(session,epoch))return;
++    if(kind=="gobot_host_timer") {HostTimerControl(root);return;}
+     if(kind=="gobot_host_admission" && ws->HostV2()) {
+         const auto allowed=cJSON_GetObjectItem(root,"input_allowed");
+         const int token=cJSON_IsBool(allowed)?(cJSON_IsTrue(allowed)?1:0):-1;
+diff --git a/main/host_timer_ui.h b/main/host_timer_ui.h
+new file mode 100644
+--- /dev/null
++++ b/main/host_timer_ui.h
+@@ -0,0 +1,75 @@
++#pragma once
++#include <cstdint>
++#include <cstring>
++#include <cmath>
++#include <limits>
++#include "host_admission_ui.h"
++
++// Fixed-size display state only. No capture, wake, grant, volume or playback
++// authority is granted by a timer update. The host owns durable wall time;
++// this presentation uses a local monotonic deadline between host snapshots.
++namespace gobot_host {
++enum class TimerUpdate : uint8_t { Invalid=0, Accepted=1, Duplicate=2, Stale=3 };
++
++class TimerUi {
++public:
++    void ResetTransport() {revision_=0;reported_=false;}
++
++    TimerUpdate Update(double revision,const char* state,const char* id,
++                       double remaining_ms,uint64_t now) {
++        if(!std::isfinite(revision) || revision<1 || revision>0xffffffffULL ||
++           revision!=std::floor(revision) || !std::isfinite(remaining_ms) ||
++           remaining_ms<0 || remaining_ms>86400000 || remaining_ms!=std::floor(remaining_ms) ||
++           !state || !id)return TimerUpdate::Invalid;
++        const bool clear=!std::strcmp(state,"clear");
++        const bool running=!std::strcmp(state,"running");
++        const bool expired=!std::strcmp(state,"expired");
++        if((!clear && !running && !expired) || (clear?*id!=0:!Uuid(id)) ||
++           (!running && remaining_ms!=0) || (running && remaining_ms<1) ||
++           now>std::numeric_limits<uint64_t>::max()-static_cast<uint64_t>(remaining_ms))return TimerUpdate::Invalid;
++        const auto next=static_cast<uint32_t>(revision);
++        if(next<revision_)return TimerUpdate::Stale;
++        if(next==revision_)return !std::strcmp(id,id_) && !std::strcmp(state,state_) &&
++            remaining_ms==remaining_ms_?TimerUpdate::Duplicate:TimerUpdate::Invalid;
++        revision_=next;remaining_ms_=static_cast<uint32_t>(remaining_ms);
++        std::strcpy(id_,id);std::strcpy(state_,state);
++        deadline_=running?now+remaining_ms_:0;
++        reported_=false;
++        return TimerUpdate::Accepted;
++    }
++
++    bool ObserveRender(NativeRenderResult result,bool timer_visible) {
++        if(!revision_ || result==NativeRenderResult::Failed)return false;
++        const bool rendered=timer_visible && std::strcmp(state_,"clear");
++        if(reported_ && rendered_==rendered)return false;
++        reported_=true;rendered_=rendered;result_=result;return true;
++    }
++    uint32_t Revision() const {return revision_;}
++    const char* Id() const {return id_;}
++    const char* State() const {return state_;}
++    uint64_t Deadline() const {return deadline_;}
++    bool Expired() const {return !std::strcmp(state_,"expired");}
++    bool Rendered() const {return rendered_;}
++    const char* Evidence() const {
++        return result_==NativeRenderResult::Invalidated?
++            "native_framebuffer_invalidated":"native_framebuffer_unchanged";
++    }
++
++private:
++    uint32_t revision_=0,remaining_ms_=0;
++    uint64_t deadline_=0;
++    char id_[37]={},state_[8]="clear";
++    bool reported_=false,rendered_=false;
++    NativeRenderResult result_=NativeRenderResult::Failed;
++    static bool Uuid(const char* value) {
++        if(std::strlen(value)!=36)return false;
++        for(unsigned i=0;i<36;++i) {
++            const char c=value[i];
++            if(i==8 || i==13 || i==18 || i==23) {if(c!='-')return false;}
++            else if(!((c>='0' && c<='9') || (c>='a' && c<='f')))return false;
++        }
++        return true;
++    }
++};
++static_assert(sizeof(TimerUi)<=80,"Timer presentation must stay bounded");
++}
+diff --git a/main/protocols/websocket_protocol.cc b/main/protocols/websocket_protocol.cc
+--- a/main/protocols/websocket_protocol.cc
++++ b/main/protocols/websocket_protocol.cc
+@@ -372,6 +372,7 @@
+         cJSON_AddStringToObject(caps,"capture","continuous");
+         cJSON_AddBoolToObject(caps,"frame_sequence",true);
+         cJSON_AddBoolToObject(caps,"local_wake_enabled",true);
++        cJSON_AddNumberToObject(caps,"timer_display",1);
+         cJSON_AddBoolToObject(caps,"local_feedback",true);
+         cJSON_AddBoolToObject(caps,"playback_epoch",true);
+         cJSON_AddItemToObject(root,"host_stream",caps);
+diff --git a/main/touch_screen.h b/main/touch_screen.h
+--- a/main/touch_screen.h
++++ b/main/touch_screen.h
+@@ -97,6 +97,7 @@
+             text(p.detail,153,atlas::ink);
+             text(p.view==View::Timer?"Коснитесь":"ГоБот",181,atlas::muted);
+             if(*engine)text(engine,20,engine_color,1,150);
++            if(!p.badge.empty() && p.view!=View::Timer)text(p.badge,35,atlas::amber);
+             return;
+         }
+         default: break;

@@ -14,8 +14,8 @@ class ToolResult:
 class LocalTools:
     def __init__(self,memory):
         self.memory=memory;self.timer_targets={};self.target_lock=threading.Lock()
-        with memory.connect() as c:c.execute('''CREATE TABLE IF NOT EXISTS timers(id TEXT PRIMARY KEY,device_id TEXT,conversation_id TEXT,deadline REAL,status TEXT)''')
-        with memory.connect() as c:c.execute('CREATE TABLE IF NOT EXISTS timer_action_receipts(owner TEXT,action TEXT,payload_hash TEXT,result TEXT,PRIMARY KEY(owner,action))')
+        from .timer_service import TimerService
+        self.timers=TimerService(memory)
     @staticmethod
     def timer_scope(req):
         return (req.device_id,req.conversation_id,req.profile_epoch,req.client_id)
@@ -66,7 +66,7 @@ class LocalTools:
                             ('id','turn_id','role','heard','status','content_complete','excerpted') if key in item}
                             for item in messages])
         return ToolResult(answer,evidence=evidence)
-    def execute(self,tool,req,slots=None):
+    def execute(self,tool,req,slots=None,*,action_id=None,is_current=None):
         text=req.text.lower()
         slots=slots or {}
         if tool=='utility':
@@ -94,11 +94,29 @@ class LocalTools:
             answer=('По времени домашнего сервера сейчас ' if kind=='clock_time' else 'Сегодня ')+value+'.'
             return ToolResult(answer,evidence={'method':'server_clock','verified':True,'canonical_answer':answer,'display':value,'utc_offset':now.strftime('%z'),'as_of':now.isoformat()})
         if tool=='timer_status':
-            with self.memory.connect() as c:rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline,id",(req.device_id,time.time())).fetchall()
+            native=self.native_timer_action(action_id)
+            if native:
+                self.timers._current(is_current)
+                rows=self.timers.current(req)
+                self.timers._current(is_current)
+            else:
+                with self.memory.connect() as c:rows=c.execute("""SELECT t.id,t.deadline FROM timers t
+                    LEFT JOIN timer_bindings b ON b.timer_id=t.id WHERE t.device_id=?
+                    AND b.scope_key IS NULL AND t.status='running' AND t.deadline>?
+                    ORDER BY t.deadline,t.id""",(req.device_id,time.time())).fetchall()
             with self.target_lock:
                 self.timer_targets={k:v for k,v in self.timer_targets.items() if v[0]>time.time()}
                 if len(self.timer_targets)>=256:self.timer_targets.pop(next(iter(self.timer_targets)))
                 self.timer_targets[self.timer_scope(req)]=(time.time()+120,[r['id'] for r in rows[:5]])
+            if native:
+                listed=[{'timer_id':row['id'],'state':row['status'],
+                    'remaining_ms':max(0,round((row['deadline']-time.time())*1000)) if row['status']=='running' else 0} for row in rows[:5]]
+                answer=('Твои таймеры: '+'; '.join(str(i+1)+': '+('завершён' if row['status']=='expired' else
+                    'осталось '+duration_text(max(1,int(row['deadline']-time.time())))) for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет текущих таймеров.'
+                if len(rows)>5:answer+=' Показаны первые пять из '+str(len(rows))+'.'
+                return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,
+                    'active_count':sum(row['status']=='running' for row in rows),'current_count':len(rows),
+                    'timer_ids':[row['id'] for row in rows[:5]],'timers':listed})
             answer=('Таймеры по ближайшему срабатыванию: '+'; '.join(str(i+1)+': '+duration_text(max(1,int(row['deadline']-time.time()))) for i,row in enumerate(rows[:5]))+'.') if rows else 'У тебя нет активных таймеров.'
             return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'active_count':len(rows),
                 'timer_ids':[r['id'] for r in rows[:5]]})
@@ -137,18 +155,43 @@ class LocalTools:
                 row=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.owner=? AND a.namespace='production' AND a.status='completed' AND m.role='user' AND m.turn_id!=? ORDER BY m.id DESC LIMIT 1",(req.device_id,req.turn_id)).fetchone()
                 return ToolResult('В сохранённой истории последний вопрос был: '+row[0],evidence={'method':'memory_source','verified':True,'canonical_answer':row[0]}) if row else ToolResult('В твоей сохранённой истории пока нет предыдущих вопросов.',evidence={'abstained':True})
         if tool=='timer':
-            if slots.get('operation')=='cancel':return self.cancel_timer(req,slots.get('target',''))
+            if slots.get('operation')=='cancel':return self.cancel_timer(req,slots.get('target',''),action_id=action_id,is_current=is_current)
             seconds=slots.get('seconds')
             if seconds is None:
-                self.memory.set_pending(req,'timer_duration')
-                return ToolResult('На сколько минут или секунд поставить таймер?',evidence={'method':'timer_state','needs_parameters':True,'missing_slots':['duration']})
+                if self.native_timer_action(action_id):self.native_timer_pending(req,action_id,is_current)
+                else:self.memory.set_pending(req,'timer_duration')
+                return ToolResult('На сколько минут или секунд поставить таймер?',evidence={'method':'timer_state','executed':False,'needs_parameters':True,'missing_slots':['duration']})
             if slots.get('status') not in {None,'validated'}:return ToolResult('Уточни одну длительность таймера без альтернатив и дополнительных команд.')
             if not 1<=seconds<=86400:return ToolResult('Таймер можно поставить на время от одной секунды до суток.')
-            return self.start_timer_once(req,seconds)
+            return self.start_timer_once(req,seconds,action_id,is_current=is_current)
         return ToolResult('Нужное действие пока не настроено.')
 
-    def start_timer_once(self,req,seconds,action_id=None):
+    @staticmethod
+    def native_timer_action(action_id):
+        return isinstance(action_id,str) and action_id.startswith('native-timer:')
+
+    def native_timer_pending(self,req,action_id,is_current):
+        if action_id!='native-timer:'+req.turn_id or not callable(is_current):raise PermissionError('current_user_command_required')
+        self.timers._current(is_current)
+        pending=self.memory.set_pending(req,'timer_duration')
+        try:self.timers._current(is_current)
+        except PermissionError:
+            self.memory.settle_pending(req,'cancelled',pending['id'])
+            raise
+
+    def start_timer_once(self,req,seconds,action_id=None,*,is_current=None):
         """An explicit logical action ID, never text/argument similarity, deduplicates."""
+        if self.native_timer_action(action_id):
+            if action_id!='native-timer:'+req.turn_id or not callable(is_current):raise PermissionError('current_user_command_required')
+            result=self.timers.start(req,seconds,action_id=action_id,is_current=is_current)
+            if not result['executed']:
+                answer='У тебя уже 16 текущих таймеров. Убери завершённые или отмени ненужные, затем поставь новый.'
+                return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,**result})
+            self.clear_timer_context(req);self.memory.settle_pending(req,'completed')
+            return ToolResult('Таймер запущен на '+duration_text(result['duration_seconds'])+'.',
+                widget={'type':'custom','payload':{'namespace':'gobot.ui','version':1,'command':'timer.start',
+                    'duration_ms':result['duration_seconds']*1000,'timer_id':result['timer_id'],'deadline':result['deadline']}},
+                evidence={'method':'timer_state','verified':True,**result})
         if type(seconds) not in (int,float) or not 1<=seconds<=86400:raise ValueError('invalid_timer_duration')
         digest=hashlib.sha256(json.dumps([seconds,req.conversation_id,req.client_id,req.profile_epoch]).encode()).hexdigest()
         with self.memory.connect() as c:
@@ -166,11 +209,26 @@ class LocalTools:
         self.clear_timer_context(req);self.memory.settle_pending(req,'completed')
         return ToolResult(**data)
 
-    def cancel_timer(self,req,target):
+    def cancel_timer(self,req,target,*,action_id=None,is_current=None):
+        if self.native_timer_action(action_id):
+            if action_id!='native-timer:'+req.turn_id or not callable(is_current):raise PermissionError('current_user_command_required')
+            snapshot=self.timer_context(req)
+            result=self.timers.cancel(req,target,listed_ids=snapshot.get('timer_list_ids',()),
+                action_id=action_id,is_current=is_current)
+            if result['executed']:
+                self.clear_timer_context(req)
+                answer='Все твои текущие таймеры убраны.' if self.timers._target(target)=='all' else 'Выбранный таймер убран.'
+                return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,**result})
+            if result['reason']=='no_active_timers':
+                return ToolResult('У тебя нет текущих таймеров.',evidence={'method':'timer_state','verified':True,**result})
+            return ToolResult('Сначала попроси показать таймеры, затем назови номер из списка; можно явно сказать «все таймеры».',
+                evidence={'method':'timer_state','needs_parameters':True,'missing_slots':['timer_id'],**result})
         # Numbering is explicitly shown by the status result: increasing deadline.
         with self.memory.connect() as c:
             c.execute('BEGIN IMMEDIATE')
-            rows=c.execute("SELECT id,deadline FROM timers WHERE device_id=? AND status='running' AND deadline>? ORDER BY deadline,id",(req.device_id,time.time())).fetchall()
+            rows=c.execute("""SELECT t.id,t.deadline FROM timers t LEFT JOIN timer_bindings b ON b.timer_id=t.id
+                WHERE t.device_id=? AND b.scope_key IS NULL AND t.status='running'
+                AND t.deadline>? ORDER BY t.deadline,t.id""",(req.device_id,time.time())).fetchall()
             value=' '.join(target.lower().split())
             if not rows:return ToolResult('У тебя нет активных таймеров.')
             if value in {'все','все мои','мои все'}:selected=rows
@@ -189,6 +247,56 @@ class LocalTools:
             for row in selected:c.execute("UPDATE timers SET status='cancelled' WHERE id=? AND device_id=? AND status='running'",(row['id'],req.device_id))
         answer='Все твои активные таймеры остановлены.' if value in {'все','все мои','мои все'} else 'Выбранный таймер остановлен.'
         return ToolResult(answer,evidence={'method':'timer_state','verified':True,'canonical_answer':answer,'timer_cancelled_ids':[row['id'] for row in selected]})
+
+    def execute_timer_action(self,req,operation,duration_text=None,target='only',ordinal=None,*,action_id=None,is_current=None):
+        """Native semantic action: original user text, server scope and turn ID.
+
+        The conversational model interprets intent; it cannot supply a rewritten
+        request, duration in seconds, owner, or approval. Its selected duration
+        must be an exact complete span of the current server-owned utterance.
+        """
+        if operation not in ('start','status','cancel') or target not in ('only','all','ordinal'):
+            raise ValueError('invalid_timer_action')
+        if action_id!='native-timer:'+req.turn_id:raise PermissionError('timer_action_id_required')
+        if operation!='status' and not callable(is_current):raise PermissionError('current_user_command_required')
+        self.timers._current(is_current)
+        value=' '.join(req.text.casefold().replace('ё','е').split())
+        verbs=r'(?:став\w*|постав\w*|установ\w*|запус\w*|запуст\w*|включ\w*|засек\w*|отсч\w*)' if operation=='start' else r'(?:отмен\w*|остан\w*|выключ\w*|убер\w*)'
+        if operation!='status' and (re.search(r'\b(?:не|нельзя)(?:\s+(?:надо|нужно|следует))?\s+'+verbs+r'\b',value) or
+                re.match(r'^(?:(?:софия|гобот)[, ]+)?(?:если\b|допустим\b|представь\b|что\s+(?:будет|случится)\b|(?:что|как)\s+(?:значит|означает|поставить|установить)|(?:расскажи|объясни)[, ]+как|(?:он|она|они)\s+(?:сказал\w*|попросил\w*|написал\w*)\b|(?:повтори|процитируй)\b)',value)):
+            raise PermissionError('current_user_command_required')
+        if operation=='status':
+            if duration_text is not None or target!='only' or ordinal is not None:raise ValueError('invalid_timer_action')
+            return self.execute('timer_status',req,action_id=action_id,is_current=is_current)
+        if operation=='start':
+            if target!='only' or ordinal is not None:raise ValueError('invalid_timer_action')
+            if duration_text is None:
+                self.native_timer_pending(req,action_id,is_current)
+                return ToolResult('На сколько минут или секунд поставить таймер?',
+                    evidence={'method':'timer_state','executed':False,'needs_parameters':True,'missing_slots':['duration']})
+            from .timer_duration import source_timer_seconds,is_timer_duration_reply
+            if is_timer_duration_reply(req.text):
+                pending=self.memory.context(req).get('pending_action')
+                if not pending or pending.get('kind')!='timer_duration' or pending.get('expires',0)<=time.time():
+                    raise PermissionError('current_user_command_required')
+            seconds=source_timer_seconds(req.text,duration_text)
+            if seconds is None or not 1<=seconds<=86400:raise ValueError('invalid_timer_duration')
+            return self.start_timer_once(req,seconds,action_id,is_current=is_current)
+        if duration_text is not None:raise ValueError('invalid_timer_action')
+        if any(char in req.text for char in '«»“”"'):raise PermissionError('current_user_command_required')
+        names={1:'первый',2:'второй',3:'третий',4:'четвертый',5:'пятый'}
+        has_all=bool(re.search(r'\bвсе\b',value))
+        mentioned=[index for index,word in names.items() if re.search(r'(?<!\w)(?:'+word+'|'+str(index)+r')(?!\w)',value)]
+        if target=='all':
+            if not has_all or ordinal is not None:raise PermissionError('timer_target_source_mismatch')
+            selected='все'
+        elif target=='ordinal':
+            if type(ordinal) is not int or ordinal not in names or mentioned!=[ordinal] or has_all:raise PermissionError('timer_target_source_mismatch')
+            selected=str(ordinal)
+        else:
+            if ordinal is not None or has_all or mentioned:raise PermissionError('timer_target_source_mismatch')
+            selected=''
+        return self.cancel_timer(req,selected,action_id=action_id,is_current=is_current)
 
 async def text_stream(text):
     yield text

@@ -190,6 +190,7 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                 'generation_allowed': bool(s.generation_allowed()),
                 'expert_active': expert_active(s),
                 'selected_expert': s.selected_expert_status() if hasattr(s, 'selected_expert_status') else None,
+                'capabilities': s.capabilities.public() if hasattr(s, 'capabilities') else None,
                 'lifecycle': s.lifecycle_status() if hasattr(s, 'lifecycle_status') else {},
             } for s in sessions]
             # Closed sessions remain explicit tombstones, including unknown
@@ -325,6 +326,11 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                         await session.select_mode(obj['mode'])
                     elif kind == 'input_end':
                         await session.finish_input()
+                    elif kind == 'timer_capabilities' and hello['source'] == 'device':
+                        session.timers.capabilities(obj)
+                        await session.timers.refresh(force=True)
+                    elif kind in {'timer_alarm_ack','timer_output_activity','timer_display_ack'} and hello['source'] == 'device':
+                        await session.timers.command(obj)
                     elif kind == 'telemetry' and hello['source'] == 'device':
                         from .unified_voice_journal import capture_boundary, playback_buffer_summary
                         summary = playback_buffer_summary(obj)

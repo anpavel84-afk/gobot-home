@@ -45,6 +45,7 @@ class FixtureBrain:
         self.current=None
         self.cancelled=set()
         self.closed=False
+        self.timer_capabilities=None
 
     def emit(self,kind,**data):
         self.queue.put_nowait(json.dumps({'type':kind,'data':data}))
@@ -98,6 +99,14 @@ class FixtureBrain:
         elif kind=='stop':
             self.emit('stopped', **({'request_id':obj['request_id']} if obj.get('request_id') else {}))
         elif kind=='input_end':self.emit('input_closed')
+        elif kind=='timer_capabilities':
+            # Additive metadata from the production Gateway, including old
+            # firmware without a timer display. This fixture creates no timer
+            # or alarm and does not claim timer/device acceptance.
+            if (set(obj)!={'type','display_supported','signal_supported'} or
+                    any(type(obj.get(key)) is not bool for key in ('display_supported','signal_supported'))):
+                raise ValueError('invalid_fixture_timer_capabilities')
+            self.timer_capabilities={key:obj[key] for key in ('display_supported','signal_supported')}
         elif kind=='telemetry':
             # Production capture diagnostics may arrive here. Retain no payload,
             # PCM, text, keys or provider state in this cloud-free peer.

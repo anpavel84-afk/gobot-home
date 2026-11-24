@@ -445,7 +445,12 @@ def create_app(settings=None):
         await asyncio.to_thread(service.memory.recover)
         await asyncio.to_thread(agent_status) # Metadata/hash warmup only; admission still rechecks per request.
         await asyncio.to_thread(extract_entity,'Что такое телескоп?')
+        from .direct_timers import expire_timers
+        timer_stop=asyncio.Event()
+        timer_worker=asyncio.create_task(expire_timers(service,timer_stop))
         yield
+        timer_stop.set()
+        await timer_worker
         jobs=list(service.warm_photos.values())
         for _,task,timer in jobs:timer.cancel();task.cancel()
         await asyncio.gather(*(task for _,task,_ in jobs),return_exceptions=True)

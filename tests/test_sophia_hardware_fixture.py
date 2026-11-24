@@ -52,6 +52,7 @@ def test_fixture_full_handshake_echoes_current_device_revision_and_keeps_legacy(
             await wait_until(lambda: gateway.cloud_ready.is_set() and
                              gateway.latest_physical_mute_request is None, 2)
             assert gateway.device_mute_revision == revision
+            assert brain.timer_capabilities == {'display_supported':False,'signal_supported':True}
             assert not gateway.muted and not gateway.forward
             start_count = len(controls())
             assert start_count == (0 if revision is None else 1)
@@ -73,6 +74,23 @@ def test_fixture_full_handshake_echoes_current_device_revision_and_keeps_legacy(
         finally:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('fields', [
+    {'display_supported':1,'signal_supported':True},
+    {'display_supported':False,'signal_supported':'yes'},
+    {'display_supported':False},
+    {'display_supported':False,'signal_supported':True,'create_timer':True},
+])
+def test_fixture_timer_capabilities_are_metadata_only_and_strictly_typed(fields):
+    async def run():
+        brain=FixtureBrain({})
+        with pytest.raises(ValueError,match='invalid_fixture_timer_capabilities'):
+            await brain.send(json.dumps({'type':'timer_capabilities',**fields}))
+        assert brain.timer_capabilities is None and brain.queue.empty()
+        with pytest.raises(ValueError,match='unsupported_fixture_brain_command'):
+            await brain.send(json.dumps({'type':'timer_action','operation':'start'}))
     asyncio.run(run())
 
 

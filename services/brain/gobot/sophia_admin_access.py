@@ -127,6 +127,30 @@ def safe_runtime_status(payload, *, observed_at, gateway_observed_at):
             'state', 'desired_revision', 'applied_revision', 'applied_at', 'checked_at',
             'applied_transport_epoch', 'reason',
         })
+        item['lifecycle']['conversation_settings'] = fields(
+            session.get('lifecycle', {}).get('conversation_settings'), {
+                'state', 'settings_revision', 'applied_settings_revision', 'desired_revision',
+                'applied_revision', 'applied_at', 'checked_at', 'reason',
+            })
+        item['lifecycle']['timers'] = fields(session.get('lifecycle', {}).get('timers'), {
+            'display','signal','display_supported','signal_supported','capabilities_received',
+            'snapshot_revision','display_state','pending_claims','output_active','checked_at','error',
+        })
+        capabilities = session.get('capabilities')
+        if isinstance(capabilities, dict):
+            public = fields(capabilities, {'version', 'settings_revision', 'revision'})
+            public['capabilities'] = {}
+            rows = capabilities.get('capabilities', {})
+            if isinstance(rows, dict):
+                for name in ('clock','timer','weather','utilities','memory','expert','visual','tv','shell','files'):
+                    row = rows.get(name)
+                    if not isinstance(row, dict):continue
+                    safe = fields(row, {'enabled','implemented','state','reason','tool','display','signal'})
+                    if isinstance(row.get('actions'), list):
+                        safe['actions'] = [action for action in row['actions'][:8]
+                            if isinstance(action, str) and re.fullmatch('[a-z_]{1,40}', action)]
+                    public['capabilities'][name] = safe
+            item['capabilities'] = public
         sessions.append(item)
     device = fields(payload.get('device'), {
         'protocol', 'mode', 'voice', 'wake_location', 'pcm_stage', 'cloud_ready', 'generation_allowed',
@@ -142,6 +166,12 @@ def safe_runtime_status(payload, *, observed_at, gateway_observed_at):
         'barge_duck_started', 'barge_duck_restored', 'barge_duck_active',
         'aec_mic_avg_abs', 'aec_ref_avg_abs', 'aec_clean_avg_abs',
         'aec_mic_peak', 'aec_ref_peak', 'aec_clean_peak',
+    })
+    device['timer_output'] = fields(payload.get('device', {}).get('timer_output'), {
+        'display_supported','signal_supported','display','signal','invalid_events','stale_events',
+        'queued','active','receipts_dropped','alarm_last_state','delivery_state','delay_reason',
+        'postponed_count','started_count','finished_count','cancelled_count','suppressed_count',
+        'unknown_count','last_outcome_reason',
     })
     age = (round(max(0, observed_at-gateway_observed_at), 2)
            if gateway_observed_at is not None and -1 <= observed_at-gateway_observed_at else None)

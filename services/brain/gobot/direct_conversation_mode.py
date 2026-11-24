@@ -232,6 +232,9 @@ class ConversationModeActions:
                 if not current():
                     return
                 if mode == 'expert':
+                    await s.require_capability('expert')
+                    if not current():
+                        return
                     from .expert_jobs import require_requested_expert_profile
                     expert = await asyncio.to_thread(s.selected_expert)
                     if not current():
@@ -294,7 +297,9 @@ class ConversationModeActions:
             raise
         except (ValueError, PermissionError, TimeoutError, OSError) as error:
             known = {'invalid_conversation_mode_arguments', 'previous_question_unavailable',
-                     'explicit_expert_profile_mismatch', 'expert_mode_unavailable', 'fast_mode_unavailable'}
+                     'explicit_expert_profile_mismatch', 'expert_mode_unavailable', 'fast_mode_unavailable',
+                     'capability_disabled_by_owner', 'conversation_settings_unavailable',
+                     'expert_admission_unavailable'}
             from .expert_jobs import EXPERT_BLOCKERS
             reason = str(error) if str(error) in known | EXPERT_BLOCKERS else 'conversation_mode_unavailable'
             if current():

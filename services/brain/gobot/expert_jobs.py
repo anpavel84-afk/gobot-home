@@ -475,6 +475,9 @@ class ExpertJobs:
 
     def require_mode_action_authority(self,job):
         """Recheck application-owned semantic consent only during admission."""
+        capabilities=getattr(self.session,'capabilities',None)
+        if capabilities is not None and not capabilities.enabled_now('expert'):
+            raise PermissionError('capability_disabled_by_owner')
         authority=job.mode_action_authority
         if authority is None:return
         s=self.session;turn=getattr(s,'current',None)

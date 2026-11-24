@@ -22,6 +22,14 @@ class DeviceStore:
             c.execute('BEGIN IMMEDIATE')
             row=c.execute('SELECT profile FROM profiles WHERE owner=?',(owner,)).fetchone()
             current=DeviceProfile.model_validate_json(row[0]).model_dump() if row else DeviceProfile().model_dump()
+            # The owner admin route edits these fields with revision fencing.
+            # Generic browser/voice patches may echo unchanged values, but must
+            # not acquire the ability to edit guidance or enable operations.
+            conversation=body.get('conversation')
+            if isinstance(conversation,dict):
+                for key in ('guidance','skills'):
+                    if key in conversation and conversation[key]!=current['conversation'][key]:
+                        raise ValueError('conversation_owner_admin_required')
             for key,value in body.items():
                 if isinstance(current.get(key),dict) and isinstance(value,dict):current[key]={**current[key],**value}
                 else:current[key]=value

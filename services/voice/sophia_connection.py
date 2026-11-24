@@ -18,6 +18,7 @@ from uuid import uuid4, uuid5, NAMESPACE_URL
 from websockets.asyncio.client import connect
 
 from sophia_audio import PcmRing, OrderedOpus, ContinuousPcm24
+from sophia_timer import SophiaTimerOutput
 
 
 # The Brain's existing 200 ms wall-clock guard does not discard microphone
@@ -135,6 +136,7 @@ class SophiaConnection:
                       'admission_status': {'known': False, 'mode': self.mode},
                       'invalid_admission_status': 0, 'stale_admission_status': 0,
                       'admission_receipt': None, 'discarded_admission_receipts': 0}
+        self.timers = SophiaTimerOutput(self)
 
     def queue_capture_boundary(self, stage, **fields):
         data = {'type': 'telemetry', 'event': 'capture_boundary', 'stage': stage,
@@ -160,7 +162,7 @@ class SophiaConnection:
 
     def new_output_metrics(self, response_id, role):
         metrics = {'response_sha256': hashlib.sha256(response_id.encode()).hexdigest(),
-            'audio_role': role if role in {'fast_answer', 'expert_answer', 'service_cue'} else 'other',
+            'audio_role': role if role in {'fast_answer', 'expert_answer', 'service_cue', 'timer_alarm'} else 'other',
             'created_wall': time.time(), 'created_monotonic': time.monotonic(),
             'packets_sent': 0, 'progress_receipts': 0, 'duplicate_progress_receipts': 0,
             'invalid_progress_receipts': 0, 'last_packets_consumed': 0,
@@ -268,8 +270,10 @@ class SophiaConnection:
             raise ValueError('invalid_sophia_control')
         return obj
 
-    async def send(self, data, packet=None, *, output_state=None, mute_epoch=None):
+    async def send(self, data, packet=None, *, output_state=None, mute_epoch=None, timer_idle=False):
         async with self.device_send_lock:
+            if timer_idle and not self.timers.idle():
+                return False  # A newer input/output/Stop owns the board state.
             # A physical hold can win while an earlier unmute/state update
             # waits for this lock. Its already captured device revision also
             # lets ESP reject a stale command which is already on the wire.
@@ -418,6 +422,8 @@ class SophiaConnection:
         if self.muted:
             phase, text = 'muted', ''
         self.stats['voice_phase'] = phase
+        if phase == 'ready':
+            self.timers.ready()
         titles = {'ready': 'София', 'listening': 'Слушаю', 'thinking': 'Обдумываю',
                   'speaking': 'Отвечаю', 'muted': 'Микрофон выключен', 'error': 'Разговор недоступен'}
         if not await self.send({'type': 'gobot_host_state', 'state': phase}, mute_epoch=mute_epoch):
@@ -450,11 +456,12 @@ class SophiaConnection:
             self.decoder.reset(ack['stream_epoch'], sample_start=ack.get('sample_start', 0))
             self.device_mute_snapshot(ack, initial=True)
             self.stats['device_protocol_confirmed'] = True
+            self.timers.configure(hello)
             self.stats['interruption_protocol'] = (
                 'wake_touch_v1' if ack.get('interruption') == 'wake_touch_v1' else None)
             receiver = self.spawn(self.receive())
             core = [receiver, self.spawn(self.uplink()),
-                    self.spawn(self.cloud()), self.spawn(self.status_tick())]
+                    self.spawn(self.cloud()), self.spawn(self.status_tick()), self.spawn(self.timers.run())]
             done, _ = await asyncio.wait(core, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 task.result()
@@ -550,7 +557,7 @@ class SophiaConnection:
             kind = obj.get('type')
             if kind in {'gobot_host_wake', 'gobot_host_touch', 'gobot_host_mute',
                         'gobot_host_playback', 'gobot_host_ack', 'gobot_host_finish',
-                        'gobot_host_telemetry', 'gobot_host_stats'}:
+                        'gobot_host_telemetry', 'gobot_host_stats', 'gobot_host_timer_ack'}:
                 self.stats['device_control_messages'] += 1
                 self.stats['last_device_control_monotonic'] = time.monotonic()
                 self.stats['device_control_age_seconds'] = 0.
@@ -594,6 +601,8 @@ class SophiaConnection:
                 await self.screen('muted' if self.muted else 'ready')
             elif kind == 'gobot_host_playback':
                 await self.receipt(obj)
+            elif kind == 'gobot_host_timer_ack':
+                await self.timers.display_receipt(obj)
             elif kind == 'gobot_host_ack':
                 if obj.get('event') == 'ui_visible':
                     callback = obj.get('callback_monotonic_us')
@@ -643,6 +652,7 @@ class SophiaConnection:
         self.forward = False
         self.stats['input_open'] = False
         self.ring.set_blocked(True, reason=reason)
+        self.timers.fence(reason)
         if self.output is not None:
             self.output['cancel_pending'] = True
             self.output['cancel_signal'].set()
@@ -668,6 +678,25 @@ class SophiaConnection:
             return False
         if control.get('interrupt_requested') is True:
             return self.begin_interruption(wake, trigger=trigger, control=control)
+        if self.timers.owns():
+            state = self.output
+            if state.get('start_sent') is not False:
+                # Native wake can precede receipt of an in-flight cue start and
+                # therefore lack interrupt_requested. The real output-cancel
+                # receipt and existing exact StopACK still fence this handoff.
+                return self.begin_interruption(wake, trigger=trigger, control=control)
+            # No metadata/packet reached the device: cancel the reservation
+            # synchronously before send() can acquire its lock. This remains
+            # the authenticated owner's ordinary wake, with fresh admission.
+            state['cancel_pending'] = True
+            state['cancel_signal'].set()
+            state['timer_cancel_reason'] = 'manual_wake_before_output'
+            self.cancelled.append(state['response_id'])
+            self.output = None
+            self.queue_output_summary(state, 'interrupted')
+            self.spawn(self.timers.finished(state, 'cancelled'))
+            self.ring.set_blocked(False, reason='timer_wake_before_output')
+            wake = {**wake, 'detector_sample': max(wake['detector_sample'], self.ring.floor)}
         if self.output or self.ring.cursor or self.stats.get('voice_phase') in {'speaking', 'thinking'}:
             self.stats['suppressed_busy_wakes'] = self.stats.get('suppressed_busy_wakes', 0)+1
             return False
@@ -888,6 +917,7 @@ class SophiaConnection:
                      'input_mode': self.mode, 'endpointing': self.options.get('endpointing', 'server_450')}
             try:
                 await self.to_brain({'type': 'hello', 'source': 'device', 'offer': offer})
+                await self.timers.announce()
                 if self.device_mute_revision is not None:
                     # Reconnection uses the device's actual state. Register the
                     # correlated command before consuming old server state events.
@@ -908,6 +938,12 @@ class SophiaConnection:
         if self.transport_ending:
             return
         kind, data = event.get('type'), event.get('data', {})
+        if kind == 'timer_snapshot':
+            await self.timers.snapshot(data)
+            return
+        if kind == 'timer_alarm':
+            await self.timers.alarm(data)
+            return
         if self.muted and kind in {'audio_start', 'audio_chunk', 'audio_stop',
                 'audio_segment_done', 'expert_segment_generated', 'input_transcript',
                 'stt_partial', 'stt_final'}:
@@ -936,6 +972,12 @@ class SophiaConnection:
                 if kind == 'audio_start' and isinstance(data.get('response_id'), str):
                     self.cancelled.append(data['response_id'])
                 self.stats['interrupted_events_dropped'] = self.stats.get('interrupted_events_dropped', 0)+1
+                return
+        if kind in {'audio_start', 'listening', 'followup'}:
+            # A local timer is a separate output owner. The real stopped/DMA
+            # receipt precedes normal output or any automatic capture opening.
+            await self.timers.preempt()
+            if self.muted or self.transport_ending or self.pending_interrupt is not None:
                 return
         if kind == 'admission_status':
             await self.admission_status(data)
@@ -1059,6 +1101,8 @@ class SophiaConnection:
                     state['metrics']['output_end_sent_monotonic'] = time.monotonic()
                     state['metrics']['output_end_sent_wall'] = time.time()
         elif kind in ('audio_cancel', 'stopped'):
+            if kind == 'stopped':
+                self.timers.fence('stop')
             response = data.get('response_id')
             if kind == 'audio_cancel' and isinstance(response, str) and (
                     response in self.cancelled and self.output is None or
@@ -1186,10 +1230,23 @@ class SophiaConnection:
             self.stats['stale_playback_receipts'] = self.stats.get('stale_playback_receipts', 0)+1
             return
         kind = obj.get('state')
+        timer = self.timers.owns(state)
+        if timer and (type(obj.get('output_epoch')) is not int or obj['output_epoch'] !=
+                      state['output_epoch']+(1 if kind == 'stopped' and state.get('cancel_pending') else 0)):
+            self.stats['stale_playback_receipts'] = self.stats.get('stale_playback_receipts', 0)+1
+            return
         if kind == 'stopped' and state.get('cancel_pending'):
             if obj.get('output_epoch') != state['output_epoch']+1:
                 raise ValueError('cancel_output_epoch_not_confirmed')
             self.interrupt_quiet_receipt(obj, output_state=state)
+            if timer and self.pending_interrupt is None:
+                floor = obj.get('sample_floor')
+                if (obj.get('stream_epoch') != self.ring.epoch or type(floor) is not int
+                        or not 0 <= floor <= 1e15-POST_PLAYBACK_CAPTURE_GUARD_SAMPLES):
+                    raise ValueError('physical_timer_cancel_capture_floor_missing')
+                self.ring.set_blocked(True, sample_floor=max(
+                    self.ring.end, self.ring.floor, floor+POST_PLAYBACK_CAPTURE_GUARD_SAMPLES),
+                    reason='timer_cancel_guard')
             self.output_receipt_metrics(state, obj)
             self.cancel_finished.set()
         elif state.get('cancel_pending'):
@@ -1206,13 +1263,18 @@ class SophiaConnection:
         elif kind == 'playback_started':
             self.output_receipt_metrics(state, obj)
             self.stats['playback_started'] += 1
-            await self.to_brain({'type': 'playback_started', 'response_id': state['response_id']})
+            if timer:
+                await self.timers.started(state)
+            else:
+                await self.to_brain({'type': 'playback_started', 'response_id': state['response_id']})
         elif kind == 'segment_finished' and obj.get('segment_id') is not None:
+            if timer:
+                return
             self.output_receipt_metrics(state, obj)
             await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
                                  'segment_id': obj['segment_id']})
-        elif ((kind == 'playback_finished' and obj.get('whole_response') is True)
-              or (kind == 'segment_finished' and state['role'] == 'service_cue'
+        elif ((kind == 'playback_finished' and obj.get('whole_response') is True and not timer)
+              or (kind == 'segment_finished' and state['role'] in {'service_cue', 'timer_alarm'}
                   and obj.get('whole_response') is False)):
             if not state['done']:
                 raise ValueError('playback_finished_before_whole_response_end')
@@ -1233,8 +1295,11 @@ class SophiaConnection:
             self.stats['playback_finished'] += 1
             self.output = None
             try:
-                await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
-                                     'sample_floor': floor})
+                if timer:
+                    await self.timers.finished(state, 'finished')
+                else:
+                    await self.to_brain({'type': 'playback_finished', 'response_id': state['response_id'],
+                                         'sample_floor': floor})
             finally:
                 self.queue_output_summary(state, 'finished')
                 self.queue_capture_boundary('playback_finished', **boundary)
@@ -1252,6 +1317,8 @@ class SophiaConnection:
                     # There is no physical output owner to cancel or ACK.
                     self.output = None
                     self.queue_output_summary(state, 'interrupted')
+                    if self.timers.owns(state):
+                        await self.timers.finished(state, 'cancelled')
                     return
                 self.cancel_finished.clear()
                 try:
@@ -1260,11 +1327,14 @@ class SophiaConnection:
                     await asyncio.wait_for(self.cancel_finished.wait(), 2)
                     self.output_epoch += 1
                     self.output = None
+                    if self.timers.owns(state):
+                        await self.timers.finished(state, 'cancelled')
                 finally:
                     self.queue_output_summary(state, 'interrupted')
 
     async def stop(self, reason):
         self.forward = False
+        self.timers.fence(reason)
         if self.pending_interrupt is not None:
             self.pending_interrupt['wake'] = None
         self.ring.stop(reason)

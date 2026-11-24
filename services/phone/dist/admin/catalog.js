@@ -69,6 +69,11 @@ window.SOPHIA_ADMIN = {
     }
   ],
   "statuses": {
+    "disabled": {
+      "label": "Выключено",
+      "className": "gray",
+      "help": "Владелец выключил использование этого умения в разговоре этой колонки."
+    },
     "configured": {
       "label": "Настроено",
       "className": "green",

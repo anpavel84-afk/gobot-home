@@ -89,6 +89,8 @@ class DialogueMemory:
 
     def permits_summary(self, req):
         s = self.session
+        if hasattr(s, 'capabilities') and not s.capabilities.enabled_now('memory'):
+            return False
         if (s.closed or req.device_id != s.access.effective_scope or
                 req.conversation_id != s.access.context_conversation or
                 req.profile_epoch != s.offer.profile_epoch):
@@ -214,7 +216,8 @@ class DialogueMemory:
 
     def valid(self, state):
         s, turn = self.session, state['turn']
-        return bool(self.enabled and self.turn is state and turn is s.current
+        return bool(self.enabled and (not hasattr(s,'capabilities') or s.capabilities.configured_enabled('memory'))
+                    and self.turn is state and turn is s.current
                     and state['revision'] == turn.input_revision
                     and state['transport'] == s.transport_epoch
                     and s.response_scope_current(state['epoch'], turn))
@@ -292,6 +295,10 @@ class DialogueMemory:
     async def deliver(self, state, payload, *, wait_ack=False, on_ack=None):
         if not self.valid(state):
             return None
+        if hasattr(self.session,'require_capability'):
+            try:await self.session.require_capability('memory')
+            except PermissionError:return None
+        if not self.valid(state):return None
         ident = 'memory_'+uuid4().hex
         loop = asyncio.get_running_loop()
         future = loop.create_future()
@@ -419,6 +426,10 @@ class DialogueMemory:
                 self.session.pending_response or self.session.experts.active() or
                 not self.adds_information(state['result'], turn.answer)):
             return False
+        if hasattr(self.session,'require_capability'):
+            try:await self.session.require_capability('memory')
+            except PermissionError:return False
+        if not self.valid(state):return False
         state['attempted'] = True
         turn.memory_supplement = True
         if turn.answer and not turn.answer.endswith('\n'):

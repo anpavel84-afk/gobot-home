@@ -1,0 +1,170 @@
+{
+  "schema": 1,
+  "original_v4_provenance": {
+    "version": "0.4.14-dev-host-b-sophia-mic-v4",
+    "app_sha256": "254793df0426fecdfafbe5047674aef896568c236dd58330b6e4a47ff9c311a2",
+    "app_size": 3668912
+  },
+  "app_offset": "0x20000",
+  "app_slot_capacity": 4128768,
+  "model": "wn10_sophia",
+  "detector_mode": "DET_MODE_95",
+  "pcm_stage": "pre_afe",
+  "sdkconfig_sha256": "a7c620848fe34d7778085cc5fb2ed9ba531bf82900a5d5da1c6420cd68eff8f8",
+  "idf_image": "espressif/idf@sha256:efc19fae2f52fc6873630c668da26aa834139a063b5fb73a46ebc0dbd217b587",
+  "protected_binary_hashes": {
+    "main/sophia_srmodels.bin": {
+      "sha256": "f3aaf5c6017dc7460e8acd58e2204b85692747b9b5d42e6a54ee831d9fdad415",
+      "size": 383508
+    },
+    "main/gobot_mww.tflite": {
+      "sha256": "cd71ebf787d9af060f5fefab01123d3a03b0152420cf143973c85206c59556a5",
+      "size": 131072
+    },
+    "build/partition_table/partition-table.bin": {
+      "sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5",
+      "size": 3072
+    },
+    "build/ota_data_initial.bin": {
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f",
+      "size": 8192
+    },
+    "build/bootloader/bootloader.bin": {
+      "sha256": "539b46b8147ce409b55dbff928afc86f0004b89e427cfc6cc3a46482ae269f98",
+      "size": 16496
+    },
+    "build/generated_assets.bin": {
+      "sha256": "fc5373dae7272d6346e43f526a49807eb31d9b3c5836b16be87b94b663ff83e0",
+      "size": 3732985
+    }
+  },
+  "sophia_model_sha256": "f3aaf5c6017dc7460e8acd58e2204b85692747b9b5d42e6a54ee831d9fdad415",
+  "sophia_model_size": 383508,
+  "build_limits": {
+    "network": "none",
+    "cpus": 2,
+    "memory": "4g",
+    "parallel_jobs": 2
+  },
+  "baseline_version": "0.4.20-dev-sophia-duck-v4",
+  "candidate_version": "0.4.21-dev-sophia-timer-v4",
+  "baseline_app_sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
+  "baseline_app_size": 3700240,
+  "parent_manifest_file": "sophia_duck_v420_manifest.json",
+  "parent_manifest_sha256": "3fc70ee8e6a21f0f97f43769fe43c4d3a081dcf2e85fa1c6a6c2db797b513b35",
+  "patch_sha256": "c600a04310bbb0149f7a0ee0a8ca8b95443b2a8e8c7743d0135c574f4b7e6a9d",
+  "baseline_sources": {
+    "CMakeLists.txt": "31ff8e2d73f507e1d468d9d0b3115797f854b9c36fe93bb822ccdb84727f83a1",
+    "dependencies.lock": "de99f290516aa942bd0cdd6f2e3c9bd8291e68d7bc200611706392e3af756889",
+    "main/CMakeLists.txt": "badc4b4fd9197627f4daa41a318885213b7395dbe1ea25bafa20f519dcb84776",
+    "main/application.cc": "9814688475786bdfba25e711e8b6408e185d52105c64493b867c5333b2c09415",
+    "main/application.h": "5dd6b81fcb0ed638d56aa15559b9bbc3206554adfac7895a297d860a7627f690",
+    "main/audio/audio_codec.cc": "44ebaabf12d6c1baefb39e6d698793863842821b47f25c927c31a5c7e81b1870",
+    "main/audio/audio_codec.h": "8c44a58c52e59250a5c2957a69ae21b1f6172ef53fccf7d48eba13420cc84d7d",
+    "main/audio/audio_engine.h": "7f7fa667c17612f2b96177dfd473bb9625fbd3ac6c532186954172ac7728f9cb",
+    "main/audio/audio_service.cc": "bff001e7802b4002040079194b5d21f5b0f3907a1df9eb4f6c61ebff2b4fe03f",
+    "main/audio/audio_service.h": "40670b8f4f73b85e24eccd9f9b4c234e9c6c55d7e5d7b7577117b4f12e254a42",
+    "main/audio/codecs/box_audio_codec.cc": "fb2d3a5cb85f007f00ed5391badeee6cdef79211ebd2a01ed37b6d4c7eb42888",
+    "main/audio/codecs/box_audio_codec.h": "caec700dfb4ab6caacf5023b945f3285c7d5cc919c10b4582e847ba3026bfc88",
+    "main/audio/codecs/es8311_audio_codec.cc": "9e37b305e21903f6a2e14c03678da337e5117188bd6e799670344bc7457609f5",
+    "main/audio/codecs/es8311_audio_codec.h": "d5b383a0cc72b6ab63e5218da258c9990d8f3de9248af9f3af3e124ba8111ca0",
+    "main/audio/engines/afe_audio_engine.cc": "3ed86cf7a9cb781bef3090164ae21f5af757ae85cf4ef49c53ab4e7122a42a5d",
+    "main/audio/engines/afe_audio_engine.h": "7246afc757c47fe11b4994308a26970155a3af228b000202d8665cd16c5fd995",
+    "main/audio/engines/lite_audio_engine.cc": "2fd910544cfd3968746a258630c5eda5b0a4b2d02b5b34a174797154fce9c1b5",
+    "main/audio/engines/lite_audio_engine.h": "3bcadfb0c3733d16d2c3322f91ea0298218f34650bb78a67ee415bea4bbad3d3",
+    "main/embedded_sophia_engine.hpp": "5e7f827a6bbac076291dbd4004af9542d03ddd79aef74eb8087cbf64c57b4322",
+    "main/gobot_build_info.h": "eadb82f2b73b63fc0298bb62a10a3a1f0662a8b2e24d74ad8c7ca6495f1f46d9",
+    "main/host_client_state.h": "1f9382cf9838511500318d5b9cb05b04f55eb3add24b8cbdff9508781baf8e38",
+    "main/host_rc1_app.inc": "413177706819d741268cc41ac9bef4460006c5e22650ac1bb3bee5f48bf767c0",
+    "main/host_rc1_render_ack.h": "e0d1019903da8ab6eb0d5cbf99d0ba619e1ae8ee53a7b7d920468df4f5ae4ad4",
+    "main/host_rc1_state.h": "b2c1d414e5ac261fdc00d434f96804ffa9dd7c152aad470e0f46217e8f587315",
+    "main/protocols/protocol.h": "63a6b9cd9cd33ef812e422c042ce56478308555d5d16d1bd80d67ae9241f7062",
+    "main/protocols/websocket_protocol.cc": "d95e020798e5f1f8427b5bd4cc0e14a0bfb932e2820f5de898c50e199aa18d60",
+    "main/protocols/websocket_protocol.h": "a3525384114a223d95653fa7ceb6c799bd0b0f021733d51d7a749d01415d632c",
+    "main/sophia_pcm_tap.hpp": "02e9e73536d28f1d958cce222a5b9a49dab340384ecee378c1fb7963c4a958cc",
+    "main/wake_question_buffer.h": "1d1082ad91783dbd4a303987c69d38026ab2ac7143018e26a337a5274d1c442c",
+    "main/host_output_receipts.h": "8632dae79d029bed1b40afa7ac9133330db8ede08ec430b1a07053f9a2f9c794",
+    "main/sophia_host_capture.h": "038fee8b995e398d5c9af7b0a91cc8b4fc490a13bdcdf6b259a665a2d0db1770",
+    "main/touch_lcd.h": "1701e06a13588dc03a3e6bd4e28c8ec763beafa7ef0bb04348c498ee44798174",
+    "main/touch_screen.h": "ee03404d85784d8e9d363edae03e076b7db81a65607b0bcd71c957da30cec09f",
+    "main/host_admission_ui.h": "fd486cf8d710c26a2c9b38f51a03a59527edef9802d66ad27e43ee96b515b49c",
+    "main/host_barge_wake.h": "f7e0c3d84bcafcc7e7ecf6418e0adf8cb0f712eb1ea6cd1d2b4c564648062e5d",
+    "main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc": "5411abfec6302943aeaffaf39fac24521e1c63b7b2b6a518bf6de5d57fd4aa44",
+    "main/host_touch_controls.inc": "9b819db716dc548327df228ba91a6b1ed3012b1326432863ded1c1aa10206f64",
+    "main/host_touch_gesture.h": "f02b2125febf48952c7a15124c98e54b12cde784aafc2b6e7303acbcb7f3da0a"
+  },
+  "candidate_sources": {
+    "CMakeLists.txt": "6af014569c33422e521e9d8115b93c1e71878f7068182718fc698cc5e803197c",
+    "main/application.cc": "ac7de0c2287bb6d39d6f2a54097ae483f659e5643b75350d2f7ab8bf89ee8bc9",
+    "main/application.h": "09ca0c8eded40ae29d3b6d955a401a76e85dfe6464b6c41806e847eb3a65d2f3",
+    "main/gobot_build_info.h": "014a4768294bee23fd03e78ce8b8e46275c5cbee263edca10e046fd41291f502",
+    "main/host_rc1_app.inc": "fdd6fac123f6ccb6a42666dd2093db052ae75248891a925e49572905efa650b6",
+    "main/host_timer_ui.h": "3a5e8565e145281675c77afb353dfc0d3963d0167df2d463b8c090d44be11e85",
+    "main/protocols/websocket_protocol.cc": "7273e302b1a62eb542f8134d924fe69a13a1b2fe797c04484454d43558d29e0b",
+    "main/touch_screen.h": "91d69e2cfb0fe88c9b930d0135891905201b692c7f2560b99c48daeda8ff69ea"
+  },
+  "protected_source_paths": [
+    "dependencies.lock",
+    "main/CMakeLists.txt",
+    "main/audio/audio_codec.cc",
+    "main/audio/audio_codec.h",
+    "main/audio/audio_engine.h",
+    "main/audio/audio_service.cc",
+    "main/audio/audio_service.h",
+    "main/audio/codecs/box_audio_codec.cc",
+    "main/audio/codecs/box_audio_codec.h",
+    "main/audio/codecs/es8311_audio_codec.cc",
+    "main/audio/codecs/es8311_audio_codec.h",
+    "main/audio/engines/afe_audio_engine.cc",
+    "main/audio/engines/afe_audio_engine.h",
+    "main/audio/engines/lite_audio_engine.cc",
+    "main/audio/engines/lite_audio_engine.h",
+    "main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc",
+    "main/embedded_sophia_engine.hpp",
+    "main/host_admission_ui.h",
+    "main/host_barge_wake.h",
+    "main/host_client_state.h",
+    "main/host_output_receipts.h",
+    "main/host_rc1_render_ack.h",
+    "main/host_rc1_state.h",
+    "main/host_touch_controls.inc",
+    "main/host_touch_gesture.h",
+    "main/protocols/protocol.h",
+    "main/protocols/websocket_protocol.h",
+    "main/sophia_host_capture.h",
+    "main/sophia_pcm_tap.hpp",
+    "main/touch_lcd.h",
+    "main/wake_question_buffer.h"
+  ],
+  "build_status": "source_only_not_built",
+  "physical_status_at_build": "not_flashed",
+  "native_test": "python tests/test_sophia_timer_firmware_native.py",
+  "native_test_status": "passed_actual_cpp_timer_handlers_and_native_badge_raster_asan_ubsan",
+  "timer_display_capability": {
+    "field": "hello.host_stream.timer_display",
+    "value": 1,
+    "command": "gobot_host_timer",
+    "receipt": "gobot_host_timer_ack",
+    "maximum_duration_ms": 86400000,
+    "scope": "current HOST v2 session_id and epoch",
+    "revision": "uint32 monotonically increasing per transport, no wrap",
+    "countdown": "existing local monotonic LCD timer with native tick",
+    "receipt_evidence": "native framebuffer invalidated or unchanged; not panel DMA or human visible proof"
+  },
+  "timer_signal": {
+    "firmware_change": false,
+    "path": "existing v2 cue Opus playback and real segment_finished DMA fence",
+    "whole_response": false,
+    "paid_calls": 0
+  },
+  "idle_wake_model_raw_feed_gain_rates_and_detector_mode_unchanged": true,
+  "raw_host_capture_unchanged": true,
+  "physical_mute_and_output_interruption_unchanged": true,
+  "rollback": {
+    "app_version": "0.4.20-dev-sophia-duck-v4",
+    "app_sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
+    "app_size": 3700240,
+    "offset": "0x20000",
+    "scope": "app partition only; source preparation does not perform flash"
+  }
+}

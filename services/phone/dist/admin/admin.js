@@ -53,6 +53,9 @@
   const API = '/api/sophia/admin';
   let snapshot = null, latest = null, saved = null, revision = null, changesLog = [];
   let draftEnabled = null, draftCandidate = null, draftProof = null, currentProof = null;
+  let savedConversation=null,draftConversation=null;
+  const SKILL_LABELS={clock:'Время и дата',timer:'Таймеры',weather:'Погода',utilities:'Вычисления и единицы',memory:'Обращение к памяти',expert:'Эксперт',visual:'Изображения'};
+  const SKILL_IDS=Object.keys(SKILL_LABELS);
   let page = 'skills', category = 'Все умения', filterStatus = '', searchText = '';
   let fieldSequence = 0, openedSkill = null, skillTab = 'settings', selectedCity = null;
   let candidates = [], toastTimer = null, busy = false, loading = false, loadSequence = 0;
@@ -86,6 +89,7 @@
     weather_verification_required:'Перед сохранением проверьте погодный источник для выбранного места.',
     weather_location_required:'Сначала найдите и подтвердите домашний город.',
     invalid_setting:'Сервер не принял настройку. Проверьте выбранный город и значение поля.',
+    invalid_conversation_setting:'Проверьте пожелания к разговору и переключатели умений. Текст — не более 1500 символов.',
     source_timeout:'Погодный источник не ответил вовремя. Сохранённые настройки не изменились.',
     source_unavailable:'Погодный источник сейчас недоступен. Сохранённые настройки не изменились.',
     provider_rate_limit:'Погодный сервис временно ограничил запросы. Повторите проверку позже.',
@@ -158,7 +162,8 @@
   const device = () => runtime().device || {};
   const admission = () => runtime().brain?.admission || {};
   const canEdit = () => saved !== null && !problem && !busy && !memoryBusy && !conflict && !pendingApply;
-  const hasChanges = () => saved !== null && (draftEnabled !== saved.enabled || !!draftCandidate);
+  const conversationHasChanges=()=>!!savedConversation&&!!draftConversation&&(savedConversation.guidance!==draftConversation.guidance||SKILL_IDS.some(id=>savedConversation.skills[id]!==draftConversation.skills[id]));
+  const hasChanges = () => saved !== null && (draftEnabled !== saved.enabled || !!draftCandidate || conversationHasChanges());
   const memoryHasChanges=()=>!!memoryState?.policy&&!!memoryDraft&&MEMORY_FIELDS.some(key=>memoryDraft[key]!==memoryState.policy[key]);
   const memoryCanEdit=()=>memoryState?.available===true&&!memoryProblem&&!memoryBusy&&!busy&&!memoryConflict;
   function acceptMemory(value,{reset=false}={}) {
@@ -204,7 +209,26 @@
     if(!problem && ready() && home?.state==='applied' && home.applied_revision && home.applied_revision===app?.expected_home_context_revision) return 'Город подтверждён текущим голосовым сеансом. Новый погодный вопрос использует сохранённое место. Это подтверждение серверной настройки, а не воспроизведения на колонке.';
     return typeof app?.message === 'string'?app.message:'Сохранение действует для погоды этой колонки. Получение ответа на колонке подтверждается отдельно.';
   }
+  function capabilities() {
+    const current=session().capabilities;
+    if(current&&ready()&&current.settings_revision===savedConversation?.revision)return current;
+    return snapshot?.capabilities||{};
+  }
+  function deliveryLabel(value){return {confirmed:'подтверждён',unavailable:'не подключён',unconfirmed:'не проверен'}[value]||'не получен';}
+  function conversationApplicationText() {
+    const state=session().lifecycle?.conversation_settings;
+    if(ready()&&state?.state==='applied'&&state.applied_settings_revision===savedConversation?.revision)return 'Правила и умения подтверждены текущим голосовым сеансом. Следующая просьба использует эти настройки.';
+    if(state?.state==='pending'||state?.state==='waiting_idle')return 'Сохранено на PLAN. Обновление голосовых инструкций ожидает безопасного момента между репликами.';
+    return 'Настройки сохранены для этой колонки. Применение к открытому разговору пока не подтверждено; новый сеанс прочитает сохранённые значения.';
+  }
+  function conversationControls() {
+    if(!draftConversation)return '<p>Настройки разговора ещё не получены.</p>';
+    const disabled=canEdit()?'':'disabled',states=capabilities().capabilities||{};
+    return `<div class="conversation-controls"><div class="field"><label class="field-label" for="conversation-guidance">Как Софии отвечать</label><textarea id="conversation-guidance" rows="4" maxlength="1500" ${disabled} aria-describedby="conversation-guidance-hint">${esc(draftConversation.guidance)}</textarea><span class="field-hint" id="conversation-guidance-hint">Пожелания о стиле, подробности и общении. До 1500 символов. Например: «Отвечай кратко; сложные термины объясняй на примере».</span></div>${SKILL_IDS.map(id=>`<div class="toggle-field"><div><label class="field-label" for="skill-enabled-${id}">${esc(SKILL_LABELS[id])}</label><span class="field-hint">${esc(({available:'Серверный маршрут доступен',disabled:'Выключено владельцем',blocked:'Нужен действующий допуск',unconfirmed:'Разрешено настройкой; свежая проверка пока не получена'}[states[id]?.state]||'Состояние не получено')+(id==='timer'?`. Экран: ${deliveryLabel(states[id]?.display)}; сигнал: ${deliveryLabel(states[id]?.signal)}.`:''))}</span></div><label class="switch"><input type="checkbox" id="skill-enabled-${id}" data-skill-enabled="${id}" ${draftConversation.skills[id]?'checked':''} ${disabled}><span class="switch-track"></span></label></div>`).join('')}<p class="note">Переключатели разрешают использовать уже подключённые возможности. Телевизор пока не подключён; доступ к файлам и командам компьютера закрыт. Права на личную память и расходы проверяются отдельно. Выключение «Обращения к памяти» останавливает новый поиск и дополнения, но не удаляет историю и не меняет срок хранения.</p><p class="note" data-conversation-application>${esc(conversationApplicationText())}</p><div class="section-actions">${button('Проверить изменения','review',canEdit()&&hasChanges()?'':'disabled','primary')}${button('Сбросить пожелания','guidance-reset',canEdit()&&draftConversation.guidance?'':'disabled')}${hasChanges()?button('Отменить черновик','discard',canEdit()?'':'disabled'):''}</div></div>`;
+  }
   function skillState(s) {
+    const capability=capabilities().capabilities?.[({utility:'utilities',visuals:'visual'}[s.id]||s.id)];
+    if(capability)return {available:'available',disabled:'disabled',blocked:'restricted',unconfirmed:'unknown',not_connected:'missing',restricted:'restricted'}[capability.state]||'unknown';
     if(s.id==='memory')return !memoryState||memoryProblem?'unknown':memoryState.enabled?'configured':'check';
     if (s.id==='fast') return !snapshot||problem?'unknown':ready()&&session().generation_allowed===true?'configured':'check';
     if (s.id==='expert') return !snapshot||problem?'unknown':session().selected_expert?'configured':'check';
@@ -212,6 +236,9 @@
     return s.status;
   }
   function skillSetting(s) {
+    const capability=capabilities().capabilities?.[({utility:'utilities',visuals:'visual'}[s.id]||s.id)];
+    if(capability?.state==='disabled')return 'Выключено владельцем';
+    if(s.id==='timer'&&capability)return `Серверный таймер · экран: ${deliveryLabel(capability.display)} · сигнал: ${deliveryLabel(capability.signal)}`;
     if(s.id==='memory')return !memoryState||memoryProblem?'Состояние не получено':memoryState.enabled?`Рабочая память · ${memoryState.policy.ttl_seconds/3600} ч`:'Рабочая память выключена';
     if (s.id==='weather') return !saved?'Профиль ещё не загружен':saved.enabled?(saved.location_name||'Выберите город'):'Погода выключена';
     if (s.id==='expert') return session().selected_expert?.model || 'Профиль не получен';
@@ -224,7 +251,7 @@
     $('connectionStrip').classList.toggle('connection-error',!!problem);
     $('connectionDescription').textContent=problem || (snapshot?`Настройки колонки Spotpear. Обновлено ${dateTime(snapshot.observed_at || lastLoaded)}. Сохранение меняет настройки на PLAN.`:'Загружаем настройки колонки с PLAN…');
     $('refreshButton').disabled=loading||busy||memoryBusy;
-    const count=saved?Number(draftEnabled!==saved.enabled)+Number(!!draftCandidate):0;
+    const count=saved?reviewDiff().length:0;
     const memoryOnly=!count&&memoryHasChanges();
     $('reviewButton').disabled=memoryOnly?!memoryCanEdit():!count||busy||memoryBusy||!!problem||conflict||!!pendingApply;
     $('reviewButton').textContent=memoryOnly?'Проверить память':count?`Проверить изменения · ${count}`:'Нет изменений';
@@ -237,6 +264,9 @@
     const dirty=hasChanges(); latest=value;
     if (!saved || reset || !dirty) {
       saved=clone(value.settings.weather);revision=value.revision;draftEnabled=saved.enabled;draftCandidate=null;draftProof=null;conflict=false;
+      const conversation=value.settings.conversation;
+      savedConversation=conversation&&typeof conversation.guidance==='string'&&SKILL_IDS.every(id=>typeof conversation.skills?.[id]==='boolean')?clone(conversation):null;
+      draftConversation=savedConversation?clone(savedConversation):null;
     } else if (revision!==value.revision) { conflict=true; }
     snapshot=value;currentProof=value.weather_check || null;
     if (Array.isArray(value.changes)) changesLog=value.changes;
@@ -289,6 +319,7 @@
   }
   function renderSkills() {
     return heading('Умения Софии','Все возможности, их зависимости и доступные настройки в одном месте.','ВОЗМОЖНОСТИ И ПОДКЛЮЧЕНИЯ')+
+      panel('Правила разговора и умения','Пожелания и доступные действия для этой колонки',conversationControls())+
       callout('Дом и погода — можно настраивать',`Домашнее место: <strong>${esc(saved?.location_name || (saved?'не выбрано':'загружается'))}</strong>. ${esc(weatherState())}.`,button('Открыть настройки погоды','go','data-page="home"'),'','weather')+
       `<div class="metrics">${metric('В каталоге',data.skills.length,'Реализованные и будущие умения','grid')}${metric('Колонка',phaseName(),'По последнему ответу сервера','speaker',true)}${metric('Не подключено',data.skills.filter(s=>s.status==='missing').length,'Нужны реальные интеграции','link')}${metric('Настройки','На PLAN','Выбранная колонка Spotpear','settings',true)}</div>`+
       `<section class="panel" aria-label="Каталог умений"><div class="toolbar"><label class="search">${icon('search')}<input id="skillSearch" type="search" placeholder="Найти умение, настройку или сервис" aria-label="Поиск по умениям" value="${esc(searchText)}"></label><div class="toolbar-right"><select id="statusFilter" aria-label="Фильтр по состоянию"><option value="">Все состояния</option>${Object.entries(data.statuses).map(([k,v])=>`<option value="${k}" ${filterStatus===k?'selected':''}>${esc(v.label)}</option>`).join('')}</select><button class="text-button" data-action="legend">О состояниях</button></div></div><div class="tabs" role="group" aria-label="Категории умений">${data.categories.map(c=>`<button class="tab" data-action="category" data-category="${esc(c)}" aria-pressed="${category===c}">${esc(c)}</button>`).join('')}</div><div id="skillResults">${skillRows()}</div><div class="sr-only" id="filterResultStatus" role="status" aria-live="polite"></div></section>`;
@@ -321,6 +352,7 @@
     const expert=session().selected_expert;
     return heading('Разговор и голос','Управление текущей колонкой. Голос marin остаётся единым.','ГОЛОСОВОЕ ОБЩЕНИЕ')+
       panel('Режим следующего обращения',`Состояние: ${phaseName()}`,voiceControls())+
+      panel('Правила разговора и умения','Сохраняются для этой колонки',conversationControls(),'section-gap')+
       `<div class="two-col section-gap"><div class="stack">${panel('Выбранный эксперт','Сведения из текущего голосового сеанса',`<dl>${row('Программа',esc(expert?.provider || 'Не получена'))}${row('Модель',esc(expert?.model || 'Не получена'))}${row('Профиль',esc(expert?.profile || 'Не получен'))}${row('Остаток внешней квоты','Не предоставлен провайдером')}</dl>`+fields(['expert.confirm']))}${panel('Предпочтения ответа','Управление пока не подключено',fields(['voice.language','voice.responseLength','expert.speechLength']))}</div><div class="stack">${panel('Единый голос','Правило текущего голосового маршрута',`<dl>${row('Голос',esc(device().voice || session().voice || 'marin — голос текущего маршрута'))}${row('Клип ожидания','marin')}${row('Диктор эксперта','marin')}</dl>`)}${panel('Продолжение и остановка','Ожидаемое поведение проверяется на колонке',`<ul class="list-spacing"><li>После одиночного «София» колонка ждёт вопрос.</li><li>После ответа можно задать уточнение.</li><li>Имя или касание во время ответа останавливают воспроизведение.</li><li>Контекст ответа подтверждается после окончания воспроизведения.</li></ul><div class="section-actions">${button('Пробуждение и касание','skill','data-id="interrupt"')}</div>`)}${panel('Подробные параметры','Действующая конфигурация остаётся под контролем сервера',fields(['conversation.followup','conversation.followupSeconds','expert.fallback']))}</div></div>`;
   }
   function connectionCard(name,description,i,state,body) {
@@ -383,7 +415,7 @@
   function changeValue(value) {
     if(typeof value==='boolean')return value?'Включено':'Выключено';
     if(value==null)return 'Не задано';
-    if(typeof value==='object')return [typeof value.enabled==='boolean'?(value.enabled?'Погода включена':'Погода выключена'):'',value.location_name || '',value.provider || ''].filter(Boolean).join(' · ');
+    if(typeof value==='object')return [typeof value.enabled==='boolean'?(value.enabled?'Погода включена':'Погода выключена'):'',value.location_name || '',value.provider || '',value.conversation?`Пожелания: ${value.conversation.guidance_changed_to?.characters??0} символов; выключено умений: ${Object.values(value.conversation.skills||{}).filter(v=>v===false).length}`:''].filter(Boolean).join(' · ');
     return String(value);
   }
   function renderHistory() {
@@ -516,16 +548,28 @@
     if(draftEnabled!==saved.enabled)weather.enabled=draftEnabled;
     if(draftCandidate){weather.candidate_id=draftCandidate.id;weather.enabled=draftEnabled;}
     if((draftCandidate || draftEnabled===true&&saved.enabled===false) && draftProof?.verification_id)weather.verification_id=draftProof.verification_id;
-    return {expected_revision:revision,patch:{weather}};
+    const patch={};if(Object.keys(weather).length)patch.weather=weather;
+    if(conversationHasChanges()){
+      const conversation={};
+      if(draftConversation.guidance!==savedConversation.guidance)conversation.guidance=draftConversation.guidance;
+      const skills=Object.fromEntries(SKILL_IDS.filter(id=>draftConversation.skills[id]!==savedConversation.skills[id]).map(id=>[id,draftConversation.skills[id]]));
+      if(Object.keys(skills).length)conversation.skills=skills;
+      patch.conversation=conversation;
+    }
+    return {expected_revision:revision,patch};
   }
   function reviewDiff() {
     const changes=[];
     if(draftEnabled!==saved.enabled)changes.push({field:'Погода для домашнего места',before:saved.enabled,after:draftEnabled});
     if(draftCandidate)changes.push({field:'Домашний город',before:saved.location_name,after:draftCandidate.location_name});
+    if(draftConversation&&savedConversation){
+      if(draftConversation.guidance!==savedConversation.guidance)changes.push({field:'Пожелания к разговору',before:savedConversation.guidance||'По умолчанию',after:draftConversation.guidance||'По умолчанию'});
+      for(const id of SKILL_IDS)if(draftConversation.skills[id]!==savedConversation.skills[id])changes.push({field:SKILL_LABELS[id],before:savedConversation.skills[id],after:draftConversation.skills[id]});
+    }
     return changes;
   }
   function reviewHTML(diff,footer,lead='Проверьте значения перед сохранением.') {
-    return `<header class="dialog-header"><div><div class="eyebrow">КОЛОНКА SPOTPEAR</div><h2 id="reviewTitle">Проверить изменения</h2><p>${esc(lead)}</p></div><button class="icon-button" data-action="close-review" aria-label="Закрыть проверку">${icon('cross')}</button></header><div class="dialog-body"><div class="review-list">${diff.map(c=>`<div class="review-row"><strong>${esc(c.field)}</strong><div class="review-values"><span>${esc(changeValue(c.before))}</span>${icon('chevron')}<strong>${esc(changeValue(c.after))}</strong></div></div>`).join('')}</div><p class="note">${esc(applicationText())}</p><div class="action-message" id="reviewError" role="alert">${esc(actionError)}</div></div><footer class="dialog-footer"><p>Будут изменены настройки этой колонки на PLAN.</p>${footer}</footer>`;
+    return `<header class="dialog-header"><div><div class="eyebrow">КОЛОНКА SPOTPEAR</div><h2 id="reviewTitle">Проверить изменения</h2><p>${esc(lead)}</p></div><button class="icon-button" data-action="close-review" aria-label="Закрыть проверку">${icon('cross')}</button></header><div class="dialog-body"><div class="review-list">${diff.map(c=>`<div class="review-row"><strong>${esc(c.field)}</strong><div class="review-values"><span>${esc(changeValue(c.before))}</span>${icon('chevron')}<strong>${esc(changeValue(c.after))}</strong></div></div>`).join('')}</div><p class="note">${esc(conversationHasChanges()?'Сохранённые пожелания применятся к голосовому разговору после подтверждения сервера. Открытый ответ не прерывается.':applicationText())}</p><div class="action-message" id="reviewError" role="alert">${esc(actionError)}</div></div><footer class="dialog-footer"><p>Будут изменены настройки этой колонки на PLAN.</p>${footer}</footer>`;
   }
   async function readConflict() {
     try { acceptSnapshot(await api('/snapshot')); } catch {}
@@ -565,9 +609,10 @@
     busy=true;actionError='';updateHeader();
     document.querySelectorAll('#reviewContent button').forEach(b=>b.disabled=true);
     try {
+      const changedConversation=!!pendingApply.patch.conversation;
       const result=await api('/settings/apply',pendingApply);
       if(result.ok!==true){const error=new Error('save_failed');error.code='unavailable';throw error;}
-      mergeSavedResult(result);pendingApply=null;$('reviewDialog').close();closeDialog();render();toast(result.unchanged?'На сервере уже сохранены эти значения.':'Настройки сохранены на PLAN. '+applicationText());
+      mergeSavedResult(result);pendingApply=null;$('reviewDialog').close();closeDialog();render();toast(result.unchanged?'На сервере уже сохранены эти значения.':'Настройки сохранены на PLAN. '+(changedConversation?conversationApplicationText():applicationText()));
     } catch(error) {
       actionError=humanError(error);
       if(error.status && error.status<500)pendingApply=null;
@@ -627,6 +672,7 @@
   async function onAction(event) {
     const el=event.target.closest('[data-action]');if(!el||el.disabled)return;
     const action=el.dataset.action;
+    if(action==='guidance-reset'&&canEdit()&&draftConversation){draftConversation.guidance='';updateHeader();render();return;}
     if(action==='go'){closeDialog();navigate(el.dataset.page);}
     if(action==='refresh')await load({manual:true});
     if(action==='about')about();if(action==='legend')legend();
@@ -661,11 +707,19 @@
   document.addEventListener('submit',event=>{if(event.target.id==='citySearchForm'){event.preventDefault();searchCity();}});
   document.addEventListener('input',event=>{
     const el=event.target;
+    if(el.id==='conversation-guidance'&&canEdit()&&draftConversation){
+      draftConversation.guidance=el.value;updateHeader();
+      document.querySelectorAll('.conversation-controls [data-action="review"]').forEach(button=>button.disabled=!hasChanges());
+      document.querySelectorAll('.conversation-controls [data-action="guidance-reset"]').forEach(button=>button.disabled=!el.value);
+    }
     if(el.id==='skillSearch'){searchText=el.value;$('skillResults').innerHTML=skillRows();announceFilters();}
     if(el.id==='citySearch'&&$('citySearchButton'))$('citySearchButton').disabled=busy||el.value.trim().length<2;
   });
   document.addEventListener('change',event=>{
     const el=event.target;if(el.id==='statusFilter'){filterStatus=el.value;$('skillResults').innerHTML=skillRows();announceFilters();}
+    if(SKILL_IDS.includes(el.dataset.skillEnabled)&&canEdit()&&draftConversation){
+      draftConversation.skills[el.dataset.skillEnabled]=el.checked;updateHeader();render();
+    }
     if(MEMORY_FIELDS.includes(el.dataset.memoryField)&&memoryCanEdit()){
       memoryDraft[el.dataset.memoryField]=el.dataset.memoryField==='ttl_seconds'?Number(el.value):el.checked;
       updateHeader();render();
