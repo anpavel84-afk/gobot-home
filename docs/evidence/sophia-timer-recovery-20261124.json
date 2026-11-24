@@ -1,0 +1,96 @@
+{
+  "schema": "sophia-natural-timer-recovery-v1",
+  "observed_date": "2026-11-24",
+  "installed": true,
+  "brain_runtime": "4a44ff6b2f2bec710ef25fcfe14192beff15a516",
+  "gateway_source": "854b7ad2436f06c951cdc321f5cbc60a0086f7ff",
+  "prior_runtime": "992039c88cb0453acceafd7156e54fbdbbee0d0f",
+  "firmware": "0.4.21-dev-sophia-timer-v4",
+  "firmware_sha256": "2e0898e708728973561f3920ddcbebc3c744a488bbf8cac95c72b62891edd68b",
+  "flash_writes": 0,
+  "nvs_write_commands": 0,
+  "ordinary_board_restarts": 1,
+  "developer_model_requests": 0,
+  "budget_or_permission_changes": 0,
+  "unit_integration_regression": {
+    "passed": 1912,
+    "skipped": 2,
+    "seconds": 298.72,
+    "files": 82,
+    "scope": "prior eighty-file Windows gate plus two natural/expert timer files"
+  },
+  "gateway_diagnostic_regression": {
+    "passed": 109,
+    "files": 4
+  },
+  "browser_dom_suites_passed": 3,
+  "backup": {
+    "wal_aware": true,
+    "sqlite_integrity_verified": true,
+    "source_rollback_prepared": true,
+    "source_rollback_hash_compile_verified": true,
+    "live_database_restore_performed": false
+  },
+  "preserved": {
+    "policies": 72,
+    "usage_databases": 23,
+    "profile_databases": 1,
+    "configuration_files": 2,
+    "root_original_wip_files": 2,
+    "host_a_wip_files": 64,
+    "wake_net_wip_files": 0,
+    "timer_archive_row_digests_unchanged": true
+  },
+  "episode": {
+    "user_input_correctly_transcribed": true,
+    "timer_requests": 2,
+    "tool_calls_observed": 2,
+    "historical_exact_tool_arguments_available": false,
+    "historical_exact_error_receipts_available": false,
+    "native_timer_bindings": 0,
+    "native_timer_action_receipts": 0,
+    "alarm_deliveries": 0,
+    "legacy_unbound_rows_preserved": 13,
+    "mode_before_timer_requests": "fast",
+    "expert_provider": "antigravity",
+    "expert_model": "gemini-4-argon-medium",
+    "expert_computation_completed": true,
+    "expert_playback_interrupted": true,
+    "literal_equivalence_rejection_reproduced_offline": true,
+    "exact_historical_argument_level_root_cause_proven": false
+  },
+  "postcheck": {
+    "runtime": "4a44ff6b2f2bec710ef25fcfe14192beff15a516",
+    "gateway_commit": "854b7ad",
+    "physical_ready": true,
+    "interval_seconds": 30,
+    "delta": {
+      "received_packets": 502,
+      "application_keepalives_sent": 6,
+      "device_control_messages": 6,
+      "gateway_errors": 0
+    },
+    "settings_applied": true,
+    "archive_counts": {
+      "turns": 11,
+      "messages": 21,
+      "topics": 1,
+      "blocks": 3,
+      "backlog": 0
+    },
+    "working_memory_persisted": true,
+    "working_restored": 12,
+    "new_model_requests": 0,
+    "human_timer_lcd_sound_verified": false
+  },
+  "transport_recovery": {
+    "failed_leg_observed": "device_receive",
+    "received_close_frame": false,
+    "mechanical_root_cause_proven": false,
+    "ordinary_restart_recovered_observation": true,
+    "long_term_stability_proven": false
+  },
+  "human_lcd_and_alarm_acceptance": false,
+  "public_transcripts_or_secrets_exported": false,
+  "master_changed": false
+}

@@ -1,4 +1,61 @@
-# Natural timer duration — source-only candidate, 2026-11-24
+# Natural timer duration — installed server recovery, 2026-11-24
+
+## HOST-INTEGRATOR: actual incident inspected on PLAN
+
+The 24 November episode was found in the encrypted device diagnostic journal and
+cross-checked against the constant archive and timer tables, read-only. Household
+text, device/provider identifiers and private evidence remain on PLAN.
+
+At 13:24:50 BRT the initial geography question was transcribed. The expert request
+followed at 13:25:09. ARGON/Antigravity computation ran from 13:25:12 to 13:25:54;
+archive provenance confirms antigravity:gemini-4-argon-medium. Playback was interrupted
+at 13:26:18 (audio_cancel/Stop and interrupted playback metrics), not confirmed as
+fully heard. Mode was fast by 13:26:18, before either timer request. The timer
+requests at 13:27:30 and 13:28:01 had clear ten-minute transcripts. Tool calls and
+results followed at 13:27:31 and 13:28:03. There are zero native timer bindings,
+zero timer action receipts and zero alarm deliveries in the inspected database.
+The 13 old unbound legacy timer rows were not adopted or modified.
+
+The old diagnostic adapter reduced timer_action to `other` and removed arguments,
+results and error codes. Exact historical duration_text/function result cannot be
+recovered from that journal; the spoken format-refusal is recorded but is not an
+independent tool error receipt. Therefore an exact argument-level RCA is bounded:
+this was NOT an observed expert-mode lock. The literal duration-source mismatch
+is independently reproduced against original runtime source on synthetic equivalent
+word/digit/unit variants; the repaired resolver accepts the same 600-second meaning.
+Do not present those synthetic arguments as the original provider call.
+
+The persistent archive is populated: 11 turns, 21 messages, 3 blocks at inspection.
+It includes a heard=true/complete=false expert component, consistent with interrupted
+narration; no claim of a complete archived expert lecture. Working memory is persisted
+and enabled. Full permanent semantic summaries remain a separate unfinished task.
+
+### Integrated repair and boundaries
+
+Reviewed and ported the candidate changes onto the actual integration branch,
+retaining unrelated ROOT/HOST-A/WakeNet WIP. Current source also routes completed
+expert-input timer commands to the same local executor before any CLI task. The
+persistent expert selection is retained; the existing finite/native admission owns
+the spoken acknowledgement. No provider function IDs are fabricated for local work.
+Stop/mute/new input/mode changes still invalidate mutations before SQLite commit.
+
+Missing optional duration uses the original complete utterance; an equivalent model
+representation is independently checked. Pending timer replies support colloquial
+ellipsis without borrowing numbers from other topics. Terminal punctuation works
+with reverse word order. Two old tests that prohibited newly supported valid
+expressions were replaced by exact-positive checks and still-invalid alternatives;
+negative/quoted/partial/ambiguous checks remain. Timer diagnostics now retain numeric
+arguments, executed/replayed flags and allowlisted errors, not arbitrary query text.
+
+The timer store, deadline worker, firmware renderer and local alarm path are reused.
+No new model, grant, provider, firmware, timer schema or memory policy is introduced.
+Installation and final free regression results are recorded in CURRENT_STATUS and
+sophia-timer-recovery-20261124.json after execution. Physical LCD/sound acceptance
+requires Owner observation; renderer/receipt fixtures do not establish human hearing.
+
+---
+Historical source-only candidate review follows (superseded where stated above).
+
 
 ## Owner incident and evidence boundary
 

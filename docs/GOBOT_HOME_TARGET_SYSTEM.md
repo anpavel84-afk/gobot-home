@@ -3061,3 +3061,13 @@ incomplete. `abstained` не считается verified source/completed weathe
 Невалидный погодный payload удаляется из кэша; следующий явный запрос допускает
 новый fetch без автоматического model/source retry. Это не доказательство причины
 старого незаписанного отказа.
+
+
+### Sophia timer action clarification — 2026-11-24
+
+Natural timer duration is server-verified by meaning/seconds, not literal model
+copying. A missing optional duration argument uses the complete current user
+utterance when unambiguous. Bare/elliptic duration uses a scoped pending timer,
+never an unrelated historical number. Persistent expert selection does not route
+simple timer commands to CLI or silently reset that selection. Server commit,
+LCD receipt and human audio/display acceptance remain separate evidence.
