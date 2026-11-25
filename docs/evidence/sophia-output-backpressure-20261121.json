@@ -1,0 +1,216 @@
+{
+  "schema": "sophia-output-backpressure-fix-v1",
+  "date": "2026-11-21",
+  "status": "installed_verified",
+  "incident": {
+    "evidence": "actual_PLAN_owner_debug_journal_and_live_gateway_metadata",
+    "private_report_sha256": "26e31209b108ad443ff307a14a172836a83e987fe6eef88bb9011132a3f80ece",
+    "runtime_code_commit": "670aeeca3c023b32eab5f2926ace2355498a14b5",
+    "firmware": "0.4.20-dev-sophia-duck-v4",
+    "first_answer": {
+      "audio_start_utc": "2026-11-21T18:14:00.018997Z",
+      "packets_sent": 238,
+      "whole_finish_receipt_utc": "2026-11-21T18:14:14.515605Z",
+      "complete": true
+    },
+    "second_answer": {
+      "audio_start_utc": "2026-11-21T18:14:26.127317Z",
+      "audio_cancel_journal_utc": "2026-11-21T18:14:30.466663Z",
+      "provider_response_cancel_utc": "2026-11-21T18:14:30.467795Z",
+      "transport_detached_utc": "2026-11-21T18:14:30.482808Z",
+      "detach_reason": "output_backpressure",
+      "last_packet_sent_utc": "2026-11-21T18:14:44.348761Z",
+      "packets_sent": 306,
+      "progress_receipts": 153,
+      "last_packets_consumed": 305,
+      "output_end_sent": false,
+      "whole_finish_receipt": false,
+      "physical_cancel_delivered": false,
+      "gateway_phase": "speaking",
+      "session_attached": false,
+      "capture_connected": true,
+      "barge_duck_active": false,
+      "complete": false
+    },
+    "diagnosis": [
+      "Synchronous transcript/control emit shared the 128-event queue with awaited paced PCM and could trigger QueueFull on a healthy subscriber.",
+      "detach set attached=false before interrupt, suppressing delivery of its audio_cancel while still recording it in the journal.",
+      "The API writer watched session.closed only, leaving the actual subscriber WebSocket and capture lease alive after internal detach.",
+      "Gateway drained received audio without an end/cancel and retained its physical output owner and speaking screen."
+    ]
+  },
+  "fix": {
+    "audio_capacity": 64,
+    "control_capacity": 64,
+    "total_queue_capacity": 128,
+    "ordering": "single_FIFO_with_independent_audio_and_control_reservations",
+    "unused_fast_caption_deltas": "preserved_in_existing_RAM_events_and_journal_not_forwarded_on_direct_audio_wire",
+    "stalled_audio_capacity_timeout_seconds": 5,
+    "physical_cancel_cleanup_timeout_seconds": 2,
+    "subscriber_termination_signal_outside_media_queue": true,
+    "blocked_producer_attachment_and_response_guard": true,
+    "lease_release_after_old_detach_and_writer_cleanup": true,
+    "physical_playback_receipt_required_for_heard_context": true,
+    "late_provider_usage_preserved": true,
+    "automatic_paid_response_retry": false
+  },
+  "validation": {
+    "new_test_files": [
+      "tests/test_direct_output_backpressure.py",
+      "tests/test_direct_ws_detach.py",
+      "tests/test_sophia_disconnect_cleanup.py"
+    ],
+    "mock_provider": true,
+    "real_loopback_websocket_backpressure": true,
+    "local_final_gate": {
+      "exit_code": 0,
+      "seconds": 20.66,
+      "tests": [
+        "tests/test_direct_output_backpressure.py",
+        "tests/test_direct_ws_detach.py",
+        "tests/test_sophia_disconnect_cleanup.py",
+        "tests/test_realtime_ws.py",
+        "tests/test_brain_ws_transport.py",
+        "tests/test_unified_voice_api.py",
+        "tests/test_unified_voice_cancellation.py",
+        "tests/test_unified_voice_budget.py",
+        "tests/test_sophia_gateway.py",
+        "tests/test_sophia_hardware_fixture.py",
+        "tests/test_sophia_barge.py",
+        "tests/test_sophia_touch_wire_races.py",
+        "tests/test_sophia_touch_privacy.py",
+        "tests/test_sophia_audio.py",
+        "tests/test_sophia_keepalive.py",
+        "tests/test_sophia_output_metrics.py",
+        "tests/test_sophia_capture_guard.py",
+        "tests/test_playback_buffer_summary.py",
+        "tests/test_sophia_browser.py",
+        "tests/test_owner_terminal_direct.py",
+        "tests/test_owner_terminal_speech.py",
+        "tests/test_owner_terminal_expert_history.py",
+        "tests/test_owner_terminal_policy.py",
+        "tests/test_owner_terminal_journal.py",
+        "tests/test_direct_admission_status.py",
+        "tests/test_direct_input_deadline.py",
+        "tests/test_direct_input_lifecycle.py",
+        "tests/test_direct_wake_recovery.py",
+        "tests/test_sophia_input_transcript_gate.py",
+        "tests/test_sophia_home_refresh.py",
+        "tests/test_sophia_common_knowledge.py",
+        "tests/test_realtime_dialogue.py",
+        "tests/test_sophia_admin.py",
+        "tests/test_sophia_admin_access.py",
+        "tests/test_sophia_terminal_startup.py"
+      ],
+      "log_sha256": "588c50add2d93d12035fce7117b7fe9457c50ea0fc0184c22f4f6e75eab69cc9",
+      "summary": "575 passed, 1 warning in 19.96s"
+    },
+    "PLAN_exact_source_gate": {
+      "summary": "575 passed in 116.03s (0:01:56)",
+      "gate_seconds": 118.44,
+      "test_file_count": 35,
+      "isolated_source_rollback_reapply": true,
+      "receipt_sha256": "61ea885be41b517115434a76f3a40f24c81fe14211bb0e7dbc86c079e6675558"
+    },
+    "new_live_model_answer": false,
+    "new_acoustic_acceptance": false,
+    "postcheck": {
+      "passed": true,
+      "seconds": 12.047,
+      "at_utc": "2026-11-21T18:39:41.584562+00:00",
+      "deltas": {
+        "received_packets": 168,
+        "application_keepalives_sent": 2,
+        "device_control_messages": 2
+      },
+      "receipt_sha256": "78617d61b1190ef3ad72b7ea7cab662af1ef2816cfba88a0563eb23a588deb02"
+    }
+  },
+  "deployment": {
+    "runtime_code_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+    "previous_head_and_runtime": "dbc6948824b66c8efdeafd500083c19fbdf2e129",
+    "source_receipt_sha256": "58a2a1e7d8a0661f0dfe984baa8570d836dcb06f2a94d58847d4bed0886c5532",
+    "source_installed": true,
+    "production_rollback_needed": false,
+    "firmware_changed": false,
+    "existing_stack_restarted": true,
+    "local_http_verified": true,
+    "private_https_verified": true,
+    "assets_verified": true,
+    "session": {
+      "state": "ready",
+      "input_mode": "fast",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "lifecycle": {
+      "attached": true,
+      "last_detach_reason": null,
+      "transport_epoch": 1,
+      "reader_running": true,
+      "maintenance_running": true,
+      "reconnect_attempts": 0
+    },
+    "gateway": {
+      "device_protocol_confirmed": true,
+      "cloud_ready": true,
+      "voice_phase": "ready",
+      "input_open": false,
+      "last_error": null,
+      "device_mute_revision": 0,
+      "received_packets": 1001,
+      "application_keepalives_sent": 13,
+      "device_control_messages": 13
+    },
+    "active_inputs": 0,
+    "active_turns": 0,
+    "active_voice_streams": 0,
+    "preservation_counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    },
+    "WIP_preserved": true,
+    "usage_unchanged": true,
+    "integration_branch": "feat/host-integrator-sophia-unified-20261118",
+    "feature_branch": "feat/sophia-output-backpressure-20261121"
+  },
+  "preservation": {
+    "new_model_calls_by_executor": 0,
+    "firmware_changed": false,
+    "raw_audio_saved_or_exported": false,
+    "household_transcripts_exported": false,
+    "owner_grant_renewed": false,
+    "master_merged": false,
+    "PR_14": "draft"
+  },
+  "source_commit": "43bcb62032ccb36bc7252f91746d6d979e0368ce",
+  "stale_incident_recovery": {
+    "passed": true,
+    "receipt_sha256": "c056baf685345dab5d6e5dc4d9837e6221f0892be958979ef03df894d0c8ad1d",
+    "old_runtime_restarted_before_new_source_install": true,
+    "initial_100_second_wait_expired": true,
+    "later_device_reconnected_without_firmware_or_USB_reset": true,
+    "exact_first_reconnect_time_measured": false,
+    "second_restart_to_recover_device": false,
+    "usage_unchanged": true,
+    "deltas": {
+      "received_packets": 166,
+      "application_keepalives_sent": 2,
+      "device_control_messages": 2
+    },
+    "candidate_post_start_observation_deadline_seconds": 240,
+    "readiness_conditions_unchanged": true
+  },
+  "helper_sha256": {
+    "recovery": "c9f49eac145a17bf7fa54aa010efbd7525af01a9064201879bcae1835abc4b62",
+    "late_recovery_verifier": "73b3d503bc8315a2b120eb52502b806aaa9f27b50174e9d820b8eb715910d825",
+    "windows_gate": "39f94cade8bb396fb350eb0171c286b48a3cd349dbfdd68302b0e35f87d24471",
+    "source_apply": "be05cc229d8fa3c6fbc9c42833b19e44166e9d60fcfca488556eb87441f66ed0",
+    "postcheck": "3935d2a7926424909358c5dd771bc33935473047fb19de64995802aa670561c0"
+  }
+}

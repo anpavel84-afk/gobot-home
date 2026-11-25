@@ -1,0 +1,8 @@
+{
+  "version": "0.4.3-dev-media-ready",
+  "app_sha256": "81eb1ed149b79d943057d17a9569f630f64b735409dd2fbdeb0a9186fc145386",
+  "app_bytes": 2711328,
+  "previous_sha256": "b7c57b92f4871a4639a9729eb2588132ee861aff3e6fdc2785db9e673fe9118b",
+  "hardware_verified": true,
+  "usb_boot_verified": true
+}

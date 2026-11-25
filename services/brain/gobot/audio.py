@@ -8,6 +8,7 @@ import time
 import wave
 import json
 import base64
+import math
 from contextlib import suppress,asynccontextmanager,AsyncExitStack
 
 import httpx
@@ -20,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[3]
 OPENAI_VOICES = ["marin", "cedar", "alloy", "ash", "ballad", "coral", "echo",
                  "sage", "shimmer", "verse"]
 TTS_MODEL = "gpt-realtime-2.1-mini"
+TTS_PROVIDER_TIMEOUT_SECONDS = 45.0
 
 class Speech:
     def __init__(self, api_key=None, connector=None):
@@ -145,7 +147,7 @@ class Speech:
         connector = self.connector or connect
         # Server-owned connection: the browser never receives the API credential.
         try:
-            async with asyncio.timeout(45):
+            async with asyncio.timeout(TTS_PROVIDER_TIMEOUT_SECONDS) as provider_deadline:
                 connection=_turn.connection(voice,paid_consent) if _turn is not None else connector("wss://api.openai.com/v1/realtime?model=" + TTS_MODEL,
                                      additional_headers={"Authorization": "Bearer " + key,
                                                          "OpenAI-Safety-Identifier": "gobot-home-owner"},
@@ -153,6 +155,7 @@ class Speech:
                                      max_size=1048576, max_queue=4)
                 async with connection as ws:
                     if _turn is None:await configure_voice(ws,voice)
+                    if _turn is not None:_turn.requests_started+=1
                     await ws.send(json.dumps({"type": "response.create", "response": {
                         "conversation": "none", "output_modalities": ["audio"], "tools": [],
                         "tool_choice": "none", "max_output_tokens": 4096,
@@ -174,12 +177,21 @@ class Speech:
                                     raise AgentError("tts_audio_limit")
                                 count = len(pending) // 2 * 2
                                 if count:
-                                    yield pending[:count], 24000
+                                    # Keep the original cumulative provider-I/O
+                                    # budget. A client playing this PCM slowly
+                                    # must not spend that budget while the
+                                    # generator is suspended at its yield.
+                                    loop=asyncio.get_running_loop()
+                                    remaining=max(0,provider_deadline.when()-loop.time())
+                                    provider_deadline.reschedule(None)
+                                    try:yield pending[:count],24000
+                                    finally:provider_deadline.reschedule(loop.time()+remaining)
                                     pending = pending[count:]
                             elif kind == "error":
                                 raise AgentError("openai_tts_unavailable")
                             elif kind == "response.done":
                                 complete = True
+                                if _turn is not None:_turn.record_usage(item.get('response',{}))
                                 if item.get("response", {}).get("status") != "completed" or not audio_bytes:
                                     raise AgentError("openai_tts_incomplete")
                                 if pending:
@@ -207,7 +219,28 @@ async def configure_voice(ws,voice):
 
 class SpeechTurn:
     """One response, one user, one voice. No history and no cross-turn pooling."""
-    def __init__(self,speech):self.speech=speech;self.stack=AsyncExitStack();self.ready=None;self.voice=None;self.ws=None;self.busy=False
+    def __init__(self,speech):
+        self.speech=speech;self.stack=AsyncExitStack();self.ready=None;self.voice=None;self.ws=None;self.busy=False
+        self.requests_started=0;self.usage_records=[]
+    def record_usage(self,response):
+        ident=response.get('id')
+        if not isinstance(ident,str) or not ident or len(ident)>200:return
+        if any(row['response_id']==ident for row in self.usage_records):return
+        allowed={'total_tokens','input_tokens','output_tokens','input_token_details','output_token_details',
+                 'cached_tokens','text_tokens','audio_tokens','image_tokens','cached_tokens_details'}
+        def numeric(obj,depth=0):
+            if not isinstance(obj,dict) or depth>3:return {}
+            result={}
+            for key,value in obj.items():
+                if key not in allowed:continue
+                if isinstance(value,dict):result[key]=numeric(value,depth+1)
+                elif type(value) in {int,float} and math.isfinite(value) and value>=0:result[key]=value
+            return result
+        clean=numeric(response.get('usage'))
+        if len(self.usage_records)<256:
+            self.usage_records.append({'response_id':ident,'model':TTS_MODEL,
+                'status':response.get('status') if response.get('status') in {'completed','failed','cancelled','incomplete'} else 'unknown',
+                'usage':clean,'usage_reported':bool(clean)})
     async def __aenter__(self):await self.stack.__aenter__();return self
     async def __aexit__(self,*args):
         if self.ready is not None:

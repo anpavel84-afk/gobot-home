@@ -1,0 +1,20 @@
+{
+  "schema": "sophia-timer-v421-install-v1",
+  "source_manifest_sha256": "de34839fe352bf32d1669560261079f22be2236ff2c660c8e74510b8497a27f5",
+  "parent_manifest_sha256": "3fc70ee8e6a21f0f97f43769fe43c4d3a081dcf2e85fa1c6a6c2db797b513b35",
+  "core_installer_sha256": "a0e6c9509d6d6d14b62f66de150c9e2adb44ba4695c071f99d984c1fb1d89a32",
+  "build_report_sha256": "630cb21df8108f5a0f7ec8199a1ec994dad4a15f89fc0c4f147479aa3da6d6e5",
+  "baseline_version": "0.4.20-dev-sophia-duck-v4",
+  "baseline_app_sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
+  "baseline_app_size": 3700240,
+  "candidate_version": "0.4.21-dev-sophia-timer-v4",
+  "candidate_app_sha256": "2e0898e708728973561f3920ddcbebc3c744a488bbf8cac95c72b62891edd68b",
+  "candidate_app_size": 3701840,
+  "app_offset": "0x20000",
+  "app_slot_capacity": 4128768,
+  "model": "wn10_sophia",
+  "detector_mode": "DET_MODE_95",
+  "non_app_write_allowed": false,
+  "automatic_retry": false,
+  "physical_acceptance": false
+}

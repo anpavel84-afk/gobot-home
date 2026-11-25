@@ -1,0 +1,699 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "0.4.17-dev-sophia-ui-v4")
++set(PROJECT_VER "0.4.18-dev-sophia-barge-v4")
+ project(xiaozhi)
+diff --git a/main/application.cc b/main/application.cc
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -455,7 +455,7 @@
+             }
+             auto frame=std::shared_ptr<AudioStreamPacket>(packet.release());
+             Schedule([this,frame](){
+-                if(!host_ready_ || host_muted_ || !host_output_active_ ||
++                if(!host_ready_ || host_muted_ || host_interrupt_.Pending() || !host_output_active_ ||
+                     frame->host_output_epoch!=host_output_epoch_)return;
+                 auto copy=std::make_unique<AudioStreamPacket>(*frame);
+                 if(!audio_service_.PushPacketToDecodeQueue(std::move(copy)))
+@@ -750,13 +750,39 @@
+     if (now < last_contact_+350) return;
+     last_contact_=now;
+     if(host_mode_) {
+-        if(hold) {
+-            if(host_ready_ && (host_touch_active_ || host_output_active_)) {
+-                HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"stop\"");
+-            } else {
+-                HostSetMuted(!host_muted_);
+-            }
+-        } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_output_active_) {
++        auto* host_ws=static_cast<WebsocketProtocol*>(protocol_.get());
++        if(!host_ws || !host_ws->HostV2()) {
++            if(hold) {
++                if(host_ready_ && (host_touch_active_ || host_output_active_)) {
++                    HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"stop\"");
++                } else {
++                    HostSetMuted(!host_muted_);
++                }
++            } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_output_active_) {
++                if(!host_admission_ui_.KnownBlocked()) {
++                    host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
++                    audio_service_.AllowHostWake(false);
++                }
++                // A cached denial changes presentation only. Brain still decides.
++                HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
++            }
++            RenderGoBot();return;
++        }
++        if(host_interrupt_.Pending()){RenderGoBot();return;}
++        const bool busy=host_response_busy_ || host_output_active_ || (hold && host_touch_active_);
++        if(host_ready_ && !host_muted_ && busy) {
++            const auto id=std::string("touch-")+std::to_string(++host_wake_sequence_);
++            if(HostBeginInterrupt(id,!hold)) {
++                ++host_barge_taps_;
++                auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++                HostControl("gobot_host_touch",std::string(",\"action\":\"")+(hold?"stop":"interrupt")+
++                    "\",\"gesture\":\""+(hold?"hold":"tap")+"\",\"trigger\":\"touch\",\"event_id\":\""+id+
++                    "\",\"stream_epoch\":\""+ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+
++                    "\",\"detector_sample\":"+std::to_string(audio_service_.HostCaptureSampleEnd())+HostInterruptFields());
++            }
++        } else if(hold) {
++            HostSetMuted(!host_muted_);
++        } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_interrupt_.Pending()) {
+             if(!host_admission_ui_.KnownBlocked()) {
+                 host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
+                 audio_service_.AllowHostWake(false);
+@@ -879,6 +905,7 @@
+         page.engine=host_unified_?"София":"HOST";
+         if(host_muted_)page.view=View::Muted;
+         else if(!host_ready_)page.view=host_probe_wake_pending_?View::Listening:(host_unified_?View::Ready:View::Connecting);
++        else if(host_interrupt_.Pending())page.view=host_interrupt_.Listen()?View::Listening:View::Ready;
+         else if(host_output_active_)page.view=View::Speaking;
+         else if(host_touch_active_)page.view=View::Listening;
+         else if(host_response_busy_)page.view=View::Thinking;
+@@ -1638,7 +1665,7 @@
+             int(audio_service_.HostCaptureEnabled()),(unsigned long)audio_service_.HostCaptureEpoch(),
+             (unsigned long long)audio_service_.HostCaptureSampleEnd(),(unsigned long)host_output_epoch_,
+             int(host_output_active_.load()),int(host_muted_),int(audio_service_.HardwareOutputDrained()),
+-            audio_service_.HostQueueStats().c_str());
++            (audio_service_.HostQueueStats()+","+HostBargeStats()).c_str());
+         duplex_probe::report();
+         ESP_LOGI(TAG,"GOBOT_ENDPOINT auto_ends=%u local=%d",auto_ends_,local_pause_active_);
+         ESP_LOGI(TAG,"GOBOT_VOLUME percent=%d",Board::GetInstance().GetAudioCodec()->output_volume());
+diff --git a/main/application.h b/main/application.h
+--- a/main/application.h
++++ b/main/application.h
+@@ -23,6 +23,7 @@
+ #include "gobot_turn_guard.h"
+ #include "host_output_receipts.h"
+ #include "host_admission_ui.h"
++#include "host_barge_wake.h"
+ #include "notify/notify_player.h"
+ 
+ // Main event bits
+@@ -149,12 +150,18 @@
+     std::string host_response_id_,host_output_kind_;
+     gobot_host::OutputReceipts host_output_receipts_;
+     gobot_host::AdmissionUi host_admission_ui_;
++    gobot_host::InterruptLatch host_interrupt_;
++    bool host_interrupt_quiet_sent_=false;
++    uint32_t host_barge_wakes_=0,host_barge_taps_=0;
+     bool host_cue_acked_=false, host_render_acked_=false;
+     uint32_t host_output_epoch_=0;
+     uint64_t host_next_retry_ms_=0,host_touch_started_ms_=0,host_last_speech_ms_=0;
+     std::string host_feedback_,host_playback_id_,host_stop_id_;
+     void HostEnable(bool on,bool unified=false);
+     void HostSophiaWake(uint32_t capture_epoch,uint64_t sample,uint64_t detected_us,uint64_t callback_us);
++    bool HostBeginInterrupt(const std::string& id,bool listen);
++    std::string HostInterruptFields() const;
++    std::string HostBargeStats() const;
+     void HostOutputProgress(uint32_t output_epoch,uint32_t sequence,uint32_t dma_fence);
+     void HostSetMuted(bool muted,bool notify=true);
+     void HostBeginConnect();
+diff --git a/main/audio/audio_service.cc b/main/audio/audio_service.cc
+--- a/main/audio/audio_service.cc
++++ b/main/audio/audio_service.cc
+@@ -154,7 +154,7 @@
+             audio_service->AudioInputTask();
+             vTaskDelete(NULL);
+         },
+-        "audio_input", 2048 * 2, this, 8, &audio_input_task_handle_);
++        "audio_input", 2048 * 3, this, 8, &audio_input_task_handle_); // bounded AEC SDK call-depth headroom
+ 
+     /* Start the audio output task */
+     xTaskCreate(
+@@ -269,7 +269,7 @@
+ }
+ void AudioService::EnableHostCapture(bool enabled) {
+     host_capture_enabled_.store(false);
+-    host_wake_allowed_.store(false);
++    host_wake_mode_.store(0);
+     host_capture_epoch_.fetch_add(1);
+     host_capture_sample_end_.store(0);
+     {
+@@ -290,7 +290,7 @@
+     sophia_wake_pending_.store(false);
+     sophia_buffer_handoff_.store(false);
+     host_capture_enabled_.store(enabled);
+-    host_wake_allowed_.store(enabled);
++    host_wake_mode_.store(enabled?1:0);
+     if (enabled) SetLocalScan(true);
+ }
+ 
+@@ -308,7 +308,12 @@
+         ",\"audio_input_task_present\":"+(audio_input_task_handle_?"true":"false")+
+         ",\"audio_input_stack_hwm_bytes\":"+std::to_string(audio_input_task_handle_?
+             uxTaskGetStackHighWaterMark(audio_input_task_handle_):0)+
+-        ",\"audio_input_stack_hwm_units\":\"bytes\"";
++        ",\"audio_input_stack_hwm_units\":\"bytes\""+
++        ",\"aec_ready\":"+(host_barge_aec_ready_.load()?"true":"false")+
++        ",\"aec_frames\":"+std::to_string(host_barge_aec_frames_.load())+
++        ",\"aec_reference_frames\":"+std::to_string(host_barge_reference_frames_.load())+
++        ",\"aec_process_max_us\":"+std::to_string(host_barge_process_max_us_.load())+
++        ",\"host_wake_mode\":"+std::to_string(host_wake_mode_.load());
+ }
+ 
+ bool AudioService::HardwareOutputDrained() const {
+@@ -333,6 +338,10 @@
+     static gobot_host::CapturePacker host_packer;
+     host_packer.Reset(0);
+     bool host_wake_was_allowed=false;
++    uint8_t previous_wake_mode=0;
++    static gobot_host::PlaybackReferenceAec barge_aec;
++    bool barge_aec_attempted=false;
++    std::vector<int16_t> stereo_reference; // heap storage, retained across 10ms reads
+     gobot_sophia::WakeEvidence sophia_evidence{};
+     bool sophia_ready=false;
+     uint32_t sophia_epoch=1;
+@@ -493,18 +502,28 @@
+                 if (host_capture_enabled_.load()) host_capture_epoch_.fetch_add(1);
+                 gobot_raw_wake::missed_block();gobot_mww::miss();vTaskDelay(pdMS_TO_TICKS(10));continue;
+             }
++            const bool shared_capture = host_capture_enabled_.load();
++            const uint8_t wake_mode=shared_capture?host_wake_mode_.load():0;
++            const bool playback_wake=wake_mode==3;
++            if(playback_wake)stereo_reference.assign(pcm.begin(),pcm.end());
+             if(codec_->input_channels()==2){
+                 for(size_t i=0;i<pcm.size()/2;++i)pcm[i]=pcm[2*i];
+                 pcm.resize(pcm.size()/2);
+             }
+             if(local_generation_.load()!=generation) continue;
+-            const bool shared_capture = host_capture_enabled_.load();
+             uint64_t host_sample_start = 0;
++            if(!shared_capture && previous_wake_mode>=2) {
++                // Transport/mute exit must not carry AEC history into local V4.
++                sophia.reset_input_mode();++sophia_epoch;sophia_next_sample=0;sophia_cooldown_us=0;
++                previous_wake_mode=0;host_wake_was_allowed=false;barge_aec.Reset();
++            }
+             if (shared_capture) {
+                 const uint32_t capture_epoch = host_capture_epoch_.load();
+                 if (host_packer.Epoch() != capture_epoch) {
+                     host_packer.Reset(capture_epoch);
+-                    sophia.new_stream_epoch(); ++sophia_epoch;
++                    if(previous_wake_mode>=2)sophia.reset_input_mode();
++                    else sophia.new_stream_epoch();
++                    ++sophia_epoch;
+                     sophia_next_sample = 0; sophia_cooldown_us = 0;
+                     host_wake_was_allowed = false; sophia_question.Clear();
+                 }
+@@ -515,12 +534,39 @@
+                         std::vector<int16_t>(data, data + pos.sample_count), pos);
+                 });
+                 host_capture_sample_end_.store(host_packer.NextSample());
+-                const bool allow = host_wake_allowed_.load();
++                if(!barge_aec_attempted) {
++                    barge_aec_attempted=true;
++                    const bool ready=barge_aec.Initialize(codec_->input_reference(),codec_->input_channels());
++                    host_barge_aec_ready_.store(ready);
++                    ESP_LOGI(TAG,"SOPHIA_BARGE_AEC_INIT ready=%d reference=%d channels=%u internal_free=%u psram_free=%u idle_raw_unchanged=1",
++                        int(ready),int(codec_->input_reference()),unsigned(codec_->input_channels()),
++                        unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),unsigned(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)));
++                    if(!ready)ESP_LOGE(TAG,"SOPHIA_BARGE_AEC_UNAVAILABLE playback_wake_disabled=1 idle_wake_and_touch_preserved=1");
++                }
++                if(wake_mode!=previous_wake_mode && (wake_mode>=2 || previous_wake_mode>=2)) {
++                    // Never mix raw idle/think history with the active speaker reference.
++                    sophia.reset_input_mode();++sophia_epoch;sophia_cooldown_us=0;
++                    host_wake_was_allowed=false;barge_aec.Reset();
++                }
++                previous_wake_mode=wake_mode;
++                const bool allow = wake_mode!=0;
+                 if (!allow) { host_wake_was_allowed = false; continue; }
+                 if (!host_wake_was_allowed) {
+                     sophia.new_stream_epoch(); ++sophia_epoch;
+                     sophia_next_sample = host_sample_start;
+                     host_wake_was_allowed = true;
++                }
++                if(playback_wake) {
++                    const int16_t* cleaned=nullptr;uint64_t clean_start=0;
++                    const auto began=static_cast<uint64_t>(esp_timer_get_time());
++                    const bool okay=barge_aec.Feed(capture_epoch,host_sample_start,stereo_reference.data(),pcm.size(),clean_start,cleaned);
++                    const auto elapsed=static_cast<uint64_t>(esp_timer_get_time())-began;
++                    if(elapsed>host_barge_process_max_us_.load())host_barge_process_max_us_.store(elapsed);
++                    host_barge_aec_frames_.store(barge_aec.Frames());
++                    host_barge_reference_frames_.store(barge_aec.ReferenceFrames());
++                    if(!okay || !cleaned)continue; // no raw speaker-echo fallback
++                    pcm.assign(cleaned,cleaned+gobot_host::PlaybackReferenceAec::kChunk);
++                    sophia_next_sample=clean_start;
+                 }
+             }
+             if(sophia_ready) {
+@@ -589,7 +635,7 @@
+                 if(sophia.accepted_wakes()>before) {
+                     sophia_cooldown_us=now+3000000; // 3s debounce
+                     if (shared_capture) {
+-                        host_wake_allowed_.store(false);
++                        host_wake_mode_.store(0);
+                         if (callbacks_.on_host_sophia_wake)
+                             callbacks_.on_host_sophia_wake(host_packer.Epoch(), sophia_evidence.sample_end,
+                                 sophia_evidence.detected_us, static_cast<uint64_t>(esp_timer_get_time()));
+diff --git a/main/audio/audio_service.h b/main/audio/audio_service.h
+--- a/main/audio/audio_service.h
++++ b/main/audio/audio_service.h
+@@ -25,6 +25,7 @@
+ #include "ogg_demuxer.h"
+ #include "protocol.h"
+ #include "sophia_host_capture.h"
++#include "host_barge_wake.h"
+ 
+ /*
+  * There are two types of audio data flow:
+@@ -150,7 +151,8 @@
+     bool HostCaptureEnabled() const { return host_capture_enabled_.load(); }
+     uint32_t HostCaptureEpoch() const { return host_capture_epoch_.load(); }
+     uint64_t HostCaptureSampleEnd() const { return host_capture_sample_end_.load(); }
+-    void AllowHostWake(bool allowed) { host_wake_allowed_.store(allowed); }
++    void AllowHostWake(bool allowed) { host_wake_mode_.store(allowed?1:0); }
++    void AllowHostInterrupt(bool playback) { host_wake_mode_.store(playback?3:2); }
+     bool HardwareOutputDrained() const;
+     bool HardwareFenceReached(uint32_t fence) const;
+     std::string HostQueueStats();
+@@ -239,7 +241,11 @@
+     bool device_aec_enabled_ = false;
+ #endif
+     std::atomic<uint64_t> host_encoder_seq_{0};
+-    std::atomic<bool> host_capture_enabled_{false}, host_wake_allowed_{false};
++    std::atomic<bool> host_capture_enabled_{false};
++    // 0 off, 1 unchanged idle raw, 2 thinking interrupt raw, 3 output interrupt AEC.
++    std::atomic<uint8_t> host_wake_mode_{0};
++    std::atomic<bool> host_barge_aec_ready_{false};
++    std::atomic<uint64_t> host_barge_aec_frames_{0},host_barge_reference_frames_{0},host_barge_process_max_us_{0};
+     std::atomic<uint32_t> host_capture_epoch_{1};
+     std::atomic<uint64_t> host_capture_sample_end_{0};
+     std::atomic<bool> sophia_diagnostic_requested_{true}; // LOCAL default ON, no NVS
+diff --git a/main/embedded_sophia_engine.hpp b/main/embedded_sophia_engine.hpp
+--- a/main/embedded_sophia_engine.hpp
++++ b/main/embedded_sophia_engine.hpp
+@@ -78,6 +78,10 @@
+     }
+     void set_turn_pending(bool pending) {gate_.set_pending(pending);}
+     void new_stream_epoch() {tap_.reset();gate_.begin_new_audio_epoch();}
++    void reset_input_mode() {
++        new_stream_epoch();
++        if(model_ && iface_ && iface_->clean)iface_->clean(model_);
++    }
+     bool allow_plan_stream_wake() const {return gate_.allow_plan_wake();}
+     bool installed_sophia_model_ready() const {return model_!=nullptr;}
+ 
+diff --git a/main/gobot_build_info.h b/main/gobot_build_info.h
+--- a/main/gobot_build_info.h
++++ b/main/gobot_build_info.h
+@@ -1,3 +1,3 @@
+ #pragma once
+ #define GOBOT_BUILD_EPOCH 1794492000
+-#define GOBOT_FIRMWARE_VERSION "0.4.17-dev-sophia-ui-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.18-dev-sophia-barge-v4"
+diff --git a/main/host_barge_wake.h b/main/host_barge_wake.h
+new file mode 100644
+--- /dev/null
++++ b/main/host_barge_wake.h
+@@ -0,0 +1,115 @@
++#pragma once
++// One input task, one existing WakeNet. AEC only prepares the active-output
++// wake input; idle wake and raw host capture never pass through this adapter.
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <initializer_list>
++#include "esp_aec.h"
++#include "esp_heap_caps.h"
++
++namespace gobot_host {
++class PlaybackReferenceAec {
++public:
++    static constexpr size_t kChunk=512;
++    PlaybackReferenceAec()=default;
++    PlaybackReferenceAec(const PlaybackReferenceAec&)=delete;
++    PlaybackReferenceAec& operator=(const PlaybackReferenceAec&)=delete;
++    ~PlaybackReferenceAec(){Close();}
++
++    bool Initialize(bool reference,unsigned channels) {
++        if(attempted_)return Ready();
++        attempted_=true;
++        if(!reference || channels!=2)return false;
++        aec_config_t config{};
++        config.mic_num=1;config.ref_num=1;config.out_num=1;
++        config.filter_length=4;config.sample_rate=16000;
++        config.caps=MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT;
++        config.mode=AEC_MODE_FD_LOW_COST;config.nlp_level=AEC_NLP_LEVEL_AGGR;
++        handle_=aec_create_from_config(&config);
++        if(!handle_ || aec_get_chunksize(handle_)!=int(kChunk)){Close();return false;}
++        const auto caps=MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT;
++        mic_=static_cast<int16_t*>(heap_caps_aligned_alloc(16,kChunk*sizeof(int16_t),caps));
++        ref_=static_cast<int16_t*>(heap_caps_aligned_alloc(16,kChunk*sizeof(int16_t),caps));
++        clean_=static_cast<int16_t*>(heap_caps_aligned_alloc(16,kChunk*sizeof(int16_t),caps));
++        if(!mic_ || !ref_ || !clean_){Close();return false;}
++        return true;
++    }
++    bool Ready()const{return handle_ && mic_ && ref_ && clean_;}
++    void Reset(){fill_=0;has_clock_=false;frame_has_reference_=false;}
++
++    // start is the original hardware capture position. No wall-clock/processing
++    // delay is added to it. Blocks are <=160 samples, so at most one 512-sample
++    // AEC output is produced; any input after that output stays in the next frame.
++    bool Feed(uint32_t epoch,uint64_t start,const int16_t* stereo,size_t samples,
++              uint64_t& clean_start,const int16_t*& clean) {
++        clean=nullptr;clean_start=0;
++        if(!Ready() || !epoch || !stereo || !samples || samples>160)return false;
++        if(!has_clock_ || epoch!=epoch_ || start!=next_sample_) {
++            fill_=0;frame_has_reference_=false;epoch_=epoch;next_sample_=start;has_clock_=true;
++        }
++        for(size_t i=0;i<samples;++i) {
++            if(!fill_)frame_start_=next_sample_;
++            mic_[fill_]=stereo[2*i];ref_[fill_]=stereo[2*i+1];
++            if(ref_[fill_])frame_has_reference_=true;
++            ++fill_;++next_sample_;
++            if(fill_==kChunk) {
++                aec_process(handle_,mic_,ref_,clean_);
++                ++frames_;if(frame_has_reference_)++reference_frames_;
++                clean_start=frame_start_;clean=clean_;
++                fill_=0;frame_has_reference_=false;
++            }
++        }
++        return true;
++    }
++    uint64_t Frames()const{return frames_;}
++    uint64_t ReferenceFrames()const{return reference_frames_;}
++private:
++    void Close() {
++        if(handle_)aec_destroy(handle_);
++        handle_=nullptr;
++        for(auto* p:{mic_,ref_,clean_})if(p)heap_caps_free(p);
++        mic_=ref_=clean_=nullptr;Reset();
++    }
++    aec_handle_t* handle_=nullptr;
++    int16_t *mic_=nullptr,*ref_=nullptr,*clean_=nullptr;
++    bool attempted_=false,has_clock_=false,frame_has_reference_=false;
++    size_t fill_=0;
++    uint32_t epoch_=0;
++    uint64_t next_sample_=0,frame_start_=0,frames_=0,reference_frames_=0;
++};
++
++// Only a correlated, current gateway completion releases local audio fencing.
++// Ordinary/late state messages cannot revive the interrupted answer.
++class InterruptLatch {
++public:
++    bool Begin(const char* id,uint64_t now,bool listen) {
++        if(Pending() || !ValidId(id))return false;
++        std::strcpy(id_,id);started_=now;listen_=listen;return true;
++    }
++    bool Complete(const char* id,const char* outcome) {
++        if(!Pending() || !id || std::strcmp(id_,id) || !outcome ||
++           (std::strcmp(outcome,"listening") && std::strcmp(outcome,"ready")))return false;
++        Reset();return true;
++    }
++    bool Pending()const{return id_[0]!=0;}
++    bool Listen()const{return listen_;}
++    bool Expired(uint64_t now)const{return Pending() && now>=started_ && now-started_>=8000;}
++    const char* Id()const{return id_;}
++    void Reset(){id_[0]=0;started_=0;listen_=false;}
++private:
++    static bool ValidId(const char* id) {
++        if(!id)return false;
++        size_t n=0;
++        for(;id[n];++n) {
++            if(n>=80)return false;
++            const char c=id[n];
++            if(!((c>='a'&&c<='z') || (c>='A'&&c<='Z') || (c>='0'&&c<='9') || c=='-' || c=='_'))return false;
++        }
++        return n!=0;
++    }
++    char id_[81]{};
++    uint64_t started_=0;
++    bool listen_=false;
++};
++} // namespace gobot_host
+diff --git a/main/host_rc1_app.inc b/main/host_rc1_app.inc
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -28,6 +28,7 @@
+ }
+ 
+ void Application::HostFault(const char* reason) {
++    host_interrupt_.Reset();
+     host_admission_ui_.Reset();
+     if(host_connecting_.load()) {
+         host_connect_abort_reason_=reason;return; // worker exclusively owns Connect/hello
+@@ -69,6 +70,7 @@
+     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+     if(!ws)return;
+     if(!enabled) {
++        host_interrupt_.Reset();
+         host_admission_ui_.Reset();
+         host_mode_=host_ready_=host_touch_active_=host_output_active_=false;
+         host_output_end_=host_output_started_=host_muted_=false;
+@@ -89,6 +91,7 @@
+     if(!(unified ? ws->ConfigureUnifiedHost() : ws->ConfigureHostTest(GOBOT_HOST_RC1_TEST_URL))) {
+         ESP_LOGE(TAG,"GOBOT_HOST_SWITCH_REJECT protocol_busy=1");return;
+     }
++    host_interrupt_.Reset();
+     host_admission_ui_.Reset();
+     host_unified_=unified;
+     host_probe_wake_pending_=false;host_deferred_ready_.clear();host_connect_abort_reason_.clear();
+@@ -102,13 +105,49 @@
+     RenderGoBot();
+ }
+ 
++// Fence local playback before requesting either remote cancellation barrier.
++// Keep current owner IDs: already-in-flight output_start/cancel must still match.
++bool Application::HostBeginInterrupt(const std::string& id,bool listen) {
++    if(!host_mode_ || !host_ready_ || host_muted_ ||
++       !host_interrupt_.Begin(id.c_str(),gobot::NowMs(),listen))return false;
++    audio_service_.AllowHostWake(false);
++    host_interrupt_quiet_sent_=false;
++    host_whole_response_=host_output_end_=false;
++    host_output_receipts_.Reset();audio_service_.ResetDecoder();
++    host_touch_active_=listen;host_voice_seen_=false;host_response_busy_=false;
++    host_touch_started_ms_=gobot::NowMs();host_feedback_.clear();
++    gobot_ui_phase_=listen?"listening":"";
++    ESP_LOGI(TAG,"SOPHIA_INTERRUPT_LOCAL event_id=%s listen=%d output_active=%d output_epoch=%lu sample_floor=%llu",
++        id.c_str(),int(listen),int(host_output_active_.load()),(unsigned long)host_output_epoch_,
++        (unsigned long long)audio_service_.HostCaptureSampleEnd());
++    return true;
++}
++
++std::string Application::HostInterruptFields() const {
++    std::string extra=",\"interrupt_requested\":true";
++    if(host_output_active_)extra+=",\"interrupted_response_id\":\""+host_response_id_+
++        "\",\"interrupted_playback_id\":\""+host_playback_id_+"\",\"interrupted_output_epoch\":"+
++        std::to_string(host_output_epoch_);
++    return extra;
++}
++
++std::string Application::HostBargeStats() const {
++    return std::string("\"interrupt_pending\":")+(host_interrupt_.Pending()?"true":"false")+
++        ",\"barge_wakes\":"+std::to_string(host_barge_wakes_)+",\"barge_taps\":"+std::to_string(host_barge_taps_);
++}
++
+ void Application::HostSophiaWake(uint32_t capture_epoch,uint64_t sample,uint64_t detected_us,uint64_t callback_us) {
+     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+     if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() || host_muted_ ||
+-        capture_epoch!=audio_service_.HostCaptureEpoch() || host_output_active_ ||
+-        host_response_busy_ || host_touch_active_)return;
++        host_interrupt_.Pending() || capture_epoch!=audio_service_.HostCaptureEpoch())return;
++    const bool interrupt=host_output_active_ || host_response_busy_;
++    if(host_touch_active_ && !interrupt)return;
+     const auto wake_id=std::string("sophia-")+std::to_string(++host_wake_sequence_);
+-    if(!host_admission_ui_.KnownBlocked()) {
++    if(interrupt) {
++        if(!HostBeginInterrupt(wake_id,true))return;
++        ++host_barge_wakes_;
++    }
++    if(interrupt || !host_admission_ui_.KnownBlocked()) {
+         host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=gobot::NowMs();
+         gobot_ui_phase_="listening";
+         // Preserve the accepted/unknown path's existing LVGL refresh receipt.
+@@ -122,19 +161,19 @@
+             });
+         })) {HostFault("lcd_refresh_receipt_unavailable");return;}
+     }
+-    // Known blocked: retain the notice and local detector, but still forward
+-    // this exact wake to Brain. A subsequent server state can allow listening.
++    // Known blocked idle wakes still go to Brain; cached admission is UI only.
+     RenderGoBot();
++    const auto extra=interrupt?(",\"event_id\":\""+wake_id+"\",\"trigger\":\"wake_word\""+HostInterruptFields()):"";
+     HostControl("gobot_host_wake",",\"wake_id\":\""+wake_id+"\",\"stream_epoch\":\""+
+         ws->HostStreamEpoch(capture_epoch)+"\",\"detector_sample\":"+std::to_string(sample)+
+         ",\"detector_monotonic_us\":"+std::to_string(detected_us)+
+-        ",\"callback_monotonic_us\":"+std::to_string(callback_us));
++        ",\"callback_monotonic_us\":"+std::to_string(callback_us)+extra);
+ }
+ 
+ void Application::HostOutputProgress(uint32_t output_epoch,uint32_t sequence,uint32_t dma_fence) {
+     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+     if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() || !host_output_active_ ||
+-        output_epoch!=host_output_epoch_ || host_muted_)return;
++        output_epoch!=host_output_epoch_ || host_muted_ || host_interrupt_.Pending())return;
+     if(!host_output_receipts_.Written(sequence,dma_fence)) {HostFault("output_dma_order_invalid");return;}
+     if(sequence!=0 && sequence%2)return;
+     HostControl("gobot_host_playback",",\"state\":\"progress\",\"playback_id\":\""+
+@@ -146,7 +185,7 @@
+ }
+ 
+ void Application::HostDriverOutputStarted() {
+-    if(!host_mode_ || !host_ready_)return;
++    if(!host_mode_ || !host_ready_ || host_interrupt_.Pending())return;
+     if(!host_feedback_.empty() && !host_cue_acked_) {
+         const auto id=host_feedback_;
+         HostControl("gobot_host_ack",",\"feedback_id\":\""+id+
+@@ -194,6 +233,7 @@
+         if((negotiated==2 && (!stage || strcmp(stage,"pre_afe") || !wake_location || strcmp(wake_location,"ESP"))) ||
+            !cJSON_IsNumber(frame) || frame->valueint!=960 ||
+            !ws->HostReady(session,epoch,negotiated)) {HostFault("ready_invalid");return;}
++        host_interrupt_.Reset();
+         host_admission_ui_.Reset();
+         host_ready_=true;host_touch_active_=false;host_ready_deadline_ms_=0;
+         host_output_epoch_=0;host_response_busy_=false;
+@@ -202,7 +242,7 @@
+             audio_service_.EnableSophiaDiagnostic(true);
+             audio_service_.EnableHostCapture(true);
+             HostControl("gobot_host_ready_ack",",\"protocol\":2,\"frame_samples\":960,\"sample_start\":0,\"pcm_stage\":\"pre_afe\",\"stream_epoch\":\""+
+-                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\"");
++                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\",\"interruption\":\"wake_touch_v1\"");
+         } else {
+             audio_service_.EnableSophiaDiagnostic(false);
+             audio_service_.SetLocalScan(false);
+@@ -227,7 +267,22 @@
+             (unsigned long)host_admission_ui_.Revision());
+         RenderGoBot();return; // UI only: no input/output/AFE/wake mutation.
+     }
++    if(kind=="gobot_host_interrupt_complete" && ws->HostV2()) {
++        const auto id=gobot::String(root,"event_id",80);
++        const auto outcome=gobot::String(root,"outcome",16);
++        if(!host_interrupt_.Complete(id,outcome))return;
++        if(host_output_active_ || !audio_service_.IsPlaybackIdle() || !audio_service_.HardwareOutputDrained()) {
++            HostFault("interrupt_complete_before_quiet");return;
++        }
++        const bool listen=!strcmp(outcome,"listening");
++        host_touch_active_=listen;host_response_busy_=false;host_voice_seen_=false;
++        host_touch_started_ms_=gobot::NowMs();gobot_ui_phase_=listen?"listening":"";
++        ESP_LOGI(TAG,"SOPHIA_INTERRUPT_COMPLETE event_id=%s outcome=%s sample_floor=%llu",
++            id,outcome,(unsigned long long)audio_service_.HostCaptureSampleEnd());
++        RenderGoBot();return;
++    }
+     if(kind=="gobot_host_state" && ws->HostV2()) {
++        if(host_interrupt_.Pending())return; // old Brain state is not a cancellation receipt
+         const auto state=gobot::String(root,"state",24);
+         if(!state)return;
+         if(!strcmp(state,"listening")) {
+@@ -235,10 +290,10 @@
+             audio_service_.AllowHostWake(false);
+         } else if(!strcmp(state,"thinking")) {
+             host_touch_active_=false;host_response_busy_=true;gobot_ui_phase_="thinking";
+-            audio_service_.AllowHostWake(false);
++            audio_service_.AllowHostInterrupt(!audio_service_.HardwareOutputDrained());
+         } else if(!strcmp(state,"speaking")) {
+             host_touch_active_=false;host_response_busy_=true;gobot_ui_phase_="speaking";
+-            audio_service_.AllowHostWake(false);
++            audio_service_.AllowHostInterrupt(true);
+         } else if(!strcmp(state,"idle") || !strcmp(state,"ready") || !strcmp(state,"error")) {
+             host_touch_active_=false;host_response_busy_=false;gobot_ui_phase_.clear();
+             if(!strcmp(state,"error")){notice_="Связь недоступна. Попробуйте ещё раз";notice_until_=gobot::NowMs()+3500;}
+@@ -269,6 +324,7 @@
+         host_wake_guard_ms_=gobot::NowMs()+250;RenderGoBot();return;
+     }
+     if(kind=="gobot_host_output_segment_end" && ws->HostV2()) {
++        if(host_interrupt_.Pending())return;
+         const auto id=gobot::String(root,"playback_id",64);
+         const auto response=gobot::String(root,"response_id",64);
+         const auto segment=gobot::String(root,"segment_id",96);
+@@ -335,7 +391,7 @@
+                 (strcmp(audio_kind,"answer") && strcmp(audio_kind,"cue"))) {HostFault("response_owner_invalid");return;}
+             host_response_id_=response;host_output_kind_=audio_kind;
+             host_response_busy_=true;host_whole_response_=false;
+-            audio_service_.AllowHostWake(false);
++            if(!host_interrupt_.Pending())audio_service_.AllowHostInterrupt(true);
+         }
+         if(host_muted_){HostFault("output_while_muted");return;}
+         host_output_receipts_.Reset();
+@@ -344,6 +400,7 @@
+         host_touch_active_=false;
+         RenderGoBot();
+     } else if(kind=="gobot_host_output_end") {
++        if(host_interrupt_.Pending())return;
+         const auto id=gobot::String(root,"playback_id",80);
+         const auto gen=cJSON_GetObjectItem(root,"output_epoch");
+         if(!id || host_playback_id_!=id || !cJSON_IsNumber(gen) ||
+@@ -358,6 +415,7 @@
+         }
+         host_output_end_=true;
+     } else if(kind=="gobot_host_idle") {
++        if(host_interrupt_.Pending())return;
+         host_touch_active_=false;host_voice_seen_=false;host_response_busy_=false;
+         gobot_ui_phase_.clear();RenderGoBot();
+     }
+@@ -368,6 +426,7 @@
+     if(notify)HostControl("gobot_host_mute",std::string(",\"muted\":")+(muted?"true":"false"));
+     else HostControl("gobot_host_ack",std::string(",\"event\":\"muted\",\"muted\":")+(muted?"true":"false"));
+     host_muted_=gobot_muted_=muted;
++    host_interrupt_.Reset();
+     audio_service_.EnableHostCapture(false);audio_service_.SetLocalScan(false);
+     audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
+     host_touch_active_=host_response_busy_=false;host_output_receipts_.Reset();
+@@ -459,7 +518,17 @@
+     if(!host_mode_)return;
+     const uint64_t now=gobot::NowMs();
+     if(host_connecting_.load())return;
+-    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(host_interrupt_.Expired(now)){HostFault("interrupt_timeout");return;}
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    // Also prove quiet for an interrupt during thinking, when no output owner
++    // exists to cancel. Local diagnostics/timer sounds may still have DMA data.
++    if(ws && host_ready_ && ws->HostV2() && host_interrupt_.Pending() &&
++       !host_interrupt_quiet_sent_ && audio_service_.IsPlaybackIdle() && audio_service_.HardwareOutputDrained()) {
++        HostControl("gobot_host_ack",",\"event\":\"interrupt_quiet\",\"event_id\":\""+
++            std::string(host_interrupt_.Id())+"\",\"sample_floor\":"+std::to_string(audio_service_.HostCaptureSampleEnd())+
++            ",\"stream_epoch\":\""+ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\"");
++        host_interrupt_quiet_sent_=true;
++    }
+     // Stop receipt only after actual audio queue/software-driver drain.
+     if(ws && host_ready_ && !host_stop_id_.empty() && audio_service_.IsPlaybackIdle() &&
+        (!ws->HostV2() || audio_service_.HardwareOutputDrained())) {
+@@ -467,7 +536,9 @@
+             HostControl("gobot_host_playback",",\"state\":\"stopped\",\"response_id\":\""+
+                 host_response_id_+"\",\"playback_id\":\""+host_stop_id_+
+                 "\",\"output_epoch\":"+std::to_string(host_output_epoch_)+
+-                ",\"whole_response\":false,\"completion_basis\":\"i2s_dma_sent\"");
++                ",\"whole_response\":false,\"completion_basis\":\"i2s_dma_sent\",\"sample_floor\":"+
++                std::to_string(audio_service_.HostCaptureSampleEnd())+",\"stream_epoch\":\""+
++                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\"");
+         } else {
+             HostControl("gobot_host_ack",",\"feedback_id\":\""+host_stop_id_+
+                         "\",\"event\":\"stopped\",\"output_epoch\":"+
+@@ -501,7 +572,7 @@
+         }
+         RenderGoBot();return;
+     }
+-    if(ws->HostV2() && host_output_active_) {
++    if(ws->HostV2() && host_output_active_ && !host_interrupt_.Pending()) {
+         host_output_receipts_.Poll([this](uint32_t fence){return audio_service_.HardwareFenceReached(fence);},
+             [this](const gobot_host::SegmentFence& segment) {
+                 HostControl("gobot_host_playback",",\"state\":\"segment_finished\",\"response_id\":\""+
+@@ -513,7 +584,7 @@
+             });
+     }
+     // Never report drained on output_end alone.
+-    if(host_output_end_ && host_output_started_ && host_output_receipts_.Empty() && audio_service_.IsPlaybackIdle() &&
++    if(!host_interrupt_.Pending() && host_output_end_ && host_output_started_ && host_output_receipts_.Empty() && audio_service_.IsPlaybackIdle() &&
+        (!ws->HostV2() || audio_service_.HardwareOutputDrained())) {
+         if(ws->HostPlaybackDrained(host_playback_id_,host_output_epoch_)) {
+             const auto state=host_whole_response_?"playback_finished":"segment_finished";
+@@ -536,10 +607,13 @@
+         // The gateway alone decides endpointing and follow-up. Never commit at
+         // the old 800ms device VAD threshold or at one cue/sentence completion.
+         const bool idle=!host_touch_active_ && !host_response_busy_ && !host_output_active_;
+-        audio_service_.AllowHostWake(idle && now>=host_wake_guard_ms_ && audio_service_.HardwareOutputDrained());
++        if(host_interrupt_.Pending() || host_touch_active_)audio_service_.AllowHostWake(false);
++        else if(host_output_active_ || host_response_busy_)
++            audio_service_.AllowHostInterrupt(host_output_active_ || !audio_service_.HardwareOutputDrained());
++        else audio_service_.AllowHostWake(idle && now>=host_wake_guard_ms_ && audio_service_.HardwareOutputDrained());
+         if(now>=host_last_stats_ms_+5000) {
+             host_last_stats_ms_=now;
+-            HostControl("gobot_host_stats",","+audio_service_.HostQueueStats()+
++            HostControl("gobot_host_stats",","+audio_service_.HostQueueStats()+","+HostBargeStats()+
+                 ",\"internal_free\":"+std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL))+
+                 ",\"psram_free\":"+std::to_string(heap_caps_get_free_size(MALLOC_CAP_SPIRAM))+
+                 ",\"underrun_measurement\":\"not_instrumented\"");

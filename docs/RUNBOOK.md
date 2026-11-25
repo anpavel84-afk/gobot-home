@@ -1,5 +1,37 @@
 # Запуск Windows native
 
+## Постоянный терминал Софии на PLAN
+
+Для установленной связки Spotpear → Gateway → Brain → `/sophia` есть отдельный
+однократный launcher существующих служб. Он использует прежний supervisor и
+точные команды Gateway/frontend из сохранённого deployment receipt. По
+умолчанию команда только читает состояние:
+
+```powershell
+.venv\Scripts\python.exe -X utf8 tools/sophia_terminal_startup.py status
+.venv\Scripts\python.exe -X utf8 tools/sophia_terminal_startup.py start --execute
+```
+
+Полностью работающий стек остаётся нетронутым. Пустой стек запускается один
+раз; частичный/чужой listener требует проверки оператора и не приводит к
+автоматическому restart. Проверяются Windows user PLAN, прежние ключи,
+supervisor/worker PID и время создания, ancestry Windows venv redirector,
+argv/cwd и ограниченный приватный путь deployment receipt. Launcher не
+создаёт новый daemon, service, разрешение, ключи или платный разговор.
+
+Для запуска после входа PLAN в Windows используется **один per-user Startup
+shortcut** на `.venv\Scripts\pythonw.exe` с аргументами `-X utf8`, абсолютным
+путём к `tools/sophia_terminal_startup.py` и `start --execute`; working
+directory — основной GoBotHome. Приватный результат записывается в
+`run/sophia-terminal-startup.log`, журналы запуска — в одноимённый каталог.
+Факт установки конкретного shortcut и аппаратная готовность фиксируются в
+CURRENT_STATUS.md. Существующие DPAPI/CLI-доступы требуют профиля PLAN:
+работа до входа пользователя в Windows не заявляется. Удаление только этого
+shortcut отменяет автозапуск, не останавливая текущий разговор и не меняя учёт.
+
+Остальные команды ниже описывают отдельные компоненты и прежние режимы;
+`scripts/manage.py start` сам по себе не запускает Gateway и `/sophia` frontend.
+
 Текущее состояние: CURRENT_STATUS.md. После изменения CLI-кода необходимы бесплатные
 scripts/audit_agents.py и scripts/audit_agy.py, иначе admission закрывается.
 Контекст/голос: CONTEXT_POLICY.md, SPEECH_FORMATTING.md. Перед ручной миграцией
@@ -27,7 +59,8 @@ Invoke-RestMethod http://127.0.0.1:18781/healthz
 ```
 
 start проверяет четыре порта, чужие процессы не завершает. Повторный start проверяет свой supervisor.
-Background через CREATE_NO_WINDOW, OS autostart отсутствует. stop пишет приватный stop.request;
+Background через CREATE_NO_WINDOW; сам manage.py не устанавливает OS autostart.
+Для постоянной Софии используется launcher выше. stop пишет приватный stop.request;
 supervisor завершает только своих детей/потомков, включая Windows venv redirector.
 run/processes.json содержит PID/create_time, run/*.log — диагностика без access logs.
 Restart budget: 4 запуска worker за жизнь supervisor, затем явные stop/start.

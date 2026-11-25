@@ -1,5 +1,5 @@
 """Bounded content-free traces. Clock domains are never subtracted from each other."""
-import contextvars,hashlib,json,math,re,sqlite3,time
+import contextvars,hashlib,json,math,re,sqlite3,time,subprocess
 from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
@@ -15,9 +15,10 @@ def _fingerprint(entries):
 @lru_cache(maxsize=1)
 def code_commit():
     try:
-        value=(ROOT/'.git/refs/heads/master').read_text().strip()
+        value=subprocess.check_output(['git','--no-optional-locks','rev-parse','--verify','HEAD'],
+                                      cwd=ROOT,stderr=subprocess.DEVNULL,timeout=2).decode('ascii').strip()
         return value if re.fullmatch('[a-f0-9]{40}',value) else 'unknown'
-    except OSError:return 'unknown'
+    except (OSError,subprocess.SubprocessError,UnicodeError):return 'unknown'
 
 @lru_cache(maxsize=1)
 def fingerprint():

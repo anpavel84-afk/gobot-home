@@ -80,13 +80,15 @@ class Archive:
     def _index(c,message,owner,topic,content,created):
         c.execute('INSERT OR IGNORE INTO retrieval_chunks(message_id,owner,topic_id,content,created) VALUES(?,?,?,?,?)',(message,owner,topic,content,created))
 
-    def search(self,owner,query,limit=5,since=None,until=None,topic=None):
+    def search(self,owner,query,limit=5,since=None,until=None,topic=None,*,native_binding=None):
         tokens=terms(query)
         with self.memory.connect() as c:
             filters='r.owner=?';args=[owner]
             if since is not None:filters+=' AND r.created>=?';args.append(since)
             if until is not None:filters+=' AND r.created<=?';args.append(until)
             if topic:filters+=' AND r.topic_id=?';args.append(topic)
+            if native_binding:
+                filters+=' AND EXISTS (SELECT 1 FROM native_archive_sources n WHERE n.message_id=r.message_id AND n.binding_key=?)';args.append(native_binding)
             if not tokens:return []
             expression=' OR '.join('"'+token+'"*' for token in tokens)
             rows=c.execute('SELECT r.*,bm25(archive_fts) AS rank FROM archive_fts JOIN retrieval_chunks r ON r.id=archive_fts.rowid WHERE archive_fts MATCH ? AND '+filters+' ORDER BY rank,r.created DESC LIMIT ?', [expression,*args,min(limit,20)]).fetchall()
@@ -103,9 +105,12 @@ class Archive:
             row=c.execute("SELECT m.id,m.role,m.content,m.created FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE m.id=? AND a.owner=? AND a.namespace='production' AND a.status='completed'",(message_id,owner)).fetchone()
             return dict(row) if row else None
 
-    def begin(self,c,req,message_id):
-        now=time.time();owner=req.device_id
-        current=c.execute("SELECT e.*,t.label FROM episodes e JOIN topics t ON t.id=e.topic_id WHERE e.conversation_id=? AND EXISTS (SELECT 1 FROM archive_messages a WHERE a.episode_id=e.id AND a.owner=? AND a.namespace='production') ORDER BY e.last_seen DESC LIMIT 1",(req.conversation_id,owner)).fetchone()
+    def begin(self,c,req,message_id,*,namespace=None,now=None,native_binding=None):
+        if namespace not in {None,'production','diagnostic'}:raise ValueError('invalid_archive_namespace')
+        now=time.time() if now is None else now;owner=req.device_id
+        source_filter=(' AND EXISTS (SELECT 1 FROM native_archive_sources n WHERE n.message_id=a.message_id AND n.binding_key=?)' if native_binding else '')
+        source_args=[native_binding] if native_binding else []
+        current=c.execute("SELECT e.*,t.label FROM episodes e JOIN topics t ON t.id=e.topic_id WHERE e.conversation_id=? AND EXISTS (SELECT 1 FROM archive_messages a WHERE a.episode_id=e.id AND a.owner=? AND a.namespace='production'"+source_filter+") ORDER BY e.last_seen DESC LIMIT 1",[req.conversation_id,owner,*source_args]).fetchone()
         text=req.text.lower();outcome='continue' if current else 'new_topic';reason='active_topic' if current else 'first_turn';topic=current['topic_id'] if current else None
         explicit_new=bool(getattr(req,'new_topic',False) or re.search(r'новая тема|новый разговор|поговорим о другом',text))
         side=bool(re.match(r'^(?:гобот[,! ]+)?(?:поставь|запусти|отмени|останови)\s+таймер',text))
@@ -115,13 +120,13 @@ class Archive:
         if explicit_new:topic=None;outcome='new_topic';reason='explicit_new_topic'
         elif side:outcome='side_action';reason='timer_preserves_topic'
         elif resume:
-            found=self.search(owner,req.text,5)
+            found=self.search(owner,req.text,5,native_binding=native_binding)
             if found:topic=found[0]['topic_id'];outcome='resume_topic';reason='scoped_fts_match'
             else:outcome='ambiguous';reason='no_matching_archive_source'
         elif re.fullmatch(r'(?:а )?(?:он|она|оно|они|это)(?:\?|\.)?',text.strip()) and not current:
             outcome='ambiguous';reason='reference_without_active_topic'
         elif current and len(terms(text))>=2:
-            recent=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.owner=? AND a.namespace='production' AND a.status='completed' ORDER BY m.id DESC LIMIT 4",(topic,owner)).fetchall()
+            recent=c.execute("SELECT m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.owner=? AND a.namespace='production' AND a.status='completed'"+source_filter+" ORDER BY m.id DESC LIMIT 4",[topic,owner,*source_args]).fetchall()
             recent_terms=set(terms(current['label']))
             for row in recent:recent_terms.update(terms(row[0]))
             if recent and not set(terms(text))&recent_terms:
@@ -142,7 +147,7 @@ class Archive:
         else:episode=current['id'];c.execute('UPDATE episodes SET last_seen=? WHERE id=?',(now,episode))
         c.execute('UPDATE topics SET updated=? WHERE id=?',(now,topic))
         c.execute('INSERT INTO turn_topics VALUES(?,?,?,?,?)',(req.turn_id,topic,episode,outcome,reason))
-        c.execute('INSERT INTO archive_messages VALUES(?,?,?,?,?,?)',(message_id,owner,topic,episode,'diagnostic' if diagnostic(req) else 'production','running'))
+        c.execute('INSERT INTO archive_messages VALUES(?,?,?,?,?,?)',(message_id,owner,topic,episode,namespace or ('diagnostic' if diagnostic(req) else 'production'),'running'))
 
     def finish(self,c,req,status,provider):
         topic=c.execute('SELECT * FROM turn_topics WHERE turn_id=?',(req.turn_id,)).fetchone()
@@ -177,22 +182,44 @@ class Archive:
                 'summary_sources':json.loads(summary['source_message_ids']) if summary else [],'facts':facts,
                 'fact_sources':[r['id'] for r in facts], 'original_question':'','retrieved':retrieved,'topic':dict(route),'pending_action':dict(pending) if pending else None}
 
-    def maintain_one(self):
+    def maintain_one(self,*,owner=None,native_binding=None):
         """Incremental attributed excerpts only. Transaction guards deletion/revisions."""
         with self.memory.connect() as c:
             c.execute('BEGIN IMMEDIATE')
-            job=c.execute('SELECT * FROM memory_jobs ORDER BY requested LIMIT 1').fetchone()
+            if native_binding is not None:
+                job=c.execute('''SELECT j.* FROM memory_jobs j WHERE EXISTS (
+                    SELECT 1 FROM archive_messages a JOIN native_archive_sources n ON n.message_id=a.message_id
+                    WHERE a.topic_id=j.topic_id AND n.binding_key=?) ORDER BY j.requested LIMIT 1''',(native_binding,)).fetchone()
+            else:
+                job=(c.execute('SELECT j.* FROM memory_jobs j JOIN topics t ON t.id=j.topic_id WHERE t.owner=? ORDER BY j.requested LIMIT 1',(owner,)).fetchone()
+                     if owner is not None else c.execute('SELECT * FROM memory_jobs ORDER BY requested LIMIT 1').fetchone())
             if not job:return
             c.execute('DELETE FROM memory_jobs WHERE topic_id=?',(job['topic_id'],))
             topic=c.execute('SELECT generation FROM topics WHERE id=?',(job['topic_id'],)).fetchone()
             if not topic or topic[0]!=job['generation']:return
+            # The ordinary local worker can claim a native topic too. Its
+            # provenance fence must be identical to the dedicated write lane.
+            if native_binding is None and c.execute("SELECT 1 FROM sqlite_master WHERE name='native_archive_sources'").fetchone():
+                bindings=c.execute('''SELECT DISTINCT n.binding_key FROM native_archive_sources n
+                    JOIN archive_messages a ON a.message_id=n.message_id WHERE a.topic_id=?''',(job['topic_id'],)).fetchall()
+                if len(bindings)>1:return
+                if bindings:native_binding=bindings[0][0]
             previous=c.execute('SELECT * FROM topic_summaries WHERE topic_id=? ORDER BY version DESC LIMIT 1',(job['topic_id'],)).fetchone()
+            previous_version=previous['version'] if previous else 0
+            source_filter=(' AND EXISTS (SELECT 1 FROM native_archive_sources n WHERE n.message_id=a.message_id AND n.binding_key=?)' if native_binding else '')
+            source_args=[native_binding] if native_binding else []
+            if previous and native_binding:
+                ids=json.loads(previous['source_message_ids'])
+                if not isinstance(ids,list) or not 1<=len(ids)<=16 or any(type(ident) is not int for ident in ids):previous=None
+                else:
+                    permitted={row[0] for row in c.execute('SELECT message_id FROM native_archive_sources WHERE binding_key=? AND message_id IN ('+','.join('?' for _ in ids)+')',[native_binding,*ids])}
+                    if not set(ids)<=permitted:previous=None
             boundary=previous['boundary'] if previous else 0
-            rows=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.id>? ORDER BY m.id LIMIT 16",(job['topic_id'],boundary)).fetchall()
+            rows=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.id>?"+source_filter+" ORDER BY m.id LIMIT 16",[job['topic_id'],boundary,*source_args]).fetchall()
             if not rows or (not previous and len(rows)<8):return
             excerpts=[{'id':r['id'],'role':r['role'],'excerpt':r['content'][:100]} for r in rows]
             prior=json.loads(previous['content']).get('source_excerpts',[]) if previous else []
-            anchor=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.role='user' ORDER BY m.id LIMIT 1",(job['topic_id'],)).fetchone()
+            anchor=c.execute("SELECT m.id,m.role,m.content FROM messages m JOIN archive_messages a ON a.message_id=m.id WHERE a.topic_id=? AND a.namespace='production' AND a.status='completed' AND m.role='user'"+source_filter+" ORDER BY m.id LIMIT 1",[job['topic_id'],*source_args]).fetchone()
             candidates={item['id']:dict(item,excerpt=item['excerpt'][:100]) for item in prior+excerpts}
             anchor_id=anchor['id'] if anchor else None
             selected=([{'id':anchor_id,'role':'user','excerpt':anchor['content'][:100]}] if anchor else [])+[item for ident,item in sorted(candidates.items()) if ident!=anchor_id][-5:]
@@ -204,7 +231,7 @@ class Archive:
             while tokens(content)>limit and len(selected)>1:
                 selected.pop(1);content=encode()
             if tokens(content)>limit:return
-            c.execute('INSERT INTO topic_summaries VALUES(?,?,?,?,?,?,?)',(job['topic_id'],(previous['version']+1) if previous else 1,content,json.dumps([r['id'] for r in selected]),rows[-1]['id'],job['generation'],time.time()))
+            c.execute('INSERT INTO topic_summaries VALUES(?,?,?,?,?,?,?)',(job['topic_id'],previous_version+1,content,json.dumps([r['id'] for r in selected]),rows[-1]['id'],job['generation'],time.time()))
 
     def record_context(self,req,packet,provider):
         with self.memory.connect() as c:

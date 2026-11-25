@@ -26,6 +26,7 @@ def _cached_digest(path,size,modified):return hashlib.sha256(Path(path).read_byt
 
 def policy_digest():
     paths = [Path(__file__), ROOT / 'services/brain/gobot/agents.py',
+             ROOT / 'services/brain/gobot/expert_stream.py',
              ROOT / 'services/brain/gobot/expert_profiles.py',
              ROOT / 'services/brain/gobot/processes.py', ROOT / 'services/brain/gobot/telemetry.py', POLICIES / 'gemini-settings.json',
              POLICIES / 'gemini-deny.toml']
@@ -144,7 +145,7 @@ def context_prompt(text, context):
 
 class CodexLiveAdapter:
     def __init__(self):self.usage=None
-    async def stream(self, text, context, *, extra_config=None,model_id=None):
+    async def stream(self, text, context, *, extra_config=None,model_id=None,job_id=None):
         mark("argv_policy_start")
         argv, workspace, model = codex_argv(extra_config)
         mark("argv_policy_end")
@@ -152,7 +153,7 @@ class CodexLiveAdapter:
         async with native_process(argv, workspace) as process:
             rpc = AppServerTransport(process.stdout, process.stdin, timeout=15)
             await rpc.start()
-            adapter = CodexAppServerAdapter(rpc, workspace)
+            adapter = CodexAppServerAdapter(rpc, workspace,strict_phases=True,job_id=job_id)
             try:
                 mark("provider_init_start")
                 await adapter.initialize();mark("provider_initialized")
@@ -205,7 +206,7 @@ def agent_status(usage_consent=False):
     statuses['antigravity']=antigravity_status(usage_consent)
     return statuses
 
-async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None,antigravity_transport='stream_json',expert_profile=None):
+async def live_stream(provider, text, context, *, usage_consent=False,model_id=None,usage=None,antigravity_transport='stream_json',expert_profile=None,job_id=None):
     mark("bridge_admission_start")
     state = await asyncio.to_thread(agent_status,usage_consent)
     state = state.get(provider)
@@ -217,6 +218,7 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         from .expert_profiles import resolve_profile
         profile=resolve_profile(expert_profile)
         if not profile['metadata_verified'] or profile['provider']!=provider or profile['model']!=model_id:raise AgentError('expert_model_effort_unavailable')
+        if provider=='antigravity' and antigravity_transport!='stream_json':raise AgentError('expert_answer_transport_not_verified')
         if provider=='codex':extra={'model_reasoning_effort':profile['effort']}
     if provider=='codex':adapter=CodexLiveAdapter()
     elif provider=='antigravity':
@@ -229,7 +231,12 @@ async def live_stream(provider, text, context, *, usage_consent=False,model_id=N
         else:raise AgentError('unsupported_antigravity_transport')
     else:raise AgentError('gemini_cli_retired' if provider=='gemini' else 'unknown_provider')
     async with asyncio.timeout(90):
-        stream=adapter.stream(text,context,model_id=model_id,extra_config=extra) if extra else adapter.stream(text,context,model_id=model_id)
+        if provider=='codex':
+            stream=adapter.stream(text,context,model_id=model_id,extra_config=extra,job_id=job_id)
+        elif antigravity_transport=='stream_json':
+            stream=adapter.stream(text,context,model_id=model_id,strict_answers=bool(expert_profile),job_id=job_id)
+        else:
+            stream=adapter.stream(text,context,model_id=model_id)
         async for delta in stream:
             yield delta
         if usage is not None and getattr(adapter,'usage',None):usage.update(adapter.usage)

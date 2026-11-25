@@ -1,0 +1,527 @@
+{
+  "schema": "sophia-persistent-archive-installed-evidence-v1",
+  "status": "installed_and_enabled",
+  "observed_at_utc": "2026-11-24T10:30:16.889906+00:00",
+  "observed_at_owner_timezone": "2026-11-24T07:30:16.889906-03:00",
+  "source_commit": "992039c88cb0453acceafd7156e54fbdbbee0d0f",
+  "source_base_commit": "e95843386d969b9e736dd848eabaaecbe362a029",
+  "loaded_runtime_commit": "992039c88cb0453acceafd7156e54fbdbbee0d0f",
+  "admin_url": "https://plan.tailffc57c.ts.net/sophia/settings/#/privacy",
+  "admin_section": "Архив разговоров этой колонки",
+  "authorization": "Owner explicitly requested implementation of a permanent conversation archive; applied only to the existing enrolled device/profile binding.",
+  "activation": {
+    "activated": true,
+    "target": "992039c88cb0453acceafd7156e54fbdbbee0d0f",
+    "operation_id": "archive_enable_e411bb44acaf49daa43d9d45bb8206f5",
+    "applied_revision": 1,
+    "archive_policy": {
+      "write_enabled": true,
+      "read_enabled": true,
+      "retention_days": 0,
+      "timezone": "America/Sao_Paulo"
+    },
+    "activation_receipt_sha256": "9633d326d9cbdd07310d4f55472a22c0c7e7f0f5eca652877f1cdf8fc88f34cf",
+    "post_requests_this_run": 1,
+    "new_model_calls": 0,
+    "firmware_changed": false
+  },
+  "validation": {
+    "local": {
+      "at_utc": "2026-11-24T10:19:23.825439+00:00",
+      "seconds": 74.36,
+      "exit_code": 0,
+      "summary": "1829 passed, 1 skipped, 1 warning in 73.27s (0:01:13)",
+      "inputs_unchanged": true,
+      "passed": 1829,
+      "failed": 0,
+      "skipped": 1,
+      "new_model_calls": 0,
+      "manifest_sha256": "4e32e5dbf83e1f4754b2a3a0ab0ff6fd3d519c2ed81bf457e63c9cf93d8e3b5d"
+    },
+    "python_test_file_count": 80,
+    "python_test_files": [
+      "tests/test_direct_output_backpressure.py",
+      "tests/test_direct_ws_detach.py",
+      "tests/test_sophia_disconnect_cleanup.py",
+      "tests/test_realtime_ws.py",
+      "tests/test_brain_ws_transport.py",
+      "tests/test_unified_voice_api.py",
+      "tests/test_unified_voice_cancellation.py",
+      "tests/test_unified_voice_budget.py",
+      "tests/test_sophia_gateway.py",
+      "tests/test_sophia_hardware_fixture.py",
+      "tests/test_sophia_barge.py",
+      "tests/test_sophia_touch_wire_races.py",
+      "tests/test_sophia_touch_privacy.py",
+      "tests/test_sophia_audio.py",
+      "tests/test_sophia_keepalive.py",
+      "tests/test_sophia_output_metrics.py",
+      "tests/test_sophia_capture_guard.py",
+      "tests/test_playback_buffer_summary.py",
+      "tests/test_sophia_browser.py",
+      "tests/test_owner_terminal_direct.py",
+      "tests/test_owner_terminal_speech.py",
+      "tests/test_owner_terminal_expert_history.py",
+      "tests/test_owner_terminal_policy.py",
+      "tests/test_owner_terminal_journal.py",
+      "tests/test_direct_admission_status.py",
+      "tests/test_direct_input_deadline.py",
+      "tests/test_direct_input_lifecycle.py",
+      "tests/test_direct_wake_recovery.py",
+      "tests/test_sophia_input_transcript_gate.py",
+      "tests/test_sophia_home_refresh.py",
+      "tests/test_sophia_common_knowledge.py",
+      "tests/test_realtime_dialogue.py",
+      "tests/test_sophia_admin.py",
+      "tests/test_sophia_admin_access.py",
+      "tests/test_sophia_terminal_startup.py",
+      "tests/test_context_archive.py",
+      "tests/test_context_continuity.py",
+      "tests/test_working_memory_context_fixes.py",
+      "tests/test_working_memory.py",
+      "tests/test_working_memory_summary.py",
+      "tests/test_direct_working_memory.py",
+      "tests/test_direct_memory_ws_control.py",
+      "tests/test_working_memory_admin.py",
+      "tests/test_sophia_panel.py",
+      "tests/test_realtime_native.py",
+      "tests/test_realtime_experts.py",
+      "tests/test_realtime_speaker.py",
+      "tests/test_board_realtime.py",
+      "tests/test_unified_google_expert.py",
+      "tests/test_direct_voice_mode.py",
+      "tests/test_unified_expert_stream.py",
+      "tests/test_expert_delivery_deadlines.py",
+      "tests/test_expert_blocked.py",
+      "tests/test_conversation_modes.py",
+      "tests/test_unified_board_admission.py",
+      "tests/test_owner_testing.py",
+      "tests/test_direct_conversation_mode.py",
+      "tests/test_expert_mode_action.py",
+      "tests/test_conversation_capabilities.py",
+      "tests/test_direct_live_skills.py",
+      "tests/test_timer_action_source.py",
+      "tests/test_timer_delivery_service.py",
+      "tests/test_sophia_timer_output.py",
+      "tests/test_sophia_timer_firmware_native.py",
+      "tests/test_timer_duration.py",
+      "tests/test_conversational_settings.py",
+      "tests/test_weather_timer_expansion.py",
+      "tests/test_live_native_tools.py",
+      "tests/test_live.py",
+      "tests/test_device_and_composer.py",
+      "tests/test_family_preferences.py",
+      "tests/test_visual_fulfillment.py",
+      "tests/test_two_stage_visual.py",
+      "tests/test_brain.py",
+      "tests/test_direct_native_archive.py",
+      "tests/test_native_archive.py",
+      "tests/test_native_archive_admin.py",
+      "tests/test_native_archive_lifespan.py",
+      "tests/test_sophia_timer_app_install.py",
+      "tests/test_sophia_timer_plan_install.py"
+    ],
+    "browser_fixtures": [
+      {
+        "fixture": "tests/conversation_capabilities_admin_dom.cjs",
+        "exit_code": 0,
+        "output": "PASS: owner guidance + skill toggles, escaped review, exact patch, pending/applied ACK, no automatic retry, revision conflict.\n"
+      },
+      {
+        "fixture": "tests/native_archive_admin_dom.cjs",
+        "exit_code": 0,
+        "output": "PASS: offline archive UI, separate recording/lookup, reviewed CAS, explicit clear, exact lost-reply receipt, bounded manual retry, concurrent edit and retention validation.\n"
+      },
+      {
+        "fixture": "tests/working_memory_admin_dom.cjs",
+        "exit_code": 0,
+        "output": "PASS: memory UI state, reviewed policy, explicit clear, idle refusal, unknown outcome readback, concurrent policy conflict.\n"
+      }
+    ],
+    "windows": {
+      "passed": 1828,
+      "skipped": 2,
+      "skip_reason": "native C++ fixtures unavailable on Windows; executed on Linux",
+      "summary": "1828 passed, 2 skipped in 318.25s (0:05:18)",
+      "gate_seconds": 321.35,
+      "same_80_python_test_files": true,
+      "all_three_browser_fixtures_passed": true
+    },
+    "deployment_helper_tests_passed": 102,
+    "independent_review_completed": true,
+    "new_developer_model_calls": 0
+  },
+  "preservation": {
+    "counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    },
+    "source_usage_unchanged": true,
+    "source_wip_preserved": true,
+    "working_memory_policy_sha256": "a99cf68816903f2ee11e1462dacf48ddec80bfd3f2b0a4fde971fd6e7f93d9d1",
+    "deployment_helper_manifest_and_memory_receipts_verified": true,
+    "additive_archive_schema": {
+      "allowed_schema_sha256": "d0c6781bb13139dd294a955c3b2a1393465d406d8df161dd35b0f16b0e0f88b6",
+      "added_schema_objects": [
+        "index:native_archive_source_turn",
+        "index:native_archive_turn_age",
+        "table:native_archive_operations",
+        "table:native_archive_scopes",
+        "table:native_archive_sources",
+        "table:native_archive_turns"
+      ],
+      "new_archive_tables_empty_before_activation": true,
+      "existing_archive_rows_preserved": true,
+      "legacy_unbound_history_not_adopted": true,
+      "existing_timer_receipts_preserved": true,
+      "rollback_drops_archive_schema": false,
+      "rollback_restores_archive_database": false
+    },
+    "firmware_changed_by_archive_deployment": false
+  },
+  "postcheck": {
+    "passed": true,
+    "seconds": 15.143,
+    "deltas": {
+      "received_packets": 249,
+      "application_keepalives_sent": 3,
+      "device_control_messages": 3
+    },
+    "owner_activity_observed": false,
+    "archive_activated": true,
+    "archive_activation_pending": false,
+    "after": {
+      "at_utc": "2026-11-24T10:30:16.889906+00:00",
+      "runtime_code_commit": "992039c88cb0453acceafd7156e54fbdbbee0d0f",
+      "selected_expert": {
+        "profile": "ARGON_DEEP",
+        "provider": "antigravity",
+        "model": "gemini-4-argon-medium",
+        "effort": "medium"
+      },
+      "expert_available": true,
+      "active_turns": 0,
+      "active_voice_streams": 0,
+      "active_inputs": 0,
+      "physical_transport_ready": true,
+      "physical_ready": true,
+      "session": {
+        "state": "ready",
+        "ready": true,
+        "capture_connected": true,
+        "muted": false,
+        "generation_allowed": true,
+        "expert_active": false
+      },
+      "lifecycle": {
+        "attached": true,
+        "reader_running": true,
+        "maintenance_running": true,
+        "transport_epoch": 3,
+        "reconnect_attempts": 0
+      },
+      "gateway": {
+        "device_protocol_confirmed": true,
+        "cloud_ready": true,
+        "input_open": false,
+        "received_packets": 1917,
+        "application_keepalives_sent": 24,
+        "device_control_messages": 25,
+        "device_mute_revision": 0,
+        "error_present": false
+      },
+      "gateway_age_seconds": 3.605,
+      "timer_capabilities": {
+        "display_supported": true,
+        "signal_supported": true,
+        "capabilities_received": true
+      },
+      "native_archive": {
+        "available": true,
+        "revision": 1,
+        "generation": 1,
+        "read_effective": true,
+        "lookup_blocked_by_skill": false,
+        "storage": "sqlite_plaintext_windows_acl",
+        "coverage": "since_enabled",
+        "private_archive": false,
+        "policy": {
+          "write_enabled": true,
+          "read_enabled": true,
+          "retention_days": 0,
+          "timezone": "America/Sao_Paulo"
+        },
+        "counts": {
+          "turns": 0,
+          "messages": 0,
+          "topics": 0,
+          "blocks": 0,
+          "backlog": 0
+        },
+        "last_error": null,
+        "oldest_at": null,
+        "newest_at": null,
+        "last_write_at": null
+      },
+      "archive_native_local_private_admin_equal": true,
+      "active_direct_archive_flow": {
+        "available": true,
+        "policy": {
+          "write_enabled": true,
+          "read_enabled": true,
+          "retention_days": 0,
+          "timezone": "America/Sao_Paulo"
+        },
+        "revision": 1,
+        "generation": 1,
+        "last_error": null
+      },
+      "working_memory": {
+        "available": true,
+        "enabled": true,
+        "policy": {
+          "enabled": true,
+          "ttl_seconds": 43200,
+          "persist": true,
+          "summarize": true,
+          "background": true,
+          "supplement": true
+        },
+        "private_archive": false,
+        "trigger": "every_question",
+        "supplements_per_question": 1,
+        "working": {
+          "enabled": true,
+          "persistence_requested": true,
+          "persisted": false,
+          "version": 1,
+          "ttl_seconds": 43200,
+          "source_count": 0,
+          "available_exchanges": 0,
+          "completed_exchanges": 0,
+          "restored_exchanges": 0,
+          "error_present": false
+        },
+        "summary_worker": {
+          "enabled_for_scope": true,
+          "active": false,
+          "known_primary_tokens": 0,
+          "scope_tokens_used_or_reserved": 0,
+          "global_tokens_used_or_reserved": 0,
+          "available_tokens": 0,
+          "daily_token_limit": 2000,
+          "primary_usage_fraction_limit": 0.1,
+          "unknown_usage_attempts": 0,
+          "queued": 0,
+          "spoken_responses_created": 0
+        },
+        "lookup": {
+          "queries": 0,
+          "useful_results": 0,
+          "supplements": 0,
+          "discarded": 0
+        },
+        "checkpoint_observed_by_runtime": false
+      },
+      "working_memory_native_local_private_admin_equal": true,
+      "conversation": {
+        "state": "applied",
+        "settings_revision": "99751508a9c429b03e82c31ceb525e86777ca8e89239c88843ab80587792df57",
+        "capabilities_revision": "e96386e600554dcc81a2a2d1795cc3461167efe28362639376a10252beb92a9f",
+        "provider_acknowledged": true,
+        "capabilities": {
+          "clock": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "gobot_tool",
+            "actions": [
+              "time",
+              "date",
+              "weekday"
+            ]
+          },
+          "timer": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "gobot_tool",
+            "actions": [
+              "start",
+              "remaining",
+              "cancel"
+            ],
+            "display": "unconfirmed",
+            "signal": "unconfirmed"
+          },
+          "weather": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "gobot_tool",
+            "actions": [
+              "current",
+              "forecast"
+            ]
+          },
+          "utilities": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "gobot_tool",
+            "actions": [
+              "calculate",
+              "convert_units"
+            ]
+          },
+          "memory": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "gobot_tool",
+            "actions": [
+              "scoped_recall"
+            ]
+          },
+          "expert": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "conversation_mode",
+            "actions": [
+              "select_mode",
+              "delegate_question"
+            ]
+          },
+          "visual": {
+            "enabled": true,
+            "implemented": true,
+            "state": "available",
+            "reason": null,
+            "tool": "visual_request",
+            "actions": [
+              "find_image",
+              "show_image"
+            ]
+          },
+          "tv": {
+            "enabled": false,
+            "implemented": false,
+            "state": "not_connected",
+            "reason": "tv_adapter_not_connected",
+            "tool": null,
+            "actions": []
+          },
+          "shell": {
+            "enabled": false,
+            "implemented": false,
+            "state": "restricted",
+            "reason": "shell_access_not_authorized",
+            "tool": null,
+            "actions": []
+          },
+          "files": {
+            "enabled": false,
+            "implemented": false,
+            "state": "restricted",
+            "reason": "file_access_not_authorized",
+            "tool": null,
+            "actions": []
+          }
+        },
+        "timer_delivery": {
+          "display_supported": true,
+          "signal_supported": true,
+          "capabilities_received": true,
+          "output_active": false
+        },
+        "guidance_exported": false,
+        "settings_written_by_deployer": false
+      },
+      "local_and_private_conversation_verified": true
+    }
+  },
+  "installed_firmware": {
+    "version": "0.4.21-dev-sophia-timer-v4",
+    "app_sha256": "2e0898e708728973561f3920ddcbebc3c744a488bbf8cac95c72b62891edd68b",
+    "installation_receipt_sha256": "fb72fbc1aad13673666b758bb42b8465e90f0e2eb17d3bd069bd051cbdd4f487",
+    "changed_by_archive_deployment": false,
+    "physical_audio_accepted": false,
+    "physical_countdown_accepted": false
+  },
+  "firmware_evidence_file": "docs/evidence/sophia-timer-v421-install-20261124.json",
+  "private_receipt_sha256": {
+    "source_receipt": "d33292459558e316a99dd7be4557c6049167c35680eea15dddd052ec1e8c52d4",
+    "source_deployment": "4097ceed28a9ae58b4bdc065ce0cae567e5f6f5b550bea53f3de8636d558264c",
+    "windows_gate": "6a6fedb7990feae993a5d12849dd4031b746e3eec39436b76f56b9769d37df28",
+    "deployer": "6b80b065a35c3f76a8e0970286e9d8c8a53988f583a45f6b95bdafe70faa7b0b",
+    "activation": "9633d326d9cbdd07310d4f55472a22c0c7e7f0f5eca652877f1cdf8fc88f34cf"
+  },
+  "reviewed_deployment_helper_sha256": {
+    "host_integrator_persistent_archive_deploy.py": "6b80b065a35c3f76a8e0970286e9d8c8a53988f583a45f6b95bdafe70faa7b0b",
+    "host_integrator_persistent_archive_postcheck.py": "49c62a7aae261bac1b5b4047d3c1a7a2e370e50ecc4de57297e6bf3250584d1e",
+    "host_integrator_persistent_archive_activate.py": "517e23e5cd465dd8f4fd5dff544bc0c3fdc29bf12ae097a63cb1ff8016f3d0b7",
+    "host_integrator_persistent_archive_publish_docs.py": "1107ba5c22440d05a2f0656a24a90d1a7dcd60062f25e6c1c7d0e248dc92bc89"
+  },
+  "input_report_sha256": {
+    "persistent-archive-activation-final.json": "67dbf233a7c6bd959f8039fc6caff53b9cfe3932624b8441fc4a52faed4c8d11",
+    "persistent-archive-postcheck-final.json": "0d420ed19c43d5bad1e975e68549779f4a92c06f82d0773d8e58e3db5d388e5b",
+    "persistent-archive-local-gate.json": "6356680d259a4488041dec8e2603cc2276b904893a958b2c53fbd1f83bcd2e9d"
+  },
+  "coverage": {
+    "starts_with_new_eligible_conversations_after_enable": true,
+    "historical_debug_journal_imported": false,
+    "historical_missing_conversations_recovered": false,
+    "accepted_user_questions_persisted_separately": true,
+    "assistant_answers_require_playback_confirmation": true,
+    "interrupted_fast_full_transcript_not_saved_as_heard": true,
+    "expert_answer_uses_confirmed_played_text": true,
+    "archive_counts_at_final_check": {
+      "turns": 0,
+      "messages": 0,
+      "topics": 0,
+      "blocks": 0,
+      "backlog": 0
+    },
+    "archive_last_write_at_final_check": null,
+    "working_exchanges_at_final_check": 0,
+    "working_checkpoint_observed_at_final_check": false
+  },
+  "implementation_boundaries": {
+    "working_memory_ttl_seconds": 43200,
+    "archive_retention_days": 0,
+    "archive_retention_semantics": "until_explicit_deletion",
+    "lookup_trigger": "every_question",
+    "blocks_fast_answer": false,
+    "maximum_late_supplements_per_question": 1,
+    "retrieval": "local_full_text_and_calendar_date_search",
+    "archive_topic_blocks": "attributed_extracts_with_source_and_generation_validation",
+    "new_llm_summary_or_embedding_worker": false,
+    "new_model_calls_for_archive_search_and_local_blocks": 0,
+    "storage": "sqlite_plaintext_windows_acl",
+    "raw_audio_saved": false,
+    "voice_do_not_remember_action_implemented": false,
+    "recording_opt_out": "owner_admin_archive_write_toggle",
+    "admin_transcript_viewer_implemented": false,
+    "gaps_possible": "interrupted unconfirmed audio, full queue, disk failure, or sudden power loss",
+    "clear_does_not_delete_external_provider_records_or_prior_backups": true
+  },
+  "acceptance_limits": {
+    "live_model_answer_tested": false,
+    "configured_instruction_live_model_tested": false,
+    "active_conversation_hot_reload_live_tested": false,
+    "timer_alarm_live_tested": false,
+    "timer_display_live_tested": false,
+    "raw_audio_saved": false,
+    "household_transcripts_exported": false,
+    "new_model_calls": 0
+  }
+}

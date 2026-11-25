@@ -1,0 +1,417 @@
+{
+  "schema": "sophia-timer-v421-install-v1",
+  "recorded_at_utc": "2026-11-24T09:49:42.283758+00:00",
+  "owner_authorization": "explicit_approval_of_exact_v421_image_in_conversation",
+  "facts": {
+    "installed": true,
+    "firmware": "0.4.21-dev-sophia-timer-v4",
+    "candidate_sha256": "2e0898e708728973561f3920ddcbebc3c744a488bbf8cac95c72b62891edd68b",
+    "previous_firmware": "0.4.20-dev-sophia-duck-v4",
+    "previous_sha256": "11956a9e4700c6c53f49ba03c3f3f12daae208d010c319305b2a9d704d52388e",
+    "runtime_code_commit": "b2a19f9946e7d99a4b91b94bed97b40b828b717d",
+    "head": "e95843386d969b9e736dd848eabaaecbe362a029",
+    "app_write_verified": true,
+    "partition_and_ota_unchanged": true,
+    "usb_identity_verified": true,
+    "factory_backups_verified": true,
+    "source_wip_preserved": true,
+    "configuration_preserved": true,
+    "usage_rows_preserved": true,
+    "usage_unchanged": true,
+    "memory_preserved": true,
+    "postcheck_passed": true,
+    "display_supported": true,
+    "display_state": "clear",
+    "provider_acknowledged": true,
+    "gateway_restarted": true,
+    "automatic_retry": false,
+    "new_model_calls": 0,
+    "physical_audio_accepted": false,
+    "physical_countdown_accepted": false,
+    "nvs_read": false,
+    "nvs_writes": false,
+    "whole_flash_read": false,
+    "source_restart": false,
+    "installer_sha256": "b1af79111366061239f30d8ad0dadf12e6c6c61576576e6062548c0ff3270dc6",
+    "orchestrator_sha256": "5fb729c9605df85d4c0e448b4d89f5f8c99f0af5b1cb4e04abc2fb8c946b0e8e"
+  },
+  "seconds": 185.284,
+  "app_bytes": 3701840,
+  "core_installer_sha256": "a0e6c9509d6d6d14b62f66de150c9e2adb44ba4695c071f99d984c1fb1d89a32",
+  "installation_status": "app_verified_metadata_preserved_boot_ready",
+  "uart_before": {
+    "version": "0.4.20-dev-sophia-duck-v4",
+    "wifi": "1",
+    "enrolled": "1",
+    "muted": "0",
+    "phase": "0",
+    "upload": "0"
+  },
+  "uart_after": {
+    "version": "0.4.21-dev-sophia-timer-v4",
+    "wifi": "1",
+    "enrolled": "1",
+    "muted": "0",
+    "phase": "0",
+    "upload": "0"
+  },
+  "metadata_before": {
+    "partition_sha256": "ce40cfe75056ef74bc052942f8a9ee3dce8e5e14ba17a6f63685a8fa0d11a23d",
+    "otadata_sha256": "8ba3b110139f45443d4f268d1a3373ef99a1718b71d51664531b83ee2d4b91a3",
+    "active_slot": "ota_0",
+    "app_address": "0x20000",
+    "app_capacity": 4128768,
+    "otadata_entries": [
+      {
+        "sector": 0,
+        "sequence": 1,
+        "state": 2,
+        "crc_valid": true
+      },
+      {
+        "sector": 1,
+        "sequence": 4294967295,
+        "state": 4294967295,
+        "crc_valid": false
+      }
+    ]
+  },
+  "metadata_after": {
+    "partition_sha256": "ce40cfe75056ef74bc052942f8a9ee3dce8e5e14ba17a6f63685a8fa0d11a23d",
+    "otadata_sha256": "8ba3b110139f45443d4f268d1a3373ef99a1718b71d51664531b83ee2d4b91a3",
+    "active_slot": "ota_0",
+    "app_address": "0x20000",
+    "app_capacity": 4128768,
+    "otadata_entries": [
+      {
+        "sector": 0,
+        "sequence": 1,
+        "state": 2,
+        "crc_valid": true
+      },
+      {
+        "sector": 1,
+        "sequence": 4294967295,
+        "state": 4294967295,
+        "crc_valid": false
+      }
+    ]
+  },
+  "usb_identity": {
+    "enrolled_mac_match": true,
+    "flash_bytes": 16777216,
+    "secure_boot_disabled": true,
+    "flash_encryption_disabled": true
+  },
+  "factory_backups": {
+    "count": 3,
+    "bytes_each": 16777216,
+    "sha256": "1fe1e310d86425dbe2432133c8712aecb64262bb3649647a5104989de671f4e6"
+  },
+  "first_prewrite_failure": {
+    "reason": "same_enrolled_mac_repeated_in_esptool_banner",
+    "previous_app_write_started": false,
+    "previous_receipt_sha256": "b1cc7730a66a6d6c6428dfbff4088c1a5f33243d8c6433dc9f5b6c6e3af0cace",
+    "prior_receipts_preserved": true,
+    "unknown_write_retry": false
+  },
+  "conversation": {
+    "state": "applied",
+    "settings_revision": "99751508a9c429b03e82c31ceb525e86777ca8e89239c88843ab80587792df57",
+    "capabilities_revision": "e96386e600554dcc81a2a2d1795cc3461167efe28362639376a10252beb92a9f",
+    "provider_acknowledged": true,
+    "capabilities": {
+      "clock": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "gobot_tool",
+        "actions": [
+          "time",
+          "date",
+          "weekday"
+        ]
+      },
+      "timer": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "gobot_tool",
+        "actions": [
+          "start",
+          "remaining",
+          "cancel"
+        ],
+        "display": "unconfirmed",
+        "signal": "unconfirmed"
+      },
+      "weather": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "gobot_tool",
+        "actions": [
+          "current",
+          "forecast"
+        ]
+      },
+      "utilities": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "gobot_tool",
+        "actions": [
+          "calculate",
+          "convert_units"
+        ]
+      },
+      "memory": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "gobot_tool",
+        "actions": [
+          "scoped_recall"
+        ]
+      },
+      "expert": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "conversation_mode",
+        "actions": [
+          "select_mode",
+          "delegate_question"
+        ]
+      },
+      "visual": {
+        "enabled": true,
+        "implemented": true,
+        "state": "available",
+        "reason": null,
+        "tool": "visual_request",
+        "actions": [
+          "find_image",
+          "show_image"
+        ]
+      },
+      "tv": {
+        "enabled": false,
+        "implemented": false,
+        "state": "not_connected",
+        "reason": "tv_adapter_not_connected",
+        "tool": null,
+        "actions": []
+      },
+      "shell": {
+        "enabled": false,
+        "implemented": false,
+        "state": "restricted",
+        "reason": "shell_access_not_authorized",
+        "tool": null,
+        "actions": []
+      },
+      "files": {
+        "enabled": false,
+        "implemented": false,
+        "state": "restricted",
+        "reason": "file_access_not_authorized",
+        "tool": null,
+        "actions": []
+      }
+    },
+    "timer_delivery": {
+      "display_supported": true,
+      "signal_supported": true,
+      "capabilities_received": true,
+      "output_active": false
+    },
+    "guidance_exported": false,
+    "settings_written_by_deployer": false
+  },
+  "postcheck": {
+    "passed": true,
+    "seconds": 14.302,
+    "deltas": {
+      "received_packets": 167,
+      "application_keepalives_sent": 2,
+      "device_control_messages": 3
+    },
+    "owner_activity_observed": false,
+    "after_at_utc": "2026-11-24T09:49:37.854465+00:00",
+    "session": {
+      "state": "ready",
+      "ready": true,
+      "capture_connected": true,
+      "muted": false,
+      "generation_allowed": true,
+      "expert_active": false
+    },
+    "lifecycle": {
+      "attached": true,
+      "reader_running": true,
+      "maintenance_running": true,
+      "transport_epoch": 7,
+      "reconnect_attempts": 0
+    },
+    "gateway": {
+      "device_protocol_confirmed": true,
+      "cloud_ready": true,
+      "input_open": false,
+      "received_packets": 250,
+      "application_keepalives_sent": 4,
+      "device_control_messages": 6,
+      "device_mute_revision": 0,
+      "error_present": false
+    },
+    "conversation": {
+      "state": "applied",
+      "settings_revision": "99751508a9c429b03e82c31ceb525e86777ca8e89239c88843ab80587792df57",
+      "capabilities_revision": "e96386e600554dcc81a2a2d1795cc3461167efe28362639376a10252beb92a9f",
+      "provider_acknowledged": true,
+      "capabilities": {
+        "clock": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "gobot_tool",
+          "actions": [
+            "time",
+            "date",
+            "weekday"
+          ]
+        },
+        "timer": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "gobot_tool",
+          "actions": [
+            "start",
+            "remaining",
+            "cancel"
+          ],
+          "display": "unconfirmed",
+          "signal": "unconfirmed"
+        },
+        "weather": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "gobot_tool",
+          "actions": [
+            "current",
+            "forecast"
+          ]
+        },
+        "utilities": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "gobot_tool",
+          "actions": [
+            "calculate",
+            "convert_units"
+          ]
+        },
+        "memory": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "gobot_tool",
+          "actions": [
+            "scoped_recall"
+          ]
+        },
+        "expert": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "conversation_mode",
+          "actions": [
+            "select_mode",
+            "delegate_question"
+          ]
+        },
+        "visual": {
+          "enabled": true,
+          "implemented": true,
+          "state": "available",
+          "reason": null,
+          "tool": "visual_request",
+          "actions": [
+            "find_image",
+            "show_image"
+          ]
+        },
+        "tv": {
+          "enabled": false,
+          "implemented": false,
+          "state": "not_connected",
+          "reason": "tv_adapter_not_connected",
+          "tool": null,
+          "actions": []
+        },
+        "shell": {
+          "enabled": false,
+          "implemented": false,
+          "state": "restricted",
+          "reason": "shell_access_not_authorized",
+          "tool": null,
+          "actions": []
+        },
+        "files": {
+          "enabled": false,
+          "implemented": false,
+          "state": "restricted",
+          "reason": "file_access_not_authorized",
+          "tool": null,
+          "actions": []
+        }
+      },
+      "timer_delivery": {
+        "display_supported": true,
+        "signal_supported": true,
+        "capabilities_received": true,
+        "output_active": false
+      },
+      "guidance_exported": false,
+      "settings_written_by_deployer": false
+    },
+    "memory_policy_sha256": "a99cf68816903f2ee11e1462dacf48ddec80bfd3f2b0a4fde971fd6e7f93d9d1",
+    "preservation_counts": {
+      "policies": 72,
+      "ledgers": 23,
+      "profiles": 1,
+      "configuration": 2
+    }
+  },
+  "receipt_sha256": "fb72fbc1aad13673666b758bb42b8465e90f0e2eb17d3bd069bd051cbdd4f487",
+  "physical_acceptance": "not_performed",
+  "automatic_model_trials": false,
+  "rollback_performed": false,
+  "validation": {
+    "focused_tests_passed": 147,
+    "focused_tests_skipped": 0,
+    "focused_test_files": [
+      "tests/test_sophia_timer_plan_install.py",
+      "tests/test_sophia_timer_app_install.py",
+      "tests/test_sophia_v4_app_install.py",
+      "tests/test_sophia_duck_app_install.py"
+    ],
+    "independent_review_completed": true,
+    "paid_developer_trials": 0
+  }
+}

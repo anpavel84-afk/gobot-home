@@ -1,0 +1,1502 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "0.4.14-dev-host-b-sophia-mic-v4")
++set(PROJECT_VER "0.4.16-dev-sophia-unified-v4")
+ project(xiaozhi)
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -19,12 +19,14 @@
+ #include "websocket_protocol.h"
+ #include "gobot_host_rc1_private.h"
+ #include "host_rc1_render_ack.h"
++#include "esp_heap_caps.h"
+ 
+ #include <driver/gpio.h>
+ #include <esp_log.h>
+ #include <arpa/inet.h>
+ #include <cJSON.h>
+ #include <algorithm>
++#include <cmath>
+ #include <cstring>
+ #include <limits>
+ 
+@@ -94,7 +96,14 @@
+         xEventGroupSetBits(event_group_, MAIN_EVENT_SEND_AUDIO);
+     };
+     callbacks.on_wake_word_detected = [this](const std::string& wake_word) {
++        host_local_wake_callback_us_.store(esp_timer_get_time());
+         xEventGroupSetBits(event_group_, MAIN_EVENT_WAKE_WORD_DETECTED);
++    };
++    callbacks.on_host_sophia_wake = [this](uint32_t epoch,uint64_t sample,uint64_t detected,uint64_t callback) {
++        Schedule([this,epoch,sample,detected,callback](){HostSophiaWake(epoch,sample,detected,callback);});
++    };
++    callbacks.on_host_output_progress = [this](uint32_t epoch,uint32_t sequence,uint32_t fence) {
++        Schedule([this,epoch,sequence,fence](){HostOutputProgress(epoch,sequence,fence);});
+     };
+     callbacks.on_vad_change = [this](bool speaking) {
+         xEventGroupSetBits(event_group_, MAIN_EVENT_VAD_CHANGE);
+@@ -283,16 +292,27 @@
+             HandleStopListeningEvent();
+         }
+ 
++        // Display/wake and received playback controls precede bulk local audio.
++        if (host_mode_ && (bits & MAIN_EVENT_SCHEDULE)) {
++            std::unique_lock<std::mutex> lock(mutex_);
++            auto tasks=std::move(main_tasks_); lock.unlock();
++            for(auto& task:tasks) task();
++            bits &= ~MAIN_EVENT_SCHEDULE;
++        }
+         if ((bits & MAIN_EVENT_SEND_AUDIO) && !gobot_early_capture_) {
++            unsigned host_sent=0;
+             while (auto packet = audio_service_.PopPacketFromSendQueue()) {
+                 if(host_mode_) {
+                     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++                    if (ws && ws->HostV2() && (packet->capture_epoch == 0 ||
++                        packet->capture_epoch != audio_service_.HostCaptureEpoch())) continue;
+                     if(!host_ready_ || host_muted_ || !ws || !ws->SendAudio(std::move(packet))) {
+                         if(host_ready_)HostFault("uplink_gap_or_send");
+                         while(auto stale=audio_service_.PopPacketFromSendQueue())
+                             std::fill(stale->payload.begin(),stale->payload.end(),0);
+                         break;
+                     }
++                    if (++host_sent >= 2) {xEventGroupSetBits(event_group_,MAIN_EVENT_SEND_AUDIO);break;}
+                     continue;
+                 }
+                 if(local_pause_active_ || !gobot_turn_.UploadAllowed()) continue;
+@@ -417,6 +437,9 @@
+     protocol_->OnConnected([this]() { DismissAlert(); });
+ 
+     protocol_->OnNetworkError([this](const std::string& message) {
++        if(host_mode_) {
++            Schedule([this](){HostFault("network_error");});return;
++        }
+         last_error_message_ = message;
+         xEventGroupSetBits(event_group_, MAIN_EVENT_ERROR);
+     });
+@@ -425,9 +448,15 @@
+         if(host_mode_) {
+             // A WSS receive callback can beat the main task's output_start
+             // handler. Schedule packets on that same ordered main queue.
++            auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++            if (ws && ws->HostV2()) {
++                packet->host_output_epoch=ws->HostOutputEpoch();
++                packet->host_downlink_seq=ws->HostLastOutputPacket();
++            }
+             auto frame=std::shared_ptr<AudioStreamPacket>(packet.release());
+             Schedule([this,frame](){
+-                if(!host_ready_ || !host_output_active_)return;
++                if(!host_ready_ || host_muted_ || !host_output_active_ ||
++                    frame->host_output_epoch!=host_output_epoch_)return;
+                 auto copy=std::make_unique<AudioStreamPacket>(*frame);
+                 if(!audio_service_.PushPacketToDecodeQueue(std::move(copy)))
+                     HostFault("output_queue_overflow");
+@@ -452,7 +481,7 @@
+     protocol_->OnAudioChannelClosed([this]() {
+         Schedule([this]() {
+             if(protocol_ && protocol_->IsAudioChannelOpened()) return;
+-            if(host_mode_) {host_ready_=false;host_next_retry_ms_=gobot::NowMs()+4000;RenderGoBot();return;}
++            if(host_mode_) {HostFault("remote_closed");return;}
+             if(gobot_turn_.Active()) GoBotFinish("remote_closed");
+         });
+     });
+@@ -723,18 +752,14 @@
+     if(host_mode_) {
+         if(hold) {
+             if(host_ready_ && (host_touch_active_ || host_output_active_)) {
+-                HostControl("gobot_host_touch",",\"gesture\":\"stop\"");
++                HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"stop\"");
+             } else {
+-                host_muted_=!host_muted_;
+-                if(host_muted_){
+-                    HostControl("gobot_host_mute",",\"muted\":true");
+-                    host_ready_=false;protocol_->CloseAudioChannel();
+-                    audio_service_.EnableVoiceProcessing(false);
+-                } else host_next_retry_ms_=now;
++                HostSetMuted(!host_muted_);
+             }
+         } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_output_active_) {
+             host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
+-            HostControl("gobot_host_touch",",\"gesture\":\"activate\"");
++            audio_service_.AllowHostWake(false);
++            HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
+         }
+         RenderGoBot();return;
+     }
+@@ -847,11 +872,12 @@
+     default:page.view=View::Ready;
+     }
+     if(host_mode_) {
+-        page.engine="HOST";
++        page.engine=host_unified_?"София":"HOST";
+         if(host_muted_)page.view=View::Muted;
+-        else if(!host_ready_)page.view=View::Connecting;
++        else if(!host_ready_)page.view=host_probe_wake_pending_?View::Listening:(host_unified_?View::Ready:View::Connecting);
+         else if(host_output_active_)page.view=View::Speaking;
+         else if(host_touch_active_)page.view=View::Listening;
++        else if(host_response_busy_)page.view=View::Thinking;
+         else page.view=View::Ready;
+     }
+     if(page.view==View::Listening) {
+@@ -922,6 +948,9 @@
+ void Application::HandleWakeWordDetectedEvent() {
+     if(!audio_service_.LocalWakePending()) return;
+     const bool sophia=audio_service_.ConsumeSophiaWakePending();
++    if(sophia && host_mode_ && host_unified_ && !host_ready_ && !host_muted_ && !gobot_muted_) {
++        HostColdWake();return;
++    }
+     if(!sophia && gobot_raw_wake::busy()){
+         audio_service_.ClearLocalWake();return;
+     }
+@@ -1484,6 +1513,13 @@
+ }
+ void Application::GoBotPoll() {
+     if(host_mode_) {HostTick();RenderGoBot();return;}
++    if (host_auto_probe_ && gobot_network_ready_ && !gobot_muted_ &&
++        !gobot_turn_.Active() && !gobot_raw_wake::busy() && audio_service_.IsPlaybackIdle() &&
++        gobot::NowMs()>=host_auto_retry_ms_) {
++        host_auto_retry_ms_=gobot::NowMs()+60000;
++        HostEnable(true,true);
++        if(host_mode_) {HostTick();RenderGoBot();return;}
++    }
+     if(audio_service_.ConsumeSophiaWakeOverflow() &&
+        gobot_wake_turn_ && gobot_turn_.Active()) {
+         GoBotFinish("wake_buffer_overflow");return;
+@@ -1538,8 +1574,13 @@
+         ESP_LOGI(TAG,"SOPHIA_DIAG_REQUESTED enabled=0 volatile=1");
+         return;
+     }
+-    if(line=="GOBOT_HOST_ON"){HostEnable(true);return;}
+-    if(line=="GOBOT_HOST_OFF"){HostEnable(false);return;}
++    if(line=="GOBOT_HOST_ON"){host_auto_probe_=false;HostEnable(true);return;}
++    if(line=="GOBOT_BWS_ON"){host_auto_probe_=true;HostEnable(true,true);return;}
++    if(line=="GOBOT_HOST_OFF" || line=="GOBOT_BWS_OFF"){host_auto_probe_=false;HostEnable(false);return;}
++    if(host_mode_ && (line=="GOBOT_MUTE" || line=="GOBOT_UNMUTE")) {
++        HostSetMuted(line=="GOBOT_MUTE");
++        RenderGoBot();return;
++    }
+     if(line=="GOBOT_HOST_TONE"){
+         if(host_mode_ && host_ready_ && !host_touch_active_ &&
+            !host_output_active_ && host_feedback_.empty())
+@@ -1577,6 +1618,12 @@
+     } else if(line=="GOBOT_DUPLEX_CHECK" && !gobot_turn_.Active() && !gobot_muted_) {
+         duplex_armed_=true;RenderGoBot();ESP_LOGI(TAG,"GOBOT_DUPLEX_ARMED local=1");
+     } else if(line=="GOBOT_STATUS") {
++        ESP_LOGI(TAG,"GOBOT_HOST_V2_STATUS selected=%d protocol_ready=%d connecting=%d local_probe_wake=%d lan_capture=%d capture_epoch=%lu sample_end=%llu output_epoch=%lu output_active=%d muted=%d dma_drained=%d %s",
++            int(host_mode_.load()),int(host_ready_.load()),int(host_connecting_.load()),int(host_probe_wake_pending_),
++            int(audio_service_.HostCaptureEnabled()),(unsigned long)audio_service_.HostCaptureEpoch(),
++            (unsigned long long)audio_service_.HostCaptureSampleEnd(),(unsigned long)host_output_epoch_,
++            int(host_output_active_.load()),int(host_muted_),int(audio_service_.HardwareOutputDrained()),
++            audio_service_.HostQueueStats().c_str());
+         duplex_probe::report();
+         ESP_LOGI(TAG,"GOBOT_ENDPOINT auto_ends=%u local=%d",auto_ends_,local_pause_active_);
+         ESP_LOGI(TAG,"GOBOT_VOLUME percent=%d",Board::GetInstance().GetAudioCodec()->output_volume());
+--- a/main/application.h
++++ b/main/application.h
+@@ -21,6 +21,7 @@
+ #include "device_state.h"
+ #include "device_state_machine.h"
+ #include "gobot_turn_guard.h"
++#include "host_output_receipts.h"
+ #include "notify/notify_player.h"
+ 
+ // Main event bits
+@@ -135,11 +136,28 @@
+     std::atomic<bool> host_mode_{false},host_ready_{false},host_output_active_{false};
+     bool host_muted_=false,host_touch_active_=false,host_voice_seen_=false;
+     bool host_output_started_=false,host_output_end_=false;
++    bool host_unified_=false,host_auto_probe_=true,host_response_busy_=false;
++    bool host_whole_response_=false;
++    std::atomic<bool> host_connecting_{false};
++    std::atomic<uint64_t> host_local_wake_callback_us_{0};
++    bool host_probe_wake_pending_=false;
++    std::string host_deferred_ready_,host_connect_abort_reason_;
++    uint32_t host_wake_sequence_=0;
++    uint64_t host_auto_retry_ms_=0,host_ready_deadline_ms_=0,host_wake_guard_ms_=0;
++    uint64_t host_last_stats_ms_=0;
++    std::string host_response_id_,host_output_kind_;
++    gobot_host::OutputReceipts host_output_receipts_;
+     bool host_cue_acked_=false, host_render_acked_=false;
+     uint32_t host_output_epoch_=0;
+     uint64_t host_next_retry_ms_=0,host_touch_started_ms_=0,host_last_speech_ms_=0;
+     std::string host_feedback_,host_playback_id_,host_stop_id_;
+-    void HostEnable(bool on);
++    void HostEnable(bool on,bool unified=false);
++    void HostSophiaWake(uint32_t capture_epoch,uint64_t sample,uint64_t detected_us,uint64_t callback_us);
++    void HostOutputProgress(uint32_t output_epoch,uint32_t sequence,uint32_t dma_fence);
++    void HostSetMuted(bool muted,bool notify=true);
++    void HostBeginConnect();
++    void HostConnectDone(bool connected);
++    void HostColdWake();
+     void HostFault(const char* reason);
+     void HostTick();
+     void HostDriverOutputStarted();
+--- a/main/audio/audio_codec.cc
++++ b/main/audio/audio_codec.cc
+@@ -15,7 +15,36 @@
+ }
+ 
+ void AudioCodec::OutputData(std::vector<int16_t>& data) {
+-    Write(data.data(), data.size());
++    tx_write_ok_.store(Write(data.data(), data.size()) == static_cast<int>(data.size()));
++    if (tx_receipts_ready_) {
++        // Once a complete DMA ring plus one descriptor has actually been sent
++        // after the final write, no sample from that write remains in I2S DMA.
++        // This proves digital playback completion, not acoustic onset.
++        tx_tail_target_.store(tx_sent_count_.load() + AUDIO_CODEC_DMA_DESC_NUM + 1);
++    }
++}
++
++bool IRAM_ATTR AudioCodec::OnDmaSent(i2s_chan_handle_t, i2s_event_data_t*, void* context) {
++    static_cast<AudioCodec*>(context)->tx_sent_count_.fetch_add(1, std::memory_order_relaxed);
++    return false;
++}
++
++void AudioCodec::RegisterOutputDrainReceipt() {
++    i2s_event_callbacks_t callbacks{};
++    callbacks.on_sent = &AudioCodec::OnDmaSent;
++    const auto rc = i2s_channel_register_event_callback(tx_handle_, &callbacks, this);
++    tx_receipts_ready_ = rc == ESP_OK;
++    ESP_LOGI(TAG, "HOST_TX_DMA_RECEIPT ready=%d descriptors=%u frames=%u", tx_receipts_ready_,
++             AUDIO_CODEC_DMA_DESC_NUM, AUDIO_CODEC_DMA_FRAME_NUM);
++}
++
++bool AudioCodec::HardwareOutputDrained() const {
++    return HardwareFenceReached(tx_tail_target_.load());
++}
++
++bool AudioCodec::HardwareFenceReached(uint32_t fence) const {
++    return tx_receipts_ready_ && tx_write_ok_.load() &&
++        static_cast<int32_t>(tx_sent_count_.load() - fence) >= 0;
+ }
+ 
+ bool AudioCodec::InputData(std::vector<int16_t>& data) {
+--- a/main/audio/audio_codec.h
++++ b/main/audio/audio_codec.h
+@@ -6,6 +6,8 @@
+ #include <driver/i2s_std.h>
+ #include <esp_idf_version.h>
+ 
++#include <atomic>
++#include <esp_attr.h>
+ #include <vector>
+ #include <string>
+ #include <functional>
+@@ -37,6 +39,9 @@
+     virtual void OutputData(std::vector<int16_t>& data);
+     virtual bool InputData(std::vector<int16_t>& data);
+     virtual void Start();
++    bool HardwareOutputDrained() const;
++    bool HardwareFenceReached(uint32_t fence) const;
++    uint32_t OutputDmaFence() const { return tx_tail_target_.load(); }
+ 
+     inline bool duplex() const { return duplex_; }
+     inline bool input_reference() const { return input_reference_; }
+@@ -50,6 +55,11 @@
+     inline bool output_enabled() const { return output_enabled_; }
+ 
+ protected:
++    static bool IRAM_ATTR OnDmaSent(i2s_chan_handle_t, i2s_event_data_t*, void* context);
++    void RegisterOutputDrainReceipt();
++    std::atomic<uint32_t> tx_sent_count_{0}, tx_tail_target_{0};
++    bool tx_receipts_ready_ = false;
++    std::atomic<bool> tx_write_ok_{true};
+     i2s_chan_handle_t tx_handle_ = nullptr;
+     i2s_chan_handle_t rx_handle_ = nullptr;
+ 
+--- a/main/audio/audio_service.cc
++++ b/main/audio/audio_service.cc
+@@ -267,6 +267,58 @@
+     gobot_mww::suspended();
+     xEventGroupSetBits(event_group_, AS_EVENT_AUDIO_INPUT_STOP_REQUEST);
+ }
++void AudioService::EnableHostCapture(bool enabled) {
++    host_capture_enabled_.store(false);
++    host_wake_allowed_.store(false);
++    host_capture_epoch_.fetch_add(1);
++    host_capture_sample_end_.store(0);
++    {
++        std::lock_guard<std::mutex> lock(audio_queue_mutex_);
++        for (auto& q : {&audio_send_queue_}) {
++            while (!q->empty()) {
++                auto frame = std::move(q->front()); q->pop_front();
++                std::fill(frame->payload.begin(), frame->payload.end(), 0);
++            }
++        }
++        while (!audio_encode_queue_.empty()) {
++            auto frame = std::move(audio_encode_queue_.front()); audio_encode_queue_.pop_front();
++            std::fill(frame.pcm.begin(), frame.pcm.end(), 0);
++        }
++        audio_queue_cv_.notify_all();
++    }
++    local_hold_.store(false);
++    sophia_wake_pending_.store(false);
++    sophia_buffer_handoff_.store(false);
++    host_capture_enabled_.store(enabled);
++    host_wake_allowed_.store(enabled);
++    if (enabled) SetLocalScan(true);
++}
++
++std::string AudioService::HostQueueStats() {
++    std::lock_guard<std::mutex> lock(audio_queue_mutex_);
++    return std::string("\"encode_pending\":")+std::to_string(audio_encode_queue_.size())+
++        ",\"send_pending\":"+std::to_string(audio_send_queue_.size())+
++        ",\"decode_pending\":"+std::to_string(audio_decode_queue_.size())+
++        ",\"output_pending\":"+std::to_string(audio_playback_queue_.size())+
++        ",\"decode_in_flight\":"+(decode_in_flight_?"true":"false")+
++        ",\"output_in_flight\":"+(output_in_flight_?"true":"false")+
++        ",\"encode_drops\":"+std::to_string(debug_statistics_.encode_drop_count)+
++        ",\"input_blocks\":"+std::to_string(debug_statistics_.input_count)+
++        ",\"encoded_frames\":"+std::to_string(debug_statistics_.encode_count)+
++        ",\"audio_input_task_present\":"+(audio_input_task_handle_?"true":"false")+
++        ",\"audio_input_stack_hwm_bytes\":"+std::to_string(audio_input_task_handle_?
++            uxTaskGetStackHighWaterMark(audio_input_task_handle_):0)+
++        ",\"audio_input_stack_hwm_units\":\"bytes\"";
++}
++
++bool AudioService::HardwareOutputDrained() const {
++    return codec_ && codec_->HardwareOutputDrained();
++}
++
++bool AudioService::HardwareFenceReached(uint32_t fence) const {
++    return codec_ && codec_->HardwareFenceReached(fence);
++}
++
+ void AudioService::AudioInputTask() {
+     // Sophia is the ONLY LOCAL wake source by default. No additional I2S
+     // reader, new network client or microphone recording.
+@@ -276,6 +328,12 @@
+     constexpr size_t kSophiaPrefixSamples=32000; // preserve last 2s + no-gap question
+     int16_t *sophia_queue_memory=nullptr;
+     gobot::WakeQuestionBuffer sophia_question;
++    // Sole audio-input task owns this fixed buffer. Keep the installed V4's
++    // inference stack headroom: 960 PCM samples must not live on its stack.
++    static gobot_host::CapturePacker host_packer;
++    host_packer.Reset(0);
++    bool host_wake_was_allowed=false;
++    gobot_sophia::WakeEvidence sophia_evidence{};
+     bool sophia_ready=false;
+     uint32_t sophia_epoch=1;
+     uint64_t sophia_next_sample=0;
+@@ -288,7 +346,8 @@
+     uint32_t sophia_meter_peak=0;
+     uint32_t sophia_meter_nonzero=0;
+     uint32_t sophia_meter_reads_failed=0;
+-    auto sophia_log=[](const gobot_sophia::WakeEvidence &e,void*) {
++    auto sophia_log=[](const gobot_sophia::WakeEvidence &e,void* context) {
++        if (context) *static_cast<gobot_sophia::WakeEvidence*>(context) = e;
+         ESP_LOGW(TAG,"SOPHIA_LOCAL_DETECTED epoch=%lu sample_end=%llu infer_us=%llu event_device_us=%llu",
+             (unsigned long)e.epoch, (unsigned long long)e.sample_end,
+             (unsigned long long)e.inference_duration_us,
+@@ -431,6 +490,7 @@
+             std::vector<int16_t> pcm;
+             if (!ReadAudioData(pcm,16000,160) || pcm.empty()) {
+                 ++sophia_meter_reads_failed;
++                if (host_capture_enabled_.load()) host_capture_epoch_.fetch_add(1);
+                 gobot_raw_wake::missed_block();gobot_mww::miss();vTaskDelay(pdMS_TO_TICKS(10));continue;
+             }
+             if(codec_->input_channels()==2){
+@@ -438,16 +498,41 @@
+                 pcm.resize(pcm.size()/2);
+             }
+             if(local_generation_.load()!=generation) continue;
++            const bool shared_capture = host_capture_enabled_.load();
++            uint64_t host_sample_start = 0;
++            if (shared_capture) {
++                const uint32_t capture_epoch = host_capture_epoch_.load();
++                if (host_packer.Epoch() != capture_epoch) {
++                    host_packer.Reset(capture_epoch);
++                    sophia.new_stream_epoch(); ++sophia_epoch;
++                    sophia_next_sample = 0; sophia_cooldown_us = 0;
++                    host_wake_was_allowed = false; sophia_question.Clear();
++                }
++                host_sample_start = host_packer.NextSample();
++                host_packer.Feed(pcm.data(), pcm.size(), [this](const gobot_host::CapturePosition& pos, const int16_t* data) {
++                    if (!host_capture_enabled_.load() || pos.epoch != host_capture_epoch_.load()) return;
++                    PushTaskToEncodeQueue(kAudioTaskTypeEncodeToSendQueue,
++                        std::vector<int16_t>(data, data + pos.sample_count), pos);
++                });
++                host_capture_sample_end_.store(host_packer.NextSample());
++                const bool allow = host_wake_allowed_.load();
++                if (!allow) { host_wake_was_allowed = false; continue; }
++                if (!host_wake_was_allowed) {
++                    sophia.new_stream_epoch(); ++sophia_epoch;
++                    sophia_next_sample = host_sample_start;
++                    host_wake_was_allowed = true;
++                }
++            }
+             if(sophia_ready) {
+                 // One audio task owns this queue and the incoming I2S PCM.
+-                if(local_hold_.load()) {
++                if(!shared_capture && local_hold_.load()) {
+                     if(!sophia_question.Append(pcm.data(),pcm.size())){
+                         sophia_buffer_overflow_.store(true);
+                         sophia_wake_pending_.store(false);
+                         ESP_LOGE(TAG,"SOPHIA_WAKE_PREFIX_OVERFLOW");
+                         continue;
+                     }
+-                }else{
++                }else if (!shared_capture) {
+                     sophia_question.Observe(pcm.data(),pcm.size());
+                 }
+                 // Aggregate 5s windows. No raw speech, samples or transcripts are stored.
+@@ -485,7 +570,7 @@
+                 if(sophia_cooldown_us && now<sophia_cooldown_us) continue;
+                 if(sophia_cooldown_us && now>=sophia_cooldown_us) {
+                     sophia.new_stream_epoch();
+-                    sophia_next_sample=0;
++                    sophia_next_sample=shared_capture ? host_sample_start : 0;
+                     ++sophia_epoch;
+                     sophia_cooldown_us=0;
+                 }
+@@ -494,16 +579,21 @@
+                 // with zero Opus uploads, never in the I2S ISR.
+                 const auto before=sophia.accepted_wakes();
+                 if(!sophia.ingest_existing_pcm(sophia_epoch,sophia_next_sample,
+-                    pcm.data(),pcm.size(),now,sophia_log,nullptr)) {
++                    pcm.data(),pcm.size(),now,sophia_log,&sophia_evidence)) {
+                     sophia.new_stream_epoch();++sophia_epoch;
+-                    sophia_next_sample=0;
++                    sophia_next_sample=shared_capture ? host_packer.NextSample() : 0;
+                     ESP_LOGW(TAG,"SOPHIA_DIAG_PCM_GAP; epoch_reset=1");
+                     continue;
+                 }
+                 sophia_next_sample+=pcm.size();
+                 if(sophia.accepted_wakes()>before) {
+                     sophia_cooldown_us=now+3000000; // 3s debounce
+-                    if(sophia_question.Activate() && !local_hold_.load()) {
++                    if (shared_capture) {
++                        host_wake_allowed_.store(false);
++                        if (callbacks_.on_host_sophia_wake)
++                            callbacks_.on_host_sophia_wake(host_packer.Epoch(), sophia_evidence.sample_end,
++                                sophia_evidence.detected_us, static_cast<uint64_t>(esp_timer_get_time()));
++                    } else if(sophia_question.Activate() && !local_hold_.load()) {
+                         local_hold_.store(true);
+                         sophia_buffer_handoff_.store(true);
+                         sophia_wake_pending_.store(true);
+@@ -571,6 +661,8 @@
+         codec_->OutputData(task.pcm);
+         // Driver has accepted the buffer; actual acoustic onset is unverified.
+         if(callbacks_.on_driver_output_started)callbacks_.on_driver_output_started();
++        if (task.host_downlink_seq != UINT32_MAX && callbacks_.on_host_output_progress)
++            callbacks_.on_host_output_progress(task.host_output_epoch,task.host_downlink_seq,codec_->OutputDmaFence());
+ 
+         /* Update the last output time */
+         last_output_time_ = std::chrono::steady_clock::now();
+@@ -601,6 +693,7 @@
+ }
+ 
+ void AudioService::OpusCodecTask() {
++    uint32_t last_capture_epoch = 0;
+     while (true) {
+         std::unique_lock<std::mutex> lock(audio_queue_mutex_);
+         audio_queue_cv_.wait(lock, [this]() {
+@@ -627,6 +720,8 @@
+             task.timestamp = packet->timestamp;
+             task.playback_id = packet->playback_id;
+             task.media_position_ms = packet->media_position_ms;
++            task.host_downlink_seq = packet->host_downlink_seq;
++            task.host_output_epoch = packet->host_output_epoch;
+ 
+             SetDecodeSampleRate(packet->sample_rate, packet->frame_duration);
+             bool decoded = false;
+@@ -696,7 +791,18 @@
+             packet->sample_rate = 16000;
+             packet->timestamp = task.timestamp;
+             packet->host_producer_seq = host_encoder_seq_.fetch_add(1);
+-
++            packet->capture_epoch = task.capture.epoch;
++            packet->capture_frame_id = task.capture.frame_id;
++            packet->capture_sample_start = task.capture.sample_start;
++            packet->capture_sample_count = task.capture.sample_count;
++
++            if (task.capture.epoch && task.capture.epoch != last_capture_epoch) {
++                if (opus_encoder_) esp_opus_enc_close(opus_encoder_);
++                opus_encoder_ = nullptr;
++                esp_opus_enc_config_t cfg = AS_OPUS_ENC_CONFIG();
++                esp_opus_enc_open(&cfg, sizeof(cfg), &opus_encoder_);
++                last_capture_epoch = task.capture.epoch;
++            }
+             if (opus_encoder_ != nullptr && task.pcm.size() == encoder_frame_size_) {
+                 packet->payload.resize(encoder_outbuf_size_);
+                 esp_audio_enc_in_frame_t in = {
+@@ -712,6 +818,11 @@
+                 if (ret == ESP_AUDIO_ERR_OK) {
+                     packet->payload.resize(out.encoded_bytes);
+ 
++                    if (task.capture.epoch && (!host_capture_enabled_.load() ||
++                        task.capture.epoch != host_capture_epoch_.load())) {
++                        std::fill(packet->payload.begin(), packet->payload.end(), 0);
++                        lock.lock(); continue;
++                    }
+                     if (task.type == kAudioTaskTypeEncodeToSendQueue) {
+                         {
+                             std::lock_guard<std::mutex> lock2(audio_queue_mutex_);
+@@ -793,10 +904,12 @@
+     }
+ }
+ 
+-void AudioService::PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm) {
++void AudioService::PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm,
++                                         gobot_host::CapturePosition capture) {
+     AudioTask task;
+     task.type = type;
+     task.pcm = std::move(pcm);
++    task.capture = capture;
+ 
+     uint32_t dropped_total = 0;
+     {
+--- a/main/audio/audio_service.h
++++ b/main/audio/audio_service.h
+@@ -24,6 +24,7 @@
+ #include "fixed_queue.h"
+ #include "ogg_demuxer.h"
+ #include "protocol.h"
++#include "sophia_host_capture.h"
+ 
+ /*
+  * There are two types of audio data flow:
+@@ -83,6 +84,9 @@
+     std::function<void(void)> on_send_queue_available;
+     std::function<void(const std::string&)> on_wake_word_detected;
+     std::function<void(bool)> on_vad_change;
++    // Capture epoch, exact detector sample, detector time and callback time.
++    std::function<void(uint32_t,uint64_t,uint64_t,uint64_t)> on_host_sophia_wake;
++    std::function<void(uint32_t,uint32_t,uint32_t)> on_host_output_progress;
+     std::function<void(void)> on_audio_testing_queue_full;
+     // Fired when the decode/playback queues and their in-flight work are drained.
+     std::function<void(void)> on_playback_drained;
+@@ -102,6 +106,8 @@
+     uint32_t timestamp = 0;
+     uint32_t playback_id = 0;
+     uint32_t media_position_ms = 0;
++    gobot_host::CapturePosition capture;
++    uint32_t host_downlink_seq = UINT32_MAX, host_output_epoch = 0;
+ };
+ 
+ struct DebugStatistics {
+@@ -140,6 +146,14 @@
+     bool IsSophiaDiagnosticEnabled() const {return sophia_diagnostic_requested_.load();}
+     bool ConsumeSophiaWakePending() {return sophia_wake_pending_.exchange(false);}
+     bool ConsumeSophiaWakeOverflow() {return sophia_buffer_overflow_.exchange(false);}
++    void EnableHostCapture(bool enabled);
++    bool HostCaptureEnabled() const { return host_capture_enabled_.load(); }
++    uint32_t HostCaptureEpoch() const { return host_capture_epoch_.load(); }
++    uint64_t HostCaptureSampleEnd() const { return host_capture_sample_end_.load(); }
++    void AllowHostWake(bool allowed) { host_wake_allowed_.store(allowed); }
++    bool HardwareOutputDrained() const;
++    bool HardwareFenceReached(uint32_t fence) const;
++    std::string HostQueueStats();
+     bool IsLocalScanRunning() const;
+     void SetLocalScan(bool on);
+     void ClearLocalWake();
+@@ -225,6 +239,9 @@
+     bool device_aec_enabled_ = false;
+ #endif
+     std::atomic<uint64_t> host_encoder_seq_{0};
++    std::atomic<bool> host_capture_enabled_{false}, host_wake_allowed_{false};
++    std::atomic<uint32_t> host_capture_epoch_{1};
++    std::atomic<uint64_t> host_capture_sample_end_{0};
+     std::atomic<bool> sophia_diagnostic_requested_{true}; // LOCAL default ON, no NVS
+     std::atomic<bool> sophia_wake_pending_{false};
+     std::atomic<bool> sophia_buffer_handoff_{false};
+@@ -239,7 +256,8 @@
+     void AudioInputTask();
+     void AudioOutputTask();
+     void OpusCodecTask();
+-    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm);
++    void PushTaskToEncodeQueue(AudioTaskType type, std::vector<int16_t>&& pcm,
++                               gobot_host::CapturePosition capture = {});
+     bool InitializeAudioEngine();
+     void SetDecodeSampleRate(int sample_rate, int frame_duration);
+     void CheckAndUpdateAudioPowerState();
+--- a/main/audio/codecs/es8311_audio_codec.cc
++++ b/main/audio/codecs/es8311_audio_codec.cc
+@@ -168,6 +168,7 @@
+ 
+     ESP_ERROR_CHECK(i2s_channel_init_std_mode(tx_handle_, &std_cfg));
+     ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_handle_, &std_cfg));
++    RegisterOutputDrainReceipt();
+     ESP_ERROR_CHECK(i2s_channel_enable(tx_handle_));
+     ESP_ERROR_CHECK(i2s_channel_enable(rx_handle_));
+     ESP_LOGI(TAG, "Duplex channels created");
+--- a/main/gobot_build_info.h
++++ b/main/gobot_build_info.h
+@@ -1,3 +1,3 @@
+ #pragma once
+ #define GOBOT_BUILD_EPOCH 1794492000
+-#define GOBOT_FIRMWARE_VERSION "0.4.14-dev-host-b-sophia-mic-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.16-dev-sophia-unified-v4"
+--- /dev/null
++++ b/main/host_output_receipts.h
+@@ -0,0 +1,53 @@
++#pragma once
++// Bounded digital playback ledger. Segment receipts require actual I2S DMA
++// events to cover the packet containing the segment's final 24 kHz sample.
++#include <cstdint>
++#include <deque>
++#include <string>
++#include <utility>
++namespace gobot_host {
++inline bool wire_identifier(const std::string& value, bool segment=false) {
++    if (value.empty() || value.size() > (segment ? 96u : 64u)) return false;
++    for (unsigned char c : value)
++        if (!((c>='a'&&c<='z') || (c>='A'&&c<='Z') || (c>='0'&&c<='9') ||
++              c=='-' || c=='_' || (segment && c==':'))) return false;
++    return true;
++}
++struct SegmentFence {
++    std::string id;
++    uint64_t sample_end=0;
++    uint32_t dma_fence=0;
++    bool armed=false;
++};
++class OutputReceipts {
++    std::deque<SegmentFence> pending_;
++    uint64_t written_samples_=0, last_segment_end_=0;
++    uint32_t last_dma_fence_=0;
++public:
++    void Reset() { pending_.clear(); written_samples_=last_segment_end_=0; last_dma_fence_=0; }
++    bool Segment(const std::string& id,uint64_t end) {
++        if (!wire_identifier(id,true) || !end || end<=last_segment_end_ ||
++            end>6001ULL*1440 || pending_.size()>=16) return false;
++        last_segment_end_=end;
++        SegmentFence segment{id,end,last_dma_fence_,end<=written_samples_};
++        pending_.push_back(std::move(segment)); return true;
++    }
++    bool Written(uint32_t packet,uint32_t fence) {
++        const uint64_t end=(uint64_t(packet)+1)*1440;
++        if (end!=written_samples_+1440) return false;
++        written_samples_=end; last_dma_fence_=fence;
++        for (auto& segment:pending_)
++            if (!segment.armed && segment.sample_end<=end) {
++                segment.dma_fence=fence; segment.armed=true;
++            }
++        return true;
++    }
++    template<class Reached, class Receipt>
++    void Poll(Reached&& reached,Receipt&& receipt) {
++        while (!pending_.empty() && pending_.front().armed && reached(pending_.front().dma_fence)) {
++            auto segment=std::move(pending_.front());pending_.pop_front();receipt(segment);
++        }
++    }
++    bool Empty() const { return pending_.empty(); }
++};
++} // namespace gobot_host
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -11,21 +11,38 @@
+ }
+ 
+ void Application::HostFault(const char* reason) {
++    if(host_connecting_.load()) {
++        host_connect_abort_reason_=reason;return; // worker exclusively owns Connect/hello
++    }
+     ESP_LOGE(TAG,"GOBOT_HOST_RC1_FAULT reason=%s",reason);
+     host_ready_=false;host_touch_active_=host_output_active_=false;
+     host_output_end_=host_output_started_=false;
+     host_feedback_.clear();host_stop_id_.clear();host_playback_id_.clear();
+     host_next_retry_ms_=gobot::NowMs()+4000;
++    audio_service_.EnableHostCapture(false);
+     audio_service_.EnableVoiceProcessing(false);
+     audio_service_.ResetDecoder();
+     if(protocol_) protocol_->CloseAudioChannel();
++    host_response_busy_=false;host_response_id_.clear();host_whole_response_=false;
++    host_output_receipts_.Reset();host_probe_wake_pending_=false;host_deferred_ready_.clear();
++    if(host_unified_) {
++        host_mode_=false;host_auto_retry_ms_=gobot::NowMs()+60000;
++        auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++        if(ws)ws->ConfigureHostTest("");
++        audio_service_.EnableSophiaDiagnostic(true);
++        audio_service_.SetLocalScan(!gobot_muted_ && !host_muted_);
++    }
+     notice_="HOST: связь потеряна";notice_until_=gobot::NowMs()+3000;
+     RenderGoBot();
+ }
+ 
+-void Application::HostEnable(bool enabled) {
+-    // Source switch to HOST remains possible. Sophia is LOCAL only;
+-    // disable it once HOST mode has been accepted.
++void Application::HostEnable(bool enabled,bool unified) {
++    if(host_connecting_.load()) {
++        if(!enabled)host_connect_abort_reason_="mode_off";
++        return;
++    }
++    // The installed V4 wake engine remains armed while a v2 peer is negotiated.
++    // Existing v1 test transport is retained; no NVS/endpoint/model writes.
+     // Selection never writes NVS or modifies the enrolled endpoint.
+     if(gobot_turn_.Active() || GetDeviceState()!=kDeviceStateIdle ||
+        !audio_service_.IsPlaybackIdle()) {
+@@ -37,27 +54,71 @@
+         host_mode_=host_ready_=host_touch_active_=host_output_active_=false;
+         host_output_end_=host_output_started_=host_muted_=false;
+         host_feedback_.clear();host_stop_id_.clear();host_playback_id_.clear();
++        audio_service_.EnableHostCapture(false);
+         audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
+         ws->CloseAudioChannel();ws->ConfigureHostTest("");
+         audio_service_.EnableSophiaDiagnostic(true);
++        audio_service_.SetLocalScan(!gobot_muted_);
++        host_response_busy_=false;host_unified_=false;
+         ESP_LOGI(TAG,"GOBOT_HOST_MODE OFF volatile=1 SOPHIA_LOCAL_RESTORED=1");
+         RenderGoBot();return;
+     }
+     if(gobot_muted_ || !gobot_network_ready_ ||
+-       std::string(GOBOT_HOST_RC1_TEST_URL).empty()) {
++       (!unified && std::string(GOBOT_HOST_RC1_TEST_URL).empty())) {
+         ESP_LOGW(TAG,"GOBOT_HOST_SWITCH_REJECT no_network_or_test_url=1");return;
+     }
+-    if(!ws->ConfigureHostTest(GOBOT_HOST_RC1_TEST_URL)) {
++    if(!(unified ? ws->ConfigureUnifiedHost() : ws->ConfigureHostTest(GOBOT_HOST_RC1_TEST_URL))) {
+         ESP_LOGE(TAG,"GOBOT_HOST_SWITCH_REJECT protocol_busy=1");return;
+     }
+-    audio_service_.EnableSophiaDiagnostic(false);
++    host_unified_=unified;
++    host_probe_wake_pending_=false;host_deferred_ready_.clear();host_connect_abort_reason_.clear();
+     host_mode_=true;host_muted_=false;host_ready_=false;
++    host_response_busy_=false;host_output_epoch_=0;host_ready_deadline_ms_=0;
+     host_touch_active_=host_output_active_=false;
+     host_output_end_=host_output_started_=false;
+     host_next_retry_ms_=gobot::NowMs();
+-    audio_service_.SetLocalScan(false);
+-    ESP_LOGI(TAG,"GOBOT_HOST_MODE ON volatile=1 paid=0");
++    audio_service_.SetLocalScan(true);
++    ESP_LOGI(TAG,"GOBOT_HOST_MODE ON volatile=1 paid=0 negotiated_capture_only=1");
+     RenderGoBot();
++}
++
++void Application::HostSophiaWake(uint32_t capture_epoch,uint64_t sample,uint64_t detected_us,uint64_t callback_us) {
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() || host_muted_ ||
++        capture_epoch!=audio_service_.HostCaptureEpoch() || host_output_active_ ||
++        host_response_busy_ || host_touch_active_)return;
++    const auto wake_id=std::string("sophia-")+std::to_string(++host_wake_sequence_);
++    host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=gobot::NowMs();
++    gobot_ui_phase_="listening";
++    // Register real LVGL refresh completion before submitting the new screen.
++    if(!gobot_host::OnNextNativeRefresh([this,wake_id,callback_us]() {
++        const uint64_t visible_us=esp_timer_get_time();
++        Schedule([this,wake_id,callback_us,visible_us]() {
++            if(host_mode_ && host_ready_)
++                HostControl("gobot_host_ack",",\"event\":\"ui_visible\",\"wake_id\":\""+wake_id+
++                    "\",\"device_monotonic_us\":"+std::to_string(visible_us)+
++                    ",\"callback_monotonic_us\":"+std::to_string(callback_us));
++        });
++    })) {HostFault("lcd_refresh_receipt_unavailable");return;}
++    RenderGoBot();
++    HostControl("gobot_host_wake",",\"wake_id\":\""+wake_id+"\",\"stream_epoch\":\""+
++        ws->HostStreamEpoch(capture_epoch)+"\",\"detector_sample\":"+std::to_string(sample)+
++        ",\"detector_monotonic_us\":"+std::to_string(detected_us)+
++        ",\"callback_monotonic_us\":"+std::to_string(callback_us));
++}
++
++void Application::HostOutputProgress(uint32_t output_epoch,uint32_t sequence,uint32_t dma_fence) {
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!host_mode_ || !host_ready_ || !ws || !ws->HostV2() || !host_output_active_ ||
++        output_epoch!=host_output_epoch_ || host_muted_)return;
++    if(!host_output_receipts_.Written(sequence,dma_fence)) {HostFault("output_dma_order_invalid");return;}
++    if(sequence!=0 && sequence%2)return;
++    HostControl("gobot_host_playback",",\"state\":\"progress\",\"playback_id\":\""+
++        host_playback_id_+"\",\"response_id\":\""+host_response_id_+
++        "\",\"output_epoch\":"+std::to_string(output_epoch)+
++        ",\"packets_consumed\":"+std::to_string(sequence+1)+
++        ",\"completion_basis\":\"driver_queued\",\"whole_response\":false,"+
++        audio_service_.HostQueueStats());
+ }
+ 
+ void Application::HostDriverOutputStarted() {
+@@ -74,7 +135,9 @@
+             host_output_started_=true;
+             HostControl("gobot_host_playback",",\"playback_id\":\""+host_playback_id_+
+                         "\",\"output_epoch\":"+std::to_string(host_output_epoch_)+
+-                        ",\"playing\":true");
++                        ",\"playing\":true,\"state\":\"playback_started\",\"response_id\":\""+
++                        host_response_id_+"\",\"whole_response\":false,\"completion_basis\":\"driver_queued\",\"device_monotonic_us\":"+
++                        std::to_string(esp_timer_get_time()));
+         }
+     }
+ }
+@@ -89,26 +152,106 @@
+     if(!session || !epoch)return;
+     const std::string kind(type);
+     if(kind=="gobot_host_ready") {
++        if(host_connecting_.load()) {
++            char* copy=cJSON_PrintUnformatted(root);
++            if(copy){host_deferred_ready_=copy;cJSON_free(copy);}
++            return;
++        }
++        if(host_unified_ && !host_ready_ && !host_muted_ && !gobot_muted_ &&
++            (host_probe_wake_pending_ || audio_service_.LocalWakePending())) {
++            HostConnectDone(true);return;
++        }
+         auto frame=cJSON_GetObjectItem(root,"frame_samples");
+-        if(!cJSON_IsNumber(frame) || frame->valueint!=960 ||
+-           !ws->HostReady(session,epoch)) {HostFault("ready_invalid");return;}
+-        host_ready_=true;host_touch_active_=false;
+-        audio_service_.SetLocalScan(false);
+-        audio_service_.EnableDeviceAec(true);
+-        audio_service_.EnableVoiceProcessing(true);
+-        if(!audio_service_.IsAudioProcessorRunning()) {
+-            HostFault("mic_processor_offline");return;
+-        }
+-        HostControl("gobot_host_ready_ack",",\"frame_samples\":960");
++        auto version=cJSON_GetObjectItem(root,"protocol");
++        if(!cJSON_IsNumber(version))version=cJSON_GetObjectItem(root,"version");
++        const int negotiated=cJSON_IsNumber(version)?version->valueint:1;
++        const auto stage=gobot::String(root,"pcm_stage",24);
++        const auto wake_location=gobot::String(root,"wake_location",16);
++        if((negotiated==2 && (!stage || strcmp(stage,"pre_afe") || !wake_location || strcmp(wake_location,"ESP"))) ||
++           !cJSON_IsNumber(frame) || frame->valueint!=960 ||
++           !ws->HostReady(session,epoch,negotiated)) {HostFault("ready_invalid");return;}
++        host_ready_=true;host_touch_active_=false;host_ready_deadline_ms_=0;
++        host_output_epoch_=0;host_response_busy_=false;
++        if(ws->HostV2()) {
++            audio_service_.EnableVoiceProcessing(false);
++            audio_service_.EnableSophiaDiagnostic(true);
++            audio_service_.EnableHostCapture(true);
++            HostControl("gobot_host_ready_ack",",\"protocol\":2,\"frame_samples\":960,\"sample_start\":0,\"pcm_stage\":\"pre_afe\",\"stream_epoch\":\""+
++                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\"");
++        } else {
++            audio_service_.EnableSophiaDiagnostic(false);
++            audio_service_.SetLocalScan(false);
++            audio_service_.EnableDeviceAec(true);
++            audio_service_.EnableVoiceProcessing(true);
++            if(!audio_service_.IsAudioProcessorRunning()) {HostFault("mic_processor_offline");return;}
++            HostControl("gobot_host_ready_ack",",\"frame_samples\":960");
++        }
+         ESP_LOGI(TAG,"GOBOT_HOST_READY epoch_new=1 mic=1 paid=0");
+         RenderGoBot();return;
+     }
+     if(!host_ready_ || !ws->HostScope(session,epoch))return;
++    if(kind=="gobot_host_state" && ws->HostV2()) {
++        const auto state=gobot::String(root,"state",24);
++        if(!state)return;
++        if(!strcmp(state,"listening")) {
++            host_touch_active_=true;host_response_busy_=false;gobot_ui_phase_="listening";
++            audio_service_.AllowHostWake(false);
++        } else if(!strcmp(state,"thinking")) {
++            host_touch_active_=false;host_response_busy_=true;gobot_ui_phase_="thinking";
++            audio_service_.AllowHostWake(false);
++        } else if(!strcmp(state,"speaking")) {
++            host_touch_active_=false;host_response_busy_=true;gobot_ui_phase_="speaking";
++            audio_service_.AllowHostWake(false);
++        } else if(!strcmp(state,"idle") || !strcmp(state,"ready") || !strcmp(state,"error")) {
++            host_touch_active_=false;host_response_busy_=false;gobot_ui_phase_.clear();
++            if(!strcmp(state,"error")){notice_="Связь недоступна. Попробуйте ещё раз";notice_until_=gobot::NowMs()+3500;}
++        }
++        RenderGoBot();return;
++    }
++    if(kind=="gobot_host_mute" && ws->HostV2()) {
++        const auto muted=cJSON_GetObjectItem(root,"muted");
++        if(!cJSON_IsBool(muted)){HostFault("mute_invalid");return;}
++        HostSetMuted(cJSON_IsTrue(muted),false);return;
++    }
++    if(kind=="gobot_host_output_cancel" && ws->HostV2()) {
++        const auto id=gobot::String(root,"playback_id",64);
++        const auto response=gobot::String(root,"response_id",64);
++        const auto gen=cJSON_GetObjectItem(root,"output_epoch");
++        if(id && response && id==host_playback_id_ && response==host_response_id_ &&
++            cJSON_IsNumber(gen) && gen->valuedouble+1==host_output_epoch_ &&
++            !host_output_active_ && ws->HostOutputEpoch()==host_output_epoch_) {
++            host_stop_id_=id;return; // idempotent retry after a lost stopped receipt
++        }
++        if(!id || !response || id!=host_playback_id_ || response!=host_response_id_ ||
++            !cJSON_IsNumber(gen) || gen->valueint!=int(host_output_epoch_) ||
++            ws->HostOutputEpoch()!=host_output_epoch_+1) {HostFault("cancel_owner_invalid");return;}
++        ++host_output_epoch_;host_stop_id_=id;
++        host_output_active_=host_output_started_=host_output_end_=host_whole_response_=false;
++        host_touch_active_=host_response_busy_=false;host_feedback_.clear();
++        host_output_receipts_.Reset();audio_service_.ResetDecoder();
++        host_wake_guard_ms_=gobot::NowMs()+250;RenderGoBot();return;
++    }
++    if(kind=="gobot_host_output_segment_end" && ws->HostV2()) {
++        const auto id=gobot::String(root,"playback_id",64);
++        const auto response=gobot::String(root,"response_id",64);
++        const auto segment=gobot::String(root,"segment_id",96);
++        const auto end=cJSON_GetObjectItem(root,"pcm_sample_end");
++        const auto gen=cJSON_GetObjectItem(root,"output_epoch");
++        if(!host_output_active_ || !id || !response || !segment || id!=host_playback_id_ ||
++            response!=host_response_id_ || !cJSON_IsNumber(gen) || gen->valueint!=int(host_output_epoch_) ||
++            !cJSON_IsNumber(end) || end->valuedouble<1 || end->valuedouble>6001.0*1440 ||
++            end->valuedouble!=floor(end->valuedouble) ||
++            !host_output_receipts_.Segment(segment,static_cast<uint64_t>(end->valuedouble))) {
++            HostFault("segment_fence_invalid");return;
++        }
++        return;
++    }
+     if(kind=="gobot_host_event") {
+         const auto event=gobot::String(root,"event",20);
+         const auto feedback=gobot::String(root,"feedback_id",80);
+         if(!event || !feedback)return;
+         if(!strcmp(event,"wake")) {
++            if(ws->HostV2())return; // local detector already rendered; never duplicate a cue
+             if(!host_feedback_.empty())return;
+             host_touch_active_=true;host_voice_seen_=false;
+             host_feedback_=feedback;host_cue_acked_=host_render_acked_=false;
+@@ -138,6 +281,8 @@
+             host_output_active_=host_output_started_=host_output_end_=false;
+             host_touch_active_=false;host_feedback_.clear();host_playback_id_.clear();
+             audio_service_.ResetDecoder();
++            host_response_busy_=false;host_whole_response_=false;host_response_id_.clear();
++            host_wake_guard_ms_=gobot::NowMs()+250;
+             RenderGoBot();
+         }
+     } else if(kind=="gobot_host_output_start") {
+@@ -146,6 +291,17 @@
+         if(!id || !cJSON_IsNumber(gen) || gen->valueint!=int(host_output_epoch_)) {
+             HostFault("output_start_invalid");return;
+         }
++        if(ws->HostV2()) {
++            const auto response=gobot::String(root,"response_id",64);
++            const auto audio_kind=gobot::String(root,"kind",20);
++            if(!response || !audio_kind || !gobot_host::wire_identifier(response) ||
++                (strcmp(audio_kind,"answer") && strcmp(audio_kind,"cue"))) {HostFault("response_owner_invalid");return;}
++            host_response_id_=response;host_output_kind_=audio_kind;
++            host_response_busy_=true;host_whole_response_=false;
++            audio_service_.AllowHostWake(false);
++        }
++        if(host_muted_){HostFault("output_while_muted");return;}
++        host_output_receipts_.Reset();
+         host_playback_id_=id;host_output_active_=true;
+         host_output_started_=host_output_end_=false;
+         host_touch_active_=false;
+@@ -157,49 +313,199 @@
+            gen->valueint!=int(host_output_epoch_)) {
+             HostFault("output_end_invalid");return;
+         }
++        if(ws->HostV2()) {
++            const auto response=gobot::String(root,"response_id",64);
++            if(!response || host_response_id_!=response){HostFault("response_end_invalid");return;}
++            host_whole_response_=cJSON_IsTrue(cJSON_GetObjectItem(root,"whole_response"));
++            if(host_output_kind_=="cue" && host_whole_response_){HostFault("cue_cannot_end_answer");return;}
++        }
+         host_output_end_=true;
+     } else if(kind=="gobot_host_idle") {
+-        host_touch_active_=false;host_voice_seen_=false;
+-        RenderGoBot();
+-    }
++        host_touch_active_=false;host_voice_seen_=false;host_response_busy_=false;
++        gobot_ui_phase_.clear();RenderGoBot();
++    }
++}
++
++void Application::HostSetMuted(bool muted,bool notify) {
++    if(host_muted_==muted)return;
++    if(notify)HostControl("gobot_host_mute",std::string(",\"muted\":")+(muted?"true":"false"));
++    else HostControl("gobot_host_ack",std::string(",\"event\":\"muted\",\"muted\":")+(muted?"true":"false"));
++    host_muted_=gobot_muted_=muted;
++    audio_service_.EnableHostCapture(false);audio_service_.SetLocalScan(false);
++    audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
++    host_touch_active_=host_response_busy_=false;host_output_receipts_.Reset();
++    if(!muted) {
++        // A new authenticated transport/capture epoch prevents old PCM or a
++        // hidden sample discontinuity from crossing mute/unmute.
++        host_ready_=false;host_output_active_=host_output_started_=host_output_end_=false;
++        host_playback_id_.clear();host_response_id_.clear();host_stop_id_.clear();
++        if(host_connecting_.load())host_connect_abort_reason_="mute_changed";
++        else protocol_->CloseAudioChannel();
++        host_ready_deadline_ms_=0;host_next_retry_ms_=gobot::NowMs();audio_service_.SetLocalScan(true);
++    }
++    RenderGoBot();
++}
++
++void Application::HostColdWake() {
++    if(host_probe_wake_pending_)return;
++    host_probe_wake_pending_=true;host_touch_active_=true;gobot_ui_phase_="listening";
++    const uint64_t callback=host_local_wake_callback_us_.load();
++    gobot_host::OnNextNativeRefresh([this,callback](){
++        const uint64_t visible=esp_timer_get_time();
++        Schedule([callback,visible](){
++            ESP_LOGI(TAG,"SOPHIA_COLD_UI_VISIBLE callback_us=%llu visible_us=%llu delta_us=%llu",
++                (unsigned long long)callback,(unsigned long long)visible,
++                (unsigned long long)(visible>=callback?visible-callback:0));
++        });
++    });
++    // Keep the installed V4's question buffer, local_hold and detector handoff.
++    // No network operation or capture reset occurs on this UI reaction path.
++    RenderGoBot();
++}
++
++void Application::HostBeginConnect() {
++    if(host_connecting_.exchange(true))return;
++    host_connect_abort_reason_.clear();host_deferred_ready_.clear();
++    // One temporary bounded worker, one existing protocol/socket. Input,
++    // display and touch tasks remain runnable during DNS/TLS/server hello.
++    const auto rc=xTaskCreate([](void* argument){
++        auto* app=static_cast<Application*>(argument);
++        const bool connected=app->protocol_ && app->protocol_->OpenAudioChannel();
++        app->Schedule([app,connected](){app->HostConnectDone(connected);});
++        vTaskDelete(nullptr);
++    },"sophia_connect",8192,this,1,nullptr);
++    if(rc!=pdPASS) {
++        host_connecting_=false;HostFault("connect_task_allocation_failed");
++    }
++}
++
++void Application::HostConnectDone(bool connected) {
++    host_connecting_=false;
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!ws)return;
++    // A wake event may have been posted in the same main-task dispatch batch.
++    if(host_unified_ && !host_muted_ && !gobot_muted_ &&
++       audio_service_.LocalWakePending())HostColdWake();
++    const bool wake=host_probe_wake_pending_;
++    const auto aborted=host_connect_abort_reason_;
++    host_connect_abort_reason_.clear();
++    if(wake && connected && aborted.empty() && !host_muted_ && !gobot_muted_) {
++        // The user began speaking while the idle capability probe was running.
++        // Preserve V4's exact local prefix/question handoff for this first turn;
++        // negotiate unified mode again only after that turn has completed.
++        host_mode_=host_ready_=host_unified_=host_touch_active_=false;
++        host_probe_wake_pending_=false;host_deferred_ready_.clear();
++        ws->CloseAudioChannel();ws->ConfigureHostTest("");
++        host_auto_retry_ms_=gobot::NowMs()+60000;
++        if(audio_service_.ConsumeSophiaWakeOverflow()) {
++            audio_service_.ClearLocalWake();notice_="Связь задержалась. Повторите вопрос";
++            notice_until_=gobot::NowMs()+3500;RenderGoBot();
++        } else StartGoBotTurn("wake");
++        return;
++    }
++    if(!connected || !aborted.empty() || host_muted_ || gobot_muted_) {
++        HostFault(aborted.empty()?"gateway_connect_failed":aborted.c_str());return;
++    }
++    host_ready_deadline_ms_=gobot::NowMs()+2500;
++    if(!host_deferred_ready_.empty()) {
++        const auto ready=std::move(host_deferred_ready_);host_deferred_ready_.clear();
++        auto message=cJSON_Parse(ready.c_str());
++        if(message){HostOnControl(message);cJSON_Delete(message);}
++        else HostFault("invalid_deferred_ready");
++    }
++    RenderGoBot();
+ }
+ 
+ void Application::HostTick() {
+     if(!host_mode_)return;
+     const uint64_t now=gobot::NowMs();
+-    if(host_muted_ || !gobot_network_ready_) {
+-        if(host_ready_)HostFault("muted_or_wifi_down");
++    if(host_connecting_.load())return;
++    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    // Stop receipt only after actual audio queue/software-driver drain.
++    if(ws && host_ready_ && !host_stop_id_.empty() && audio_service_.IsPlaybackIdle() &&
++       (!ws->HostV2() || audio_service_.HardwareOutputDrained())) {
++        if(ws->HostV2()) {
++            HostControl("gobot_host_playback",",\"state\":\"stopped\",\"response_id\":\""+
++                host_response_id_+"\",\"playback_id\":\""+host_stop_id_+
++                "\",\"output_epoch\":"+std::to_string(host_output_epoch_)+
++                ",\"whole_response\":false,\"completion_basis\":\"i2s_dma_sent\"");
++        } else {
++            HostControl("gobot_host_ack",",\"feedback_id\":\""+host_stop_id_+
++                        "\",\"event\":\"stopped\",\"output_epoch\":"+
++                        std::to_string(host_output_epoch_));
++        }
++        host_stop_id_.clear();
++    }
++    if(host_muted_) {
++        if(audio_service_.HostCaptureEnabled())audio_service_.EnableHostCapture(false);
++        if(host_ready_ && now>=host_last_stats_ms_+5000) {
++            host_last_stats_ms_=now;
++            HostControl("gobot_host_stats",",\"muted\":true,"+audio_service_.HostQueueStats());
++        }
+         return;
+     }
+-    auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++    if(!gobot_network_ready_) {
++        if(audio_service_.HostCaptureEnabled())audio_service_.EnableHostCapture(false);
++        audio_service_.SetLocalScan(!gobot_muted_);
++        if(host_ready_)HostFault("wifi_down");
++        return;
++    }
+     if(!ws)return;
+     if(ws->HostProtocolFault()) {HostFault("invalid_transport_frame");return;}
+     if(!host_ready_) {
++        if(host_ready_deadline_ms_ && now>=host_ready_deadline_ms_) {HostFault("v2_handshake_timeout");return;}
+         if(now<host_next_retry_ms_)return;
+         host_next_retry_ms_=now+5000;
+-        // One existing protocol; never call the paid Brain gateway.
+-        if(!protocol_->IsAudioChannelOpened() && !protocol_->OpenAudioChannel()) {
+-            ESP_LOGW(TAG,"GOBOT_HOST_TEST_CONNECT_FAILED retry_ms=5000");
+-            protocol_->CloseAudioChannel();
++        // Same authenticated gateway. An idle hello must never admit a paid turn.
++        if(!protocol_->IsAudioChannelOpened()) {
++            HostBeginConnect();
+         }
+         RenderGoBot();return;
+     }
+-    // Stop receipt only after actual audio queue/software-driver drain.
+-    if(!host_stop_id_.empty() && audio_service_.IsPlaybackIdle()) {
+-        HostControl("gobot_host_ack",",\"feedback_id\":\""+host_stop_id_+
+-                    "\",\"event\":\"stopped\",\"output_epoch\":"+
+-                    std::to_string(host_output_epoch_));
+-        host_stop_id_.clear();
++    if(ws->HostV2() && host_output_active_) {
++        host_output_receipts_.Poll([this](uint32_t fence){return audio_service_.HardwareFenceReached(fence);},
++            [this](const gobot_host::SegmentFence& segment) {
++                HostControl("gobot_host_playback",",\"state\":\"segment_finished\",\"response_id\":\""+
++                    host_response_id_+"\",\"playback_id\":\""+host_playback_id_+"\",\"segment_id\":\""+
++                    segment.id+"\",\"output_epoch\":"+std::to_string(host_output_epoch_)+
++                    ",\"whole_response\":false,\"pcm_sample_end\":"+std::to_string(segment.sample_end)+
++                    ",\"completion_basis\":\"i2s_dma_sent\",\"device_monotonic_us\":"+
++                    std::to_string(esp_timer_get_time()));
++            });
+     }
+     // Never report drained on output_end alone.
+-    if(host_output_end_ && host_output_started_ && audio_service_.IsPlaybackIdle()) {
++    if(host_output_end_ && host_output_started_ && host_output_receipts_.Empty() && audio_service_.IsPlaybackIdle() &&
++       (!ws->HostV2() || audio_service_.HardwareOutputDrained())) {
+         if(ws->HostPlaybackDrained(host_playback_id_,host_output_epoch_)) {
++            const auto state=host_whole_response_?"playback_finished":"segment_finished";
+             HostControl("gobot_host_playback",",\"playback_id\":\""+
+-                        host_playback_id_+"\",\"output_epoch\":"+
+-                        std::to_string(host_output_epoch_)+",\"playing\":false");
++                host_playback_id_+"\",\"response_id\":\""+host_response_id_+
++                "\",\"output_epoch\":"+std::to_string(host_output_epoch_)+
++                ",\"playing\":false,\"state\":\""+state+"\",\"whole_response\":"+
++                (host_whole_response_?"true":"false")+",\"sample_floor\":"+
++                std::to_string(audio_service_.HostCaptureSampleEnd())+",\"stream_epoch\":\""+
++                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+
++                "\",\"completion_basis\":\"i2s_dma_sent\",\"device_monotonic_us\":"+
++                std::to_string(esp_timer_get_time()));
+             host_output_active_=host_output_started_=host_output_end_=false;
+-            host_playback_id_.clear();RenderGoBot();
++            host_wake_guard_ms_=now+250;
++            if(host_whole_response_)host_response_busy_=false;
++            RenderGoBot(); // retain the last owner for a concurrent, idempotent cancel
+         } else HostFault("playback_drain_invalid");
++    }
++    if(ws->HostV2()) {
++        // The gateway alone decides endpointing and follow-up. Never commit at
++        // the old 800ms device VAD threshold or at one cue/sentence completion.
++        const bool idle=!host_touch_active_ && !host_response_busy_ && !host_output_active_;
++        audio_service_.AllowHostWake(idle && now>=host_wake_guard_ms_ && audio_service_.HardwareOutputDrained());
++        if(now>=host_last_stats_ms_+5000) {
++            host_last_stats_ms_=now;
++            HostControl("gobot_host_stats",","+audio_service_.HostQueueStats()+
++                ",\"internal_free\":"+std::to_string(heap_caps_get_free_size(MALLOC_CAP_INTERNAL))+
++                ",\"psram_free\":"+std::to_string(heap_caps_get_free_size(MALLOC_CAP_SPIRAM))+
++                ",\"underrun_measurement\":\"not_instrumented\"");
++        }
++        return;
+     }
+     if(host_touch_active_) {
+         bool speaking=audio_service_.IsVoiceDetected();
+--- a/main/host_rc1_state.h
++++ b/main/host_rc1_state.h
+@@ -6,21 +6,22 @@
+ #include <mutex>
+ #include <string>
+ #include "host_client_state.h"
++#include "host_output_receipts.h"
+ 
+ namespace gobot_host {
+ class Rc1Stream {
+     mutable std::mutex mu_;
+-    std::string session_, epoch_, playback_;
++    std::string session_, epoch_, playback_, cancelled_playback_, completed_playback_;
+     bool ready_=false, output_active_=false, pending_binary_=false;
+-    bool output_complete_=false, started_=false, drained_=false;
++    bool output_complete_=false, started_=false, drained_=false, output_streaming_=false;
+     uint64_t first_producer_seq_=0, expected_producer_seq_=0;
+     bool first_producer_seen_=false;
+     uint32_t output_epoch_=0, expected_packet_=0, total_packets_=0;
+ public:
+     void Clear() {
+         std::lock_guard<std::mutex> lock(mu_);
+-        ready_=false;session_.clear();epoch_.clear();playback_.clear();
+-        output_active_=pending_binary_=output_complete_=started_=drained_=false;
++        ready_=false;session_.clear();epoch_.clear();playback_.clear();cancelled_playback_.clear();completed_playback_.clear();
++        output_active_=pending_binary_=output_complete_=started_=drained_=output_streaming_=false;
+         expected_packet_=total_packets_=output_epoch_=0;
+         first_producer_seen_=false;first_producer_seq_=expected_producer_seq_=0;
+     }
+@@ -53,14 +54,14 @@
+         ++expected_producer_seq_;return true;
+     }
+     bool OutputStart(const std::string& session,const std::string& epoch,
+-                     const std::string& playback,uint32_t generation,uint32_t count) {
++                     const std::string& playback,uint32_t generation,uint32_t count,bool streaming=false) {
+         std::lock_guard<std::mutex> lock(mu_);
+         if(!ready_||session!=session_||epoch!=epoch_||!identifier(playback)||
+            output_active_||pending_binary_||generation!=output_epoch_||
+-           count==0||count>64)return false;
+-        playback_=playback;output_active_=true;pending_binary_=false;
++           (streaming ? count!=0 : (count==0||count>64)))return false;
++        playback_=playback;completed_playback_.clear();output_active_=true;pending_binary_=false;
+         output_complete_=started_=drained_=false;
+-        expected_packet_=0;total_packets_=count;return true;
++        expected_packet_=0;total_packets_=count;output_streaming_=streaming;return true;
+     }
+     bool OutputMetadata(const std::string& session,const std::string& epoch,
+                         const std::string& playback,uint32_t generation,uint32_t sequence,
+@@ -69,7 +70,8 @@
+         if(!ready_||session!=session_||epoch!=epoch_||!output_active_||
+            pending_binary_||output_complete_||playback!=playback_||
+            generation!=output_epoch_||sequence!=expected_packet_||
+-           sequence>=total_packets_||count!=1440||start!=sequence*1440)return false;
++           sequence>6000||(!output_streaming_ && sequence>=total_packets_)||
++           count!=1440||start!=sequence*1440)return false;
+         pending_binary_=true;return true;
+     }
+     bool ConsumeBinary() {
+@@ -82,9 +84,9 @@
+         std::lock_guard<std::mutex> lock(mu_);
+         if(!ready_||session!=session_||epoch!=epoch_||!output_active_||
+            pending_binary_||output_complete_||playback!=playback_||
+-           generation!=output_epoch_||count!=total_packets_||
+-           count!=expected_packet_)return false;
+-        output_complete_=true;return true;
++           generation!=output_epoch_||(!output_streaming_ && count!=total_packets_)||
++           count==0||count!=expected_packet_)return false;
++        total_packets_=count;output_complete_=true;return true;
+     }
+     bool PlaybackStarted(const std::string& id,uint32_t generation) {
+         std::lock_guard<std::mutex> lock(mu_);
+@@ -96,7 +98,7 @@
+         std::lock_guard<std::mutex> lock(mu_);
+         if(!output_active_||playback_!=id||generation!=output_epoch_||
+            !started_||!output_complete_||drained_)return false;
+-        drained_=true;output_active_=false;playback_.clear();return true;
++        drained_=true;output_active_=false;completed_playback_=playback_;playback_.clear();return true;
+     }
+     bool Stop(const std::string& session,const std::string& epoch,uint32_t next_generation) {
+         std::lock_guard<std::mutex> lock(mu_);
+@@ -106,6 +108,22 @@
+         pending_binary_=output_complete_=started_=drained_=false;
+         expected_packet_=total_packets_=0;return true;
+     }
++    bool CancelCurrent(const std::string& session,const std::string& epoch,
++                       const std::string& playback,uint32_t generation) {
++        std::lock_guard<std::mutex> lock(mu_);
++        if(!ready_ || session!=session_ || epoch!=epoch_ || generation==UINT32_MAX) return false;
++        if(!output_active_ && playback==cancelled_playback_ && generation+1==output_epoch_) return true;
++        const bool just_drained=!output_active_ && playback==completed_playback_;
++        if((!output_active_ && !just_drained) || (output_active_ && playback!=playback_) ||
++           generation!=output_epoch_) return false;
++        cancelled_playback_=playback;completed_playback_.clear();
++        ++output_epoch_;playback_.clear();output_active_=false;
++        pending_binary_=output_complete_=started_=drained_=output_streaming_=false;
++        expected_packet_=total_packets_=0;return true;
++    }
++    uint32_t LastOutputPacket() const {
++        std::lock_guard<std::mutex> lock(mu_); return expected_packet_ ? expected_packet_ - 1 : UINT32_MAX;
++    }
+     uint32_t OutputEpoch() const {
+         std::lock_guard<std::mutex> lock(mu_);return output_epoch_;
+     }
+--- a/main/protocols/protocol.h
++++ b/main/protocols/protocol.h
+@@ -13,6 +13,10 @@
+     uint32_t timestamp = 0;
+     uint32_t playback_id = 0;
+     uint64_t host_producer_seq = 0;
++    uint32_t capture_epoch = 0;
++    uint64_t capture_frame_id = 0, capture_sample_start = 0;
++    uint32_t capture_sample_count = 0;
++    uint32_t host_downlink_seq = UINT32_MAX, host_output_epoch = 0;
+     uint32_t media_position_ms = 0;
+     std::vector<uint8_t> payload;
+ };
+--- a/main/protocols/websocket_protocol.cc
++++ b/main/protocols/websocket_protocol.cc
+@@ -30,10 +30,21 @@
+     if(!url.empty() && (url.rfind("wss://",0)!=0 ||
+        url.size()>240 || url.find("/xiaozhi/v1/")==std::string::npos))return false;
+     host_test_=!url.empty();host_test_url_=url;
++    host_require_v2_=false;host_protocol_=0;host_capture_epoch_=0;host_expected_frame_=0;
+     host_state_.Clear();host_rx_invalid_=false;return true;
+ }
+-bool WebsocketProtocol::HostReady(const std::string& session,const std::string& epoch) {
+-    return host_test_ && session==session_id_ && host_state_.Ready(session,epoch);
++bool WebsocketProtocol::ConfigureUnifiedHost() {
++    gobot::Enrollment enrollment;
++    if (!gobot::LoadEnrollment(enrollment) || !ConfigureHostTest(enrollment.url)) return false;
++    host_require_v2_=true; return true;
++}
++bool WebsocketProtocol::HostReady(const std::string& session,const std::string& epoch,int protocol) {
++    if ((protocol != 1 && protocol != 2) || (host_require_v2_ && protocol != 2)) return false;
++    if (!host_test_ || session!=session_id_ || !host_state_.Ready(session,epoch)) return false;
++    host_protocol_=protocol;host_capture_epoch_=0;host_expected_frame_=0;return true;
++}
++std::string WebsocketProtocol::HostStreamEpoch(uint32_t capture_epoch) const {
++    return host_state_.Epoch()+"-"+std::to_string(capture_epoch);
+ }
+ bool WebsocketProtocol::HostScope(const std::string& session,const std::string& epoch) const {
+     return host_test_ && host_state_.Scope(session,epoch);
+@@ -59,17 +70,31 @@
+ bool WebsocketProtocol::SendAudio(std::unique_ptr<AudioStreamPacket> packet) {
+     if(host_test_) {
+         uint32_t seq=0;
+-        if(!packet || packet->frame_duration!=60 || packet->sample_rate!=16000 ||
+-           !host_state_.SendPosition(packet->host_producer_seq,seq)) {
+-            host_rx_invalid_=true;ESP_LOGE(TAG,"HOST_CAPTURE_GAP_OR_WRONG_FORMAT");
+-            return false;
++        if(!packet || packet->frame_duration!=60 || packet->sample_rate!=16000) return false;
++        if (HostV2()) {
++            if (!host_capture_epoch_) host_capture_epoch_=packet->capture_epoch;
++            if (!host_capture_epoch_ || packet->capture_epoch!=host_capture_epoch_ ||
++                packet->capture_frame_id!=host_expected_frame_ ||
++                packet->capture_sample_start!=host_expected_frame_*960 || packet->capture_sample_count!=960) {
++                host_rx_invalid_=true;ESP_LOGE(TAG,"HOST_CAPTURE_EPOCH_REQUIRED");return false;
++            }
++            ++host_expected_frame_;
++        } else if (!host_state_.SendPosition(packet->host_producer_seq,seq)) {
++            host_rx_invalid_=true;ESP_LOGE(TAG,"HOST_CAPTURE_GAP_OR_WRONG_FORMAT");return false;
+         }
+         // Must serialize metadata and payload on the SAME websocket.
+         std::lock_guard<std::mutex> guard(host_send_mutex_);
+-        char meta[340];
+-        snprintf(meta,sizeof(meta),"{\"type\":\"gobot_host_frame\",\"session_id\":\"%s\",\"epoch\":\"%s\",\"seq\":%lu,\"sample_start\":%lu,\"sample_count\":960}",
+-                 host_state_.Session().c_str(),host_state_.Epoch().c_str(),
+-                 (unsigned long)seq,(unsigned long)(seq*960));
++        char meta[640];
++        if (HostV2()) {
++            snprintf(meta,sizeof(meta),"{\"type\":\"gobot_host_frame\",\"session_id\":\"%s\",\"epoch\":\"%s\",\"stream_epoch\":\"%s\",\"seq\":%llu,\"frame_id\":%llu,\"sample_start\":%llu,\"sample_count\":960}",
++                     host_state_.Session().c_str(),host_state_.Epoch().c_str(),HostStreamEpoch(packet->capture_epoch).c_str(),
++                     (unsigned long long)packet->capture_frame_id,(unsigned long long)packet->capture_frame_id,
++                     (unsigned long long)packet->capture_sample_start);
++        } else {
++            snprintf(meta,sizeof(meta),"{\"type\":\"gobot_host_frame\",\"session_id\":\"%s\",\"epoch\":\"%s\",\"seq\":%lu,\"sample_start\":%lu,\"sample_count\":960}",
++                     host_state_.Session().c_str(),host_state_.Epoch().c_str(),
++                     (unsigned long)seq,(unsigned long)(seq*960));
++        }
+         if(host_rx_invalid_ || !websocket_ || !websocket_->IsConnected() || !websocket_->Send(meta) ||
+            !websocket_->Send(packet->payload.data(),packet->payload.size(),true)) {
+             host_rx_invalid_=true;return false;
+@@ -136,7 +161,7 @@
+     gobot::Enrollment enrollment;
+     if(!gobot::LoadEnrollment(enrollment)) {ESP_LOGE(TAG,"GOBOT_ENROLLMENT_REQUIRED");return false;}
+     const std::string url=host_test_?host_test_url_:enrollment.url;
+-    host_state_.Clear();host_rx_invalid_=false;
++    host_state_.Clear();host_rx_invalid_=false;host_protocol_=0;host_capture_epoch_=0;host_expected_frame_=0;
+     std::string token=enrollment.token;
+     version_=1;
+     const uint64_t generation=++generation_;
+@@ -228,9 +253,11 @@
+                     const std::string kind(typ->valuestring);
+                     if(kind=="gobot_host_output_start")
+                         valid=host_state_.OutputStart(str("session_id"),str("epoch"),
+-                            str("playback_id"),num("output_epoch"),num("packet_count")) &&
++                            str("playback_id"),num("output_epoch"),num("packet_count"),
++                            HostV2() && cJSON_IsTrue(cJSON_GetObjectItem(root,"streaming"))) &&
+                             num("sample_rate")==24000 && num("frame_samples")==1440 &&
+-                            str("audio_kind")=="fixture" && str("codec")=="opus";
++                            ((HostV2() && (str("kind")=="answer" || str("kind")=="cue") &&
++                              gobot_host::wire_identifier(str("response_id"))) || str("audio_kind")=="fixture") && str("codec")=="opus";
+                     if(kind=="gobot_host_output_frame")
+                         valid=host_state_.OutputMetadata(str("session_id"),str("epoch"),
+                             str("playback_id"),num("output_epoch"),num("seq"),
+@@ -238,6 +265,9 @@
+                     if(kind=="gobot_host_output_end")
+                         valid=host_state_.OutputEnd(str("session_id"),str("epoch"),
+                             str("playback_id"),num("output_epoch"),num("packet_count"));
++                    if(kind=="gobot_host_output_cancel" && HostV2())
++                        valid=host_state_.CancelCurrent(str("session_id"),str("epoch"),
++                            str("playback_id"),num("output_epoch"));
+                 }
+                 if(!valid){
+                     ESP_LOGE(TAG,"HOST_RX_INVALID_FRAME_CONTROL");
+@@ -297,7 +327,7 @@
+     // Wait for server hello
+     EventBits_t bits =
+         xEventGroupWaitBits(event_group_handle_, WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT, pdTRUE,
+-                            pdFALSE, pdMS_TO_TICKS(10000));
++                            pdFALSE, pdMS_TO_TICKS(host_require_v2_?2500:10000));
+     if (!(bits & WEBSOCKET_PROTOCOL_SERVER_HELLO_EVENT)) {
+         ESP_LOGE(TAG, "Failed to receive server hello");
+         SetError(Lang::Strings::SERVER_TIMEOUT);
+@@ -332,10 +362,16 @@
+     cJSON_AddItemToObject(root, "audio_params", audio_params);
+     if(host_test_) {
+         cJSON* caps=cJSON_CreateObject();
+-        cJSON_AddNumberToObject(caps,"version",1);
++        cJSON_AddNumberToObject(caps,"version",2);
++        cJSON_AddNumberToObject(caps,"protocol",2);
++        cJSON_AddStringToObject(caps,"firmware","0.4.16-dev-sophia-unified-v4");
++        cJSON_AddStringToObject(caps,"pcm_stage","pre_afe");
++        cJSON_AddBoolToObject(caps,"capture_clock",true);
++        cJSON_AddBoolToObject(caps,"response_receipts",true);
++        cJSON_AddBoolToObject(caps,"dma_completion",true);
+         cJSON_AddStringToObject(caps,"capture","continuous");
+         cJSON_AddBoolToObject(caps,"frame_sequence",true);
+-        cJSON_AddBoolToObject(caps,"local_wake_enabled",false);
++        cJSON_AddBoolToObject(caps,"local_wake_enabled",true);
+         cJSON_AddBoolToObject(caps,"local_feedback",true);
+         cJSON_AddBoolToObject(caps,"playback_epoch",true);
+         cJSON_AddItemToObject(root,"host_stream",caps);
+--- a/main/protocols/websocket_protocol.h
++++ b/main/protocols/websocket_protocol.h
+@@ -23,7 +23,13 @@
+     void CloseAudioChannel(bool send_goodbye = true) override;
+     bool IsAudioChannelOpened() const override;
+     bool ConfigureHostTest(const std::string& url);
+-    bool HostReady(const std::string& session,const std::string& epoch);
++    bool ConfigureUnifiedHost();
++    bool HostReady(const std::string& session,const std::string& epoch,int protocol=1);
++    bool HostV2() const {return host_protocol_ == 2;}
++    bool HostRequiresV2() const {return host_require_v2_;}
++    uint32_t HostOutputEpoch() const {return host_state_.OutputEpoch();}
++    uint32_t HostLastOutputPacket() const {return host_state_.LastOutputPacket();}
++    std::string HostStreamEpoch(uint32_t capture_epoch) const;
+     bool HostScope(const std::string& session,const std::string& epoch) const;
+     bool HostStop(const std::string& session,const std::string& epoch,uint32_t generation);
+     bool HostPlaybackStarted(const std::string& id,uint32_t generation);
+@@ -38,7 +44,10 @@
+     EventGroupHandle_t event_group_handle_;
+     std::shared_ptr<WebSocket> websocket_;
+     int version_ = 1;
+-    bool host_test_ = false;
++    bool host_test_ = false, host_require_v2_ = false;
++    int host_protocol_ = 0;
++    uint32_t host_capture_epoch_ = 0;
++    uint64_t host_expected_frame_ = 0;
+     std::string host_test_url_;
+     gobot_host::Rc1Stream host_state_;
+     std::mutex host_send_mutex_;
+--- /dev/null
++++ b/main/sophia_host_capture.h
+@@ -0,0 +1,43 @@
++#pragma once
++// Negotiated HOST v2 uses the unchanged V4 mono 16 kHz, pre-AFE microphone
++// samples. One audio-input task owns this packer; no network or I2S calls.
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++
++namespace gobot_host {
++struct CapturePosition {
++    uint32_t epoch = 0;
++    uint64_t frame_id = 0;
++    uint64_t sample_start = 0;
++    uint32_t sample_count = 0;
++};
++
++class CapturePacker {
++public:
++    static constexpr size_t kSamples = 960;
++    void Reset(uint32_t epoch) {
++        epoch_ = epoch; next_ = frame_ = fill_ = 0;
++        std::fill(pcm_, pcm_ + kSamples, 0);
++    }
++    uint32_t Epoch() const { return epoch_; }
++    uint64_t NextSample() const { return next_; }
++    template<class Consumer>
++    bool Feed(const int16_t* pcm, size_t count, Consumer&& emit) {
++        if (!epoch_ || !pcm || !count || count > kSamples) return false;
++        for (size_t i = 0; i < count; ++i) {
++            pcm_[fill_++] = pcm[i]; ++next_;
++            if (fill_ == kSamples) {
++                emit(CapturePosition{epoch_, frame_++, next_ - kSamples, kSamples}, pcm_);
++                std::fill(pcm_, pcm_ + kSamples, 0); fill_ = 0;
++            }
++        }
++        return true;
++    }
++private:
++    int16_t pcm_[kSamples]{};
++    uint32_t epoch_ = 0;
++    uint64_t next_ = 0, frame_ = 0;
++    size_t fill_ = 0;
++};
++} // namespace gobot_host

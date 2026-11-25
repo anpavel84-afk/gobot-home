@@ -1,0 +1,495 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,5 +9,5 @@
+ # "Trim" the build. Include the minimal set of components, main, and anything it depends on.
+ idf_build_set_property(MINIMAL_BUILD ON)
+ 
+-set(PROJECT_VER "0.4.18-dev-sophia-barge-v4")
++set(PROJECT_VER "0.4.19-dev-sophia-touch-v4")
+ project(xiaozhi)
+diff --git a/main/application.cc b/main/application.cc
+--- a/main/application.cc
++++ b/main/application.cc
+@@ -744,74 +744,7 @@
+ 
+ void Application::StopListening() { xEventGroupSetBits(event_group_, MAIN_EVENT_STOP_LISTENING); }
+ 
+-void Application::TouchGesture(bool physical, bool hold) {
+-    const uint64_t now=gobot::NowMs();
+-    if (physical) ++touch_events_;
+-    if (now < last_contact_+350) return;
+-    last_contact_=now;
+-    if(host_mode_) {
+-        auto* host_ws=static_cast<WebsocketProtocol*>(protocol_.get());
+-        if(!host_ws || !host_ws->HostV2()) {
+-            if(hold) {
+-                if(host_ready_ && (host_touch_active_ || host_output_active_)) {
+-                    HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"stop\"");
+-                } else {
+-                    HostSetMuted(!host_muted_);
+-                }
+-            } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_output_active_) {
+-                if(!host_admission_ui_.KnownBlocked()) {
+-                    host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
+-                    audio_service_.AllowHostWake(false);
+-                }
+-                // A cached denial changes presentation only. Brain still decides.
+-                HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
+-            }
+-            RenderGoBot();return;
+-        }
+-        if(host_interrupt_.Pending()){RenderGoBot();return;}
+-        const bool busy=host_response_busy_ || host_output_active_ || (hold && host_touch_active_);
+-        if(host_ready_ && !host_muted_ && busy) {
+-            const auto id=std::string("touch-")+std::to_string(++host_wake_sequence_);
+-            if(HostBeginInterrupt(id,!hold)) {
+-                ++host_barge_taps_;
+-                auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+-                HostControl("gobot_host_touch",std::string(",\"action\":\"")+(hold?"stop":"interrupt")+
+-                    "\",\"gesture\":\""+(hold?"hold":"tap")+"\",\"trigger\":\"touch\",\"event_id\":\""+id+
+-                    "\",\"stream_epoch\":\""+ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+
+-                    "\",\"detector_sample\":"+std::to_string(audio_service_.HostCaptureSampleEnd())+HostInterruptFields());
+-            }
+-        } else if(hold) {
+-            HostSetMuted(!host_muted_);
+-        } else if(host_ready_ && !host_muted_ && !host_touch_active_ && !host_interrupt_.Pending()) {
+-            if(!host_admission_ui_.KnownBlocked()) {
+-                host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
+-                audio_service_.AllowHostWake(false);
+-            }
+-            // A cached denial changes presentation only. Brain still decides.
+-            HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
+-        }
+-        RenderGoBot();return;
+-    }
+-    if(gobot_raw_wake::touch(physical,hold,now)){RenderGoBot();return;}
+-    const auto phase=gobot_turn_.GetPhase();
+-    if (hold) {
+-        if (gobot_turn_.Active()) {
+-            if(protocol_ && protocol_->IsAudioChannelOpened()) protocol_->SendAbortSpeaking(kAbortReasonNone);
+-            GoBotFinish("manual_stop");
+-        } else {
+-            gobot_muted_=!gobot_muted_;
+-            Settings("gobot_ui",true).SetInt("muted",gobot_muted_?1:0);
+-        }
+-    } else if (gobot_muted_) {
+-        ESP_LOGI(TAG,"GOBOT_ACTIVATION_REJECT reason=muted");
+-    } else if (phase==gobot::Phase::Capturing) {
+-        return;  // A second short contact never submits or cancels a question.
+-    } else if (phase==gobot::Phase::Idle) {
+-        if(timer_latched_) {timer_latched_=false; timer_key_.clear();}
+-        else StartGoBotTurn(physical?"touch":"button");
+-    }
+-    RenderGoBot();
+-}
++#include "host_touch_controls.inc"
+ 
+ void Application::StartGoBotTurn(const char* source) {
+     gobot::Enrollment enrollment;
+diff --git a/main/application.h b/main/application.h
+--- a/main/application.h
++++ b/main/application.h
+@@ -152,6 +152,8 @@
+     gobot_host::AdmissionUi host_admission_ui_;
+     gobot_host::InterruptLatch host_interrupt_;
+     bool host_interrupt_quiet_sent_=false;
++    bool host_touch_resume_pending_=false;
++    uint32_t host_mute_revision_=0;
+     uint32_t host_barge_wakes_=0,host_barge_taps_=0;
+     bool host_cue_acked_=false, host_render_acked_=false;
+     uint32_t host_output_epoch_=0;
+diff --git a/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc b/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
+--- a/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
++++ b/main/boards/spotpear/sp-esp32-s3-1.28-box/sp-esp32-s3-1.28-box.cc
+@@ -2,6 +2,7 @@
+ #include "codecs/es8311_audio_codec.h"
+ #include "display/lcd_display.h"
+ #include "application.h"
++#include "host_touch_gesture.h"
+ #include "button.h"
+ #include "config.h"
+ #include "led/single_led.h"
+@@ -139,6 +140,7 @@
+     Display* display_ = nullptr;
+     esp_timer_handle_t touchpad_timer_ = nullptr;
+     Cst816d* cst816d_ = nullptr;
++    gobot_host::TouchPress touch_gesture_;
+     PowerSaveTimer* power_save_timer_ = nullptr;
+     esp_lcd_panel_handle_t panel_ = nullptr;
+     PowerManager* power_manager_ = nullptr;
+@@ -227,29 +229,12 @@
+     static void touchpad_timer_callback(void* arg) {
+         auto* board = static_cast<Spotpear_ESP32_S3_1_28_BOX*>(arg);
+         if (!board || !board->cst816d_) return;
+-        static bool was_touched = false;
+-        static int64_t touch_start_time = 0;
+-        const int64_t TOUCH_THRESHOLD_MS = 500;  // 触摸时长阈值，超过500ms视为长按
+-
+         board->cst816d_->UpdateTouchPoint();
+-        auto touch_point = board->cst816d_->GetTouchPoint();
+-
+-        // 检测触摸开始
+-        if (touch_point.num > 0 && !was_touched) {
+-            was_touched = true;
+-            touch_start_time = esp_timer_get_time() / 1000; // 转换为毫秒
+-        }
+-        // 检测触摸释放
+-        else if (touch_point.num == 0 && was_touched) {
+-            was_touched = false;
+-            int64_t touch_duration = (esp_timer_get_time() / 1000) - touch_start_time;
+-
+-            // 只有短触才触发
+-            if (touch_duration >= 40 && touch_duration <= 3000) {
+-                const bool hold=touch_duration>=650;
+-                auto& app=Application::GetInstance();
+-                app.Schedule([hold](){Application::GetInstance().TouchGesture(true,hold);});
+-            }
++        const auto touch_point=board->cst816d_->GetTouchPoint();
++        const auto gesture=board->touch_gesture_.Update(touch_point.num>0,esp_timer_get_time()/1000);
++        if(gesture!=gobot_host::TouchGesture::None) {
++            const bool hold=gesture==gobot_host::TouchGesture::Hold;
++            Application::GetInstance().Schedule([hold](){Application::GetInstance().TouchGesture(true,hold);});
+         }
+     }
+ 
+diff --git a/main/gobot_build_info.h b/main/gobot_build_info.h
+--- a/main/gobot_build_info.h
++++ b/main/gobot_build_info.h
+@@ -1,3 +1,3 @@
+ #pragma once
+ #define GOBOT_BUILD_EPOCH 1794492000
+-#define GOBOT_FIRMWARE_VERSION "0.4.18-dev-sophia-barge-v4"
++#define GOBOT_FIRMWARE_VERSION "0.4.19-dev-sophia-touch-v4"
+diff --git a/main/host_barge_wake.h b/main/host_barge_wake.h
+--- a/main/host_barge_wake.h
++++ b/main/host_barge_wake.h
+@@ -94,6 +94,7 @@
+     }
+     bool Pending()const{return id_[0]!=0;}
+     bool Listen()const{return listen_;}
++    void StopListening(){listen_=false;}
+     bool Expired(uint64_t now)const{return Pending() && now>=started_ && now-started_>=8000;}
+     const char* Id()const{return id_;}
+     void Reset(){id_[0]=0;started_=0;listen_=false;}
+diff --git a/main/host_rc1_app.inc b/main/host_rc1_app.inc
+--- a/main/host_rc1_app.inc
++++ b/main/host_rc1_app.inc
+@@ -28,6 +28,7 @@
+ }
+ 
+ void Application::HostFault(const char* reason) {
++    host_touch_resume_pending_=false;
+     host_interrupt_.Reset();
+     host_admission_ui_.Reset();
+     if(host_connecting_.load()) {
+@@ -70,6 +71,7 @@
+     auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
+     if(!ws)return;
+     if(!enabled) {
++        host_touch_resume_pending_=false;
+         host_interrupt_.Reset();
+         host_admission_ui_.Reset();
+         host_mode_=host_ready_=host_touch_active_=host_output_active_=false;
+@@ -240,15 +242,16 @@
+         if(ws->HostV2()) {
+             audio_service_.EnableVoiceProcessing(false);
+             audio_service_.EnableSophiaDiagnostic(true);
+-            audio_service_.EnableHostCapture(true);
++            audio_service_.EnableHostCapture(!host_muted_ && !gobot_muted_);
+             HostControl("gobot_host_ready_ack",",\"protocol\":2,\"frame_samples\":960,\"sample_start\":0,\"pcm_stage\":\"pre_afe\",\"stream_epoch\":\""+
+-                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\",\"interruption\":\"wake_touch_v1\"");
++                ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+"\",\"interruption\":\"wake_touch_v1\",\"mute_revision\":"+
++                std::to_string(host_mute_revision_)+",\"muted\":"+((host_muted_ || gobot_muted_)?"true":"false"));
+         } else {
+             audio_service_.EnableSophiaDiagnostic(false);
+             audio_service_.SetLocalScan(false);
+             audio_service_.EnableDeviceAec(true);
+-            audio_service_.EnableVoiceProcessing(true);
+-            if(!audio_service_.IsAudioProcessorRunning()) {HostFault("mic_processor_offline");return;}
++            audio_service_.EnableVoiceProcessing(!host_muted_ && !gobot_muted_);
++            if(!host_muted_ && !gobot_muted_ && !audio_service_.IsAudioProcessorRunning()) {HostFault("mic_processor_offline");return;}
+             HostControl("gobot_host_ready_ack",",\"frame_samples\":960");
+         }
+         ESP_LOGI(TAG,"GOBOT_HOST_READY epoch_new=1 mic=1 paid=0");
+@@ -270,11 +273,12 @@
+     if(kind=="gobot_host_interrupt_complete" && ws->HostV2()) {
+         const auto id=gobot::String(root,"event_id",80);
+         const auto outcome=gobot::String(root,"outcome",16);
++        const bool local_listen=host_interrupt_.Listen();
+         if(!host_interrupt_.Complete(id,outcome))return;
+         if(host_output_active_ || !audio_service_.IsPlaybackIdle() || !audio_service_.HardwareOutputDrained()) {
+             HostFault("interrupt_complete_before_quiet");return;
+         }
+-        const bool listen=!strcmp(outcome,"listening");
++        const bool listen=local_listen && !host_muted_ && !gobot_muted_ && !strcmp(outcome,"listening");
+         host_touch_active_=listen;host_response_busy_=false;host_voice_seen_=false;
+         host_touch_started_ms_=gobot::NowMs();gobot_ui_phase_=listen?"listening":"";
+         ESP_LOGI(TAG,"SOPHIA_INTERRUPT_COMPLETE event_id=%s outcome=%s sample_floor=%llu",
+@@ -282,7 +286,7 @@
+         RenderGoBot();return;
+     }
+     if(kind=="gobot_host_state" && ws->HostV2()) {
+-        if(host_interrupt_.Pending())return; // old Brain state is not a cancellation receipt
++        if(host_muted_ || host_interrupt_.Pending())return; // old state cannot undo physical privacy/cancellation
+         const auto state=gobot::String(root,"state",24);
+         if(!state)return;
+         if(!strcmp(state,"listening")) {
+@@ -303,6 +307,8 @@
+     if(kind=="gobot_host_mute" && ws->HostV2()) {
+         const auto muted=cJSON_GetObjectItem(root,"muted");
+         if(!cJSON_IsBool(muted)){HostFault("mute_invalid");return;}
++        const auto revision=cJSON_GetObjectItem(root,"mute_revision");
++        if(!cJSON_IsNumber(revision) || revision->valuedouble!=double(host_mute_revision_))return;
+         HostSetMuted(cJSON_IsTrue(muted),false);return;
+     }
+     if(kind=="gobot_host_output_cancel" && ws->HostV2()) {
+@@ -391,16 +397,17 @@
+                 (strcmp(audio_kind,"answer") && strcmp(audio_kind,"cue"))) {HostFault("response_owner_invalid");return;}
+             host_response_id_=response;host_output_kind_=audio_kind;
+             host_response_busy_=true;host_whole_response_=false;
+-            if(!host_interrupt_.Pending())audio_service_.AllowHostInterrupt(true);
+-        }
+-        if(host_muted_){HostFault("output_while_muted");return;}
++            if(!host_muted_ && !host_interrupt_.Pending())audio_service_.AllowHostInterrupt(true);
++        }
++        // Retain an in-flight owner so its cancel can be acknowledged.
++        // The input/decode gates remain closed while physically muted.
+         host_output_receipts_.Reset();
+         host_playback_id_=id;host_output_active_=true;
+         host_output_started_=host_output_end_=false;
+         host_touch_active_=false;
+         RenderGoBot();
+     } else if(kind=="gobot_host_output_end") {
+-        if(host_interrupt_.Pending())return;
++        if(host_muted_ || host_interrupt_.Pending())return;
+         const auto id=gobot::String(root,"playback_id",80);
+         const auto gen=cJSON_GetObjectItem(root,"output_epoch");
+         if(!id || host_playback_id_!=id || !cJSON_IsNumber(gen) ||
+@@ -421,27 +428,6 @@
+     }
+ }
+ 
+-void Application::HostSetMuted(bool muted,bool notify) {
+-    if(host_muted_==muted)return;
+-    if(notify)HostControl("gobot_host_mute",std::string(",\"muted\":")+(muted?"true":"false"));
+-    else HostControl("gobot_host_ack",std::string(",\"event\":\"muted\",\"muted\":")+(muted?"true":"false"));
+-    host_muted_=gobot_muted_=muted;
+-    host_interrupt_.Reset();
+-    audio_service_.EnableHostCapture(false);audio_service_.SetLocalScan(false);
+-    audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
+-    host_touch_active_=host_response_busy_=false;host_output_receipts_.Reset();
+-    if(!muted) {
+-        host_admission_ui_.Reset();
+-        // A new authenticated transport/capture epoch prevents old PCM or a
+-        // hidden sample discontinuity from crossing mute/unmute.
+-        host_ready_=false;host_output_active_=host_output_started_=host_output_end_=false;
+-        host_playback_id_.clear();host_response_id_.clear();host_stop_id_.clear();
+-        if(host_connecting_.load())host_connect_abort_reason_="mute_changed";
+-        else protocol_->CloseAudioChannel();
+-        host_ready_deadline_ms_=0;host_next_retry_ms_=gobot::NowMs();audio_service_.SetLocalScan(true);
+-    }
+-    RenderGoBot();
+-}
+ 
+ void Application::HostColdWake() {
+     if(host_probe_wake_pending_)return;
+@@ -572,6 +558,16 @@
+         }
+         RenderGoBot();return;
+     }
++    if(host_touch_resume_pending_ && ws->HostV2()) {
++        host_touch_resume_pending_=false;
++        // The original tap authorizes this one activation after reconnection.
++        // Reassert unmute on the new transport before the new wake command.
++        HostControl("gobot_host_mute",",\"muted\":false,\"mute_revision\":"+std::to_string(host_mute_revision_));
++        host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
++        audio_service_.AllowHostWake(false);gobot_ui_phase_="listening";
++        HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
++        RenderGoBot();
++    }
+     if(ws->HostV2() && host_output_active_ && !host_interrupt_.Pending()) {
+         host_output_receipts_.Poll([this](uint32_t fence){return audio_service_.HardwareFenceReached(fence);},
+             [this](const gobot_host::SegmentFence& segment) {
+diff --git a/main/host_touch_controls.inc b/main/host_touch_controls.inc
+new file mode 100644
+--- /dev/null
++++ b/main/host_touch_controls.inc
+@@ -0,0 +1,111 @@
++// Shared production gesture dispatch; included by Application and native regression harness.
++void Application::TouchGesture(bool physical, bool hold) {
++    const uint64_t now=gobot::NowMs();
++    if (physical) ++touch_events_;
++    if (!hold && now < last_contact_+350) return;
++    last_contact_=now;
++    // Privacy is idempotent and precedes every busy/connection/interrupt guard.
++    // Release of this hold is consumed by the board gesture recognizer.
++    if(hold) {
++        host_touch_resume_pending_=false;
++        HostSetMuted(true);
++        if(!host_mode_ && gobot_turn_.Active()) {
++            if(protocol_ && protocol_->IsAudioChannelOpened())protocol_->SendAbortSpeaking(kAbortReasonNone);
++            GoBotFinish("manual_mute");
++        }
++        RenderGoBot();return;
++    }
++    if(host_mode_) {
++        auto* ws=static_cast<WebsocketProtocol*>(protocol_.get());
++        if(host_muted_ || gobot_muted_) {
++            // A physical tap explicitly restores the microphone. The fresh
++            // capture handshake must finish before the one requested listen.
++            HostSetMuted(false);host_touch_resume_pending_=!host_muted_ && !gobot_muted_;
++            RenderGoBot();return;
++        }
++        if(!host_ready_) {
++            host_touch_resume_pending_=!host_touch_resume_pending_;
++            RenderGoBot();return;
++        }
++        if(host_interrupt_.Pending()) {
++            if(host_interrupt_.Listen()) {
++                host_interrupt_.StopListening();host_touch_active_=false;gobot_ui_phase_.clear();
++                HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"tap\",\"event_id\":\""+
++                    std::string(host_interrupt_.Id())+"\",\"interrupt_requested\":true");
++            }
++            RenderGoBot();return;
++        }
++        const bool busy=host_response_busy_ || host_output_active_;
++        if(ws && ws->HostV2() && (busy || host_touch_active_)) {
++            const bool listen=busy;
++            const auto id=std::string("touch-")+std::to_string(++host_wake_sequence_);
++            if(HostBeginInterrupt(id,listen)) {
++                ++host_barge_taps_;
++                HostControl("gobot_host_touch",std::string(",\"action\":\"")+(listen?"interrupt":"stop")+
++                    "\",\"gesture\":\"tap\",\"trigger\":\"touch\",\"event_id\":\""+id+
++                    "\",\"stream_epoch\":\""+ws->HostStreamEpoch(audio_service_.HostCaptureEpoch())+
++                    "\",\"detector_sample\":"+std::to_string(audio_service_.HostCaptureSampleEnd())+HostInterruptFields());
++            }
++        } else if(busy || host_touch_active_) {
++            host_touch_active_=false;host_response_busy_=false;gobot_ui_phase_.clear();
++            HostControl("gobot_host_touch",",\"action\":\"stop\",\"gesture\":\"stop\"");
++        } else {
++            if(!host_admission_ui_.KnownBlocked()) {
++                host_touch_active_=true;host_voice_seen_=false;host_touch_started_ms_=now;
++                audio_service_.AllowHostWake(false);
++            }
++            HostControl("gobot_host_touch",",\"action\":\"activate\",\"gesture\":\"activate\"");
++        }
++        RenderGoBot();return;
++    }
++    if(gobot_raw_wake::touch(physical,false,now)){RenderGoBot();return;}
++    if(gobot_muted_ || host_muted_)HostSetMuted(false);
++    if(gobot_muted_ || host_muted_){RenderGoBot();return;}
++    const auto phase=gobot_turn_.GetPhase();
++    if(phase==gobot::Phase::Capturing) {
++        if(protocol_ && protocol_->IsAudioChannelOpened())protocol_->SendAbortSpeaking(kAbortReasonNone);
++        GoBotFinish("manual_stop");
++    } else if(phase==gobot::Phase::Idle) {
++        if(timer_latched_) {timer_latched_=false;timer_key_.clear();}
++        else StartGoBotTurn(physical?"touch":"button");
++    }
++    RenderGoBot();
++}
++
++void Application::HostSetMuted(bool muted,bool notify) {
++    // Fence already-sent host commands with a device-owned physical revision.
++    // A repeated hold is another privacy intent, even when already muted.
++    if(notify && host_mute_revision_!=UINT32_MAX)++host_mute_revision_;
++    if(host_mute_revision_==UINT32_MAX)muted=true; // never wrap into an old unmute revision
++    const auto fields=std::string(",\"muted\":")+(muted?"true":"false")+
++        ",\"mute_revision\":"+std::to_string(host_mute_revision_);
++    if(host_muted_==muted && gobot_muted_==muted) {
++        if(notify)HostControl("gobot_host_mute",fields);
++        return;
++    }
++    host_muted_=gobot_muted_=muted;
++    if(muted)host_touch_resume_pending_=false;
++    // Keep a pending quiet receipt alive; mute cancels its listening intent,
++    // not the physical cancellation proof. No capture/output is re-enabled.
++    if(muted)host_interrupt_.StopListening();
++    else host_interrupt_.Reset();
++    audio_service_.AllowHostWake(false);
++    audio_service_.EnableHostCapture(false);audio_service_.SetLocalScan(false);
++    audio_service_.EnableVoiceProcessing(false);audio_service_.ResetDecoder();
++    host_touch_active_=host_response_busy_=false;host_output_receipts_.Reset();
++    host_whole_response_=host_output_end_=false;
++    if(notify)HostControl("gobot_host_mute",fields);
++    else HostControl("gobot_host_ack",",\"event\":\"muted\""+fields);
++    if(!muted) {
++        host_admission_ui_.Reset();
++        // A new authenticated transport/capture epoch prevents old PCM or a
++        // hidden sample discontinuity from crossing mute/unmute.
++        host_ready_=false;host_output_active_=host_output_started_=host_output_end_=false;
++        host_playback_id_.clear();host_response_id_.clear();host_stop_id_.clear();
++        if(host_connecting_.load())host_connect_abort_reason_="mute_changed";
++        else if(protocol_)protocol_->CloseAudioChannel();
++        host_ready_deadline_ms_=0;host_next_retry_ms_=gobot::NowMs();audio_service_.SetLocalScan(true);
++    }
++    RenderGoBot();
++}
++
+diff --git a/main/host_touch_gesture.h b/main/host_touch_gesture.h
+new file mode 100644
+--- /dev/null
++++ b/main/host_touch_gesture.h
+@@ -0,0 +1,32 @@
++#pragma once
++#include <cstdint>
++
++namespace gobot_host {
++enum class TouchGesture { None, Tap, Hold };
++
++// One physical contact produces exactly one gesture. Privacy takes effect at
++// the hold threshold while the finger remains down, without a duration cap.
++class TouchPress {
++public:
++    TouchGesture Update(bool down,uint64_t now) {
++        if(down && !pressed_) {
++            pressed_=true;held_=false;started_=now;
++            return TouchGesture::None;
++        }
++        if(!pressed_)return TouchGesture::None;
++        if(now<started_) {pressed_=false;held_=false;return TouchGesture::None;}
++        const auto elapsed=now-started_;
++        if(down) {
++            if(!held_ && elapsed>=650) {held_=true;return TouchGesture::Hold;}
++            return TouchGesture::None;
++        }
++        pressed_=false;
++        if(held_) {held_=false;return TouchGesture::None;}
++        if(elapsed>=650)return TouchGesture::Hold;
++        return elapsed>=40?TouchGesture::Tap:TouchGesture::None;
++    }
++private:
++    bool pressed_=false,held_=false;
++    uint64_t started_=0;
++};
++}
+diff --git a/main/touch_screen.h b/main/touch_screen.h
+--- a/main/touch_screen.h
++++ b/main/touch_screen.h
+@@ -81,11 +81,11 @@
+         const char* title="Я рядом";
+         const char* hint="Коснитесь, чтобы говорить";
+         switch(p.view) {
+-        case View::Connecting:face=2;title="Подключаюсь";hint="Удержание · стоп";break;
+-        case View::Listening:face=1;color=atlas::blue;title="Слушаю";hint="Говорите свободно";break;
+-        case View::Thinking:face=2;color=atlas::lilac;title="Обдумываю";hint="Удержание · стоп";break;
+-        case View::Speaking:face=p.mouth?3:0;title="Отвечаю";hint="Удержание · стоп";break;
+-        case View::Muted:face=4;color=atlas::amber;title="Микрофон выключен";hint="Удержите для включения";break;
++        case View::Connecting:face=2;title="Подключаюсь";hint="Удержание · тишина";break;
++        case View::Listening:face=1;color=atlas::blue;title="Слушаю";hint="Касание · стоп";break;
++        case View::Thinking:face=2;color=atlas::lilac;title="Обдумываю";hint="Удержание · тишина";break;
++        case View::Speaking:face=p.mouth?3:0;title="Отвечаю";hint="Касание · слушаю";break;
++        case View::Muted:face=4;color=atlas::amber;title="Микрофон выключен";hint="Коснитесь для включения";break;
+         case View::Offline:face=5;color=atlas::amber;title="Нет связи";hint="Проверить касанием";break;
+         case View::Notice:face=2;color=atlas::amber;title=p.value.c_str();hint=p.detail.c_str();break;
+         case View::Clock:
+@@ -107,7 +107,7 @@
+             if(!p.detail.empty())text(p.detail,168,atlas::muted,1,184);
+             else {text("Коснитесь, чтобы",168,atlas::muted);text("говорить",187,atlas::muted);}
+         } else if(p.view==View::Muted) {
+-            text("Удержите",168,atlas::muted);
++            text("Коснитесь",168,atlas::muted);
+             text("для включения",187,atlas::muted);
+         } else {
+             text(hint,169,atlas::muted,1,184);

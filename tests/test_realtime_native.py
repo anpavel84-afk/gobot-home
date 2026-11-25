@@ -619,6 +619,8 @@ def test_no_thanks_declines_expert_proposal_without_closing_or_starting_cli(tmp_
         m,p,b=configured(tmp_path,settings)
         try:
             s=await start(m);await command(s,'text',text='Сравни архитектуры');await tick()
+            from gobot.expert_store import ExpertPolicy
+            s.experts.budget.policy_path.write_text(ExpertPolicy(allowed_profiles=['ARGON_DEEP']).model_dump_json())
             proposal=s.experts.propose('Сравни архитектуры','ARGON_DEEP',s.current)
             before=sum(x['type']=='response.create' for x in s.ws.sent)
             await command(s,'text',text='Нет, спасибо');await tick()

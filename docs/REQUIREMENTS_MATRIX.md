@@ -1,14 +1,200 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Sophia timer completion and diagnostics — installed bd3a9cd, 2026-11-24
+
+| Requirement | Implementation / evidence | Remaining |
+|---|---|---|
+| No permanent zero after expiry | Gateway sends existing clear after eight seconds; running timers take precedence; durable rows retained; installed board accepted clear ACK | Human screen acceptance separate from native framebuffer receipt |
+| Alarm delivery observable | Local PCM/Opus signal metrics and typed started/finished/cancelled/unknown receipts | Human audibility UNKNOWN: Owner was away |
+| Detailed test-mode journal | Existing DPAPI opt-in: timer arguments/results/snapshots/receipts, provider error shape, visual delivery, capture/playback/lifecycle | Seven-day/32 MiB bounds; dropped_events/error monitored, no raw audio |
+| Expert visual refinement | Current authorized uncancelled expert sentences feed existing two-stage worker | Full v421 image decoder/render ACK path absent |
+| Complete household UX | Existing 400 cards + 120 chains reviewed in [ten-scenario audit](audits/sophia-ten-scenario-product-audit-20261124.md) | Cold startup and native weather/image/atlas port remain open; no claim of 520 working integrations |
+
+## Current pronunciation correction — 2026-11-15
+
+| Requirement | Evidence | Remaining |
+|---|---|---|
+| «Гобот/Габот» | Explicit alias training and held-out generation implemented; existing stress variants preserved | Training/evaluation not complete, no live pass |
+| Corpus recovery | Reproduced3160-sample audible negative failure; negative-only padding fix, preserved46032 sources | Corrected r2 job running with resource/network caps |
+| Hardware | USB0.4.11 idle/scan1/upload0; unchanged app/NVS | New qualified model/build/install pending |
+| Free checks |96 focused tests passed | Human acoustic and complete wake-to-question acceptance pending |
+
+
+## Current wake continuation — 2026-11-15
+
+| Requirement | Actual result | Remaining acceptance |
+|---|---|---|
+| Physical firmware |0.4.11 unchanged; USB idle/scan1/upload0 verified | No qualified replacement yet |
+| Private correction | One bounded correction evaluated/rejected; new field questions held out | False events remain unacceptable; no flash |
+| Full reference training | Offline50k positive/10k negative source-clip job running, bounded CPU/RAM/time, network disabled | Corpus completion, training, fixed-policy native-reference validation |
+| Test provenance |93 focused free tests; synthetic/Owner/physical results separated | Live wake,30 human activations/background false-wake trial not passed |
+| Privacy/finances | Recording consents consumed; original deletion deadlines;3 B starts spent; C reserve intact | No new paid hardware allowance |
+
+Earlier checkpoint rows below are historical.
+
+
+## Latest hardware checkpoint — 0.4.11, wake NOT_ACCEPTED
+
+| Requirement | Verified evidence | Gap |
+|---|---|---|
+| Physical install/recovery |0.4.11 app write/readback/boot; NVS/boot/inactive/assets preserved | Rollback prepared, not exercised here |
+| Native model execution |1625/1625 reference outputs exactly match; local scanning,0 standby upload | Does not certify microphone acoustics |
+| Natural Russian wake | Owner live no-touch test failed; stored question replay succeeds | Needs representative field-failure diagnosis |
+| Training/false wakes | Two bounded word-end/hard-negative runs evaluated and rejected | Neither meets recall/false-event criteria; not flashed |
+| Voice allowance/UI |3 B starts spent; C ledger intact; neutral firmware denial text | New paid admission absent; short server refusal codes not deployed |
+| Privacy/data | No new recording; old expiry retained; proposed <=30s field protocol guarded | New explicit consent/readiness pending |
+| Verification |94 focused free tests; pinned build and physical native parity | Human wake/Brain acceptance not passed |
+
+Earlier0.4.9 rows below are historical and superseded by this checkpoint.
+
+
+## Historical0.4.9 checkpoint — Owner trial initially unarmed
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| Installed firmware | Public0.4.9 USB/app readback + boot verified; NVS/boot/OTA/inactive/assets preserved | Physical human wake/touch/LCD reacceptance pending |
+| Native runtime | State1,parity1987024791,12858 frames,0 drop/error; local scan1,upload0 | Counters do not establish human recall or household false-wake rate |
+| Whole question |2s pre-roll +12s bound; existing3 recorded question episodes detected | Single-name activation unreliable; universal acoustic criteria FAILED |
+| Safe Owner trial | Local UNARMED3 attempts/600s; production routeOFF; duplicate-arm guard | New3x60s B grant pending; server policy DISABLED/unmounted |
+| Privacy/cost | Public-data weights only on board; personal data/model expiry unchanged;0 paid calls | Real Brain conversation requires Owner manual acceptance |
+
+## 2026-11-14 native full-model diagnostic (current hardware)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Physical install | Exact PUBLIC0.4.8 app flashed/readback verified; enrolled unit and backups checked | Diagnostic FAILED-acoustic model, not final wake release |
+| Native runtime | Full64x4 model state1; parity1987024791;4882 frames,0 underrun/drop/error,max feed7649us | Human wake recall, household false wakes and real Brain path pending |
+| Recovery/isolation | NVS/boot/OTA/inactive/assets preserved;0.4.6 rollback; idle/upload0 | Physical LCD/touch not reaccepted; paid session grant not renewed |
+| Expanded learning |2865 training +1146 heldout PUBLIC TTS clips complete; finite training active | No claim that data preparation/training loss means accepted wake |
+
+## 2026-11-14 full-reference correction (current checkpoint)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Export integrity | Untrained-checkpoint export rejected; temporal float alignment verified across1521 outputs | INT8/hardware acoustic validation still required |
+| Same-phrase learning | Full-name retention, following-speech augmentation, declared-negative speech mining | Personal all3 question episodes detected but false-speaker regressions fail |
+| Split integrity | Holdout audio masked before adaptive frontend; long contexts exclude adjacent heldouts | Reused timing hypotheses are not fresh human acceptance |
+| Data diversity | Expanded offline5-voice name-plus-question corpus generating; validation/test separate | Training and acoustic acceptance pending |
+| Native runtime | Public0.4.8 template compiled and ESP image verified | Not installed; transient USB error31 recovered, learned-model/native validation pending |
+| Safety | Installed0.4.6/touch/Brain retained;0 paid calls; ledgers/expiry unchanged | Wake-to-Brain stays OFF until qualified/admitted |
+
+## 2026-11-14 corrective wake source (not release acceptance)
+
+| Requirement | Evidence | Remaining gap |
+|---|---|---|
+| Whole activation word | Front-crop bug fixed;428/512 prior positive augmentations exceeded window;120-frame context | Corrected candidates still fail general voice validation |
+| Data integrity/split | Original60/792 PCM hashes verified; Dmitri/Elena excluded; split2 trains only middle question prefix | Reused/provisional human intervals are not independent trials |
+| One-phrase capture |0.4.7 PUBLIC template built;1s prefix/12s bounded transition buffer | Not installed; no physical learned-model handoff proof |
+| Personal weight privacy | PLAN-RAM fixed-slot patch checked with ESP segment/checksum/SHA + esptool; immutable DPAPI candidates share expiry | No private model exported or flashed |
+| Voice result | Three recorded question episodes detected by corrected profiles | Best pooled profile still2 Elena negative events and low Dmitri recall; wake remains unaccepted/OFF |
+
+## 2026-11-14 exact-input capture (supersedes armed-window rows)
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| Pre-AFE USB capture | FULL50s, physical tap + Owner completion; sequence/CRC/length verified; DPAPI + deletion task | One new consent consumed; no further recording armed |
+| Wake model | Installed model0 events on exact sample; local calibration failed:3 events/87 training negatives;15/15 positives but69 events/198 Elena negatives | Learned models NOT installed; synthetic metrics are not human acceptance; no training active |
+| Diagnostic integrity |31 focused checks PASS; fixed holdout, no negative overlap; float/INT8/offline/streaming audit | Reused calibration is not independent acoustic validation |
+| Product isolation |0.4.6 idle/upload0; Brain8661454/ledgers unchanged;0 paid calls | B grant not renewed; wake-to-Brain OFF |
+
+## 2026-11-14 wake evidence correction (supersedes older rows)
+
+| Requirement | Actual evidence | Gap |
+|---|---|---|
+| Owner samples |49.92s +35.0s received; second has FOUR final controls; DPAPI/original deletion deadlines | Both post-AFE/Opus, not exact idle KWS PCM; consents consumed |
+| Model quality | Old pilot scores/adaptation explicitly invalid for device acceptance; training stopped | Fresh exact-input labelled evaluation, false-wake observation required |
+| Correct capture | Default-OFF USB pre-AFE PCM0.4.6 INSTALLED/app+boot verified;21 Python checks + C++ capture PASS; USB arm/cancel/console verified | First window expired without touch/audio; NEW50s consent unused; complete raw PCM/human trial pending |
+| Safety | Product gate rejects post-AFE/unknown provenance; wake route OFF; NVS/boot/OTA/inactive/assets preserved | Voice-first product NOT_ACCEPTED; Brain8661454 unchanged; guarded rollback to0.4.5 |
+
+## First physical A response / UI feedback
+
+| Requirement | Actual evidence | Remaining gap |
+|---|---|---|
+| B->real CLI A->voice | Owner heard answer; journal bridge:codex/Sol6.1High; audio_stop finished | Not a universal acoustic/factual PASS |
+| Streaming | First server audio15.12s; final text87.99s after A request | Physical useful-answer onset unmeasured |
+| Engine/Thinking indication | Server status deployed; UI-only0.4.4-dev-voice-status-1 INSTALLED/USB boot verified | Owner approved specific USB write; LCD/touch acceptance awaits Owner; audio/KWS unchanged |
+| Touch-to-capture latency | B parallel setup DEPLOYED;0.4.5 INSTALLED/boot verified;3 free board checks PASS | USB handler3ms; delayed-ready prefix retained, overflow/network cancel idle; human touch/first syllable/hold Stop not yet verified;0 paid calls |
+| Same voice | marin in both engines | Timbre does not identify engine |
+| A allowance | One A attempt remains, expiry unchanged | No automated paid repeat |
+
+## Actual B -> A handover candidate
+
+| Requirement | Evidence | Gap |
+|---|---|---|
+| Close B before A | DEPLOYED2887ac9;MOCK_PASS including failed hangup/503 | No paid physical handover yet |
+| First question/context | Same transcript, scoped guest RAM, no second STT | Private history deliberately denied |
+| Streaming A | First audio before final text, actual existing gateway code | Model TTFA/acoustics unmeasured |
+| Device drain/Stop | 5 free local peer scenarios PASS | Installed0.4.3; no flash |
+| A expense admission | Owner approved/enabled2 A attempts untilNov14 12:14 Sao Paulo; exact Sol High | Real physical handoff awaits Owner; old task remains spent |
+| Further A questions | Existing A touch/capture cycle retained | Continuous hands-free followups NOT_DONE |
+
+## 2026-11-13 board B / same-utterance wake
+
+| Requirement | Evidence | Remaining limit |
+|---|---|---|
+| Separate180s B /12x2048 | DEPLOYED270f8f7,one manual start available | No paid automatic test |
+| One confirmed Sol High | MOCK_PASS; isolated Bridge admission available | Real task awaits Owner; no fresh-source guarantee |
+| Original B/C accounting | Seven old B starts preserved; separate new ledger | Unknown C finalization remains explicit |
+| Expert offer on source gap | MOCK_PASS; actual transcript -> proposal -> confirmation | CLI is not independent fact verification |
+| Same-utterance local buffer | C++ PASS,diagnostic firmware BUILT | NOT_INSTALLED; no human delivery proof |
+| Stress variants KWS | Six-voice offline pilot trained/evaluated | FAILED:11 validation false/17 held-out false; human0 |
+| Wake-to-Brain | OFF,installed0.4.5 preserved;voice-first goal resumed | Human49.92s sample received;PLAN-only fine-tuning improved wake responses but false detections remain;no acceptance/flash/paid activation |
+
+## Night Train v1 — актуальный web-first checkpoint
+
+| Требование | Факт | Evidence/ограничение |
+|---|---|---|
+| W0 preservation | DONE |WAL backup,71dcb18 base, recovery/B сохранены |
+| W1–W2 contracts/router | INTEGRATION_PASS |150 semantic cases; scoped receipts/full-plan preflight |
+| W3 household tools | WEB_READY |Real SQLite/renderer; real weather tomorrow/Saturday |
+| W4 library/player | BROWSER_PASS |100/100 WAV; AudioContext; custom provider NOT_RUN |
+| W5 auth/web/handover | WEB_READY PARTIAL |Owner /device-next; B fixtures; C handover BLOCKED |
+| W6 QA | PASS with gaps |2379 final full +559 targeted; S3 HTTPS; no holdout/acoustics |
+| W7 deployment/rollback | VERIFIED |Runtime4beb530/web168faae; flag preserves ledger |
+| W8 hardware | FIRMWARE_BUILT |0.4.4-night-contract;34% free; NOT_INSTALLED |
+| C incident | PRESERVED/BLOCKED |final=false/reserve60s unchanged |
+| Hardware B | MANUAL_READY/ON |Runtime9819af6; separate8×60s/$1,0 starts at activation; physical voice NOT_RUN |
+
+[Фактический отчёт](night-train-v1/MORNING_REPORT_TEMPLATE.md). Ниже исторические checkpoint.
+
+
+**Разработка приостановлена владельцем 12 ноября 2026.** Текущая сводка и границы приёмки — [CURRENT_STATUS](CURRENT_STATUS.md#актуальный-обзор-на-момент-остановки-разработки). Установлено 0.4.3, Brain 59e1280; исторические строки ниже не означают повторную приёмку.
+
+| Контролируемый C/B: уточнение Owner | Реализация | Проверка / ограничения |
+|---|---|---|
+| C administrative recovery без ложного ACK | e623dde в runtime; append-only orphan, WAL backup, loopback cleanup, Owner risk ACK, 1×60 с/45 минут | Применено; Owner использовал одну сессию, 51 с final usage; исходные строки/неизвестный резерв сохранены, допуск использован |
+| Изоляция нового разговора после recovery | Новые session/conversation, сброс touch context и старого mode flow; прежние квоты сохраняются | Mock manager: HTTP 503 не повторяется, операции старой сессии не запускаются |
+| Аппаратный B | Board NativeSession adapter/router, отдельный ledger/binding, marin/Mini, полудуплекс, device drain ACK, echo guard, существующий hold Stop | Source only; 25 free tests с loopback LiveKit, синтетические peers/ACK. Router не mounted, физическая/платная B приёмка не выполнена |
+
+| Spotpear, 12.11.2026 | Проверено | Открыто |
+|---|---|---|
+| touch_ui | 0.2.0 на LCD, реальное касание и состояния проверены владельцем. Для 0.2.1 подготовлено сравнение восьми кадров с атласом | Приёмка остальных жестов, сети и скинов на LCD |
+| real_voice | Отдельный аппаратный допуск C, гостевой профиль, потоковый Opus/WebRTC. На 0.2.1 подтверждены ответ и завершённый таймер. На 0.2.2 владелец подтвердил погоду сегодня и завтра для дома | На 100 стало громче по оценке владельца. Физический тест паузы не прошёл. Остаются последние слоги, отсчёт на LCD, дуплекс и окончание фразы |
+| wake_word | 0.3.0-dev-mww-probe прошла flash verify и обрабатывает ES8311 через 16 кГц microWakeWord. Фронтенд на S3 прошёл проверку. Диагностические срабатывания локальны | Доля верных на людях, ложные в быту, допуск к созданию сессий и проверка wake → Brain |
+| duplex/AEC | MIC/REF и AFE проверены начиная с 0.4.0, работают одновременно с playback; речь поверх звука подтверждена владельцем. В установленной 0.4.3 этот тракт сохранён | Текст, ERLE в контролируемых условиях и качество GPT-Live barge-in |
+| LiveKit | PLAN Server 1.13.11 и 0.4.3 на плате. Бесплатный production WebRTC+LiveKit с 5 с setup: 150/142 пакета, 400 кадров микрофона во время звука, peak backlog 120 мс, ошибок 0, standby upload=0 | Ранее подтверждено запоздалое перебивание 0.4.2 с многосекундным backlog; после media-ready требуется человеческая модельная приёмка |
+| Recovery | Проверенные образы приложения и общих assets, полный приватный снимок перед записью, запись только ota_0 | Практический откат |
+| Аппаратный тестовый бюджет | Пакет 50 ручных GPT-Live 1 запусков по 60 с применён; осталось 48. Проверены 50-й/отказ 51-го, сохранение счётчика между днями, изоляция телефона/CLI/Image/Luna. Бесплатная проверка 0.4.3 квоту не расходовала | Минутный lifetime обрывает длинную беседу штатно, без автоматического нового платного запуска. Квота сама по себе не доказывает качество функций |
+| Touch media-ready / задержка перебивания | 0.4.3 установлена и загрузилась. В бесплатном физическом WebRTC/LiveKit с 5 с setup peak backlog 120 мс, 400 concurrent microphone frames, 0 ошибок, standby upload=0 | Человеческое перебивание после установки и LCD-приёмка новых сообщений. Ранее владелец подтвердил позднее перебивание на 0.4.2 с backlog 3919 мс |
+| Журнал колонки | Отдельный диагностический opt-in активен, DPAPI и authenticated owner API проверены на реальном сервере; прямое чтение board запрещено; remember=false не меняется | Старый диалог записан не был; будущие настоящие тексты проверяются в следующей ручной сессии |
+| Разделение данных | Гостевой scope, RAM, отдельный идентификатор, явные допуски | Семейный сценарий на физическом устройстве |
+
+
 Источник требований: [GOBOT_HOME_TARGET_SYSTEM.md](GOBOT_HOME_TARGET_SYSTEM.md), v0.2 `96e0f3d` и новые решения владельца §36–40.
-До синхронизации: чистая master `bd487ff`; после docs-only fast-forward `96e0f3d`.
-Это evidence, не новая спецификация. Обновление стабилизации 10 ноября: baseline 2f0eefc; прежние строки без новых проверок не считаются повторно принятыми.
+<details>
+<summary>Историческая матрица и отчёты прежних runtime. Актуальная аппаратная сводка выше, полный обзор — CURRENT_STATUS.</summary>
+
+История синхронизации: чистая master `bd487ff` → docs-only `96e0f3d`;
+стабилизация 10 ноября начиналась с `2f0eefc`. Эти SHA не обозначают текущий runtime.
+Текущее бытовое расширение: code `7649463e3b82b73b47c040ef56293cdb6ee41b4f` в локальном Git PLAN,
+push не выполнялся в этом этапе; коммиты сохранены на PLAN, runtime `7649463e3b82b73b47c040ef56293cdb6ee41b4f`; deployment/evidence — CURRENT_STATUS §41.
+Это evidence, не новая спецификация. Прежние строки без новых проверок не считаются повторно принятыми.
 Пути к Python-модулям ниже относительно services/brain/gobot; tests — относительно tests/.
 
 | ID | Требование | Фактический статус | Код | Проверка | Пробел |
 |---|---|---|---|---|---|
 | R-001 | Единый Brain для браузера и ESP32 | частично | brain.py Service / voice_mock.py | test_security_ui_protocol.py | ESP32/upstream только fixtures |
-| R-002 | Заменено §36: Realtime Mini — целевой обычный разговор; CLI — legacy и подтверждаемые эксперты | native candidate fixtures + model metadata HTTP 200; default legacy до приёмки | realtime.py / realtime_provider.py / expert_jobs.py / routing.py | test_realtime_native.py / test_realtime_experts.py | Реальные native audio/iPhone и допуск default не проверены |
+| R-002 | Обычный C — GPT-Live/client + утверждённый Luna; A — существующий legacy/экспертный путь; B — прежний Realtime Mini | Owner Direct C↔A; текущие изменения code 7649463e3b82b73b47c040ef56293cdb6ee41b4f, runtime 7649463e3b82b73b47c040ef56293cdb6ee41b4f | live.py / live_backend.py / conversation_modes.py / unified.js | CURRENT_STATUS §§34–41; [runtime-coverage.json](behavior-library-20261111/runtime-coverage.json) | Provider/browser/iPhone текущего изменения учитываются отдельно; Live 1.1 не подтверждён |
 | R-003 | Gemini CLI/API не используются | fixture + прежние реальные CLI наблюдения | routing.py SmartRouter.choose / quality.py | test_quality_router.py | Новое качество/скорость реальных моделей не измерены |
 | R-004 | Native Realtime input; OpenAI STT основной в legacy, Whisper только вручную | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
 | R-005 | Native Realtime output; OpenAI TTS основной в legacy, локальный голос только явно | частично, реальные speech пробы предыдущей фазы | stt.py OpenAIRecognition / audio.py Speech | test_live_audio.py / openai-speech-probes.json | Новый полный iPhone E2E не принят |
@@ -51,16 +237,16 @@
 | R-042 | Источник/тип изображения и атрибуция сохраняются | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-043 | Генерация не имитируется локальным SVG | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
 | R-044 | Ассеты проверяются и кэш ограничен | частично | response_composer.py / visual.py VisualService / visual_images.py | test_presentation_planner.py / test_visual_pipeline.py | Нет universal relevance gate; точность фото и Safari не подтверждены |
-| R-045 | Tool Executor отделён от текста LLM | fixture, fail-closed | quick_intents.py / routing.py / local_tools.py | test_dialogue_stabilization.py | HA/Music не подключены; action slots проверены до executor |
-| R-046 | Таймеры и напоминания персистентны | fixture + локальное серверное состояние | local_tools.py / memory.py | test_dialogue_stabilization.py / test_timer_duration.py | Целевая отмена проверена на отдельной БД; scheduler напоминаний отсутствует |
-| R-047 | Результат действия подтверждается инструментом | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
+| R-045 | Tool Executor отделён от текста LLM | Bounded parser и реальные исполнители; unavailable по серверному registry, каталог не даёт capability | quick_intents.py / behavior_library.py / skill_catalogue.py / local_tools.py | test_behavior_library.py / test_household_runtime.py / test_household_behavior_acceptance.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не универсальное NLU; music/calendar/smart-home adapters не добавлены |
+| R-046 | Таймеры и напоминания персистентны | Таймеры в SQLite; scoped duration/unit clarification и ordinal snapshot | local_tools.py / memory.py / brain.py / live.py | test_household_runtime.py / test_household_legacy_scope.py / test_timer_duration.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Scheduler напоминаний/будильников отсутствует; имена/пауза/продление/перезапуск не реализованы; due не равен услышанному сигналу |
+| R-047 | Результат действия подтверждается инструментом | Source-backed weather и SQLite timer result; result ID связывает инструмент с карточкой; abstained/unavailable отделены | settings_tools.py / weather.py / local_tools.py / live.py | test_weather_query_context.py / test_household_behavior_acceptance.py / test_household_runtime.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Внешнее IO в новых regression синтетическое; новая акустика и отсутствующие интеграции не доказаны |
 | R-048 | Музыка может воспроизводиться внешним плеером | отсутствует реальная интеграция | integrations.py / visual.py music fallback | test_additional.py | Нужен разрешённый реальный Music Assistant/player |
 | R-049 | Умный дом ограничен whitelist и правами | частично, fail-closed | local_tools.py LocalTools / integrations.py | test_quality_router.py | Внешние HA/Music не подключены, опасные действия запрещены |
 | R-050 | Host Bridge не является сетевым shell | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
 | R-051 | Реальные model/executable/usage видны в диагностике | частично | brain.py final / browser.js / telemetry.py | test_latency_v02.py / test_agents.py | Usage только доступный от CLI; полного биллинга STT/TTS нет |
-| R-052 | API/события версионированы и идемпотентны | fixture, идемпотентность действия | memory.py / brain.py | test_duplicate_delivery_does_not_repeat_tool | Повтор request_id не создаёт второй таймер; намеренный новый request_id допускается |
+| R-052 | API/события версионированы и идемпотентны | Общая native/delegation operation claim, stale/corrected guards; повтор consumed pending не создаёт таймер; поздний Stop ACK не теряет новый input | live.py / live.js / brain.py / memory.py / local_tools.py | test_live_native_tools.py / test_weather_timer_expansion.py / test_household_behavior_acceptance.py / test_household_legacy_scope.py / live_browser.cjs; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не гарантия любой сетевой доставки; unknown close не принимается за успех; natural barge-in C002 отдельно |
 | R-053 | Ключи и биометрия не попадают в Git/логи/клиент | локальный аудит + fixture | security.py / processes.py / live_agents.py / antigravity.py | test_security_ui_protocol.py / scripts/audit_agents.py / scripts/audit_agy.py | Adversarial native testing ограничено; секреты/сессии не копируются |
-| R-054 | Временный режим не индексируется постоянно | fixture, RAM pending | memory.py transient_pending / conversation_control.py | test_pending_decline_is_scoped_and_does_not_close_session | Pending с TTL и owner/epoch работает без архива; не переживает restart |
+| R-054 | Временный режим не индексируется постоянно | Погодные места/pending, timer snapshot и C dialogue slots — bounded RAM с client/conversation/epoch scope; pending decline не равен End | settings_tools.py / weather_queries.py / local_tools.py / conversation_control.py / live.py / brain.py | test_weather_query_context.py / test_household_runtime.py / test_household_legacy_scope.py; включено в полный gate: 2078 passed; P0 52 passed, 3 skipped, 1 xfailed | Не переживает restart; W069/C004 native private antecedents не интегрированы; debug journal отдельно от semantic memory |
 | R-055 | Восстановление не повторяет опасные действия | fixture + прежний restart test | memory.py recover / scripts/manage.py | test_brain.py / reliability-results.json | Нет нового soak/hardware restart |
 | R-056 | Прошивка только после backup и проверки профиля | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
 | R-057 | Совместимость XiaoZhi проверяется по версии | blocker физического устройства | firmware/ / docs/HARDWARE_CHECKLIST.md | test_security_ui_protocol.py | Нет платы; backup/firmware/hardware не выполнялись |
@@ -428,7 +614,7 @@ clock/timer/weather, owner weather configured, A baseline unchanged. Free1337/84
 | Естественная команда засечь таймер |250 формулировок + настоящие SQLite timer records; original duration guard preserved | ASR real canaries после отдельного допуска |
 | Счётчик между вопросами и после idle | SceneManager timer state + small overlay; cloud idle не продлевается ради timer | Suspended/closed Safari не системный будильник |
 | Отмена реально прекращает графику | Actual DB cancellation→timer_state IDs→DOM/Canvas | Phone network/acoustics отдельно |
-|400 сценариев | Inventory+free routing checks:100 local/240conditional/60blocked; зависимости явные | Не400 независимых integrations и не доказательство полного parity |
+|400 сценариев | Исторические inventory labels выпуска §37:100 local/240conditional/60blocked; зависимости явные | Не текущий итог runtime traces и не400 независимых integrations; актуальное покрытие — §41 |
 | Расход новых trials конечный | Отдельное3Live/180s/10Luna/$2estimate; server grants preserve counters | Финальные фактические usage/результаты фиксируются после canaries |
 
 Реальные canaries97d64be: timer5s/widget/expiry, tomorrow forecast card + начало
@@ -465,9 +651,11 @@ null voice defaults и добавил auto-expression. iPhone/ESP32/Figma отд
 
 ### Домашние продолжения — CURRENT_STATUS §39
 
+История выпуска §39; последующее расширение временного города/слотов и проверки — §41 ниже.
+
 | Требование | Реализация | Граница |
 | --- | --- | --- |
-| Без города — домашнее место | Scoped saved DeviceStore + compact home_context | Не GPS телефона/не guessed IP; если нет настройки — Setup |
+| Без города — домашнее место | Scoped saved DeviceStore + compact home_context | Не GPS/IP; после §41 при отсутствии home read-only запрос уточняет разовый город, а Setup вызывается явно |
 | «Хорошо…завтра», «там же», «а ветер?» | Weather-only wrapper parsing + last request slots | Только активная тема/сессия, не чужой профиль |
 | Источник вместо догадки | Existing WeatherClient/SettingsTools, source-backed cards/voice text | Реальные2free HTTP, Live speech после фикса отдельно |
 | Правила домашних разговоров |10reviewed rules в существующем400catalogue, используются Live | Не400working integrations, правила не заменяют ACL |
@@ -488,3 +676,47 @@ current/tomorrow2calls; paid developer0. Все существующие policy/
 | Управление записью | Existing Owner Full Test, включение/1..7дней/удаление | Отдельное согласие владельца; remember=false не индексирует диалоги |
 | Не задерживать голос | Bounded background writer, health/dropped events | Не lossless при сбое процесса/диска/переполнении |
 | Разбор отказа погоды | Конкретный reason, verified=false, invalid-cache eviction | Старый незаписанный инцидент не реконструирован |
+
+### Бытовое поведение и текущая P0-приёмка — CURRENT_STATUS §41
+
+Код `7649463e3b82b73b47c040ef56293cdb6ee41b4f` в локальном Git PLAN; push не выполнялся в этом этапе; коммиты сохранены на PLAN;
+фактический runtime `7649463e3b82b73b47c040ef56293cdb6ee41b4f`, развёртывание завершено; startup pin проверен через authenticated Brain status, 14 исходников совпадают с code commit.
+Старые SHA и результаты выше сохранены как история отдельных выпусков.
+Актуальные coverage/traces:
+[runtime-coverage.json](behavior-library-20261111/runtime-coverage.json),
+[runtime-traces.json](behavior-library-20261111/runtime-traces.json);
+deployment/HTTP — [runtime-check.json](behavior-library-20261111/runtime-check.json).
+Подробный scope — [CURRENT_STATUS §41](CURRENT_STATUS.md#41-бытовое-поведение-временная-погода-уточнения-и-проверяемые-действия).
+
+| Требование | Реализация текущего этапа | Граница проверки / зависимость |
+| --- | --- | --- |
+| Разовый город не меняет home | Query find/choose/cancel отделены от явного home setup; без home задаётся один вопрос | 28 weather-context tests passed; профильные P0 contracts — в runtime-coverage.json; сохранение дома требует owner confirmation/source check |
+| Place/date/timezone/metric продолжения | Scoped RAM/TTL/opaque ref, канонизация actual result, проверенные поля формируют speech/card | 28 weather-context tests passed; профильные P0 contracts — в runtime-coverage.json; source HTTP в regression синтетический; полный absolute/hourly/history интерфейс не заявлен |
+| Источник не подменяется выдуманным результатом | Конкретные timeout/rate-limit/unavailable/validation reasons, no retry, stale-result guard | offline source-failure/replay cases passed в полном gate; это не новая real provider приёмка |
+| Таймер уточняет недостающее один раз | Scoped quantity+unit pending и единый timer namespace в native C/unified A | 6 runtime и 6 unified-A scope tests passed; T001–T010 contracts passed; реальный Brain/SQLite, не акустика |
+| Номер таймера относится к показанному списку | Snapshot IDs/deadline order/TTL/client/conversation/epoch; потеря binding требует уточнения | server snapshot/TTL/client/epoch regressions passed в полном gate; имена, пауза и изменение длительности не добавлены |
+| Отказ и завершение различаются | Server pending ID/namespace, pending decline сохраняет разговор; End/STOP имеет прежнюю отдельную семантику | pending decline и namespace regressions passed в полном gate; не обещание понимания любой разговорной формы |
+| Stop/ACK не теряет новую реплику | Повторный playback_cleared сохраняет inputAfterStop; нет echo command; кнопка Stop сохраняет mic/session | production live_browser.cjs прошёл внутри test_live.py; live_browser.cjs с fake media/network, не natural barge-in/iPhone и не закрытие C002 |
+| Библиотека компактна и не предоставляет права | Исходные IDs, validated companion, ≤4 rules/1200 chars; Luna ≤1000 chars в том же token count | 24 behavior-library tests passed; provider-count fixture включает compact rules; 400 inventory +120 chains не равны 520 работающим интеграциям |
+| Неподключённое действие не подтверждается | Bounded full grammar + реальный callable registry; цитата/отрицание/обсуждение не исполняются | guard/negative/quote/registry fixtures passed; 243 прежних quality-router tests passed; registry не отменяет ACL, внешние adapters нужны отдельно |
+| Native C исполняет действие однократно | Общие operation claim/executor, input-end/answer gate, actual result ID/stale guards | 52 P0 passed; оставшиеся четыре positive contracts явно blocked; provider IO синтетическое, новых paid retries нет |
+| Unified A сохраняет tool scope | ASGI→Brain/SQLite проверяет settings/timer/weather_query pending, client/epoch/ordinal binding | 6 real-ASGI unified-A scope tests passed; speech/CLI/iPhone E2E и полная C↔A weather-ellipsis parity не заявлены |
+
+| Case | Явный blocker | Учёт результата |
+| --- | --- | --- |
+| W018 | Нет bounded two-place weather executor | `blocked:not_implemented`; реальный отказ без source/home effects проверяется, positive contract остаётся xfail |
+| W069 | Нет авторизованного native C private-weather antecedent | `blocked:not_implemented`; fixture grant не заменяет integration/ACL; общая scope isolation проверяется отдельно |
+| C004 | Нет приватной calendar integration/pending в native C | `blocked:not_implemented`; общий epoch reset не является полным сценарием календаря |
+| C002 | Нет достаточного client playback/voice evidence для natural interruption/rephrase | `blocked:client_evidence_required`; Stop/ACK unit не превращает его в pass |
+
+P0: **52 passed / 0 failed / 3 skipped / 1 xfailed из 56**.
+Full gate: **2078 passed / 0 failed / 3 skipped / 1 xfailed; 118 subtests passed; 208.89 s**. Provider/browser/iPhone/hardware:
+Новые provider, настоящий браузер с audio и iPhone/ESP32 проверки: not_run. Production JS выполнялся в Node с fake media/network; Canvas — offline Skia. Это не новая акустическая приёмка. `specified`, `implemented`,
+`offline_pass`, `provider_verified`, `browser_verified`,
+`iphone_acoustic_verified`, `hardware_verified` учитываются отдельно.
+Xfail/skip не включаются в число положительно прошедших сценариев.
+
+</details>
+
+
+Wake 2026-11-15: human GoBot/Gabot NOT ACCEPTED. All new candidates rejected. Guided calibration/capture timeout fix built; capture OFF, fresh recording consent required. 149 free Python checks do not prove acoustic readiness. CURRENT_STATUS / guided-calibration-build.json contain installation evidence.

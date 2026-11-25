@@ -1,0 +1,80 @@
+{
+  "runtime_code_commit": "01028e72c1e4d39174d06ad78dd6bb060d1bfd8f",
+  "prior_runtime": "bd3a9cdbd5af1013e57f0545548d41de52a845c1",
+  "installed": true,
+  "firmware_changed": false,
+  "model_requests": 0,
+  "policy_writes": 0,
+  "backups_verified": true,
+  "wip_preserved": true,
+  "policies_profiles_ledgers_preserved": true,
+  "timer_archive_rows_preserved": true,
+  "archive_counts": {
+    "turns": 14,
+    "messages": 26,
+    "topics": 1,
+    "blocks": 4,
+    "backlog": 0
+  },
+  "checked_at_utc": "2026-11-25T03:33:25.778387+00:00",
+  "firmware": "0.4.21-dev-sophia-timer-v4",
+  "physical_ready": true,
+  "attached": true,
+  "capture_connected": true,
+  "state": "ready",
+  "backup_database_count": 25,
+  "incident": {
+    "provider_tool": "timer_action",
+    "operation": "start",
+    "argument_duration_seconds": 60,
+    "executed": false,
+    "error": "timer_duration_source_mismatch",
+    "asr_object_mismatch": true,
+    "raw_argument_not_recorded": true,
+    "household_text_published": false
+  },
+  "recorded_input_offline_replay": {
+    "equivalent_argument_forms": 4,
+    "result_seconds": 60,
+    "timer_mutations": 0,
+    "model_calls": 0
+  },
+  "tests": {
+    "windows_gate": {
+      "files": 84,
+      "passed": 1967,
+      "skipped": 2,
+      "seconds": 349.56
+    },
+    "final_duration_guard_and_error_text": {
+      "passed": 87
+    },
+    "final_action_and_source_guards": {
+      "passed": 155
+    },
+    "overlap_not_summable": true
+  },
+  "diagnostics": {
+    "enabled": true,
+    "retention_days": 7,
+    "encrypted": "Windows DPAPI",
+    "raw_audio": false,
+    "semantic_memory": false,
+    "queued": 0,
+    "written_this_process": 7,
+    "dropped_events": 0,
+    "error": null,
+    "payload_limit_bytes": 33554432,
+    "content_free": false,
+    "text_recording": true,
+    "text_recording_scope": "owner_terminal_board",
+    "final_transcripts_only": true
+  },
+  "admin_http_status": {
+    "loopback": 200,
+    "private_https": 200
+  },
+  "physical_new_voice_test": "not_run_by_developer",
+  "asr_quality_improvement": "not_claimed",
+  "rollback": "Private SEMANTIC-TIMER-ROLLBACK-20261125.txt; three-source-file restore from ba89a52, guarded installer, no live DB rollback"
+}

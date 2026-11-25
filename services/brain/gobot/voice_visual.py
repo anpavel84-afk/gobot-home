@@ -29,9 +29,15 @@ class VoiceVisualSession:
 
     async def visual(self,turn):
         from .visual_prefetch import planned_entity,TwoStageVisual
+        async def permitted():
+            if hasattr(self,'require_capability'):
+                try:await self.require_capability('visual')
+                except PermissionError:return False
+            return not self.closed and turn is self.current and not turn.cancelled
         try:
             if turn.visual_started:return
             if not turn.query and self.policy.input_transcription:return
+            if not await permitted():return
             turn.visual_started=True
             req=turn.req or self.request('Расскажи подробнее',turn.id)
             from .quick_intents import resolve_quick
@@ -42,14 +48,14 @@ class VoiceVisualSession:
             if plan.reason=='answer_map':return
             scene=self.manager.brain.composer.compose(req,context=context,plan=plan) if hasattr(self.manager.brain.composer,'compose') else None
             entity=await asyncio.to_thread(planned_entity,req.text,plan,context)
-            if self.closed or turn is not self.current or turn.cancelled:return
+            if not await permitted():return
             eligible=self.manager.brain.composer.answer_visual_eligible(req,context=context,plan=plan)
             if scene and turn is self.current and self.profile.screen.visual_strategy!='answer_only':
                 scene.source_metadata.update(visual_stage='provisional',subject_confirmation='question_only')
                 self.emit('screen_scene',scene=scene.model_dump());self.mark_turn(turn,'visual_provisional_scene_sent')
             if not (plan.visual_needed or eligible) or plan.visual_strategy=='render_local' and not eligible:return
             async def publish(result,stage,revision):
-                if self.closed or turn is not self.current or turn.cancelled or turn.alignment_state=='suspected_mismatch':return False
+                if not await permitted() or turn.alignment_state=='suspected_mismatch':return False
                 if not result.frame.images:
                     from .visual import VisualService
                     result=VisualService.describe_missing(req,plan,result,generation_reason='image_generation_policy_denied' if not self.policy.image_generation_allowed else None)
@@ -78,7 +84,10 @@ class VoiceVisualSession:
                 await publish(self.manager.brain.visual.fallback(req,'Изображение',reason),1,0);return
             def status(event):
                 if not self.closed and turn is self.current and not turn.cancelled and event['status']!='fallback':self.emit('visual_status',**event)
-            turn.photo=TwoStageVisual(req,entity,plan,self.manager.brain.visual.attachment,publish,on_mismatch=mismatch,on_status=status)
+            async def attachment(*args,**kwargs):
+                if not await permitted():raise PermissionError('capability_disabled_by_owner')
+                return await self.manager.brain.visual.attachment(*args,**kwargs)
+            turn.photo=TwoStageVisual(req,entity,plan,attachment,publish,on_mismatch=mismatch,on_status=status)
             if turn.answer:turn.photo.observe(turn.answer,final=turn.generation_done)
             if turn.generation_done:turn.photo.finish()
             await turn.photo.task

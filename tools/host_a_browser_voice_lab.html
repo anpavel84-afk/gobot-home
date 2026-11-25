@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoBot · Browser Voice Lab</title>
+<style>
+:root {font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:#172231; background:#edf1f5}
+*{box-sizing:border-box} body{margin:0;padding:28px 20px}
+main{max-width:1080px;margin:auto}
+.header{display:flex;justify-content:space-between;gap:12px;align-items:center}
+h1{font-size:26px;margin:0;letter-spacing:-.6px}
+.sub{color:#536072;margin:7px 0 22px;line-height:1.5}
+.tag{background:#dbe9e5;color:#155e49;font-size:12px;border-radius:16px;padding:7px 12px;font-weight:700}
+.card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 5px 18px #1722310c;border:1px solid #e2e7ed;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:730px){.grid{grid-template-columns:1fr}.header{align-items:flex-start}}
+h2{font-size:16px;margin:0 0 13px}label{display:block;font-size:12px;font-weight:700;color:#5a6a7a;margin:11px 0 6px}
+select{padding:10px 12px;width:100%;border:1px solid #cbd6df;border-radius:9px;background:white;color:#172231}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{border:none;background:#1b60b9;color:white;border-radius:9px;padding:10px 17px;font-size:14px;cursor:pointer;font-weight:600}
+button.secondary{background:#e9eef5;color:#26394d}button.danger{background:#fbe7e7;color:#933}button:disabled{opacity:.42;cursor:not-allowed}
+.status{display:flex;gap:9px;align-items:center;margin:14px 0;font-size:15px}
+.dot{height:11px;width:11px;display:inline-block;border-radius:50%;background:#8897a7}
+.dot.online{background:#19a776}.dot.busy{background:#e3a23b}
+.levelback{background:#e3e9ef;height:12px;border-radius:6px;overflow:hidden}
+#bar{height:100%;width:0;background:#2b8fc3;transition:width .12s}
+.mono{font-family:Consolas,Menlo,monospace;font-size:12px}
+.boxread{background:#f5f8fb;padding:16px;border-radius:8px;min-height:70px;font-size:16px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+small,.muted{color:#617082}
+.kpis{display:flex;gap:22px;flex-wrap:wrap;margin-top:12px}.kpis strong{display:block;font-size:21px}
+pre{white-space:pre-wrap;background:#111e2b;color:#d0e4ff;border-radius:8px;padding:12px;height:170px;overflow:auto;font-size:12px;line-height:1.4;margin:0}
+.notice{font-size:13px;padding:11px 13px;background:#fff9e9;border:1px solid #f3deb6;border-radius:8px;color:#735119;line-height:1.4}
+footer{margin:20px 0;color:#64758a;font-size:12px}
+</style>
+</head>
+<body>
+<nav style="padding:12px 20px;text-align:right"><a href="/sophia" style="color:inherit">София · управление колонкой →</a></nav><main>
+<div class="header"><h1>GoBot · Browser Voice Lab</h1><span class="tag">HOST-A · отдельная лаборатория</span></div>
+<p class="sub">Говорите «Моника» в микрофон устройства, с которого открыта страница — телефона или ПК. Распознавание работает на PLAN; OpenAI пока заменён бесплатным тестовым протоколом.</p>
+<div class="notice" id="notice"><strong>MOCK — бесплатно.</strong> Настоящий Vosk распознаёт микрофон; OpenAI имитируется. В режиме REAL после локальной «Моники» звук поступает в OpenAI, затем вопрос — в существующий Brain GoBot, ответ — голосом marin. Сохраняются полные текстовые стенограммы, промежуточные результаты, ответы Brain, времена и ошибки локально на PLAN. Сырое аудио и ключи API не записываются. Spotpear/COM3 не используются.</div>
+<p id="journalState" class="notice"><strong>Полная запись текстов включена по разрешению владельца.</strong> В каждой новой сессии текст Vosk, расшифровки OpenAI, вопросы и ответы Brain будут сохранены на компьютере PLAN. Аудио и ключи API не записываются.</p>
+<p class="notice" id="dialogueState"><strong>Диалоговый режим.</strong> После ответа можно говорить без повторного имени в течение 16 секунд. Тишина возвращает в режим ожидания «Моника»; микрофон при этом остаётся включённым.</p>
+<div class="grid" style="margin-top:16px">
+<section class="card">
+<h2>Источник и вывод</h2>
+<label for="source">AudioSource</label>
+<select id="source"><option value="BROWSER_MIC">BROWSER_MIC — микрофон телефона или ПК</option><option value="SPOTPEAR_WSS">SPOTPEAR_WSS — зарезервирована HOST-B</option></select>
+<label for="sink">AudioSink</label>
+<select id="sink"><option value="BROWSER_AUDIO">BROWSER_AUDIO — динамик телефона или ПК</option><option value="SPOTPEAR_OPUS">SPOTPEAR_OPUS — зарезервирован HOST-B</option></select>
+<label for="mode">Cloud STT</label>
+<select id="mode"><option value="MOCK">MOCK — локальная имитация API (бесплатно)</option><option value="REAL">REAL — настоящий OpenAI STT + Brain + marin (платный тест)</option></select>
+<div class="actions"><button id="start">Запустить микрофон</button><button id="stop" class="danger" disabled>Остановить</button><button id="speaker" class="secondary">Проверить динамики</button></div>
+<div class="status"><span class="dot" id="light"></span><strong id="state">Остановлено</strong><span class="muted mono" id="timer"></span></div>
+<label>Уровень микрофона <span id="rms">—</span></label><div class="levelback"><div id="bar"></div></div>
+<div class="kpis"><div><strong id="frames">0</strong><small>Кадров обработано</small></div><div><strong id="wake">0</strong><small>Пробуждений</small></div><div><strong id="delay">—</strong><small>От запуска / отклик</small></div></div>
+</section>
+<section class="card"><h2>Состояния и расшифровка</h2>
+<label>Vosk — настоящий микрофон браузера</label><div class="boxread" id="partial">Нажмите «Запустить микрофон» и разрешите доступ в браузере.</div>
+<label>Vosk — итоговая фраза</label><div class="boxread" id="final">—</div>
+<label>Кандидат на пробуждение — проверка в облаке</label><div class="boxread" id="candidateStatus">Жду «Моника» или похожее слово в обращении. Слабые кандидаты не дают доступа к Brain без независимой проверки аудио.</div>
+<label>OpenAI STT — промежуточный текст (REAL) / имитация (MOCK)</label><div class="boxread" id="cloudpartial">—</div>
+<label>OpenAI STT — итоговая транскрипция (REAL) / имитация (MOCK)</label><div class="boxread" id="cloudfinal">—</div>
+<label>GoBot Brain — настоящий ответ и вызовы инструментов</label><div class="boxread" id="brain">В режиме REAL ответ появится здесь.</div>
+</section>
+</div>
+<div class="grid">
+<section class="card"><h2>Этапы и задержки</h2><div class="kpis"><div><strong id="wakedelay">—</strong><small>Wake (мс от начала)</small></div><div><strong id="cloudms">—</strong><small>Mock STT final (мс)</small></div><div><strong id="queue">0</strong><small>Макс. очередь</small></div><div><strong id="peak">—</strong><small>Уровень dBFS</small></div><div><strong id="firstpartial">—</strong><small>Первое слово OpenAI</small></div><div><strong id="firstaudio">—</strong><small>Первый звук ответа</small></div></div><p class="muted" style="font-size:13px;margin-top:16px">При реальном запуске сюда добавятся cloud connection, first delta, final transcript, Brain и speaker-drained. В MOCK не делаем вид, что это реальные задержки OpenAI.</p></section>
+<section class="card"><h2>Диагностика и ошибки</h2><pre id="log">[READY] Серверное подключение ещё не открыто.</pre><p class="muted" id="budget" style="font-size:12px;margin-top:8px">Расчётный лимит Browser Lab: $3. Резерв возвращается в доступный расчётный остаток после успешного завершения и измерения аудио/токенов. Фактическое списание проверяется в OpenAI Usage.</p></section>
+</div>
+<footer>Эксперимент HOST-A через Tailscale HTTPS · Один клиент · REAL и MOCK до 10 минут без платного облачного прослушивания в ожидании · Спотпеар и COM3 не используются</footer>
+</main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let ws=null,stream=null,ctx=null,sourceNode=null,processor=null,playCtx=null;
+let raw=[],next=0,frame=[],sampleRate=48000,started=0,heartbeat=null;
+let wakeCount=0,scheduledPlay=0,connected=false,stopped=false;
+let livePaidAllowed=false,receivedCloudPartial=false,brainText='',cloudText='',wakeAt=0,followupUntil=0;
+const FRAME=960,OUTRATE=16000;
+function log(s){const text='['+new Date().toLocaleTimeString()+'] '+s;
+  const area=$('log');area.textContent=text+'\n'+area.textContent.slice(0,4500);}
+function updateState(value){let map={ready:'Ожидаю «Моника»',listening:'Слушаю',
+thinking:'Обрабатываю',speaking:'Отвечаю',followup:'Слушаю продолжение',
+answer_finishing:'Завершаю ответ',connecting:'Подключение...',
+stopped:'Остановлено'};$('state').textContent=map[value]||value;
+$('light').className='dot'+(value==='ready'?' online':(['listening','thinking','speaking','followup','answer_finishing'].includes(value)?' busy':''));}
+function outputDone(){if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'playback_drained'}));}
+async function playBrowserSpeech(text){try{window.speechSynthesis.cancel();
+let u=new SpeechSynthesisUtterance(text);u.lang='ru-RU';u.rate=1.08;u.onend=outputDone;u.onerror=outputDone;
+window.speechSynthesis.speak(u);log('MOCK BROWSER TTS: произнесена тестовая фраза');}catch(e){log('BROWSER_TTS_ERROR '+e.message);outputDone();}}
+async function playPcm(bytes){if(!playCtx){const AC=window.AudioContext||window.webkitAudioContext;playCtx=new AC({sampleRate:24000});}await playCtx.resume();
+let dv=new DataView(bytes),count=dv.byteLength/2,buf=playCtx.createBuffer(1,count,24000),out=buf.getChannelData(0);
+for(let i=0;i<count;i++)out[i]=dv.getInt16(i*2,true)/32768;
+let node=playCtx.createBufferSource();node.buffer=buf;node.connect(playCtx.destination);
+let when=Math.max(playCtx.currentTime+.02,scheduledPlay||0);node.start(when);scheduledPlay=when+buf.duration;}
+function convertAndSend(input){for(let i=0;i<input.length;i++) raw.push(input[i]);const ratio=sampleRate/OUTRATE;
+while(next+ratio<raw.length){let i=Math.floor(next),t=next-i;
+let f=raw[i]*(1-t)+raw[i+1]*t;frame.push(Math.max(-1,Math.min(1,f)));next+=ratio;
+if(frame.length===FRAME){let b=new ArrayBuffer(FRAME*2),dv=new DataView(b);
+for(let j=0;j<FRAME;j++)dv.setInt16(j*2,Math.max(-32768,Math.min(32767,Math.round(frame[j]*32767))),true);
+if(ws&&ws.readyState===1)ws.send(b);frame=[];}}
+let consumed=Math.floor(next);if(consumed){raw.splice(0,consumed);next-=consumed;}}
+async function setupMic(){stream=await navigator.mediaDevices.getUserMedia({audio:{
+  echoCancellation:true,noiseSuppression:true,autoGainControl:false},video:false});
+ctx=new AudioContext();await ctx.resume();sampleRate=ctx.sampleRate;
+sourceNode=ctx.createMediaStreamSource(stream);
+processor=ctx.createScriptProcessor(2048,1,1);
+processor.onaudioprocess=e=>{
+const input=e.inputBuffer.getChannelData(0),output=e.outputBuffer.getChannelData(0);
+output.fill(0);if(connected&&!stopped)convertAndSend(input);};
+sourceNode.connect(processor);processor.connect(ctx.destination);log('BROWSER MIC STARTED '+sampleRate+'Hz -> 16000Hz');}
+async function teardown(){stopped=true;connected=false;
+clearInterval(heartbeat);heartbeat=null;
+try{sourceNode?.disconnect();processor?.disconnect();}catch(e){}
+if(stream){stream.getTracks().forEach(x=>x.stop());stream=null;}
+if(ctx){await ctx.close().catch(()=>{});ctx=null;}
+window.speechSynthesis?.cancel();
+if(playCtx){await playCtx.close().catch(()=>{});playCtx=null;scheduledPlay=0;}
+if(ws){let old=ws;ws=null;try{old.close(1000,'user stop')}catch(e){}}
+processor=null;sourceNode=null;raw=[];next=0;frame=[];followupUntil=0;
+$('start').disabled=false;$('stop').disabled=true;updateState('stopped');log('BROWSER_LAB_STOPPED');}
+$('start').onclick=async()=>{if($('source').value!=='BROWSER_MIC'||$('sink').value!=='BROWSER_AUDIO'){
+log('SPOTPEAR RESERVED: до согласования с HOST-B устройство не подключается.');
+alert('Spotpear сейчас зарезервирована HOST-B. Для лаборатории выбери BROWSER_MIC и BROWSER_AUDIO.');
+return;}
+const real=$('mode').value==='REAL';
+if(real && !window.confirm('Платный тест HOST-A: аудио после «Моники» будет отправлено в OpenAI, а ответ получен через существующий Brain и голос marin. Общие пределы: 50 минут и $3 расчётного бюджета, до 8 тестовых разговоров. Продолжить?'))return;
+livePaidAllowed=real;
+$('start').disabled=true;$('stop').disabled=false;stopped=false;wakeCount=0;started=performance.now();
+// iOS Safari requires the speaker AudioContext to be unlocked by a tap.
+try{const AC=window.AudioContext||window.webkitAudioContext;if(AC){playCtx=playCtx||new AC({sampleRate:24000});playCtx.resume().catch(()=>{});}}catch(e){log('SPEAKER_CONTEXT '+e.message);}
+$('frames').textContent='0';$('wake').textContent='0';$('cloudfinal').textContent='—';
+$('brain').textContent='—';$('firstpartial').textContent='—';$('firstaudio').textContent='—';
+$('candidateStatus').textContent='Ожидаю имя или похожий слабый позывной…';
+receivedCloudPartial=false;brainText='';cloudText='';wakeAt=0;
+try{const proto=location.protocol==='https:'?'wss://':'ws://';ws=new WebSocket(proto+location.host+'/ws');ws.binaryType='arraybuffer';
+ws.onopen=()=>{connected=false;ws.send(JSON.stringify({type:'hello',source:'BROWSER_MIC',
+sink:'BROWSER_AUDIO',mode:livePaidAllowed?'REAL':'MOCK',paid_consent:livePaidAllowed,sample_rate:16000}));log('WS CONNECTED, server uses shared HOST-A core; mode='+(livePaidAllowed?'REAL':'MOCK'));};
+ws.onmessage=async evt=>{if(evt.data instanceof ArrayBuffer){await playPcm(evt.data);return;}
+let m;try{m=JSON.parse(evt.data);}catch(e){log('INVALID_JSON');return;}
+if(m.type==='ready'){connected=true;updateState('ready');log('READY '+m.mode+', произнесите Моника');}
+else if(m.type==='journal_status'){
+  $('journalState').textContent='Полный текстовый журнал PLAN: '+m.filename;
+  log('LOCAL FULL TEXT JOURNAL: '+m.filename);
+}
+else if(m.type==='state')updateState(m.value);
+else if(m.type==='followup_wait'){
+followupUntil=performance.now()+m.idle_seconds*1000;
+$('dialogueState').textContent='Продолжай говорить без «Моники». На следующую реплику осталось '+m.idle_seconds+' секунд; после тишины снова потребуется имя.';
+log('FOLLOWUP READY: '+m.idle_seconds+'s local microphone, OpenAI not opened');
+}
+else if(m.type==='followup_speech_start'){
+followupUntil=0;wakeAt=m.timestamp_ms;
+$('firstpartial').textContent='—';$('firstaudio').textContent='—';
+$('dialogueState').textContent='Слышу продолжение. Локальный VAD начал новую реплику без имени.';
+log('FOLLOWUP SPEECH: local voice activity, new STT turn');
+}
+else if(m.type==='followup_audio_commit'){
+log('FOLLOWUP END: '+m.reason+'; передаю в Brain');
+}
+else if(m.type==='followup_expired'){
+followupUntil=0;
+$('dialogueState').textContent='Пауза завершила диалог. Для новой темы снова скажи «Моника».';
+log('FOLLOWUP TIMEOUT: returned to wake-only without closing browser microphone');
+}
+else if(m.type==='asr'){ $(m.stage==='final'?'final':'partial').textContent=m.text;}
+else if(m.type==='weak_candidate_seen'){
+  const limited=m.status==='session_weak_limit_reached';
+  $('candidateStatus').textContent='Vosk услышал «'+m.word+'»: '+(limited?
+    'лимит слабых проверок в этой сессии исчерпан':
+    'возможный позывной; ожидаю активацию или финальную фразу');
+  log('WEAK VOSK '+m.word+' / '+m.status+' / осталось '+m.remaining_attempts);
+}
+else if(m.type==='candidate_notice'){
+  const real=m.status==='real_audio_cloud_verification';
+  $('candidateStatus').textContent='Кандидат: «'+m.word+'» ('+m.strength+
+    '). '+(real?'Отправляю реальный звук в OpenAI для проверки.':
+                 'Бесплатная имитация облачной проверки.');
+  log('WAKE CANDIDATE '+m.word+' strength='+m.strength+' '+m.status);
+}
+else if(m.type==='budget_warning'){
+  $('budget').textContent='ЛИМИТ BRAIN: '+m.message+
+    ' Расчётный остаток $'+m.remaining_estimated_usd;
+  log('BUDGET WARNING '+m.status+' remaining_estimated_usd='+m.remaining_estimated_usd);
+}
+else if(m.type==='cloud_partial'){
+cloudText=m.mock?m.text:(cloudText+m.text);
+$('cloudpartial').textContent=cloudText.slice(-2000);
+if(!receivedCloudPartial){receivedCloudPartial=true;
+$('firstpartial').textContent=(m.elapsed_ms??m.timestamp_ms)+' мс';}
+}
+else if(m.type==='cloud_final'){
+$('cloudfinal').textContent=m.text;
+$('cloudms').textContent=(m.elapsed_ms??m.timestamp_ms)+' мс';
+log('CLOUD FINAL / after start: '+$('cloudms').textContent);
+}
+else if(m.type==='cloud_connect_start')log('OpenAI STT: подключение началось');
+else if(m.type==='cloud_socket_closed')log('OpenAI STT: WebSocket закрыт, результат передаётся в Brain');
+else if(m.type==='cloud_ready')log('OpenAI STT: подключён, '+m.setup_ms+' мс');
+else if(m.type==='cloud_commit')log('OpenAI STT: конец фразы, отправлено '+m.audio_seconds+' с PCM');
+else if(m.type==='cloud_rejected')log('OpenAI не подтвердил обращение: '+m.status);
+else if(m.type==='brain_start')log('EXISTING BRAIN: запрос принят, TTS '+m.tts_voice);
+else if(m.type==='brain_first_text')log('EXISTING BRAIN: первое слово ответа');
+else if(m.type==='brain_status')log('BRAIN status: '+m.status+(m.provider?(' / '+m.provider):''));
+else if(m.type==='brain_delta'){brainText+=m.text;$('brain').textContent=brainText.slice(-4000);}
+else if(m.type==='brain_final'){$('brain').textContent=m.text;log('BRAIN FINAL '+m.provider+' '+m.total_ms+'ms');}
+else if(m.type==='tts_first_audio'){$('firstaudio').textContent=Math.max(0,m.timestamp_ms-wakeAt)+' мс';
+log('NATURAL OPENAI MARIN: первый пакет звука '+$('firstaudio').textContent+' после wake');}
+else if(m.type==='budget_status'){
+$('budget').textContent='Browser Lab: расчётная стоимость завершённых вызовов и текущих резервов $'+m.budget_estimate_usd+' / $3.00, осталось $'+m.remaining_estimated_usd+'. Это НЕ счёт OpenAI.';
+log('METERED BUDGET: $'+m.budget_estimate_usd+' / $3; '+m.accounting_method);
+}
+else if(m.type==='budget_report'){
+$('budget').textContent='Новый учёт: $'+m.budget_estimate_usd+' / $3.00; осталось $'+m.remaining_estimated_usd+'. Ранее были виртуальные резервы $'+m.historical_virtual_reserved_usd+', после переоценки ~$'+m.historical_reconciled_estimated_usd+'. Не официальный биллинг.';
+log('BUDGET RECONCILED: '+m.status+', '+m.message);
+}
+else if(m.type==='playback_drained')log('SPEAKER DRAINED (browser confirms)');
+else if(m.type==='brain_widget_blocked')log('BRAIN widget withheld from voice-only lab');
+else if(m.type==='wake'){wakeCount++;$('wake').textContent=String(wakeCount);
+$('wakedelay').textContent=m.timestamp_ms+' ms';wakeAt=m.timestamp_ms;
+receivedCloudPartial=false;brainText='';cloudText='';
+$('cloudpartial').textContent='—';$('cloudfinal').textContent='—';$('brain').textContent='—';
+log('WAKE: LOCAL MONIKA (real Vosk), mode '+m.mode);}
+else if(m.type==='signal'){$('frames').textContent=m.processed_frames;
+$('queue').textContent=m.queue_peak;$('peak').textContent=m.peak_dbfs;
+$('rms').textContent=m.rms_dbfs+' dBFS';
+$('bar').style.width=Math.max(1,Math.min(100,(m.rms_dbfs+65)*2.6))+'%';}
+else if(m.type==='audio_start'){log('BROWSER AUDIO_PCM24');scheduledPlay=0;}
+else if(m.type==='audio_end'){log('BROWSER AUDIO PLAYBACK '+m.bytes_sent+' bytes');
+const ms=Math.max(0,((scheduledPlay||0)-(playCtx?.currentTime||0))*1000)+60;
+setTimeout(outputDone,ms);}
+else if(m.type==='mock_speaker')await playBrowserSpeech(m.text);
+else if(m.type==='error')log('ERROR '+m.code+' '+(m.detail||''));
+else if(m.type==='mock_note')log('MOCK '+m.message);
+else if(m.type==='cloud_ready')log('MOCK STT session.updated');
+else if(m.type==='text_reply')log('BROWSER cached OpenAI voice '+m.text);
+else log(m.type);};
+ws.onclose=(ev)=>{const unexpected=!stopped;log('WS CLOSED code='+ev.code+' reason='+(ev.reason||'none'));if(unexpected){teardown().then(()=>{$('state').textContent='Соединение прервано (WS '+ev.code+') — смотри диагностику';});}};
+ws.onerror=()=>log('WEBSOCKET ERROR');
+await setupMic();
+heartbeat=setInterval(()=>{
+if(started)$('timer').textContent=Math.round((performance.now()-started)/1000)+' s';
+if(followupUntil>0){
+const left=Math.max(0,Math.ceil((followupUntil-performance.now())/1000));
+$('dialogueState').textContent='Свободный диалог: '+left+' с до завершения по тишине. Скажи следующую реплику без «Моники».';
+}},500);
+}catch(e){log('MIC ERROR '+e.name+': '+e.message);await teardown();}
+};
+$('stop').onclick=()=>teardown();
+$('speaker').onclick=()=>playBrowserSpeech('Проверка динамиков. Моника на связи. Это бесплатный тест браузера.');
+$('mode').onchange=()=>{
+if($('mode').value==='REAL')$('notice').innerHTML='<strong>REAL — платный тест.</strong> OpenAI получает только речь после локального обнаружения «Моники». Ответ идёт через настоящий Brain GoBot и натуральный marin. Каждая сессия ограничена по времени и общему расчётному бюджету $3. Полный текст разговоров и задержки сохраняются локально на PLAN; сырое аудио и ключи API не сохраняются.';
+else $('notice').innerHTML='<strong>MOCK — бесплатно.</strong> Настоящий локальный Vosk, имитация облачного протокола, тест динамика без API OpenAI. Полные тексты и времена сохраняются локально на PLAN.';
+};
+$('source').onchange=()=>{if($('source').value==='SPOTPEAR_WSS')log('SPOTPEAR_WSS adapter reserved. No hardware connection started.');};
+$('sink').onchange=()=>{if($('sink').value==='SPOTPEAR_OPUS')log('SPOTPEAR_OPUS reserved. No speaker command sent.');};
+</script>
+</body></html>

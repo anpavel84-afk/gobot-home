@@ -43,6 +43,15 @@ async def native(tmp_path,settings,**kw):
     s,_=await m.start(offer(**kw),DeviceProfile(screen=ScreenPreferences(automatic_illustrations=False)))
     return m,p,s
 
+def exact_expert_fixture(session,monkeypatch,profile):
+    """Local finite grant and deterministic catalogue; never ambient CLI state."""
+    from gobot.expert_profiles import PROFILES,resolve_profile
+    selected=PROFILES[profile]
+    metadata=[{'slug':selected['model'],'supported_reasoning_levels':[{'effort':selected['effort']}]}]
+    monkeypatch.setattr('gobot.expert_jobs.resolve_profile',lambda name:resolve_profile(name,codex_metadata=metadata))
+    session.experts.budget.policy_path.write_text(ExpertPolicy(enabled=True,authorization='expert-fixture',
+        allowed_client_id='client-1',allowed_profiles=[profile],expires_at=time.time()+120,max_sessions=1).model_dump_json())
+
 def test_live_sdp_is_scoped_and_realtime_is_not_relaxed():
     from gobot.realtime_contract import audio_only_sdp
     assert live_sdp(LIVE_SDP)==LIVE_SDP
@@ -112,8 +121,36 @@ def test_client_delegation_expert_uses_real_delegation_not_function_call_output(
             assert len(calls)==1 and job.call_id is None and job.delegation_id=='real-provider-delegation'
             assert job.operation_id and job.state=='completed'
             assert not any(e['type']=='conversation.item.create' for e in s.ws.sent)
+            context=[e for e in s.ws.sent if e['type']=='session.thinking.append' and
+                e['delegation_id']=='real-provider-delegation']
+            assert 'expert_context_snapshot' in ''.join(e['content'] for e in context)
+            assert not s.experts.detached and 'expert_context_synced' in job.timings
             assert any(e['type']=='expert_result' for e in s.events)
             assert any(e['type']=='session.commentary.append' and e['delegation_id']=='real-provider-delegation' for e in s.ws.sent)
+        finally:await m.shutdown();await m.realtime.shutdown()
+    asyncio.run(run())
+
+def test_live_expert_context_is_bounded_data_and_never_claims_unheard_playback(tmp_path,settings):
+    from types import SimpleNamespace
+    async def run():
+        m,p,s=await native(tmp_path,settings)
+        try:
+            job=SimpleNamespace(id='synthetic-context',owner=s.access.effective_scope,profile_id=None,
+                profile_epoch=None,delegation_id='real-context-delegation')
+            item={'state':'completed','task':'Синтетический вопрос. '*100,
+                'result':{'speech_summary':'Синтетический результат. '*100},'playback_complete':False}
+            before=len(s.ws.sent)
+            assert await s.expert_context_synced(job,item)
+            emitted=s.ws.sent[before:]
+            assert emitted and all(e['type']=='session.thinking.append' and
+                e['delegation_id']=='real-context-delegation' and len(e['content'].encode())<=320 for e in emitted)
+            payload=json.loads(''.join(e['content'] for e in emitted).split('\n',1)[1])
+            assert payload['excerpted'] and len(payload['task'])==600 and len(payload['result_summary'])==1600
+            assert payload['playback_complete'] is False and payload['trusted_as_instructions'] is False
+            assert payload['not_a_user_request'] is True
+            before=len(s.ws.sent);job.owner='different-owner'
+            assert await s.expert_context_synced(job,item) is False
+            assert len(s.ws.sent)==before
         finally:await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())
 
@@ -167,9 +204,10 @@ def test_live_new_profile_closes_and_clears_ram_without_history_transfer(tmp_pat
         await m.realtime.shutdown()
     asyncio.run(run())
 
-def test_live_status_partial_does_not_change_expert_task_revision(tmp_path,settings):
+def test_live_status_partial_does_not_change_expert_task_revision(tmp_path,settings,monkeypatch):
     async def run():
         m,p,s=await native(tmp_path,settings)
+        exact_expert_fixture(s,monkeypatch,'SOL_HIGH')
         try:
             turn=await s.interaction('Спроси Sol: сравни две структуры данных','speech-0')
             s.experts.propose(turn.query,'SOL_HIGH',turn)
@@ -186,9 +224,10 @@ def test_live_status_partial_does_not_change_expert_task_revision(tmp_path,setti
         finally:await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())
 
-def test_expert_paraphrase_uses_exact_user_snapshot_not_model_granted_scope(tmp_path,settings):
+def test_expert_paraphrase_uses_exact_user_snapshot_not_model_granted_scope(tmp_path,settings,monkeypatch):
     async def run():
         m,p,s=await native(tmp_path,settings)
+        exact_expert_fixture(s,monkeypatch,'SOL_HIGH')
         try:
             query='Спроси Sol High: проверь произведение 17 и 19'
             turn=await s.interaction(query,'source-user-turn')
@@ -268,10 +307,10 @@ def test_expired_confirmed_profile_closes_provider_without_reusing_history(tmp_p
         await m.shutdown();await m.realtime.shutdown()
     asyncio.run(run())
 
-def test_live_honors_selected_expert_profile_without_granting_consent(tmp_path,settings):
+def test_live_honors_selected_expert_profile_without_granting_consent(tmp_path,settings,monkeypatch):
     async def run():
         m,p,s=await native(tmp_path,settings,requested_expert_profile='ASTRA_MEDIUM')
-        s.experts.budget.policy_path.write_text(ExpertPolicy(enabled=True,authorization='fixture',allowed_client_id='client-1',allowed_profiles=['ASTRA_MEDIUM'],expires_at=time.time()+60,max_sessions=1).model_dump_json())
+        exact_expert_fixture(s,monkeypatch,'ASTRA_MEDIUM')
         try:
             turn=await s.interaction('Нужен более глубокий разбор: сравни очередь и стек','explicit-deep-request')
             await s.route(turn,'operation','real-delegation')

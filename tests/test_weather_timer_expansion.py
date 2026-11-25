@@ -32,7 +32,7 @@ def test_250_timer_phrasings_create_actual_scoped_timer(settings,verb,prefix,dur
     assert result.widget['payload']['duration_ms']==seconds*1000
     assert 'нет активных' in tools.execute('timer_status',req.model_copy(update={'device_id':'synthetic-b'})).text
 
-@pytest.mark.parametrize('query',['Не ставь таймер на пять минут','Можешь не ставить таймер на пять минут','Расскажи как засечь таймер на пять минут','Поставь таймер на пять или десять минут','Засеки три минуты и удали файл','Он сказал: поставь таймер на пять минут','Если поставить таймер на пять минут что будет','Таймер на минус пять минут','Засеки сто пять минут'])
+@pytest.mark.parametrize('query',['Не ставь таймер на пять минут','Можешь не ставить таймер на пять минут','Расскажи как засечь таймер на пять минут','Поставь таймер на пять или десять минут','Засеки три минуты и удали файл','Он сказал: поставь таймер на пять минут','Если поставить таймер на пять минут что будет','Таймер на минус пять минут','Засеки сто тысяч пять минут'])
 def test_negative_or_ambiguous_timer_cannot_create_shorter_action(query):
     q=resolve_quick(query)
     assert not q or q.executor!='timer' or q.status!='validated' or not q.slots.get('seconds') or q.slots['seconds']<=0
@@ -45,6 +45,17 @@ def forecast_source(change=None):
     if change:change(daily)
     def handle(request):calls.append(request);return httpx.Response(200,json={'timezone':'America/Sao_Paulo','daily':daily})
     return WeatherClient(transport=httpx.MockTransport(handle),clock=lambda:STAMP),calls,today
+
+def test_partial_distant_day_does_not_hide_complete_tomorrow():
+    def change(data):
+        for name in ('weather_code','temperature_2m_min','temperature_2m_max','wind_speed_10m_max'):
+            data[name][15]=None
+    async def run():
+        client,_,_=forecast_source(change)
+        place=WeatherPreferences(enabled=True,location_name='Fixture',latitude=0,longitude=0)
+        assert len((await client.forecast(place,offset=1,days=1))['days'])==1
+        with pytest.raises(WeatherError):await client.forecast(place,offset=15,days=1)
+    asyncio.run(run())
 
 def test_forecast_local_tomorrow_16_days_cache_and_source_params():
     async def run():
@@ -68,7 +79,8 @@ def test_bad_or_stale_forecast_is_never_used(change):
  ('Погода завтра',1,1),('Какая будет погода послезавтра?',1,2),('Покажи прогноз на неделю',7,0),('Покажи погоду на две недели',14,0),('Погода на 16 дней',16,0),('Будет ли дождь завтра?',1,1),('Нужен ли зонт завтра?',1,1),('Какая температура завтра?',1,1)])
 def test_forecast_request_routes_to_source_not_generic_llm(query,days,offset):
     quick=resolve_quick(query);assert quick.executor=='settings'
-    assert quick.slots=={'operation':'weather_forecast','offset':offset,'days':days,'weekday':None}
+    metric={'Будет ли дождь завтра?':'precipitation','Нужен ли зонт завтра?':'umbrella','Какая температура завтра?':'temperature'}.get(query)
+    assert quick.slots=={'operation':'weather_forecast','offset':offset,'days':days,'weekday':None,**({'metric':metric} if metric else {})}
 
 @pytest.mark.parametrize('query,offset',[('Можешь проверить погоду завтра?',1),('Погода через три дня',3),('Погода через неделю',7),('Погода через две недели',14)])
 def test_additional_weather_phrasings_keep_requested_date(query,offset):
@@ -174,3 +186,8 @@ def test_new_developer_financial_guard_does_not_reset_old_usage(tmp_path):
     with pytest.raises(PermissionError,match='developer_estimate_limit'):owner.reserve('owner','live_backend','second',estimate=.2,origin='developer')
     owner.reserve('owner','live_backend','third',estimate=.01,origin='developer')
     assert owner.status('owner')['attempts_today']=={'live':1,'live_backend':1}
+
+
+def test_compound_hundred_duration_is_complete_not_its_tail():
+    q=resolve_quick('Засеки сто пять минут')
+    assert q.executor=='timer' and q.status=='validated' and q.slots['seconds']==6300

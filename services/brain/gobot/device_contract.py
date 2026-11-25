@@ -1,7 +1,7 @@
 """Portable browser-device profile; no claim of physical ESP32 compatibility."""
 from typing import Literal
 from uuid import uuid4
-from pydantic import BaseModel,ConfigDict,Field,model_validator
+from pydantic import BaseModel,ConfigDict,Field,field_validator,model_validator
 
 class Strict(BaseModel):model_config=ConfigDict(extra='forbid')
 
@@ -50,12 +50,31 @@ class FeedbackPreferences(Strict):
     threshold_ms:int=Field(default=2250,ge=2000,le=2500)
     volume:float=Field(default=.22,ge=0,le=.5,allow_inf_nan=False)
 
+class ConversationSkills(Strict):
+    """Owner restrictions on installed operations; these flags never grant access."""
+    clock:bool=Field(default=True,strict=True)
+    timer:bool=Field(default=True,strict=True)
+    weather:bool=Field(default=True,strict=True)
+    utilities:bool=Field(default=True,strict=True)
+    memory:bool=Field(default=True,strict=True)
+    expert:bool=Field(default=True,strict=True)
+    visual:bool=Field(default=True,strict=True)
+
 class ConversationPolicy(Strict):
     followup_enabled:bool=True
     followup_seconds:int=Field(default=12,ge=5,le=30)
     silence_ms:int=Field(default=900,ge=600,le=2000)
     min_speech_ms:int=Field(default=300,ge=200,le=1000)
     echo_guard_ms:int=Field(default=350,ge=200,le=1500)
+    guidance:str=Field(default='',max_length=1500,strict=True)
+    skills:ConversationSkills=Field(default_factory=ConversationSkills)
+
+    @field_validator('guidance')
+    @classmethod
+    def plain_guidance(cls,value):
+        if any(ord(char)<32 and char not in '\n\t' or ord(char)==127 for char in value):
+            raise ValueError('conversation_guidance_plain_text_required')
+        return value.strip()
 
 class WeatherPreferences(Strict):
     enabled:bool=False
@@ -84,8 +103,8 @@ class VoicePreferences(Strict):
 
 class DeviceProfile(Strict):
     version:Literal[1]=1
-    client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^browser-device-[a-f0-9-]{36}$')
-    client_kind:Literal['browser_device']='browser_device'
+    client_id:str=Field(default_factory=lambda:'browser-device-'+str(uuid4()),pattern=r'^(browser-device-[a-f0-9-]{36}|spotpear-[a-f0-9]{12})$')
+    client_kind:Literal['browser_device','spotpear']='browser_device'
     display:DeviceDisplay=Field(default_factory=DeviceDisplay)
     skin:DeviceSkin=Field(default_factory=DeviceSkin)
     screen:ScreenPreferences=Field(default_factory=ScreenPreferences)
@@ -97,7 +116,17 @@ class DeviceProfile(Strict):
     keep_screen_awake:bool=False
     has_screensaver:bool=False
 
+    @model_validator(mode='after')
+    def verify_identity_kind(self):
+        if self.client_id.startswith('spotpear-') != (self.client_kind == 'spotpear'):
+            raise ValueError('device_kind_mismatch')
+        return self
+
     def capabilities(self):
+        if self.client_kind == 'spotpear':
+            return {'client_id':self.client_id,'kind':'spotpear','presence':'unknown',
+                    'input':['touch','button'],'audio':['xiaozhi_opus'],'wake_word':'not_configured',
+                    'display':self.display.model_dump(),'skin':self.skin.model_dump()}
         return {'client_id':self.client_id,'kind':'browser_device','physical_device_connected':False,
                 'display':self.display.model_dump(),'ui_version':2,'input':['push_to_talk','tap_to_toggle'],
                 'audio':['browser_capture','server_stt','server_tts','realtime_webrtc_candidate'],'wake_word':'not_configured',

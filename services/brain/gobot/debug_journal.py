@@ -18,7 +18,7 @@ from pathlib import Path
 
 DENIED = {'authorization','api_key','key','secret','password','cookie','cookies','headers',
           'sdp','audio','raw_audio','pcm','embedding','embeddings','fingerprint',
-          'instructions','context','packet','stdout','stderr','preferences','profile',
+          'instructions','context','packet','stdout','stderr','preferences','profile','guidance',
           'environment','env','latitude','longitude','input_audio','output_audio','voiceprint',
           'access_token','refresh_token','token','client_secret','session','input'}
 
@@ -91,7 +91,8 @@ class DebugJournal:
 
     def enabled(self,binding):
         p=self.owner.policy()
-        return bool(p.debug_journal_enabled and self.owner.bound(binding))
+        return bool(p.debug_journal_enabled and (self.owner.bound(binding)
+                    or binding and binding in p.debug_journal_device_bindings))
 
     def append(self,*,binding,owner,client,epoch=None,session,engine,kind,data=None,turn=None):
         try:return self._append(binding=binding,owner=owner,client=client,epoch=epoch,session=session,engine=engine,kind=kind,data=data,turn=turn)
