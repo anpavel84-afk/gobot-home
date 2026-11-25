@@ -1,5 +1,16 @@
 # GoBot Home — целевая система и спецификация продукта
 
+**Sophia test-mode correction, 2026-11-24:** a completed timer briefly shows its
+expiry (eight seconds from deadline), then restores the face or another running
+timer. Durable history and alarm delivery are independent of this presentation
+lifetime. A native playback receipt is not proof of human audibility. Diagnostic
+events must cover input, tool arguments/results, timer snapshots and receipts,
+local signal metrics, visual delivery, provider errors and transport lifecycle
+under the existing encrypted board opt-in; raw audio/secrets are excluded.
+Queue loss and recorder errors must remain visible. The existing 520 behavior
+records and visual atlas are requirements, not proof of hardware capability.
+See [the ten-scenario audit](audits/sophia-ten-scenario-product-audit-20261124.md).
+
 **Device voice-state contract:** show the actual engine A/B/C independently of
 voice timbre, and Connecting/Listening/Thinking/Speaking from authenticated
 session-scoped status. UI phase changes do not alter audio capture or fabricate

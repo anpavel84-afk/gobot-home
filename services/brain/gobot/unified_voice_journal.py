@@ -154,12 +154,26 @@ ENUMS = {
              'expert_status', 'expert_list_profiles', 'visual_query'},
     'underrun_measurement': {'not_instrumented'},
     'stage': CAPTURE_BOUNDARY_STAGES,
+    'receipt_type': {'timer_display_ack','timer_alarm_ack','timer_output_activity'},
+    'render_evidence': {'native_framebuffer_invalidated','native_framebuffer_unchanged'},
+    'error_type': {'invalid_request_error','server_error','authentication_error','permission_error','rate_limit_error'},
+    'error_param': {'item_id','response_id','event_id','session','response','audio','voice','type','input_audio_buffer'},
     'trigger': {'wake_word', 'touch', 'manual', 'followup', 'unknown'},
     'clock_domain': {'capture_16k', 'provider_input', 'provider_input_after_clear'},
     'boundary': {'not_applicable', 'unmapped', 'near_detector', 'after_detector'},
 }
 NUMBERS |= {'duration_seconds'}
 BOOLEANS |= {'executed', 'replayed', 'needs_parameters'}
+BOOLEANS |= {'rendered', 'supports_visual', 'physical_output_confirmed'}
+NUMBERS |= {'revision','snapshot_revision','remaining_ms','duration_ms','deadline',
+    'expires_at','visual_revision','signal_samples','signal_peak','signal_rms','signal_hz','encoded_packets','image_count'}
+IDS |= {'timer_id','alarm_id','claim_id','frame_id','error_fingerprint','request_event_id'}
+ENUMS['state'] |= {'expired','clear','started','finished','suppressed','unknown'}
+ENUMS['audio_role'].add('timer_alarm')
+ENUMS['status'] |= {'unsupported','sent','decoded','presented'}
+ENUMS['visual_type'] = {'image_card','image_gallery','info_card','timer_widget',
+    'weather_card','status_card','music_card','rich_answer'}
+CONTAINERS |= {'timers','presentation'}
 CODES = {
     'available', 'scope_expired', 'starts_exhausted', 'consent_required', 'unavailable',
     'closed', 'user_stop', 'client_disconnected', 'output_backpressure',
@@ -202,7 +216,9 @@ CODES |= {'invalid_timer_arguments', 'invalid_timer_duration', 'timer_duration_s
     'timer_current_user_command_required', 'timer_duration_ambiguous', 'invalid_timer_action',
     'current_user_command_required', 'timer_target_source_mismatch', 'timer_duration_source_mismatch',
     'timer_action_not_executed', 'capability_disabled_by_owner', 'confirmed_user_command_required'}
+CODES |= {'device_visual_protocol_missing','realtime_provider_error'}
 EVENTS = {
+    'visual_delivery','timer_signal_metrics','scene_changed',
     'cloud_ready', 'first_audio_packet', 'expert_job_accepted', 'cached_cue_queued',
     'cached_cue_started', 'expert_context_synced', 'pre_roll_flushed',
     'playback_started', 'playback_finished', 'speaker_sound_started', 'last_speech_sample',
@@ -227,6 +243,7 @@ EVENTS = {
     'input_audio_buffer.speech_started', 'input_audio_buffer.speech_stopped', 'error',
 }
 KINDS = {
+    'timer_snapshot','timer_alarm','timer_receipt','visual_response','visual_status','provider_error',
     'ready', 'closed', 'error', 'telemetry', 'provider_command', 'provider_event',
     'tool_request', 'tool_result', 'dialogue_turn', 'client_command', 'turn_complete',
     'input_transcript', 'transcript', 'answer_transcript', 'text_delta',
@@ -248,6 +265,17 @@ def _identifier(value):
     if not isinstance(value, str) or not 1 <= len(value) <= 200:
         return None
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def device_observation(value):
+    """Bounded diagnostics only; never an ACK, tool command or input grant."""
+    if not isinstance(value,dict) or value.get('type')!='telemetry':return None
+    if value.get('event') not in {'timer_signal_metrics','visual_delivery','scene_changed'}:return None
+    result=metadata(value)
+    # The journal hashes IDs at its single persistence boundary, exactly once.
+    for key in IDS & result.keys():result[key]=value[key]
+    result.update(device_reported=True,not_acoustic_proof=True)
+    return result
 
 
 def metadata(value, depth=0):
@@ -275,8 +303,8 @@ def metadata(value, depth=0):
         elif key in CONTAINERS:
             if isinstance(item, dict):
                 result[key] = metadata(item, depth+1)
-            elif key == 'responses' and isinstance(item, list):
-                result[key] = [metadata(row, depth+1) for row in item[:64] if isinstance(row, dict)]
+            elif key in {'responses','timers'} and isinstance(item, list):
+                result[key] = [metadata(row, depth+1) for row in item[:16 if key=='timers' else 64] if isinstance(row, dict)]
     return result
 
 

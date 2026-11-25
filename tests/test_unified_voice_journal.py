@@ -10,6 +10,27 @@ from gobot.unified_voice_journal import ContentFreeJournal, metadata
 PRIVATE = 'Личная фраза семьи: код сиреневой комнаты семьдесят один.'
 
 
+def test_device_timer_visual_diagnostics_preserve_correlations_once_without_content():
+    import hashlib
+    from gobot.unified_voice_journal import device_observation
+    source = {'type':'telemetry', 'event':'visual_delivery', 'frame_id':'frame-1',
+        'visual_type':'image_card','image_count':1, 'status':'unsupported',
+        'reason':'device_visual_protocol_missing', 'url':PRIVATE,'text':PRIVATE,
+        'audio':PRIVATE,'accepted':False}
+    safe = metadata(device_observation(source))
+    assert safe['frame_id'] == hashlib.sha256(b'frame-1').hexdigest()
+    assert safe['status'] == 'unsupported' and safe['image_count'] == 1
+    assert safe['device_reported'] and safe['not_acoustic_proof']
+    assert PRIVATE not in json.dumps(safe, ensure_ascii=False)
+    assert device_observation({'type':'telemetry','event':'timer_alarm_ack'}) is None
+    receipt = metadata({'receipt_type':'timer_alarm_ack','alarm_id':'alarm-1',
+        'claim_id':'claim-1','state':'finished','accepted':True,'audio':PRIVATE})
+    assert receipt['state'] == 'finished' and receipt['accepted']
+    assert receipt['alarm_id'] == hashlib.sha256(b'alarm-1').hexdigest()
+    timers=metadata({'timers':[{'timer_id':'t','deadline':100.,'state':'expired'}]*100})
+    assert len(timers['timers']) == 16
+
+
 def test_metadata_allowlist_drops_text_arguments_payloads_and_untrusted_error_strings():
     raw = {'response_id': 'response-1', 'job_id': 'job-1', 'state': 'completed',
            'question': PRIVATE, 'text': PRIVATE, 'task': PRIVATE, 'result': {'answer': PRIVATE},

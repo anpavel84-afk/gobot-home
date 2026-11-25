@@ -67,8 +67,13 @@ def test_fixed_local_signal_and_honest_v420_capabilities():
     async def run():
         c = ready()
         await c.timers.announce()
-        assert events(c.brain) == [{'type': 'timer_capabilities',
-                                   'display_supported': False, 'signal_supported': True}]
+        assert events(c.brain)[0] == {'type': 'timer_capabilities',
+                                   'display_supported': False, 'signal_supported': True}
+        metrics = events(c.brain)[1]
+        assert metrics['event'] == 'timer_signal_metrics'
+        assert metrics['signal_samples'] == 8640 and metrics['sample_rate'] == 24000
+        assert metrics['signal_hz'] == 660 and 1000 < metrics['signal_rms'] < 1600
+        assert metrics['not_acoustic_proof'] is True
         assert c.timers.stats['signal'] == 'unconfirmed'
         await c.timers.snapshot(snapshot())
         assert not c.device.sent
@@ -89,6 +94,84 @@ def test_real_local_encoder_produces_bounded_existing_opus_frames():
     c.timers.configure({'host_stream': {}})
     assert 6 <= len(c.timers.packets) <= 8
     assert all(0 < len(packet) <= 4096 for packet in c.timers.packets)
+
+
+def test_alarm_real_opus_roundtrip_retains_frequency_and_nonzero_level():
+    import numpy as np
+    from gobot_device_gateway import OpusInput, OpusOutput
+    encoder, decoder = OpusOutput(), OpusInput()
+    for packet in [*encoder.feed(alarm_pcm(), 24000), *encoder.finish()]:
+        decoder.feed(packet)
+    for frame in decoder.resampler.resample(None):
+        decoder.pcm.extend(frame.to_ndarray().astype('<i2', copy=False).tobytes())
+    samples = np.frombuffer(decoder.pcm, dtype='<i2').astype(float)
+    assert .35 <= len(samples)/16000 <= .43
+    assert 800 < np.sqrt(np.mean(samples*samples)) < 1800
+    frequencies = np.fft.rfftfreq(len(samples), 1/16000)
+    assert abs(frequencies[np.argmax(abs(np.fft.rfft(samples)))]-660) < 10
+    # Codec signal verification is explicitly not human audibility acceptance.
+
+
+def test_expired_timer_returns_face_without_deleting_snapshot_or_reopening_audio():
+    async def run():
+        c = ready(display=True)
+        current = snapshot(state='expired', deadline=99.)
+        await c.timers.snapshot(current)
+        old = events(c.device)[-1]
+        assert old['state'] == 'expired'
+        c.timers.clock = lambda: 107.
+        await c.timers.tick()
+        cleared = events(c.device)[-1]
+        assert cleared['state'] == 'clear' and cleared['revision'] > old['revision']
+        assert c.timers.snapshot_content[0]['state'] == 'expired'
+        await c.timers.display_receipt({**old, 'rendered': True,
+            'evidence':'native_framebuffer_invalidated'})
+        assert c.timers.stats['display_receipt'] is None
+        await c.timers.display_receipt({**cleared, 'rendered': False,
+            'evidence':'native_framebuffer_invalidated'})
+        assert c.timers.stats['display_receipt']['state'] == 'clear'
+        await c.timers.tick()
+        assert len(c.device.sent) == 2
+        resumed = ready(display=True)
+        resumed.timers.clock = lambda: 120.
+        await resumed.timers.snapshot(current)
+        assert events(resumed.device)[-1]['state'] == 'clear'
+        assert not c.forward and c.output is None and c.ring.cursor is None
+    asyncio.run(run())
+
+
+def test_running_timer_has_priority_and_expiry_tick_does_not_wait_for_new_revision():
+    async def run():
+        c = ready(display=True)
+        old = snapshot(state='expired', deadline=99.)['timers'][0]
+        live = snapshot(deadline=102.)['timers'][0]
+        await c.timers.snapshot({'revision':1, 'timers':[old, live]})
+        assert events(c.device)[-1]['timer_id'] == live['timer_id']
+        c.timers.clock = lambda: 103.
+        await c.timers.tick()
+        assert events(c.device)[-1]['state'] == 'expired'
+        assert events(c.device)[-1]['timer_id'] == live['timer_id']
+        c.timers.clock = lambda: 110.
+        await c.timers.tick()
+        assert events(c.device)[-1]['state'] == 'clear'
+    asyncio.run(run())
+
+
+def test_visual_delivery_gap_is_observable_and_failed_diagnostics_do_not_break_voice():
+    async def run():
+        c = ready(display=True)
+        frame = {'id':'frame-1','type':'image_card','images':[{'url':'private-url'}]}
+        await c.cloud_event({'type':'visual_response','data':{'presentation':frame}})
+        record = events(c.brain)[-1]
+        assert record['event'] == 'visual_delivery' and record['status'] == 'unsupported'
+        assert record['reason'] == 'device_visual_protocol_missing'
+        assert 'private-url' not in json.dumps(record)
+        assert not c.device.sent and c.output is None
+        async def broken(event):raise ConnectionError('offline')
+        c.to_brain = broken
+        await c.cloud_event({'type':'visual_response','data':{'presentation':frame}})
+        assert c.timers.stats['receipts_dropped'] == 1
+    asyncio.run(run())
 
 
 def test_snapshot_cancel_replay_reconnect_and_actual_framebuffer_receipt():

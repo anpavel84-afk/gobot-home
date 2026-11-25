@@ -17,6 +17,7 @@ MAX_TIMERS = 16
 MAX_SEEN_ALARMS = 256
 MAX_DURATION_MS = 86400000
 ALARM_FINISH_TIMEOUT = 4.
+EXPIRED_DISPLAY_SECONDS = 8.
 TERMINAL = {'finished', 'cancelled', 'suppressed', 'unknown'}
 
 
@@ -88,6 +89,12 @@ class SophiaTimerOutput:
         await self.connection.to_brain({'type': 'timer_capabilities',
             'display_supported': self.display_supported,
             'signal_supported': bool(self.packets)})
+        samples=[sample[0] for sample in struct.iter_unpack('<h',alarm_pcm())]
+        await self.notify({'type':'telemetry','event':'timer_signal_metrics',
+            'signal_samples':len(samples),'sample_rate':24000,'signal_hz':660,
+            'signal_peak':max(map(abs,samples)),
+            'signal_rms':round(math.sqrt(sum(x*x for x in samples)/len(samples)),2),
+            'encoded_packets':len(self.packets),'not_acoustic_proof':True})
 
     def owns(self, state=None):
         state = self.connection.output if state is None else state
@@ -181,21 +188,31 @@ class SophiaTimerOutput:
         if self.owns() and self.cancelled_by_snapshot(self.connection.output['timer']):
             self.connection.output['timer_cancel_reason'] = 'timer_cancelled'
             await self.connection.clear_output()
-        if not self.display_supported:
+        await self.render_snapshot()
+
+    async def render_snapshot(self):
+        """Presentation expires; durable timer history and alarm claims do not."""
+        if not self.display_supported or self.snapshot_content is None:
             return
+        clean, revision = self.snapshot_content, self.snapshot_revision
         now = self.clock()
         running = sorted((item for item in clean if item['state'] == 'running' and item['deadline'] > now),
                          key=lambda item: (item['deadline'], item['timer_id']))
-        expired = sorted((item for item in clean if item['state'] == 'expired' and item['deadline'] >= now-86400),
+        expired = sorted((item for item in clean if item['state'] in {'running','expired'}
+                          and now-EXPIRED_DISPLAY_SECONDS < item['deadline'] <= now),
                          key=lambda item: (-item['deadline'], item['timer_id']))
         selected = (running or expired or [None])[0]
         state = 'running' if running else 'expired' if expired else 'clear'
+        ident = selected['timer_id'] if selected else ''
+        pending = self.display_pending
+        if pending and (pending['snapshot_revision'],pending['timer_id'],pending['state']) == (revision,ident,state):
+            return  # Do not restart countdown or resend an unchanged scene.
         remaining_ms = min(MAX_DURATION_MS, max(0, math.ceil((selected['deadline']-now)*1000))) if running else 0
         if self.wire_revision >= 0xffffffff:
             raise ValueError('timer_display_revision_exhausted')
         self.wire_revision += 1
         self.display_pending = {'revision': self.wire_revision, 'snapshot_revision': revision,
-                                'timer_id': selected['timer_id'] if selected else '', 'state': state}
+                                'timer_id': ident, 'state': state}
         self.stats['display_receipt'] = None
         await self.connection.send({'type': 'gobot_host_timer',
             **{key: self.display_pending[key] for key in ('revision', 'timer_id', 'state')},
@@ -361,6 +378,7 @@ class SophiaTimerOutput:
             raise  # Existing run() transport cleanup must prove physical quiet.
 
     async def tick(self):
+        await self.render_snapshot()
         now = self.clock()
         expired = [record for record in self.pending if record['expires_at'] <= now]
         self.pending = [record for record in self.pending if record['expires_at'] > now]

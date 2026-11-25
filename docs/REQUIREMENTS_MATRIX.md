@@ -1,5 +1,15 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
+## Sophia timer completion and diagnostics — 2026-11-24 candidate
+
+| Requirement | Implementation / evidence | Remaining |
+|---|---|---|
+| No permanent zero after expiry | Gateway sends existing clear after eight seconds; running timers take precedence; durable rows retained | Runtime installation recorded in CURRENT_STATUS; physical screen acceptance separate |
+| Alarm delivery observable | Local PCM/Opus signal metrics and typed started/finished/cancelled/unknown receipts | Human audibility UNKNOWN: Owner was away |
+| Detailed test-mode journal | Existing DPAPI opt-in: timer arguments/results/snapshots/receipts, provider error shape, visual delivery, capture/playback/lifecycle | Seven-day/32 MiB bounds; dropped_events/error monitored, no raw audio |
+| Expert visual refinement | Current authorized uncancelled expert sentences feed existing two-stage worker | Full v421 image decoder/render ACK path absent |
+| Complete household UX | Existing 400 cards + 120 chains reviewed in [ten-scenario audit](audits/sophia-ten-scenario-product-audit-20261124.md) | Cold startup and native weather/image/atlas port remain open; no claim of 520 working integrations |
+
 ## Current pronunciation correction — 2026-11-15
 
 | Requirement | Evidence | Remaining |

@@ -314,6 +314,18 @@ class DirectTimers:
             return False
 
     async def command(self, obj):
+        try:
+            accepted = await self._command(obj)
+        except ValueError:
+            self.session.manager.journal.session_event(self.session,'B','timer_receipt',
+                {'receipt_type':obj.get('type'), 'accepted':False})
+            raise
+        self.session.manager.journal.session_event(self.session,'B','timer_receipt',
+            {**obj,'receipt_type':obj.get('type'),'render_evidence':obj.get('evidence'),
+             'accepted':accepted is True, 'not_acoustic_proof':True})
+        return accepted
+
+    async def _command(self, obj):
         if not self.connected():
             raise ValueError('timer_device_not_attached')
         kind = obj['type']

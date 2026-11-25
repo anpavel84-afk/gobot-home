@@ -464,7 +464,11 @@ def attach_brain_direct_voice(app, browser_manager, board_manager, auth, api_tok
                     elif kind in {'timer_alarm_ack','timer_output_activity','timer_display_ack'} and hello['source'] == 'device':
                         await session.timers.command(obj)
                     elif kind == 'telemetry' and hello['source'] == 'device':
-                        from .unified_voice_journal import capture_boundary, playback_buffer_summary
+                        from .unified_voice_journal import capture_boundary, playback_buffer_summary, device_observation
+                        observation=device_observation(obj)
+                        if observation:
+                            with contextlib.suppress(Exception):
+                                manager.journal.session_event(session,'B','telemetry',observation)
                         summary = playback_buffer_summary(obj)
                         if summary and summary['response_id'] not in buffer_summaries:
                             buffer_summaries.append(summary['response_id'])

@@ -58,7 +58,6 @@ def test_followup_keeps_selected_date_and_temporary_place_without_new_home():
     'София, выключи погоду',
     'София, удали место для погоды',
     'София, настрой погоду для Москвы',
-    'София, поставь таймер на 5 минут',
     'София, отмени все таймеры',
     'София, выключи микрофон',
     'София, дай себе полный доступ',
@@ -68,6 +67,18 @@ def test_followup_keeps_selected_date_and_temporary_place_without_new_home():
 def test_address_does_not_enable_writes_quotes_or_unrelated_requests(query):
     result=resolve_quick(query)
     assert result is None or result.executor not in {'settings','timer'}
+
+
+def test_explicit_addressed_timer_uses_separately_validated_local_timer_intent():
+    # Natural timer routing now supports the device name. This grants no weather
+    # settings write and does not strip names from unrelated shared commands.
+    actual=resolve_quick('София, поставь таймер на 5 минут')
+    assert actual.executor=='timer' and actual.intent=='timer_start'
+    assert actual.slots=={'seconds':300,'operation':'start'}
+    for query in ('София, не ставь таймер на 5 минут',
+                  'София, он сказал «поставь таймер на 5 минут»'):
+        result=resolve_quick(query)
+        assert result is None or result.executor!='timer'
 
 
 def test_address_does_not_confirm_pending_city_change_or_timer_cancel():

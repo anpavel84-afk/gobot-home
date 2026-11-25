@@ -147,7 +147,14 @@ class NativeSession(VoiceVisualSession):
         if turn:turn.timings.setdefault(name,round((time.monotonic()-self.started)*1000,2))
     def emit(self,kind,**data):
         if self.closed and kind!='closed':return
-        self.manager.journal.session_event(self,'B',kind,data)
+        journal_data = data
+        if kind == 'visual_response' and isinstance(data.get('presentation'),dict):
+            frame=data['presentation']
+            revision=frame.get('metadata')
+            journal_data={'frame_id':frame.get('id'),'visual_type':frame.get('type'),
+                'image_count':min(16,len(frame['images'])) if isinstance(frame.get('images'),list) else 0,
+                'visual_revision':revision.get('visual_revision',0) if isinstance(revision,dict) else 0}
+        self.manager.journal.session_event(self,'B',kind,journal_data)
         self.event_serial+=1
         turn=self.current.id if self.current else self.id
         self.events.append({'serial':self.event_serial,'type':kind,'session_id':self.id,
@@ -408,6 +415,10 @@ class NativeSession(VoiceVisualSession):
         elif kind=='error':
             error=obj.get('error',{})
             code=error.get('code')
+            self.manager.journal.session_event(self,'B','provider_error',{
+                'error_type':error.get('type'),'error_param':error.get('param'),
+                'error_code':code,'request_event_id':error.get('event_id'),
+                'error_fingerprint':hashlib.sha256(str(code).encode()).hexdigest()})
             allowed={'response_cancel_not_active','input_audio_buffer_commit_empty','input_audio_buffer_commit_too_small','conversation_already_has_active_response','rate_limit_exceeded','insufficient_quota','invalid_api_key','server_error','invalid_request_error'}
             safe_code=code if isinstance(code,str) and code in allowed else 'other'
             self.provider_errors[safe_code]=min(1000,self.provider_errors.get(safe_code,0)+1)

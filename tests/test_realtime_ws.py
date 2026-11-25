@@ -634,6 +634,38 @@ def test_partial_expert_context_updates_without_second_reply(tmp_path, settings)
     asyncio.run(run())
 
 
+def test_expert_visual_refinement_only_uses_current_authorized_uncancelled_job(tmp_path, settings):
+    async def run():
+        original, board, manager, provider = setup(tmp_path, settings)
+        try:
+            s = await manager.accept(offer())
+            seen=[]
+            diagnostics=s.lifecycle_status()['diagnostics']
+            assert diagnostics['raw_audio'] is False and 'dropped_events' in diagnostics
+            s.current=SimpleNamespace(id='current',cancelled=False,
+                photo=SimpleNamespace(observe_partial=seen.append))
+            s.ensure_visual=lambda turn: None
+            s.experts.authorized_owner=lambda job: job.id=='allowed'
+            job=SimpleNamespace(id='allowed',turn_id='current',speech_cancelled=False,
+                response_id='expert-1',speech_text='Синтетическое описание орла.')
+            event={'type':'expert_sentence','data':{}}
+            await s.expert_stream_event(job,event)
+            assert seen==[job.speech_text]
+            job.turn_id='old'
+            await s.expert_stream_event(job,event)
+            job.turn_id='current';job.speech_cancelled=True
+            await s.expert_stream_event(job,event)
+            job.speech_cancelled=False;job.id='other-profile'
+            await s.expert_stream_event(job,event)
+            job.id='allowed';s.current.cancelled=True
+            await s.expert_stream_event(job,event)
+            assert len(seen)==1
+            s.current=None
+        finally:
+            await cleanup(original, board, manager)
+    asyncio.run(run())
+
+
 def test_selected_expert_transcription_keeps_explicit_duration_and_usage(tmp_path, settings, monkeypatch):
     from gobot.expert_store import ExpertPolicy
     import gobot.expert_profiles as profiles

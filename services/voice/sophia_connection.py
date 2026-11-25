@@ -944,6 +944,20 @@ class SophiaConnection:
         if self.transport_ending:
             return
         kind, data = event.get('type'), event.get('data', {})
+        if kind == 'visual_response':
+            frame=data.get('presentation',{})
+            if isinstance(frame,dict):
+                # v421 has no negotiated asset decoder/render ACK. Preserve the
+                # face, expose this missing hop; never fake a presented receipt.
+                self.stats['visual_delivery']={'status':'unsupported',
+                    'reason':'device_visual_protocol_missing'}
+                images=frame.get('images')
+                await self.timers.notify({'type':'telemetry','event':'visual_delivery',
+                    'frame_id':frame.get('id'),'visual_type':frame.get('type'),
+                    'image_count':min(16,len(images)) if isinstance(images,list) else 0,
+                    'status':'unsupported','reason':'device_visual_protocol_missing',
+                    'not_acoustic_proof':True})
+            return
         if kind == 'timer_snapshot':
             await self.timers.snapshot(data)
             return

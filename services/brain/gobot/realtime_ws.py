@@ -2334,6 +2334,13 @@ class DirectSession(NativeSession):
 
     async def expert_stream_event(self, job, event):
         kind, data = event.get('type'), event.get('data', {})
+        turn=self.current
+        if (kind=='expert_sentence' and turn and turn.id==job.turn_id and not turn.cancelled
+                and not job.speech_cancelled and self.experts.authorized_owner(job)):
+            # Reuse the existing bounded two-stage worker. Expert text does not
+            # become native turn.answer or confer any new image permission.
+            self.ensure_visual(turn)
+            if turn.photo:turn.photo.observe_partial(job.speech_text)
         response_id = event.get('response_id') or data.get('response_id') or job.response_id
         self._expert_responses[response_id] = job.id
         if kind == 'audio_chunk':
@@ -2714,6 +2721,7 @@ class DirectSession(NativeSession):
                 'home_context': self.home_context_status(),
                 'conversation_settings': self.capabilities.status(),
                 'timers': self.timers.status(),
+                'diagnostics': self.manager.journal.status(self.owner_test_binding),
                 'working_memory': self.memory_flow.status(),
                 'native_archive': self.memory_flow.archive_status(),
                 'empty_restore_eligible': bool(self.closed and (self._empty_setup_failed or self._empty_detached_expired))}
