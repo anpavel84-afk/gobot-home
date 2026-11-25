@@ -1,0 +1,90 @@
+{
+  "runtime_code_commit": "bd3a9cdbd5af1013e57f0545548d41de52a845c1",
+  "prior_runtime": "4a44ff6b2f2bec710ef25fcfe14192beff15a516",
+  "installed": true,
+  "firmware_changed": false,
+  "model_requests": 0,
+  "policy_writes": 0,
+  "physical_ready": true,
+  "backups_verified": true,
+  "wip_preserved": true,
+  "policies_profiles_ledgers_preserved": true,
+  "timer_archive_rows_preserved": true,
+  "archive_counts": {
+    "turns": 12,
+    "messages": 23,
+    "topics": 1,
+    "blocks": 1,
+    "backlog": 0
+  },
+  "selected_expert": {
+    "profile": "ARGON_DEEP",
+    "provider": "antigravity",
+    "model": "gemini-4-argon-medium",
+    "effort": "medium",
+    "requested_label": "Argon Deep"
+  },
+  "checked_at_utc": "2026-11-25T02:13:09.913270+00:00",
+  "firmware": "0.4.21-dev-sophia-timer-v4",
+  "backup_database_count": 25,
+  "evidence_scope": "No household text/audio, IDs or credentials",
+  "tests": {
+    "windows_gate": {
+      "passed": 1925,
+      "skipped": 2,
+      "files": 83,
+      "seconds": 452.03
+    },
+    "final_affected": {
+      "passed": 87
+    },
+    "gateway_isolation": {
+      "passed": 127
+    },
+    "focused_weather_timer_journal": {
+      "passed": 68
+    },
+    "node_admin_dom": {
+      "passed": 3
+    },
+    "overlap_not_summable": true
+  },
+  "timer_clear": {
+    "receipt_accepted": true,
+    "state": "clear",
+    "rendered": false,
+    "evidence": "native_framebuffer_invalidated"
+  },
+  "signal": {
+    "samples": 8640,
+    "sample_rate": 24000,
+    "hz": 660,
+    "peak": 2200,
+    "rms": 1435.24,
+    "opus_packets": 7,
+    "codec_roundtrip_pass": true,
+    "human_audibility": "unknown_owner_away",
+    "new_physical_alarm_attempts": 0
+  },
+  "diagnostics": {
+    "enabled": true,
+    "retention_days": 7,
+    "payload_limit_bytes": 33554432,
+    "encrypted": "Windows DPAPI",
+    "queued": 0,
+    "dropped_events": 0,
+    "error": null,
+    "raw_audio": false,
+    "final_transcripts_only": true
+  },
+  "admin": {
+    "loopback_http_status": 200,
+    "private_https_status": 200
+  },
+  "remaining": [
+    "v421 cold-connect firmware defect",
+    "native image/weather asset renderer missing",
+    "human audibility not accepted",
+    "physical screen confirmation separate from receipt"
+  ]
+}

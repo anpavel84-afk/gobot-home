@@ -1,10 +1,10 @@
 # Матрица фактического состояния — v0.3 DRAFT, Realtime/Family дополнения
 
-## Sophia timer completion and diagnostics — 2026-11-24 candidate
+## Sophia timer completion and diagnostics — installed bd3a9cd, 2026-11-24
 
 | Requirement | Implementation / evidence | Remaining |
 |---|---|---|
-| No permanent zero after expiry | Gateway sends existing clear after eight seconds; running timers take precedence; durable rows retained | Runtime installation recorded in CURRENT_STATUS; physical screen acceptance separate |
+| No permanent zero after expiry | Gateway sends existing clear after eight seconds; running timers take precedence; durable rows retained; installed board accepted clear ACK | Human screen acceptance separate from native framebuffer receipt |
 | Alarm delivery observable | Local PCM/Opus signal metrics and typed started/finished/cancelled/unknown receipts | Human audibility UNKNOWN: Owner was away |
 | Detailed test-mode journal | Existing DPAPI opt-in: timer arguments/results/snapshots/receipts, provider error shape, visual delivery, capture/playback/lifecycle | Seven-day/32 MiB bounds; dropped_events/error monitored, no raw audio |
 | Expert visual refinement | Current authorized uncancelled expert sentences feed existing two-stage worker | Full v421 image decoder/render ACK path absent |

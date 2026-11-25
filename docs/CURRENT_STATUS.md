@@ -1,5 +1,39 @@
 # GoBot Home — единый паспорт фактического состояния
 
+## Установлено: timer completion + журнал, 24 ноября 23:12 BRT
+
+Фактический серверный runtime Brain/Gateway:
+**`bd3a9cdbd5af1013e57f0545548d41de52a845c1`**. Прошивка прежняя
+**0.4.21-dev-sophia-timer-v4**, flash/NVS не менялись. Колонка восстановила
+ready/attached/capture; активного разговора при установке не было.
+
+Старая сцена expired получила настоящий **accepted clear ACK** от платы:
+rendered=false, native_framebuffer_invalidated. Это подтверждение удаления
+timer overlay, не человеческая фотография LCD. История таймера сохранена;
+повторный сигнал не запускался. Будущие завершённые таймеры показывают ноль
+не более восьми секунд от deadline, затем возвращают лицо/следующий таймер.
+
+Новый журнал реально записал timer_signal_metrics и timer_receipt: 8640 samples,
+24 kHz, 660 Hz, peak 2200, RMS 1435.24, семь Opus пакетов. Diagnostics:
+enabled=true, очередь 0, dropped_events=0, error=null, DPAPI, семь дней,
+32 MiB, итоговые транскрипты разрешённой колонки; raw_audio=false.
+Человеческая слышимость сигнала остаётся **неизвестной**.
+
+До установки выполнены idle/ownership checks и **25 WAL-aware DB backups**;
+политики, профили, финансовые журналы, timer/archive rows и чужой WIP сохранены.
+Архив: 12 turns, 23 messages, backlog 0. Админка loopback и private HTTPS
+возвращает 200. Платных developer-вызовов, изменений grants и прошивки нет.
+
+Откат подготовлен приватно в
+`HOST-INTEGRATOR-private/OBSERVABILITY-ROLLBACK-20261124.txt`: восстановить только
+семь серверных файлов из d91d934 отдельным коммитом, затем pinned idle/backup
+installer `observability_rollback_install_20261124.py` на этот новый SHA.
+Живые БД и ledger не восстанавливаются из старого снимка. Откат не выполнялся.
+
+[Доказательства без содержимого разговоров](evidence/sophia-timer-diagnostics-20261124.json).
+Открытые аппаратные дефекты и визуальный gap перечислены в аудите ниже;
+готовность всего продукта не заявляется по этому серверному обновлению.
+
 ## HOST-INTEGRATOR — завершение таймера и подробная диагностика, кандидат 24 ноября
 
 Owner уточнил: при истечении таймера находился не рядом. Поэтому слышимость
