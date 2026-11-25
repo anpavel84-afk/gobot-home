@@ -124,6 +124,28 @@ def is_timer_duration_reply(text):
     return _bare_seconds(_duration_reply(text),colon_allowed=True) is not None
 
 
+def semantic_timer_seconds(text):
+    """Duration selection for an already selected native action, not intent.
+
+    A semantic tool need not use the quick router's exact command noun. Resolve
+    one complete trailing duration independently of that noun. Quotes,
+    alternatives, preceding numbers and additional actions remain ineligible;
+    the executor still owns current-user authority and pending-reply checks.
+    """
+    whole=timer_seconds(text,pending=True)
+    if whole is not None:return whole
+    clean=_clean(text)
+    tail=re.fullmatch(r'(.+?)\bна\s+(.+)',clean)
+    if (tail and not any(c in clean for c in '«»“”"')
+            and not re.search(r'\b(?:не|нельзя|или|либо)\b',clean)
+            and not re.search(r'\b(?:'+_NUMBER+r'|полчаса|полминуты|четверть)\b',tail[1])
+            and not _PART.search(tail[1])):
+        head=re.sub(r'^'+_PREFIX+_POLITE,'',tail[1])
+        if re.match(r'^(?:'+_VERBS+r'|начни(?:те)?|засеки(?:те)?|отсчитай(?:те)?)[,\s]+',head):
+            return _bare_seconds(tail[2],colon_allowed=True)
+    return None
+
+
 def source_timer_seconds(text,source):
     """Resolve an equivalent complete duration from an actual user utterance.
 
@@ -134,7 +156,7 @@ def source_timer_seconds(text,source):
     if (not isinstance(text,str) or not isinstance(source,str) or not 1<=len(source)<=120 or
             source!=source.strip()):
         raise ValueError('timer_duration_source_mismatch')
-    whole=timer_seconds(text,pending=True)
+    whole=semantic_timer_seconds(text)
     if whole is not None:
         # Equivalence is safe only when the complete original request/reply
         # contains one unambiguous duration. Conflicting values still fail.

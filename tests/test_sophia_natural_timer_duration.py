@@ -47,6 +47,42 @@ def test_equivalent_arguments(utterance,argument,seconds):
     assert source_timer_seconds(utterance,argument)==seconds
 
 
+@pytest.mark.parametrize('utterance,argument,seconds',[
+    ('Включи кухонный отсчёт на минутку.','60 секунд',60),
+    ('Запусти обратный отсчёт на полторы минуты.','90 секунд',90),
+    ('Начни отсчёт на минуту и тридцать секунд.','1,5 минуты',90),
+])
+def test_semantic_command_duration_equivalence_does_not_require_router_noun(utterance,argument,seconds):
+    assert timer_seconds(utterance) is None  # Native tool, not quick intent.
+    assert source_timer_seconds(utterance,argument)==seconds
+    tools,starts=_executor()
+    req=SimpleNamespace(text=utterance,turn_id='semantic')
+    assert tools.execute_timer_action(req,'start',argument,action_id='native-timer:semantic',is_current=lambda:True)==seconds
+    assert starts==[(seconds,'native-timer:semantic')]
+    tools,starts=_executor()
+    assert tools.execute_timer_action(req,'start',None,action_id='native-timer:semantic',is_current=lambda:True)==seconds
+    assert starts==[(seconds,'native-timer:semantic')]
+
+
+@pytest.mark.parametrize('utterance,argument',[
+    ('Начни отсчёт на минутку.','120 секунд'),
+    ('Начни отсчёт на минуту и тридцать секунд.','30 секунд'),
+    ('Начни отсчёт на минутку или две.','60 секунд'),
+    ('Начни отсчёт на минутку, затем выключи свет.','60 секунд'),
+    ('Не включай отсчёт на минутку.','60 секунд'),
+    ('Он сказал «включи отсчёт на минутку».','60 секунд'),
+    ('Через пять минут включи отсчёт на минутку.','60 секунд'),
+    ('Начни отсчёт до 12:30.','750 секунд'),
+    ('Мы выйдем на минутку.','60 секунд'),
+    ('Он включил отсчёт на минутку.','60 секунд'),
+    ('Если включить отсчёт на минутку.','60 секунд'),
+    ('Как включить кухонный отсчёт на минутку?','60 секунд'),
+])
+def test_semantic_command_never_omits_conflicts_quotes_or_other_actions(utterance,argument):
+    with pytest.raises(ValueError,match='timer_duration_source_mismatch'):
+        source_timer_seconds(utterance,argument)
+
+
 @pytest.mark.parametrize("utterance,argument",[
     ("Поставь таймер на пять минут","10 минут"),
     ("Поставь таймер на двадцать пять минут","пять минут"),

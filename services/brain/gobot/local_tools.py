@@ -270,7 +270,7 @@ class LocalTools:
             return self.execute('timer_status',req,action_id=action_id,is_current=is_current)
         if operation=='start':
             if target!='only' or ordinal is not None:raise ValueError('invalid_timer_action')
-            from .timer_duration import source_timer_seconds,is_timer_duration_reply,timer_seconds
+            from .timer_duration import source_timer_seconds,is_timer_duration_reply,semantic_timer_seconds
             if is_timer_duration_reply(req.text):
                 pending=self.memory.context(req).get('pending_action')
                 if not pending or pending.get('kind')!='timer_duration' or pending.get('expires',0)<=time.time():
@@ -278,7 +278,7 @@ class LocalTools:
             if duration_text is None:
                 # The current transcript can already contain a complete duration
                 # even when the model forgot its optional argument.
-                seconds=timer_seconds(req.text,pending=True)
+                seconds=semantic_timer_seconds(req.text)
                 if seconds is None:
                     self.native_timer_pending(req,action_id,is_current)
                     return ToolResult('На сколько минут или секунд поставить таймер?',

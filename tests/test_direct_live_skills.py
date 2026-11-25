@@ -129,6 +129,43 @@ def test_timer_works_inside_conversation_with_literal_duration_and_no_expert(tmp
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('argument',[None,'60 секунд'])
+def test_semantic_duration_normalization_creates_one_real_timer_and_replays(tmp_path,settings,argument):
+    async def run():
+        original,board,manager,provider=configured(tmp_path,settings)
+        try:
+            s=await start(manager)
+            _,response=await question(s,'Включи кухонный отсчёт на минутку.')
+            args={'operation':'start'}
+            if argument is not None:args['duration_text']=argument
+            await timer_call(s,response,args,'semantic-first')
+            await timer_call(s,response,args,'semantic-repeat')
+            results=outputs(provider)
+            assert len(results)==2 and timer_count(s)==1
+            assert all(r['executed'] and r['evidence']['duration_seconds']==60 for r in results)
+            assert results[0]['evidence']['replayed'] is False
+            assert results[1]['evidence']['replayed'] is True
+            assert not s.experts.jobs
+        finally:await cleanup(original,board,manager)
+    asyncio.run(run())
+
+
+def test_wrong_model_duration_has_honest_retry_text_and_no_timer(tmp_path,settings):
+    async def run():
+        original,board,manager,provider=configured(tmp_path,settings)
+        try:
+            s=await start(manager)
+            _,response=await question(s,'Включи кухонный отсчёт на минутку.')
+            await timer_call(s,response,{'operation':'start','duration_text':'120 секунд'})
+            result,=outputs(provider)
+            assert result['executed'] is False
+            assert result['error']=='timer_duration_source_mismatch'
+            assert result['text']=='Таймер не установлен: я неточно расслышал просьбу. Повторите её, пожалуйста.'
+            assert timer_count(s)==0
+        finally:await cleanup(original,board,manager)
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('action',['stop','mute','new_turn','disable'])
 def test_timer_sql_authority_lost_while_worker_waits_cannot_commit(tmp_path, settings, monkeypatch, action):
     async def run():

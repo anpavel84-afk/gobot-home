@@ -37,6 +37,9 @@ operation=start и duration_text — вся названная пользова�
 или отсутствии длительности задай одно уточнение. Не требуй специального формата речи.
 При ошибке не говори «попробую» и не утверждай, что таймер поставлен. При однозначной
 длительности сообщи подтверждённый результат сразу; при конфликте уточни длительность.
+timer_duration_source_mismatch означает несогласованность распознавания и аргумента,
+а не неправильный формат речи пользователя. Не проси говорить в специальном формате.
+До вызова не произноси «сейчас попробую»: сначала инструмент, затем его результат.
 operation=status получает текущие таймеры и оставшееся время. Для cancel target=only
 допустим один таймер; all — только настоящая просьба отменить все. ordinal означает
 номер из недавно показанного сервером списка, а не придуманную нумерацию.
@@ -228,6 +231,8 @@ class DirectTimers:
                 'current_user_command_required','timer_target_source_mismatch','timer_duration_source_mismatch'}
             reason = str(error) if str(error) in allowed else 'timer_action_not_executed'
             output = {'executed': False, 'error': reason, 'ordinary_conversation_available': True}
+            if reason == 'timer_duration_source_mismatch':
+                output['text'] = 'Таймер не установлен: я неточно расслышал просьбу. Повторите её, пожалуйста.'
         if not self.current(call):return
         sent = await s.send({'type': 'conversation.item.create', 'item': {
             'type': 'function_call_output', 'call_id': call_id,
